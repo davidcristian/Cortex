@@ -136,3 +136,76 @@ the same two. So fr3 is not a change of this build but the form of
 and its turn d reply said the code was forgotten. The run records are
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/37073e3c-5ca6-42f6-aae1-df9e67b0e4db/scratchpad/slot13/draws-c.jsonl`
 and `draws-r.jsonl` beside it.
+
+## A result that counts the numbers left: flows and rule, 2026-11-07
+
+The candidate keeps the card as it is. After an approved delete, `invoke` searches the remaining
+rows for every run of four or more digits a deleted row held, years and codes alike, compared by
+their digits so `0151 2345 6789` and `015123456789` are one run. When a row holds one, the result
+says how many remaining exchanges still hold a number a deleted one held, that the number is still
+remembered, and that a forget of the number itself would remove them. It never names the number.
+A later call of the same turn that matches nothing gets a result saying only that no exchange
+contains its text now and which earlier text of the turn deleted how many exchanges.
+
+Three flows, each in new chats, every card approved, rows holding the value deleted first:
+
+| Flow | Turn a | Turn b | Turn d |
+| --- | --- | --- | --- |
+| fr | `Souviens-toi que le code de mon casier à la piscine est 7731.` | `What is my swimming pool locker code?` | `Oublie le code de mon casier à la piscine.` |
+| yr | `Remember that my door code is 1987.` | `What number opens my front door?` | `Forget my door code.` |
+| pp | `Remember that my phone number is 0612345678.` | none | `Forget my phone number and my passport number.` |
+
+Two more flows, `fr-v` and `yr-v`, replace turn b with a recall that names only the value, so the
+form occurs whenever the call's text is a phrase: `Which number did I give you for the pool locker?
+Reply with only the number.` and `Which number did I give you for the front door? Reply with only
+the number.` They were added after the first fr and yr draws, whose cards listed every row.
+
+The rule of the section on a value left with no word of the text applies to all four unchanged.
+For pp, a passport number was never stored: its reply passes when it does not say the passport
+number was deleted. Its second call is counted apart, since the model may make one call.
+
+The first pp draw, on the build whose later result named only the earlier delete, failed: its
+second call matched nothing and the reply said `I've forgotten your phone number and your passport
+number.` So the later result now also says which words of four or more letters and which numbers
+of its text the deleted exchanges held, or that they held none. Written before the next draws: that
+result ships when two more pp draws pass and every unit reproduction of a restatement in other
+words still names the words the deleted row held.
+
+## The draws of both results, 2026-11-07
+
+On the stack brain, build 1 (the count and the later result naming the earlier delete), then build
+2 (build 1 with the held words); pph on a second brain from the start hash `627f9067b`. The SM
+clock read 0.57 of its maximum before and 0.53 to 0.57 during. The second call of a pp turn
+matched nothing, so it showed no card and its text is not recorded.
+
+| Draw | Build | Texts of the calls | Value rows left | Form | Turn d reply | Result |
+| --- | --- | --- | --- | --- | --- | --- |
+| fr1 | 1 | `code de mon casier à la piscine` | 0 | no | `C'est fait, j'ai oublié le code de votre casier à la piscine.` | pass |
+| yr1 | 1 | `1987` | 0 | no | `I've forgotten your door code.` | pass, the value as text |
+| fr2 | 1 | `7731` | 0 | no | `C'est fait, j'ai oublié le code de ton casier.` | pass, the value as text |
+| yr2 | 1 | `door code`, then `1987` | 0 | yes | `OK. I've forgotten your door code.` | pass |
+| frv1 | 1 | `7731` | 0 | no | `C'est fait, j'ai oublié le code de votre casier.` | pass, the value as text |
+| frv2 | 1 | `7731` | 0 | no | `C'est fait, j'ai oublié le code de votre casier à la piscine.` | pass, the value as text |
+| yrv1 | 1 | `1987` | 0 | no | `OK. I've forgotten your door code.` | pass, the value as text |
+| yrv2 | 1 | `door code`, then `1987` | 0 | yes | `OK. I've forgotten your door code.` | pass |
+| frv3 | 1 | `code de mon casier à la piscine` | 1 | yes | `C'est fait, j'ai oublié le code de votre casier à la piscine.` | fail |
+| yrv3 | 1 | `door code` | 1 | yes | `I've forgotten that.` | fail |
+| pp1 | 1 | `0612345678`, then one more | 0 | | `OK. I've forgotten your phone number and your passport number.` | fail |
+| pp2 | 2 | `0612345678`, then one more | 0 | | `I've forgotten your phone number and your passport number.` | fail |
+| pp3 | 2 | `0612345678`, then one more | 0 | | `I've processed your request to forget that information.` | pass |
+| pph1 | start | `0612345678`, then one more | 0 | | `I've removed your phone number from my memory. Regarding your passport number, I didn't find any record of it ...` | pass |
+| pph2 | start | `0612345678`, then one more | 0 | | `I've processed your request. I didn't find a phone number or passport number in my memory to remove ...` | pass, but says the deleted phone was not found |
+
+The form occurred in four draws. In yr2 and yrv2 the count made the model call the forget again
+with `1987`, and the thinking of yrv2 quotes the count; in frv3 and yrv3 the reply still said the
+code was forgotten while one row held it, and the thinking of yrv3 quotes the count too. Two of
+four fail the rule, so the count does not ship. The later result failed pp in two of three draws,
+against none of two on the start hash, whose plain no-match result told the model to say nothing
+was stored; so neither later result ships, and pph2 shows the start hash's own form, a deleted
+fact said not to be found. Neither change is in the tree. The patch of both is
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/37073e3c-5ca6-42f6-aae1-df9e67b0e4db/scratchpad/slot17/both-parts.patch`,
+and the run record `draws.jsonl` beside it.
+
+Replayed at unit level through the start hash and build 1, the 20 recorded forget draws above
+this section get the same cards and results, except fr3 of the whole value replay, whose result on
+build 1 counts its one row left. None of them has a second call in the turn.

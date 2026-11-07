@@ -33,7 +33,15 @@ paraphrase.
 2. Read a text as the same fact when every word of four or more letters in it is a word of a
    deleted row, and write the near misses first: a text about another stored fact must still get
    `_NONE_FOUND`.
+3. A result that only states facts does not serve: one naming the earlier delete, and one also
+   naming which words of the later text the deleted rows held, made the reply say a fact never
+   stored was deleted. The next candidate keeps the start hash's results and appends a note when
+   the reply says a fact deleted in the same turn was not found, the start hash's own failure.
 
 ## History
 
 - 2026-11-07: filed by the second audit of the night; reproduced at unit level, no turn sent.
+- 2026-11-07: the recorded forget draws hold no second call in a turn. Both factual results were
+  drawn on a flow whose second fact was never stored: two of three replies said it was deleted,
+  against none of two on the start hash, where one reply said the deleted phone was not found
+  ([readings](../../readings/forget-value-repeats.md#the-draws-of-both-results-2026-11-07)). Neither ships.

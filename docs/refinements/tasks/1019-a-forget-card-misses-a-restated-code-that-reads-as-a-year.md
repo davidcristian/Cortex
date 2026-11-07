@@ -32,3 +32,6 @@ Reproduction, unit level (`SCRATCH/slot16/probe.py` beside the token reader of t
 ## History
 
 - 2026-11-07: filed by the second audit of the night; reproduced at unit level, no turn sent.
+- 2026-11-07: the card's listing stays as it is. The count of task 1003 reached both rows of the
+  reproduction at unit level, since it compares every run of four or more digits, years alike,
+  and it does not ship yet ([readings](../../readings/forget-value-repeats.md#the-draws-of-both-results-2026-11-07)), so this task follows task 1003.

@@ -16,12 +16,13 @@ the card was shown is missed the same way.
 
 ## What to do
 
-1. After the delete, search the remaining rows for each value of the deleted rows, and when one
-   is found say in the result how many rows still hold a value of the forgotten ones, without the
-   value. That changes the text the model reads, so write rows and a pass rule into the readings
-   first, with a flow whose recall reply names only the value.
-2. If the reply still says the fact is forgotten, compare that with a note the brain appends after
-   a typed check of the reply, as `forget_claim.py` does for a forget that deleted nothing.
+1. Build the note the brain appends after a typed check of the reply, as `forget_claim.py` does
+   for a forget that deleted nothing: when the last forget result of the turn counted remaining
+   rows that hold a number of the deleted rows and `claims_forgotten` reads the reply, append that
+   a remembered exchange still holds the number. The count is in the patch the
+   [readings](../../readings/forget-value-repeats.md#the-draws-of-both-results-2026-11-07) name.
+2. Draw the `fr-v` and `yr-v` flows of the readings with the note until four draws show the form,
+   under the rule there.
 
 ## History
 
@@ -32,3 +33,6 @@ the card was shown is missed the same way.
 - 2026-11-07: the form occurred in a French replay draw whose text `casier à la piscine` shares
   no word with an English recall row; its reply said the code was forgotten while the row stayed
   ([readings](../../readings/forget-value-repeats.md#the-whole-value-reader-replayed-2026-11-07)).
+- 2026-11-07: a result counting the remaining rows that hold a number of the deleted rows was
+  built and drawn: two of four draws showing the form still said the code was forgotten, so it
+  does not ship ([readings](../../readings/forget-value-repeats.md#the-draws-of-both-results-2026-11-07)).
