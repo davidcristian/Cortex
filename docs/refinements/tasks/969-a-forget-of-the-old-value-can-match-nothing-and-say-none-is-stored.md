@@ -64,8 +64,6 @@ row holds; each reply said it could not find the old number. Over 60 draws of M0
   earlier delete ships; step 2 is the one left.
 - 2026-11-07: step 2's rows and rule are written, undrawn: two rows of the form, one of a value
   never stored that follows "now", and no shipped build drawn.
-- 2026-11-07: one of the night's draws claimed the delete before its card was answered; filed as
-  [R-996](996-a-round-s-text-can-claim-a-forget-before-its-card-is-answered.md).
 - 2026-11-07: the premise still holds in the code. Step 2's candidate was built with 27 tests,
   fourteen mutation rows over them all failed, and the rows were drawn through the proxy: none of
   60 N01 and N02 draws counted (every first call named the old number, which recall showed),

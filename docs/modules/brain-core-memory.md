@@ -158,7 +158,9 @@ pool down to the hits one turn sees. The turn that calls it is in
   negated ("Nothing was removed") and a removal that names no memory ("I've removed the reminder")
   do not count. `limit_notes` reads `forget_unmatched` from the ledger and appends
   `UNFORGOTTEN_CLAIM_NOTE`, telling the person nothing was forgotten and to ask again in a
-  message of its own. It also appends the note when `TaintLedger.forget_refused` says a call was
+  message of its own. The reply is every round's text and a denied card's run is not `ok`, so a
+  claim a round streams before a card the person denies ends with the note too
+  ([readings](../readings/forget-after-delete-provoked.md#a-claim-before-a-denied-card-the-draws-2026-11-07)). It also appends the note when `TaintLedger.forget_refused` says a call was
   refused as unasked and either `claims_kept` does not read the reply or `names_removal` does, which
   reads a statement naming a removal in any words with no negation in its clause. The handoff record keeps `forget_refused`, `forget_calls` and `forget_unmatched`, so a cortex
   forget that matched nothing before a handoff still counts as one in the deep phase.

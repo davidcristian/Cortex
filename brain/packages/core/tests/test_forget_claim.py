@@ -166,7 +166,9 @@ def _forget(text: str) -> ToolCall:
     return ToolCall(id="f1", name=FORGET_CHOSEN_TOOL_NAME, arguments={"text": text})
 
 
-async def _caps(*, held: bool) -> tuple[TurnCapabilities, InMemoryMemoryStore]:
+async def _caps(
+    *, held: bool, approve: bool = True
+) -> tuple[TurnCapabilities, InMemoryMemoryStore]:
     store = InMemoryMemoryStore()
     if held:
         embedding = tuple(await HashEmbedder().embed(_HELD))
@@ -176,7 +178,7 @@ async def _caps(*, held: bool) -> tuple[TurnCapabilities, InMemoryMemoryStore]:
         CompositeToolRegistry([forget]),
         RecordingAuditSink(),
         _Clock(),
-        confirmer=RecordingConfirmer(answer=True),
+        confirmer=RecordingConfirmer(answer=approve),
         policy=DispatchPolicy(
             record_cards={FORGET_CHOSEN_TOOL_NAME: forget}, notes={FORGET_CHOSEN_TOOL_NAME: forget}
         ),
@@ -185,8 +187,10 @@ async def _caps(*, held: bool) -> tuple[TurnCapabilities, InMemoryMemoryStore]:
     return TurnCapabilities(memory=memory, tools=dispatcher), store
 
 
-async def _turn(steps: Sequence[Sequence[InferenceEvent]], *, held: bool) -> tuple[str, int]:
-    caps, store = await _caps(held=held)
+async def _turn(
+    steps: Sequence[Sequence[InferenceEvent]], *, held: bool, approve: bool = True
+) -> tuple[str, int]:
+    caps, store = await _caps(held=held, approve=approve)
     sessions = InMemorySessionStore()
     engine = TurnEngine(sessions, _Steps(steps), _Clock(), capabilities=caps)
     events = [e async for e in engine.handle_turn("s", _QUERY, turn_id="t-1")]
@@ -210,6 +214,20 @@ async def test_a_removal_claim_ends_with_the_note_unless_a_forget_call_deleted_a
     *, steps: Sequence[Sequence[InferenceEvent]], held: bool, shown: str, left: int
 ) -> None:
     assert await _turn(steps, held=held) == (shown, left)
+
+
+@pytest.mark.parametrize(
+    ("approve", "note", "left"),
+    [(False, UNFORGOTTEN_CLAIM_NOTE, 1), (True, "", 0)],
+    ids=["denied", "approved"],
+)
+async def test_a_claim_streamed_before_its_card_ends_with_the_note_when_the_card_is_denied(
+    *, approve: bool, note: str, left: int
+) -> None:
+    claim = "I've updated your locker code and removed the old one from my memory."
+    after = " Boil the pasta for ten minutes."
+    steps = [[TextChunk(claim), _forget("7319")], [TextChunk(after)]]
+    assert await _turn(steps, held=True, approve=approve) == (claim + after + note, left)
 
 
 async def test_the_note_comes_after_the_unkept_note() -> None:
