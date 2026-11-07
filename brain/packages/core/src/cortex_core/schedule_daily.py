@@ -12,28 +12,49 @@ DAILY_STORED_NOTE = (
 )
 
 _STORED_ID = re.compile(r"\bscheduled \w+ (\S+): due ")
-_NOT_REPEATED = re.compile(
-    r"(?:\bnot|\bnever|n['\u2019]t)\s+(?:be\s+)?repeat\w*|\bwiederholt\s+sich\s+nicht\b"
-    r"|\bnicht\s+wiederholt\b|\bne\s+se\s+répète\s+pas\b|\bno\s+se\s+repite\b"
-    r"|\bnu\s+se\s+repetă\b",
-    re.IGNORECASE,
-)
 _REPEATS = re.compile(
     r"\b(?:every|each)\s+(?:single\s+)?(?:day|morning|afternoon|evening|night)\b|\bdaily\b"
-    r"|\brepeat(?:s|ing)?\b|\brecurring\b"
+    r"|\brepeat(?:s|ing)\b|\brecurring\b"
     r"|\bjeden\s+(?:Tag|Morgen|Nachmittag|Abend)\b|\btäglich\w*|\bwiederholt\b|\bwiederkehrend\w*"
     r"|\btous\s+les\s+(?:jours|matins|après-midi|soirs)\b|\bchaque\s+(?:jour|matin|soir)\b"
     r"|\bquotidien\w*|\bse\s+répète\b|\brécurrent\w*"
-    r"|\btodos\s+los\s+días\b|\btodas\s+las\s+(?:mañanas|tardes|noches)\b|\bcada\s+día\b"
-    r"|\bdiari(?:o|a|amente)\b|\bse\s+repite\b"
-    r"|\bîn\s+fiecare\s+(?:zi|dimineață|seară)\b|\bzilnic\w*|\bse\s+repetă\b",
+    r"|\btodos\s+los\s+días\b|\btodas\s+las\s+(?:mañanas|tardes|noches)\b"
+    r"|\bcada\s+(?:día|mañana|tarde|noche)\b|\bdiari(?:o|a|amente)\b|\bse\s+repite\b"
+    r"|\bîn\s+fiecare\s+(?:zi|dimineață|seară)\b|\bzi\s+de\s+zi\b|\bzilnic\w*|\bse\s+repetă\b",
     re.IGNORECASE,
 )
+# A condition or an offer anywhere in a sentence makes its repeat a choice rather than the fact.
+_CHOICE = re.compile(
+    r"\b(?:if|unless|whether|can|could|would|should|shall|may|might|want\w*|wish\w*|like"
+    r"|prefer\w*|rather|instead|si|s['\u2019]il|peux|peut|pouvez|pourr\w*|veux|veut|voulez"
+    r"|voudr\w*|souhait\w*|aimer\w*|préfér\w*|plutôt|wenn|falls|ob|kann|kannst|können|könnt\w*"
+    r"|soll\w*|willst|wollen|wollt\w*|möcht\w*|wünsch\w*|lieber|statt|anstatt|puedo|puede"
+    r"|puedes|podr\w*|quier\w*|dese\w*|gustar\w*|dacă|daca|pot|poți|poate|puteți|putea|vrei"
+    r"|vreți|vrea|dorești|doriți|dori)\b",
+    re.IGNORECASE,
+)
+_NEGATION = re.compile(
+    r"\b(?:not|never|no|ne|pas|jamais|nicht|nie|kein\w*|nunca|jamás|nu|nici\w*)\b"
+    r"|n['\u2019]t\b|\bn['\u2019]",
+    re.IGNORECASE,
+)
+_SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
+_CLAUSE_END = re.compile(r"[,;]")
+
+
+def _states_repeat(sentence: str) -> bool:
+    """Whether ``sentence`` states a repeat, rather than asking, offering or negating one."""
+    if "?" in sentence or _CHOICE.search(sentence) is not None:
+        return False
+    return any(
+        _NEGATION.search(clause) is None and _REPEATS.search(clause) is not None
+        for clause in _CLAUSE_END.split(sentence)
+    )
 
 
 def names_repeat(reply: str) -> bool:
-    """Whether ``reply`` says something repeats, in one of the five languages the brain reads."""
-    return _REPEATS.search(_NOT_REPEATED.sub(" ", reply)) is not None
+    """Whether a statement in ``reply`` says something repeats, in one of five languages."""
+    return any(_states_repeat(sentence) for sentence in _SENTENCE_END.split(reply))
 
 
 def daily_after(call: ToolCall, result: ToolResult, held: tuple[str, ...]) -> tuple[str, ...]:

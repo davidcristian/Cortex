@@ -124,3 +124,11 @@ The English one listed the schedule and asked whether to add the reminder.
 The note is English under a reply in any language. Under the French draw it reads
 `C'est fait, j'ai programmé un rappel [...] aujourd'hui à 17h30.` followed by
 `(This reminder repeats every day. Ask to make it one time if you meant only once.)`.
+
+`names_repeat` now reads a repeat only in a sentence that states one, since a reply that offers a
+repeat (`If you want it every day, tell me.`) or asks for one hid the note over a daily item. A
+sentence holding a question mark, a condition or an offer (`if`, `si`, `wenn`, `falls`, `dacă`,
+`can`, `peux`, `kann`, `puedo`, `pot` and others) states none, nor does a clause holding a
+negation, and `repeat` alone (`Repeat after me`) is not a statement. It also reads `cada mañana`,
+`cada noche` and `zi de zi`. Replayed through the old and the new reader, none of the 318
+distinct replies recorded on 2026-11-07 by 07:25 changed: the same 13 name a repeat under both.
