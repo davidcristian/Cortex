@@ -80,6 +80,8 @@ STILL_HELD = [
     "I deleted it, but the number is still stored in another exchange.",
     "I've forgotten your request, though I still remember the number.",
     "I removed one exchange; the number can still be recalled from another one.",
+    "I've forgotten your door code, though another exchange still mentions 1987.",
+    "I've forgotten it, but the number still appears in one other memory.",
 ]
 
 NOT_STILL_HELD = [
@@ -87,6 +89,9 @@ NOT_STILL_HELD = [
     "I've forgotten it, and no exchange still holds it.",
     "Is the number still stored?",
     "I've forgotten it, so nothing is still in my memory about it.",
+    "I've forgotten it, and nothing still mentions it.",
+    "I've forgotten it; no other exchange still appears in my memory with it.",
+    "I've forgotten it, and it still appears that nothing else was stored.",
 ]
 
 

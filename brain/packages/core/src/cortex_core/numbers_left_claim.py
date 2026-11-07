@@ -22,7 +22,7 @@ _NEGATION = re.compile(
 )
 _STILL_HELD = re.compile(
     r"\bstill\s+(?:be\s+)?(?:holds?|has|have|contains?|includes?|remembers?|remembered|recalled"
-    r"|stored|kept|saved|held|in\s+(?:my\s+)?memory)\b",
+    r"|stored|kept|saved|held|mentions?|mentioned|appears?\s+in|in\s+(?:my\s+)?memory)\b",
     re.IGNORECASE,
 )
 _ENGLISH_NEGATION = re.compile(r"\b(?:no|nothing|none|not|never)\b|n['\u2019]t\b", re.IGNORECASE)
