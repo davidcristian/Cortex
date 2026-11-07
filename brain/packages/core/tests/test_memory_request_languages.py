@@ -143,9 +143,18 @@ def test_an_idiom_with_a_keep_verb_in_another_language_does_not_ask_not_kept(que
         "No recuerdes esto por favor.",
         "Nu salva numărul meu.",
         "Nu ține minte asta, te rog.",
+        "Ne retiens pas cette information : le code de mon casier est 7731.",
+        "Ne garde pas ce numéro, stp.",
+        "Ne note pas ce code, merci.",
+        "Ne retiens pas ça stp",
+        "Speichere das nicht ab.",
+        "No guardes este número, porfa: mi taquilla es la 7731.",
+        "No guardes esto nunca.",
+        "Nu salva numărul ăsta.",
+        "Nu reține asta niciodată.",
     ],
 )
-def test_a_request_not_to_keep_that_ends_its_clause_asks_not_kept(query: str) -> None:
+def test_a_request_not_to_keep_in_another_language_asks_not_kept(query: str) -> None:
     assert asks_not_kept(query)
 
 

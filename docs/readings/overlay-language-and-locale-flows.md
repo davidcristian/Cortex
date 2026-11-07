@@ -235,12 +235,12 @@ rows and their two schedule items were deleted afterwards. Run logs: `flows1.log
 
 `asks_not_kept` read an idiom with a keep verb (`ne garde pas rancune`, `behalt das nicht für
 dich`, `no guardes rencor`, `nu ține minte răul`) as a request not to keep, so the turn's fact was
-not stored. It now counts the negative imperative only when the verb ends its clause after at
-most an object naming the message, a phrase naming memory and a polite word. Replayed through the
-old and new reader, it changed on none of the 94 distinct messages recorded that night and none
-of 22,008 distinct strings in the brain's other test files and the readings records. The stack
-brain was rebuilt from the tree at 06:59 (SM clock 0.57 of `clocks.max.sm`), and each message
-below ran once in a new chat `s14-*` with every card approved:
+not stored. It now keeps the turn when one of those idiom words follows the verb, at most one
+word after it. A rule read first, which counted the verb only when it ended its clause, changed on
+none of the 94 distinct messages recorded that night, but it stored "ne retiens pas cette
+information" and "no guardes este número, porfa" in live turns. The stack brain was rebuilt from
+that rule at 06:59 (SM clock 0.57 of `clocks.max.sm`), which reads the idioms below as the idiom
+rule does, and each message ran once in a new chat `s14-*` with every card approved:
 
 | Message | Tool calls | Stored |
 | --- | --- | --- |

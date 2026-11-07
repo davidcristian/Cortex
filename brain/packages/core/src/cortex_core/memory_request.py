@@ -31,17 +31,12 @@ _NOT_FOR_MEMORY = re.compile(
 # A negative imperative in French, German, Spanish or Romanian that opens a clause, so a statement
 # such as "je ne retiens pas" or "el nu reține" does not match.
 _OTHER_OPENS = r"(?:^\W*|[,;:]\s*|\b(?:mais|et|aber|und|doch|pero|y|dar|și|însă|bitte)\s+)"
-_OTHER_MESSAGE = (
-    r"\s+(?:ça|cela|ceci|das|es|dies|esto|eso|asta|aceasta"
-    r"|(?:mon|ma|mes|mi|mis)\s+[\w-]+|[\w-]+\s+(?:meu|mea|mei|mele))"
+# An idiom such as "ne garde pas rancune" or "behalt das nicht für dich" follows the negated verb,
+# at most one word after it, and keeps the turn; any other object or tail withholds it.
+_OTHER_END = (
+    r"(?!(?:\s+[\w-]+)?\s+(?:rancune|rencor|răul|alles|contre|pour\s+(?:toi|vous)"
+    r"|für\s+(?:dich|euch)|para\s+(?:ti|usted))\b)"
 )
-_OTHER_MEMORY = (
-    r"\s+(?:en|dans\s+ta|im|en\s+tu|în)\s+(?:mémoire|gedächtnis|speicher|memoria|memorie)"
-)
-_OTHER_POLITE = r"\W*(?:s['\u2019]il\s+(?:te|vous)\s+pla[iî]t|bitte|por\s+favor|te\s+rog)"
-# The negated verb ends its clause after at most an object naming the message, so an idiom such as
-# "ne garde pas rancune" or "behalt das nicht für dich" keeps the turn.
-_OTHER_END = rf"(?=(?:{_OTHER_MESSAGE})?(?:{_OTHER_MEMORY})?(?:{_OTHER_POLITE})?\s*(?:[,;:.!?]|$))"
 _DONT_KEEP_OTHER = re.compile(
     rf"{_OTHER_OPENS}(?:ne\s+(?:l['\u2019]|le\s+|la\s+|les\s+)?"
     r"(?:retiens|retenez|note|notez|garde|gardez|enregistre|enregistrez|mémorise|mémorisez)\s+pas"

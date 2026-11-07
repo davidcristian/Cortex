@@ -138,10 +138,10 @@ that removes exactly those rows and holds against a turn in flight. This record 
    keep, so "Remember: never record calls" is a rule to store, unless they name the message
    ("it", "this", "that", "my", "any" and the like). Beyond English it reads only a negative
    imperative of a keep verb that opens a clause in French ("ne le retiens pas"), German ("merk
-   dir das nicht"), Spanish ("no lo guardes") or Romanian ("nu-l reține"), and only when the verb
-   ends its clause after at most an object naming the message ("ça", "das", "esto", "asta", "mon
-   numéro"), a phrase naming memory and a polite word, so an idiom such as "ne garde pas rancune"
-   or "behalt das nicht für dich" is recorded. It never reads a "don't forget" or a statement such as "I don't remember" or "je ne retiens pas"; a message it
+   dir das nicht"), Spanish ("no lo guardes") or Romanian ("nu-l reține"), unless an idiom word
+   such as "rancune", "rencor", "răul" or "für dich" follows the verb, at most one word after it,
+   so "ne garde pas rancune" or "behalt das nicht für dich" is recorded and any other object or
+   tail, such as "cette information" or "porfa", withholds the turn. It never reads a "don't forget" or a statement such as "I don't remember" or "je ne retiens pas"; a message it
    misses is recorded as before.
    A reply that says something was forgotten, or removed from memory, on a turn whose forget
    calls deleted no row ends with `UNFORGOTTEN_CLAIM_NOTE`, which the brain appends after a typed
