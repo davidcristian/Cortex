@@ -4,10 +4,12 @@ import pytest
 
 from cortex_core import (
     FORGET_CHOSEN_TOOL_NAME,
+    GLOBAL_MEMORY_SCOPE,
     UNKEPT_CLAIM_NOTE,
     HashEmbedder,
     InMemoryMemoryStore,
     MemoryRecaller,
+    SessionMemoryScope,
     SystemClock,
     TaintLedger,
     ToolRun,
@@ -15,6 +17,7 @@ from cortex_core import (
 )
 from cortex_core.chat_only_claim import KEPT_BEYOND_CHAT_NOTE, claims_chat_only
 from cortex_core.closing_notes import limit_notes
+from cortex_core.scope import MemoryScope
 from cortex_core.stops import StopLedger
 
 _ASK = "Please remember this: my daughter is allergic to peanuts."
@@ -58,10 +61,25 @@ def test_a_reply_without_a_chat_limit_does_not_claim_chat_only(reply: str) -> No
     assert not claims_chat_only(reply)
 
 
+class _SharedScope:
+    def write_scope(self, session_id: str) -> str:
+        del session_id
+        return "household"
+
+    def read_scopes(self, session_id: str) -> tuple[str, ...]:
+        del session_id
+        return ("household",)
+
+
 def _shown(
-    reply: str, *, taint: TaintLedger, runs: Sequence[ToolRun] = (), memory: bool = True
+    reply: str,
+    *,
+    taint: TaintLedger,
+    runs: Sequence[ToolRun] = (),
+    memory: bool = True,
+    scope: MemoryScope = GLOBAL_MEMORY_SCOPE,
 ) -> str:
-    recaller = MemoryRecaller(InMemoryMemoryStore(), HashEmbedder(), SystemClock())
+    recaller = MemoryRecaller(InMemoryMemoryStore(), HashEmbedder(), SystemClock(), scope=scope)
     caps = TurnCapabilities(memory=recaller if memory else None)
     parts = [reply]
     list(limit_notes(StopLedger(), runs, parts, caps=caps, taint=taint, query=_ASK))
@@ -85,3 +103,12 @@ def test_a_turn_memory_does_not_store_shows_the_unkept_note_alone() -> None:
     taint = TaintLedger(forget_asked=True, forget_calls=1)
     runs = (ToolRun(name=FORGET_CHOSEN_TOOL_NAME, ok=True),)
     assert _shown(_CHAT_ONLY, taint=taint, runs=runs) == _CHAT_ONLY + UNKEPT_CLAIM_NOTE
+
+
+def test_a_turn_stored_for_this_chat_alone_has_no_note() -> None:
+    assert _shown(_CHAT_ONLY, taint=TaintLedger(), scope=SessionMemoryScope()) == _CHAT_ONLY
+
+
+def test_a_scope_every_chat_shares_ends_with_the_note() -> None:
+    shown = _shown(_CHAT_ONLY, taint=TaintLedger(), scope=_SharedScope())
+    assert shown == _CHAT_ONLY + KEPT_BEYOND_CHAT_NOTE

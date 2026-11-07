@@ -38,6 +38,12 @@ class MemoryRecaller:
         self._audit = audit
         self._id_factory = id_factory
 
+    @property
+    def recalls_across_chats(self) -> bool:
+        """Whether a memory one chat writes can be recalled in another chat."""
+        read = self._scope.read_scopes("another chat")
+        return read is None or self._scope.write_scope("one chat") in read
+
     async def record(
         self,
         text: str,

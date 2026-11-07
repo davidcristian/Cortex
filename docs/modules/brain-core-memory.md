@@ -42,7 +42,9 @@ pool down to the hits one turn sees. The turn that calls it is in
   record `record` returned, which `record_exchange` does when the chat was deleted meanwhile, under
   the write's bound. A `SessionStoreError` from that `deleted` read, or a failed or overrun
   `discard`, keeps the row and logs `the memory row of a chat that may be deleted was not removed`
-  at `error` with `session_id` and `memory_id`; the turn completes.
+  at `error` with `session_id` and `memory_id`; the turn completes. `recalls_across_chats` is true
+  when a memory one chat writes can be recalled in another: under the global scope, and not under
+  `SessionMemoryScope`.
   `recall(query, *, k, session_id, turn_id)` embeds `embedding_input(query)`, fetches `policy.candidate_k(k)` hits within `policy.read_scopes(session_id)` and
   awaits `policy.select(...)`, returning that ranking's memories cut to `k`; an empty ranking is no
   hits and is never refilled from the pool. An optional `audit: RecallAuditSink` gets one
@@ -136,8 +138,10 @@ pool down to the hits one turn sees. The turn that calls it is in
 - `claims_chat_only(reply)` (`chat_only_claim.py`) is true when a statement, not a question, says
   something is kept, remembered, noted or kept in mind "for", "during" or "in" this or our chat,
   conversation or session, and names no later or future one and no "not just". On a turn memory
-  stores, `limit_notes` then appends `KEPT_BEYOND_CHAT_NOTE`, since the exchange is recalled in
-  every later chat ([readings](../readings/remember-request-tool-search.md)).
+  stores under a scope that `recalls_across_chats`, `limit_notes` then appends
+  `KEPT_BEYOND_CHAT_NOTE`, since the exchange is recalled in every later chat
+  ([readings](../readings/remember-request-tool-search.md)). Under `SessionMemoryScope` the claim
+  is correct and no note shows.
 - `unread_folders_claim(taint, query, reply)` (`file_claim.py`) is true on an untainted turn whose
   `query` `asks_files` when `claims_folders(reply, query=query)` finds a statement with no condition
   ("if", "once", "such as") that says "I can read" or "access", "I have access" or "I am allowed to",

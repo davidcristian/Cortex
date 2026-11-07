@@ -50,7 +50,8 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
     claimed = unscheduled_claim(made, reply, said)
     withheld = memory_withheld(caps, taint, made, query=query)
     unkept = withheld and unkept_note_due(query, reply)
-    stored = caps.memory is not None and not withheld and claims_chat_only(reply)
+    shared = caps.memory is not None and caps.memory.recalls_across_chats
+    stored = shared and not withheld and claims_chat_only(reply)
     # A refused call deleted nothing, and no reader names every way to claim it did. A reply saying
     # it kept the fact and naming no removal is the common end of a plain request to remember.
     unforgotten = unforgotten_claim(made, reply, unmatched=taint.forget_unmatched) or (
