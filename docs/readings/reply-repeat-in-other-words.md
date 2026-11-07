@@ -90,9 +90,9 @@ as you requested.`:
 So `covered` is 1 of 3, and the fix ships. `OpeningHold` now reads `I've`, `I'm`, `it's` and
 `that's`, and the same with a curly apostrophe, as `I have`, `I am`, `it is` and `that is`. The
 list's words (`also`, `now`, `just`, `successfully`, `too`, `as well`) are needed by no restating
-sentence, so the hold does not read them. Its new tests keep every near miss: a changed number or
-ending, an added fact, another verb, a number left out, `had` or `I'd` for `have`, a lower case
-`i've`, a question, a negation, `also` before a new fact and `its` against `it's`.
+sentence, so the hold does not read them. Its new tests keep every near miss: a changed number,
+name or ending, an added fact, another verb, a number left out, `had` or `I'd` for `have`, a lower
+case `i've`, a question, a negation, `also` before a new fact and `its` against `it's`.
 
 Replaying all 80 rounds in pieces of 1 to 5 characters through the old and new hold, the new one
 changes only A6 14, which it drops whole, so `restates` falls from 3 of 80 to 2. The other 2 stay:

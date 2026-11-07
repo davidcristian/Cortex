@@ -418,6 +418,7 @@ def test_a_sentence_differing_only_by_a_contraction_is_dropped(said: str, text: 
         (_LONG, "I haven't removed the phone number 0612345678 from my memory."),
         ("I removed the phone number.", "I also removed the address."),
         ("Its value is saved.", "It's value is saved."),
+        ("I have sent it to Anna.", "I've sent it to Maria."),
     ],
 )
 def test_a_sentence_with_a_contraction_and_another_change_is_kept(said: str, text: str) -> None:
