@@ -144,8 +144,8 @@ that removes exactly those rows and holds against a turn in flight. This record 
    then forget it" asks. The words after a request to remember in the same sentence are what to
    keep, so "Remember: never record calls" is a rule to store, unless they name the message
    ("it", "this", "that", "my", "any" and the like). Beyond English it reads only a negative
-   imperative of a keep verb that opens a clause in French ("ne le retiens pas"), German ("merk
-   dir das nicht"), Spanish ("no lo guardes") or Romanian ("nu-l reține"), unless an idiom word
+   imperative of a keep verb that opens a clause in French ("ne le retiens pas", "n'enregistre
+   pas"), German ("merk dir das nicht"), Spanish ("no lo guardes") or Romanian ("nu-l reține"), unless an idiom word
    such as "rancune", "rencor", "răul" or "für dich" follows the verb, at most one word after it,
    so "ne garde pas rancune" or "behalt das nicht für dich" is recorded and any other object or
    tail, such as "cette information" or "porfa", withholds the turn. It never reads a "don't forget" or a statement such as "I don't remember" or "je ne retiens pas"; a message it

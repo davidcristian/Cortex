@@ -16,6 +16,8 @@ from cortex_core.memory_request import asks_kept, asks_not_kept
         "No recuerdes esto.",
         "Codul meu este 7788, dar nu-l reține.",
         "Nu salva asta.",
+        "N'enregistre pas ça.",
+        "Mon code est 7731, mais n\u2019enregistrez pas ce numéro.",
     ],
 )
 def test_a_request_not_to_keep_in_french_german_spanish_or_romanian_asks_not_kept(
@@ -29,6 +31,9 @@ def test_a_request_not_to_keep_in_french_german_spanish_or_romanian_asks_not_kep
     [
         "Je ne retiens pas les noms facilement.",
         "Il ne note pas ses rendez-vous.",
+        "Je n'enregistre pas les appels.",
+        "Il n'enregistre rien.",
+        "Mon téléphone n'enregistre pas les appels.",
         "Ich kann mir das nicht merken.",
         "Ich speichere das nicht auf dem Handy.",
         "Merk dir, dass mein Hund Bello heißt.",

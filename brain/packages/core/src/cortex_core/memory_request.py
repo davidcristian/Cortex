@@ -38,7 +38,7 @@ _OTHER_END = (
     r"|für\s+(?:dich|euch)|para\s+(?:ti|usted))\b)"
 )
 _DONT_KEEP_OTHER = re.compile(
-    rf"{_OTHER_OPENS}(?:ne\s+(?:l['\u2019]|le\s+|la\s+|les\s+)?"
+    rf"{_OTHER_OPENS}(?:(?:ne\s+(?:l['\u2019]|le\s+|la\s+|les\s+)?|n['\u2019])"
     r"(?:retiens|retenez|note|notez|garde|gardez|enregistre|enregistrez|mémorise|mémorisez)\s+pas"
     r"|merke?\s+(?:es\s+|das\s+|dies\s+)?dir\s+(?:das\s+|es\s+|dies\s+)?nicht"
     r"|(?:speicher|speichere|notier|notiere|behalt|behalte)\s+(?:das|es|dies)\s+nicht"
