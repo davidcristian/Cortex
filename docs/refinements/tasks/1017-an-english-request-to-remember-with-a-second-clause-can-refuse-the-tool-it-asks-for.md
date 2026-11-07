@@ -17,11 +17,16 @@ under the couch, and turn the heating down.`
 ## What to do
 
 1. Write the two messages above as tests first.
-2. Compare the clause rule of the other four languages with keeping the tools whenever a second
-   clause holds a time of day or a first person object (`me`), and count how many of the
-   recorded requests to remember each rule changes.
-3. A reader that controls a refused tool fails toward keeping the tool, so prefer the rule that
-   keeps it on more of the messages that ask for it.
+2. Neither rule tried on 2026-11-07 fits English. The clause rule of the other four languages
+   fails 43 of the 532 tests of `test_unasked_tools.py` and `test_unasked_tools_languages.py`.
+   Keeping both tools whenever a time of day or `me` follows the request changes 62 of the 516
+   distinct English requests to remember among the night's turn records, the brain's test
+   strings and the readings records, among them `Note that my mother's birthday is on 12 May.`,
+   the form that stored a yearly reminder nobody asked for, and still refuses `set_volume` on the
+   music message above.
+3. Try a reading of a second imperative clause addressed to the assistant (`and` or a comma, then
+   a verb with `me` or `the music`), count its changes over the same strings, and keep the tool
+   when the reading is unsure: a reader that controls a refused tool fails toward keeping it.
 
 ## History
 
