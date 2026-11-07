@@ -29,3 +29,6 @@ the card was shown is missed the same way.
   left for a measured change.
 - 2026-11-07: the flow and pass rule are written in the readings; three baseline draws did
   not show the form, because the recall turn did not name the code, and task 1005 was filed.
+- 2026-11-07: the form occurred in a French replay draw whose text `casier à la piscine` shares
+  no word with an English recall row; its reply said the code was forgotten while the row stayed
+  ([readings](../../readings/forget-value-repeats.md#the-whole-value-reader-replayed-2026-11-07)).

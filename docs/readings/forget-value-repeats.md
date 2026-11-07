@@ -108,3 +108,31 @@ So no row held `5819` beside the request row, each forget deleted that row, and 
 said the code was forgotten, which was true. The flow needs a turn b whose recall reaches the
 code and whose reply names only the value; `What is my gym locker code? Answer with the number
 only.` puts `gym locker code` in the row, so it does not serve either.
+
+## The whole-value reader replayed, 2026-11-07
+
+The flows above, replayed on the stack brain rebuilt from the commit that names an earlier delete
+only for a later forget of that fact, every card approved, the SM clock at 0.57 of its maximum
+before and 0.52 after. On this build a row is listed by value only when it holds a whole value of a
+match (a phone number or code in full, never a part, a year, a date, a time or an amount), under
+a line naming that value. The pass rule above applies unchanged.
+
+| Draw | Text of the call | Rows listed by text, by value | Rows left | Turn e names the value | Result |
+| --- | --- | --- | --- | --- | --- |
+| fr1 | `code de mon casier à la piscine` | 2, 1 | 0 | no | pass |
+| en1 | `gym locker` | 3, 0 | 0 | no | pass |
+| fr2 | `code de mon casier à la piscine` | 2, 1 | 0 | no | pass |
+| en2 | `gym locker code` | 3, 0 | 0 | no | pass |
+| fr3 | `casier à la piscine` | 2, 0 | 1 | yes | fail, the form of task 1003 |
+| en3 | `gym locker code` | 3, 0 | 0 | no | pass |
+| en-r1 | `5819` | 3, 0 | 0 | no | pass, the value as text |
+| en-r2 | `5819` | 3, 0 | 0 | no | pass, the value as text |
+
+No forget deleted a row its card did not list. In fr3 the row left is the English recall `Your
+swimming pool locker code is 7731.`, which holds neither `casier` nor `piscine`, so no word of the
+text; the reader of the commit that lists repeats, run on the same three rows and text, lists
+the same two. So fr3 is not a change of this build but the form of
+[task 1003](../refinements/tasks/1003-a-forget-reports-nothing-of-a-value-left-without-a-word-of-its-text.md),
+and its turn d reply said the code was forgotten. The run records are
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/37073e3c-5ca6-42f6-aae1-df9e67b0e4db/scratchpad/slot13/draws-c.jsonl`
+and `draws-r.jsonl` beside it.
