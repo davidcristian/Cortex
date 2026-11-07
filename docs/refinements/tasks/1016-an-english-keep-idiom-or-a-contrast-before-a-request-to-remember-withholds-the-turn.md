@@ -24,8 +24,13 @@ the request names what to keep.
    `Don't keep this.`, `Don't save my card number.`, `Don't keep a record of this.`,
    `Don't note it down, please.`
 2. Replay every recorded draw message and every test string through the old and new reader.
-3. Compare the clause rule of the other four languages with a narrower rule for `keep` alone, the
-   verb whose idioms the list above shows.
+3. Do not copy the clause rule of the other four languages. Checked on 2026-11-07 against 22,179
+   distinct strings (the night's turn records, the brain's test files and the readings records),
+   that rule applied to every English keep verb, or to `keep` alone, released the two idioms
+   above and also stopped withholding `Also, don't keep my locker code 7319.`,
+   `Remember my PIN 5521, but don't keep it after today.` and `Don't keep a record of this.`
+   (and, for every verb, `Don't remember my locker code 7319 anymore.`). Read the idiom's own
+   complement instead (`to yourself`, a person and a gerund), and replay the same strings.
 
 ## History
 
