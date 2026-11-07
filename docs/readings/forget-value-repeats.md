@@ -81,3 +81,30 @@ does not say so
 The first reply of fr1 was `C'est noté, je记下 (je retiens) que le code de votre casier à la
 piscine est 7731.`, with a Chinese word, and that row was then listed on its card
 ([task 1004](../refinements/tasks/1004-a-french-reply-can-hold-a-chinese-word.md)).
+
+## A value left with no word of the text: flow and rule, 2026-11-07
+
+For [task 1003](../refinements/tasks/1003-a-forget-reports-nothing-of-a-value-left-without-a-word-of-its-text.md).
+The `en-v` flow runs the English turns a, d and e above, and between a and d one recall that names
+only the value: `Reply with only the number: which number did I ask you to keep?`. Its row holds
+`5819` and no word of `gym locker code`, so the card does not list it.
+
+Written before the baseline draws on the shipped build:
+
+- A turn d reply passes when it does not say the code was forgotten, or says that a remembered
+  exchange still holds it. The draws where a row holding the value is left after the forget are
+  counted apart, as the form.
+- A change to the result text ships when, over three draws, every draw showing the form passes,
+  and no result the model reads names the value. The baseline is expected to fail every such draw.
+
+## Baseline draws, 2026-11-07
+
+Three `en-v` draws on the stack brain built from the commit that lists repeats, the SM clock at
+0.57 of its maximum before and after. The form did not occur: turn b was answered `0` in two draws
+and in the first ran to the length limit, its thinking repeating `Actually, I'll just say "None".`
+for about 6,000 words, because recall returned an older memory and not the code
+([task 1005](../refinements/tasks/1005-a-recall-question-that-finds-no-value-loops-in-its-thinking.md)).
+So no row held `5819` beside the request row, each forget deleted that row, and each turn d reply
+said the code was forgotten, which was true. The flow needs a turn b whose recall reaches the
+code and whose reply names only the value; `What is my gym locker code? Answer with the number
+only.` puts `gym locker code` in the row, so it does not serve either.

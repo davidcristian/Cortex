@@ -27,3 +27,5 @@ the card was shown is missed the same way.
 
 - 2026-11-07: filed when the card began listing rows that repeat a value; the result part was
   left for a measured change.
+- 2026-11-07: the flow and pass rule are written in the readings; three baseline draws did
+  not show the form, because the recall turn did not name the code, and task 1005 was filed.
