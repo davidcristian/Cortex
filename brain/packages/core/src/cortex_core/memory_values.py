@@ -17,8 +17,9 @@ _UNIT_AFTER = re.compile(
 _UNIT_BEFORE = re.compile(r"[€$£]\s?$")
 _CODE_WORD = re.compile(
     r"\b(?:\w*codes?|pins?|numbers?|\w*nummer\w*|\w*zahl|num[ée]ros?|n[uú]meros?|c[oó]digos?"
-    r"|claves?|cod(?:ul|ului|uri)?|num[aă]r(?:ul|ului)?|passwor[dt]s?|kennwort|contrase[nñ]as?"
-    r"|parol[aă]|combinations?|combinaisons?|kombination)\b",
+    r"|claves?|cod(?:ul|ului|uri)?|num[aă]r(?:ul|ului)?|\w*passwor[dt]s?|\w*kennwort|contrase[nñ]as?"
+    r"|parol[aă]|combinations?|combinaisons?|\w*kombination|mots?\s+de\s+passe|combos?"
+    r"|combinaci[oó]n(?:es)?|combina[tțţ]i[ae])\b",
     re.IGNORECASE,
 )
 
