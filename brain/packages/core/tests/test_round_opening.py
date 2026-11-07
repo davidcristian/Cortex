@@ -379,3 +379,48 @@ def test_a_round_ending_on_the_sentence_with_or_without_as_you_asked_shows_nothi
 ) -> None:
     hold = OpeningHold(said)
     assert hold.feed(text) + hold.flush() == ""
+
+
+_LONG = "I have also removed the phone number 0612345678 from my memory as you requested."
+_CONTRACTED = "I've also removed the phone number 0612345678 from my memory as you requested."
+
+
+@pytest.mark.parametrize(
+    ("said", "text"),
+    [
+        (f"{_ANSWER} {_LONG}\n", f"{_ANSWER} {_CONTRACTED} Done."),
+        (f"{_ANSWER} {_CONTRACTED}\n", f"{_ANSWER} {_LONG} Done."),
+        ("I've removed it.\n", "I have removed it. Done."),
+        ("I am done with it.\n", "I\u2019m done with it. Done."),
+        ("It's saved.\n", "It is saved. Done."),
+        ("That is all of it.\n", "That's all of it. Done."),
+        ("I checked, and it is saved.\n", "I checked, and it's saved. Done."),
+        ("I checked, and that's it.\n", "I checked, and that is it. Done."),
+    ],
+)
+def test_a_sentence_differing_only_by_a_contraction_is_dropped(said: str, text: str) -> None:
+    hold = OpeningHold(said)
+    assert "".join(hold.feed(char) for char in text) + hold.flush() == "Done."
+
+
+@pytest.mark.parametrize(
+    ("said", "text"),
+    [
+        (_LONG, _CONTRACTED.replace("0612345678", "0699000000")),
+        (_LONG, _CONTRACTED.replace("memory", "notes")),
+        (_LONG, _CONTRACTED.replace(" as you requested.", ", and the address too.")),
+        (_LONG, "I've also forgotten the phone number 0612345678 as you requested."),
+        (_LONG, "I've also forgotten your phone number as requested."),
+        (_LONG, _LONG.replace("have", "had")),
+        (_LONG, _CONTRACTED.replace("I've", "I'd")),
+        (_LONG, _CONTRACTED.replace("I've", "i've")),
+        (_LONG, "Have I also removed the phone number 0612345678 from my memory?"),
+        (_LONG, "I haven't removed the phone number 0612345678 from my memory."),
+        ("I removed the phone number.", "I also removed the address."),
+        ("Its value is saved.", "It's value is saved."),
+    ],
+)
+def test_a_sentence_with_a_contraction_and_another_change_is_kept(said: str, text: str) -> None:
+    hold = OpeningHold(f"{_ANSWER} {said}\n")
+    shown = f"{_ANSWER} {text} Done."
+    assert "".join(hold.feed(char) for char in shown) + hold.flush() == f"{text} Done."

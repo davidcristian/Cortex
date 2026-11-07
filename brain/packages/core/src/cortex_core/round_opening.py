@@ -14,11 +14,19 @@ _LETTER = re.compile(r"[^\W\d_]")
 _STRUCTURE = re.compile(r"[|>]|`{3}|~{3}|(?:#{1,6}|[-*+]|\d+[.)])(?:\s|$)")
 # A closing "as you asked" adds no fact, so a sentence with it and one without are the same.
 _AS_ASKED = re.compile(r",?\s+as\s+(?:you\s+)?(?:asked|requested)(?=[.!?]?$)")
+_CONTRACTION = re.compile(r"\b(?:I['\u2019](?:ve|m)|[Ii]t['\u2019]s|[Tt]hat['\u2019]s)\b")
+_LONG_FORMS = {"ve": "have", "m": "am", "s": "is"}
+
+
+def _long_form(found: re.Match[str]) -> str:
+    """The long form of one contraction, such as "I have" for "I've"."""
+    word, ending = re.split("['\u2019]", found[0])
+    return f"{word} {_LONG_FORMS[ending]}"
 
 
 def _words(sentence: str) -> str:
-    """``sentence`` with each run of white space as one space and no closing "as you asked"."""
-    return _AS_ASKED.sub("", " ".join(sentence.split()))
+    """``sentence`` with single spaces, contractions in long form and no closing "as you asked"."""
+    return _AS_ASKED.sub("", _CONTRACTION.sub(_long_form, " ".join(sentence.split())))
 
 
 class OpeningHold:

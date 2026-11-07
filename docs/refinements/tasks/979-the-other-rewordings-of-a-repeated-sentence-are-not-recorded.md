@@ -1,9 +1,8 @@
 # The other rewordings of a repeated sentence are not recorded
 
-**Status:** open, actionable
+**Status:** done 2026-11-07
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-11-05
 
 In 6 of the 20 A4 draws of
 [reply-repeat-across-a-tool-call.md](../../readings/reply-repeat-across-a-tool-call.md#more-than-one-repeated-sentence-result-2026-10-31),
@@ -27,3 +26,12 @@ known, so a reply may still say the same thing twice.
 
 - 2026-11-05: filed when [R-960](960-a-round-can-repeat-an-earlier-sentence-in-other-words.md)
   closed for the one recorded form.
+- 2026-11-07: done. A W04 second-round request recorded through the proxy and sent with A4's first
+  round and result, 80 draws
+  ([readings](../../readings/reply-repeat-in-other-words.md#the-draws-2026-11-07)), restates the
+  sentence after the hold in 3: one only by `I've` for `I have`, one with `forgotten` for `removed`
+  and `from my memory` left out, and one that also leaves the number out and says `your`. The rule
+  written before the draws covers the first, so `OpeningHold` now reads `I've`, `I'm`, `it's` and
+  `that's` as their long forms; replaying the 80 rounds, it changes only that one. The other two
+  are declined: a number left out is a near miss the hold's tests keep, and a verb for another
+  is outside the rule's list, so the reply shows a true sentence twice in 2 of 80.
