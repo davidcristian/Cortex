@@ -21,11 +21,14 @@ Reproduction, unit level (`SCRATCH/slot20/probe2.py`), `numbers_left_claim(reply
 
 ## What to do
 
-1. Count how many recorded turn d replies in `docs/readings/forget-value-repeats.md` name the row
-   left at all; if none do, record that and leave the reader as it is.
-2. Otherwise read `also`, `too`, `mentions`, `appears` and `encore`, `noch`, `todavía`, `încă`
-   beside a verb of holding, with near misses first ("nothing still mentions it").
+1. Write near misses first ("nothing still mentions it", "it also appears that nothing was
+   stored"), since a reader that reads one withholds a note the reply needs.
+2. Read `also`, `too`, `mentions`, `appears` and `encore`, `noch`, `todavía`, `încă` beside a verb
+   of holding, with the negation of each language. The form is rare (0 of 121 recorded forget
+   replies), so the pass rule is about what the reader does when the form occurs.
 
 ## History
 
 - 2026-11-07: filed by the third audit of the night's changes.
+- 2026-11-07: 0 of the 121 distinct replies recorded tonight for a turn that ran
+  `forget_memories` name a row left in any words; left open for the reader change.
