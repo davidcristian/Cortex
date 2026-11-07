@@ -27,10 +27,12 @@ row holds; each reply said it could not find the old number. Over 60 draws of M0
 
 ## What to do
 
-1. An unmatched first call naming the new value. Write rows and a rule for a result text, on a call
-   whose text the message states after "now" or "new", that asks for one word naming the fact.
-   `_NONE_FOUND` is shared with a forget of a value never stored, where "nothing about it was stored"
-   is correct, so both rows are drawn.
+1. An unmatched first call naming the new value. Its result text, on a call whose text follows
+   "now" or "new" in the message, asks for one word naming the fact; the
+   [rows and the rule](../../readings/forget-naming-the-new-value.md#rows-and-the-rule-2026-11-07)
+   are written, with a row for a value never stored, where "nothing about it was stored" is
+   correct. Next: write the reader's near-miss tests, build the candidate in `dispatch_round.py`
+   and draw it under that rule.
 
 ## History
 
@@ -58,3 +60,5 @@ row holds; each reply said it could not find the old number. Over 60 draws of M0
   drawn 15 times on a build of the recorded patch, counted 7 draws, and no counted reply said the
   old number was not stored, gone or not found, so the rule passed and the result naming an
   earlier delete ships; step 2 is the one left.
+- 2026-11-07: step 2's rows and rule are written, undrawn: two rows of the form, one of a value
+  never stored that follows "now", and no shipped build drawn.
