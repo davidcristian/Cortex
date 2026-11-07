@@ -11,14 +11,18 @@ from cortex_core.volume import SET_VOLUME_TOOL_NAME
 
 _SOUND = re.compile(
     r"\b(?:volume|sound|audio|mute|unmute|muted|louder|quieter|loud|quiet|speakers?"
-    r"|turn\s+(?:it|this|that)\s+(?:up|down))\b",
+    r"|turn\s+(?:it|this|that)\s+(?:up|down)"
+    r"|volum\w*|lautst[äa]rke|lauter|leiser|stumm\w*|muet\w*|le\s+son|sonido|sunet\w*)\b",
     re.IGNORECASE,
 )
 _REMINDER = re.compile(
     r"\b(?:remind\w*|alarms?|alerts?|notify|notifications?|schedul\w*|heads[\s-]+up"
     r"|(?:wake|ping|nudge|buzz|text|message|warn|poke)\s+me"
     r"|let\s+me\s+know|tell\s+me\s+(?:when|at|on|before|every|to|in)\b"
-    r"|(?:remember|forget)\s+to\s+\w|don['\u2019]?t\s+let\s+me\s+forget)",
+    r"|(?:remember|forget)\s+to\s+\w|don['\u2019]?t\s+let\s+me\s+forget"
+    # The same verb reminds and remembers in French, German, Spanish and Romanian.
+    r"|rappel\w*|erinner\w*|recu[eé]rd\w*|recordatorio\w*|aminte\w*|aminti\w*|alarm\w*"
+    r"|wecker\w*|r[ée]veil\w*|despert\w*|trez\w*)",
     re.IGNORECASE,
 )
 _ASKED = {SET_VOLUME_TOOL_NAME: _SOUND, SCHEDULE_TOOL_NAME: _REMINDER}
@@ -29,7 +33,11 @@ _SOURCE = re.compile(
     r"|\b(?:what|which|where|whether|who|how|files?|folders?|director(?:y|ies)|documents?|docs?"
     r"|contents?|pdfs?|attach(?:ed|ments?)|e-?mails?|mail|inbox|web"
     r"|websites?|wiki|internet|online|pages?|links?|look|find|check|open|fetch|download(?:s|ed)?"
-    r"|readme|browse|show)\b",
+    r"|readme|browse|show"
+    r"|fichiers?|dossiers?|pi[eè]ces?\s+jointes?|courriels?|contenu|quoi|quel\w*|où|ce"
+    r"|datei(?:en)?|ordner\w*|dokument\w*|anh[äa]ng\w*|inhalt\w*|welche\w*|wo|wer|wie"
+    r"|archivos?|carpetas?|documentos?|adjuntos?|correos?|contenido|qué|cuál\w*|dónde"
+    r"|fi[șşs]ier\w*|dosar\w*|documente|ata[șşs]ament\w*|con[țţt]inut\w*|unde|cine)\b",
     re.IGNORECASE,
 )
 # A value named by the written record it is in, the message ending at the record ("the total on
@@ -69,7 +77,7 @@ _CAN_RETRACT = re.compile(
     r"|correct\w*|instead|earlier|prior|obsolete|stale|gone|nevermind|unsav\w*|unremember\w*"
     r"|unstor\w*|let\s+go|go\s+away|out\s+of\s+your|used\s+to|must\s+go|remember\s+to"
     r"|vergiss\w*|vergess\w*|vergeet|loesch\w*|entfern\w*|verwijder\w*|oubli\w*|effac\w+|olvid\w*"
-    r"|borr\w+|dimentic\w*)\b"
+    r"|borr\w+|dimentic\w*|uit\w*|[șşs]terg\w*|supprim\w*|elimin\w*|l[oö]sch\w*)\b"
     r"|n['\u2019]t\b|\?|(?<!\bmr)(?<!\bmrs)(?<!\bms)(?<!\bdr)(?<!\bst)[.!]\s+\S|\n\s*\S"
     r"|(?:\band|\bthen|[,;:])\s+\w+\s+(?:\d|(?:the|my|it|this|that|those|them|what|everything)\b)"
     r"|(?![a-z])[^\W\d_]",

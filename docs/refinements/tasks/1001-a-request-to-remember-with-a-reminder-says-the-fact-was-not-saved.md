@@ -1,9 +1,11 @@
 # A request to remember with a reminder says the fact was not saved
 
-**Status:** open, actionable
+**Status:** open, waiting for its trigger
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
 **Verified:** 2026-11-07
+**Trigger:** a second stored turn whose reply says the fact the person asked to remember was not
+saved, in a draw or a flow record.
 
 On 2026-11-07 the `cortexn15` stack answered
 `Remember que mi hermana se llama Lucía, and remind me tomorrow at 18:00 to call her.` with a
@@ -12,21 +14,31 @@ On 2026-11-07 the `cortexn15` stack answered
 "saved" it as a long-term memory`, while the exchange was stored as a `memories` row and is
 recalled in later chats ([readings](../../readings/overlay-language-and-locale-flows.md#4-messages-in-two-languages)).
 
-The typed readers give the English form of the message the same treatment: `asks_kept` reads it,
-and `unasked_forget` refuses nothing, because the message also asks for a reminder. The note for
-a reply that keeps a fact for this chat only (`claims_chat_only`, `chat_only_claim.py`) does not
-read "haven't saved it as a long-term memory".
+`asks_kept` reads the message, since it opens with the English `Remember`, so the language of the
+request is not the cause. `unasked_forget` (`unasked_tools.py`) kept the forget tool offered for
+two reasons, each enough: `Lucía` holds a letter outside English, which the reader takes as a
+possible retraction, and the Spanish clause states the fact in no English form it reads (`my`,
+`is`). Both fail toward keeping the tool on purpose. Only the English form with `Lucia`
+(`Remember that my sister is called Lucia, and remind me ...`) has the forget tool refused. No
+reader looks at a stored turn's reply for a statement that the fact was not saved: the note for a
+reply that keeps a fact for this chat only (`claims_chat_only`, `chat_only_claim.py`) reads a keep
+verb before "this conversation", and the claim readers in `memory_claim.py` read only claims that
+something was kept.
 
 Reproduction: send the message above in a new chat with every card approved, then read
 `memories` for `Lucía`.
 
 ## What to do
 
-1. Draw the message and its English form, three draws each, and count the forget calls and the
-   replies that say the fact was not stored.
-2. If such replies recur, widen the reply reader the note uses, with near-miss replies as tests
-   first ("I haven't set a reminder", "I didn't save the file").
+1. When the trigger fires, add a reader of a stored turn's reply that says the fact was not saved
+   and append `KEPT_BEYOND_CHAT_NOTE` there, with near-miss replies as tests first ("I haven't set
+   a reminder", "I didn't save the file", "I couldn't find a previous memory").
+2. Replay every recorded reply through the new reader and list each change.
 
 ## History
 
 - 2026-11-07: filed from the language and locale flows on the shared stack.
+- 2026-11-07: drew the message and its English form with `Lucia` three times each on the
+  rebuilt stack brain: no draw called `forget_memories` and no reply said the fact was not saved
+  ([readings](../../readings/overlay-language-and-locale-flows.md#8-requests-to-remember-in-four-more-languages)),
+  so the reply reader waits for a second such reply.

@@ -74,7 +74,8 @@ that removes exactly those rows and holds against a turn in flight. This record 
    English once any "don't forget" not followed by "to" is taken out. The message must also state a
    fact (`my`, `I`, or a subject that is no value or pronoun before a form of "to be", with no modal
    and no verb of wanting or saying), and the chat's last reply must not be a question about
-   forgetting. There a card would delete the fact the person asked to keep, and the turn would stay
+   forgetting. Those forms are English, so a request to remember in another language keeps the tool
+   unless it holds one. There a card would delete the fact the person asked to keep, and the turn would stay
    out of memory ([readings](../readings/forget-refused-on-remember.md)). The reader fails toward
    keeping the tool because a request read wrongly as a stated fact loses the delete, while a card
    needs the person's approval before it costs the fact. The tool stays listed, so the first request
@@ -86,9 +87,10 @@ that removes exactly those rows and holds against a turn in flight. This record 
    stored reply and the mark from the handoff record. One turn is recorded all the same: every
    call it named ran and matched nothing, and its message asks to remember something, read by
    `asks_kept` (`memory_request.py`: "remember", "keep in mind", "forget" after "don't", "do
-   not" or "never", or "note" before "that", "down" or the message, at a clause start, English
-   only, and not "remember not to" or "remember to not" before a keep verb and the message) and
-   not read by
+   not" or "never", or "note" before "that", "down" or the message, at a clause start, and not
+   "remember not to" or "remember to not" before a keep verb and the message; in French, German,
+   Spanish and Romanian an imperative to remember at a clause start, such as `souviens-toi`,
+   `merk dir`, `recuerda que` or `ține minte`) and not read by
    `asks_not_kept`. The cortex calls the tool with the fact as the text on about one request to
    remember in four, and that turn has nothing to forget
    ([readings](../readings/forget-no-match-on-remember.md)). A forget request naming a value

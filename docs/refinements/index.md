@@ -67,7 +67,7 @@ never a reading of what the tree does now.
 
 162 of these record the day their claims were last checked against the code. On every other task here, that reading is still yours to take.
 
-### Actionable now (11)
+### Actionable now (10)
 
 - **[R-959](tasks/959-a-turn-refused-as-deleted-while-the-overlay-is-away-raises-an-empty-preview.md)** A turn refused as deleted while the overlay is away raises an empty preview (session-read-rpc). Its claim was checked against the code on 2026-11-05.
 - **[R-967](tasks/967-a-request-to-remember-a-new-value-and-forget-the-old-one-keeps-neither.md)** A request to remember a new value and forget the old one keeps neither (memory). Its claim was checked against the code on 2026-11-05.
@@ -75,17 +75,16 @@ never a reading of what the tree does now.
 - **[R-995](tasks/995-a-request-to-remember-spends-its-thinking-looking-for-a-tool-to-store-the-fact.md)** A request to remember spends its thinking looking for a tool to store the fact (memory). Its claim was checked against the code on 2026-11-07.
 - **[R-997](tasks/997-a-reply-takes-the-language-of-a-recalled-memory.md)** A reply takes the language of a recalled memory (memory). Its claim was checked against the code on 2026-11-07.
 - **[R-999](tasks/999-a-note-the-brain-appends-is-english-under-a-reply-in-another-language.md)** A note the brain appends is English under a reply in another language (cross-cutting). Its claim was checked against the code on 2026-11-07.
-- **[R-1000](tasks/1000-a-request-to-remember-in-another-language-is-not-read-as-one.md)** A request to remember in another language is not read as one (memory). Its claim was checked against the code on 2026-11-07.
-- **[R-1001](tasks/1001-a-request-to-remember-with-a-reminder-says-the-fact-was-not-saved.md)** A request to remember with a reminder says the fact was not saved (memory). Its claim was checked against the code on 2026-11-07.
 - **[R-1003](tasks/1003-a-forget-reports-nothing-of-a-value-left-without-a-word-of-its-text.md)** A forget reports nothing of a value left without a word of its text (memory). Its claim was checked against the code on 2026-11-07.
 - **[R-1004](tasks/1004-a-french-reply-can-hold-a-chinese-word.md)** A French reply can hold a Chinese word (inference). Its claim was checked against the code on 2026-11-07.
 - **[R-1005](tasks/1005-a-recall-question-that-finds-no-value-loops-in-its-thinking.md)** A recall question that finds no value loops in its thinking (inference). Its claim was checked against the code on 2026-11-07.
+- **[R-1006](tasks/1006-a-reply-that-names-a-bare-hour-such-as-18h-gets-the-stored-time-note.md)** A reply that names a bare hour such as 18h gets the stored time note (scheduling). Its claim was checked against the code on 2026-11-07.
 
 ### Actionable, once a port changes (1)
 
 - **[R-129](tasks/129-streamed-brain-status.md)** Streamed brain status (body-overlay). Its claim was checked against the code on 2026-10-25.
 
-### Waiting for its trigger (120)
+### Waiting for its trigger (121)
 
 - **[R-011](tasks/011-stylesheet-outside-line-cap.md)** The overlay stylesheet outside the line cap (repo-checks). Reopens when: `find body/app/src -name '*.css'` lists a second file, or `git log --since='<Verified date> 00:00' --oneline -- body/app/src/overlay.css` lists a commit whose diff moves a rule to change which rule applies. A commit that edits only comments does not. Its claim was checked against the code on 2026-10-28.
 - **[R-013](tasks/013-couplings-widened-registry-cannot-hold.md)** The couplings the widened registry cannot cover (repo-checks). Reopens when: A third value on the capture-target enum, a reader for declarations in the `.proto` arriving in the scan for another reason, any module outside the body's rpc crate and the brain's body client that has to name one of the two gRPC status codes, or either side of that pair gaining a declaration whose value the scan can read. Its claim was checked against the code on 2026-10-25.
@@ -207,6 +206,7 @@ never a reading of what the tree does now.
 - **[R-909](tasks/909-a-frozen-brain-blames-llama-server-for-a-lost-reply.md)** A frozen brain blames llama-server for a lost reply (inference). Reopens when: a turn in flight across a real sleep of the host ends in `no reply within` on the overlay, or the brain logs the stall line for a reply the model host finished. Its claim was checked against the code on 2026-10-28.
 - **[R-915](tasks/915-a-long-generation-the-server-holds-back-reads-as-a-stalled-server.md)** A long generation the server holds back reads as a stalled server (inference). Reopens when: a cortex turn ends in `sent nothing for model 'cortex'` while the model host's log shows its slot still decoding. Its claim was checked against the code on 2026-10-28.
 - **[R-970](tasks/970-the-unkept-note-shows-on-a-message-with-nothing-to-keep.md)** The unkept note shows on a message with nothing to keep (memory). Reopens when: a person says the note confused them, or a recorded draw or shell flow holds a message of this form outside the row that found it. Its claim was checked against the code on 2026-10-31.
+- **[R-1001](tasks/1001-a-request-to-remember-with-a-reminder-says-the-fact-was-not-saved.md)** A request to remember with a reminder says the fact was not saved (memory). Reopens when: a second stored turn whose reply says the fact the person asked to remember was not saved, in a draw or a flow record. Its claim was checked against the code on 2026-11-07.
 
 ### Waiting for a consumer (25)
 
@@ -539,7 +539,7 @@ never a reading of what the tree does now.
 
 ### memory
 
-16 open of 52.
+15 open of 51.
 
 - [R-083](tasks/083-namespaced-memory-scoping.md) Per-session and namespaced memory scoping. done 2026-07-06.
 - [R-084](tasks/084-session-global-union-read.md) Session and global union read policy. open, waiting for a consumer.
@@ -590,8 +590,7 @@ never a reading of what the tree does now.
 - [R-975](tasks/975-a-refused-forget-call-shows-its-note-on-a-reply-the-claim-reader-does-not-read.md) A refused forget call shows its note on a reply the claim reader does not read. done 2026-11-05.
 - [R-995](tasks/995-a-request-to-remember-spends-its-thinking-looking-for-a-tool-to-store-the-fact.md) A request to remember spends its thinking looking for a tool to store the fact. open, actionable.
 - [R-997](tasks/997-a-reply-takes-the-language-of-a-recalled-memory.md) A reply takes the language of a recalled memory. open, actionable.
-- [R-1000](tasks/1000-a-request-to-remember-in-another-language-is-not-read-as-one.md) A request to remember in another language is not read as one. open, actionable.
-- [R-1001](tasks/1001-a-request-to-remember-with-a-reminder-says-the-fact-was-not-saved.md) A request to remember with a reminder says the fact was not saved. open, actionable.
+- [R-1001](tasks/1001-a-request-to-remember-with-a-reminder-says-the-fact-was-not-saved.md) A request to remember with a reminder says the fact was not saved. open, waiting for its trigger.
 - [R-1003](tasks/1003-a-forget-reports-nothing-of-a-value-left-without-a-word-of-its-text.md) A forget reports nothing of a value left without a word of its text. open, actionable.
 
 ### orchestrator
@@ -858,7 +857,7 @@ never a reading of what the tree does now.
 
 ### scheduling
 
-6 open of 39.
+7 open of 40.
 
 - [R-225](tasks/225-rust-transport-reminder-methods.md) Rust BrainTransport reminder methods. done 2026-07-14.
 - [R-226](tasks/226-overlay-reminders-on-open.md) The overlay's reminders-on-open surface. done 2026-07-14.
@@ -899,6 +898,7 @@ never a reading of what the tree does now.
 - [R-981](tasks/981-a-refused-monthly-call-can-be-stored-on-the-wrong-month.md) A refused monthly call can be stored on the wrong month. done 2026-11-06.
 - [R-988](tasks/988-a-reminder-with-a-day-and-no-time-can-fire-at-midnight.md) A reminder with a day and no time can fire at midnight. done 2026-11-06.
 - [R-989](tasks/989-an-ordinal-word-that-is-not-a-day-lets-a-monthly-birthday-run.md) An ordinal word that is not a day lets a monthly birthday run. done 2026-11-06.
+- [R-1006](tasks/1006-a-reply-that-names-a-bare-hour-such-as-18h-gets-the-stored-time-note.md) A reply that names a bare hour such as 18h gets the stored time note. open, actionable.
 
 ### session-history
 

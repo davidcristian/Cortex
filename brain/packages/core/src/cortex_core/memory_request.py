@@ -41,6 +41,20 @@ _DONT_KEEP_OTHER = re.compile(
     r"|nu(?:-l|-o)?\s+(?:reține|reţine|salva|nota|memora|ține\s+minte))\b",
     re.IGNORECASE,
 )
+# An imperative to remember in the same four languages, at a clause start: "je me souviens",
+# "rappelle-moi" (a reminder) and "merk dir das nicht" do not match.
+_REMEMBER_OTHER = re.compile(
+    rf"{_OTHER_OPENS}(?:souviens[-\s]toi|souvenez[-\s]vous|rappelle[-\s]toi|rappelez[-\s]vous"
+    r"|ret(?:enez|iens)\s+(?:que|qu['\u2019]|bien|ceci|cela|ça|mon|ma|mes)\b|retiens\s*:"
+    r"|n['\u2019]oubli(?:e|ez)\s+pas\s+(?:que|qu['\u2019])"
+    r"|merke?\s+(?:es\s+|das\s+|dies\s+)?dir\b(?!\s+(?:\w+\s+){0,2}?nicht\b)"
+    r"|merken\s+sie\s+sich|erinnere?\s+dich|vergiss\s+nicht\W+dass"
+    r"|recuerd[ae]\s+(?:que|esto|eso|lo\s+siguiente)\b|recuerd[ae]\s*:|acu[eé]rdate\b"
+    r"|no\s+olvides\s+que|ten\s+en\s+cuenta"
+    r"|[țţt]ine\s+minte|aminte[șşs]te-[țţt]i|re[țţt]ine\s+(?:c[ăa]|asta|acest)\b"
+    r"|nu\s+uita\s+c[ăa])",
+    re.IGNORECASE,
+)
 _FORGET_VERB = r"(?:forget|erase|unlearn)"
 _FORGET = re.compile(
     rf"{_OPENS}{_FORGET_VERB}\b|{_LOOSE}{_FORGET_VERB}\b(?={_MESSAGE})"
@@ -94,5 +108,8 @@ def asks_not_kept(query: str) -> bool:
 
 
 def asks_kept(query: str) -> bool:
-    """Whether a sentence of ``query`` asks, in English, that something be remembered."""
-    return any(_REMEMBER.search(sentence) for sentence in _SENTENCE_END.split(query))
+    """Whether a sentence of ``query`` asks that something be remembered."""
+    return any(
+        _REMEMBER.search(sentence) or _REMEMBER_OTHER.search(sentence)
+        for sentence in _SENTENCE_END.split(query)
+    )

@@ -122,9 +122,10 @@ requests to remember. No defect.
 
 The second reply ended `I couldn't find any previous memory about your sister's name, so I
 haven't "saved" it as a long-term memory`, while the exchange was stored as a `memories` row. The
-forget call matched nothing. The English form of the same message gets the same treatment from
-the typed readers (`unasked_forget` returns nothing for a message that also asks for a reminder),
-so this is not a language gap
+forget call matched nothing. `asks_kept` reads the message by its English `Remember`.
+`unasked_forget` kept the forget tool offered, since `Lucía` holds a letter outside English and
+the Spanish clause states the fact in no English form the reader knows; both fail toward keeping
+the tool. No reader looks at a stored turn's reply for a statement that the fact was not saved
 ([task 1001](../refinements/tasks/1001-a-request-to-remember-with-a-reminder-says-the-fact-was-not-saved.md)).
 
 ## 5. Forget in other languages
@@ -143,10 +144,10 @@ German forget, `What is my dog called?` searched the file tools and said it had 
 
 ## 6. Requests in other languages and the English readers
 
-`asks_kept` (`memory_request.py`) reads only English. A French or German request to remember is
+`asks_kept` (`memory_request.py`) read only English. A French or German request to remember was
 therefore not read as one: the refusal of unasked tools did not run, and the `spawn_subagents`
-calls of section 1 ran, where the English requests of section 3 had the same call refused
-([task 1000](../refinements/tasks/1000-a-request-to-remember-in-another-language-is-not-read-as-one.md)).
+calls of section 1 ran, where the English requests of section 3 had the same call refused.
+Section 8 widens it.
 
 `asks_not_kept` read only English too, and that one decides whether a turn is stored. Each
 message below ran in a new chat:
@@ -172,3 +173,53 @@ The stack brain was rebuilt from the tree with both readers widened, and three n
 `Mein Garagencode ist 3318, aber merk dir das nicht.` stored no `memories` row (0 rows name
 either code), and `Rappelle-moi demain à 17h30 de sortir les poubelles.` stored the reminder with
 a reply naming `17h30` and no note.
+
+## 8. Requests to remember in four more languages
+
+`asks_kept` now also reads an imperative to remember at a clause start in French, German, Spanish
+and Romanian: `souviens-toi`, `rappelle-toi`, `retiens que`, `n'oublie pas que`, `merk dir`,
+`merken Sie sich`, `erinnere dich`, `vergiss nicht, dass`, `recuerda que`, `acuérdate`,
+`no olvides que`, `ten en cuenta`, `ține minte`, `amintește-ți`, `reține că` and `nu uita că`. It
+does not read a statement (`je me souviens de lui`, `ich merke mir Namen schlecht`,
+`ella recuerda todo`, `el ține minte totul`), a past form, a question about memory, a question
+that opens "do you remember when", a request for a reminder (`rappelle-moi`, `erinnere mich`,
+`recuérdame`, `amintește-mi`) or a request not to keep (`merk dir das nicht`, `nu ține minte asta`).
+
+Three refusals read the message with English word lists once `asks_kept` reads it: the readers of
+a reminder and of the sound (`unasked_tools`) and of a source (`unasked_sidecar_tools`). With only
+`asks_kept` widened, 13 of the new tests failed: a request to remember that also asked for a
+reminder, the sound or a file in one of the four languages had `schedule_task`, `set_volume` or
+the file tools refused. Those three readers now read the same words in the four languages, and a
+remember verb that also reminds (`rappel`, `erinner`, `recuerd`, `aminti`) keeps `schedule_task`
+offered. The fact reader of `unasked_forget` stays English, and its reader of words that can
+retract now also reads `uita`, `șterge`, `supprimer`, `eliminar` and `löschen`, so a request to
+remember in another language keeps the forget tool unless it states the fact in an English form.
+
+Replayed through the old and new readers (`asks_kept`, `unasked_tools`, `unasked_sidecar_tools`,
+`unasked_forget`, `asks_files`, `unkept_note_due`), 4 of the 87 distinct messages recorded that
+night before this change changed: the four requests to remember of section 1, which now have the
+sidecar tools, `spawn_subagents` and `set_volume` refused, and `schedule_task` refused on all but
+the Spanish one. Of 21,835 distinct strings in the brain's other test files and the readings
+records, 6 changed: those four and two stored exchange texts that quote the French one. No
+English string changed, and `unasked_forget` and `asks_files` changed on none.
+
+The stack brain was rebuilt from the tree at 05:25 (SM clock 0.57 of `clocks.max.sm`), and each
+message below ran in new chats `s11-*` with every card approved:
+
+| Message | Draws | Tool calls | Stored |
+| --- | --- | --- | --- |
+| `Souviens-toi que le code de mon casier à la piscine est 7731.` | 4 | 1 `spawn_subagents`, refused | 4 of 4 |
+| `Merk dir, dass mein Hund Bello heißt.` | 4 | none | 4 of 4 |
+| `Recuerda que mi color favorito es el verde.` | 1 | none | 1 of 1 |
+| `Ține minte că numărul apartamentului meu este 42.` | 1 | none | 1 of 1 |
+| `Souviens-toi que ma sœur s'appelle Claire et rappelle-moi demain à 18h de l'appeler.` | 1 | `schedule_task` ran | 1 of 1 |
+
+The refused call left the turn untainted, so it was stored. Every reply was in the person's
+language and said the fact was kept. The French reminder reply named `18h` and still had
+`STORED_TIME_NOTE` appended, since `names_time_of_day` does not read a bare hour
+([task 1006](../refinements/tasks/1006-a-reply-that-names-a-bare-hour-such-as-18h-gets-the-stored-time-note.md)).
+The section 4 message and its English form with `Lucia` ran three times each in new chats: no
+draw called `forget_memories`, and no reply said the fact was not saved. The draws' 17 `memories`
+rows and their one schedule item were deleted afterwards. Run logs: `flows1.log`, `flows2.log`,
+`replay2.log` and `mut2.log` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/37073e3c-5ca6-42f6-aae1-df9e67b0e4db/scratchpad/slot11/`.
