@@ -96,12 +96,12 @@ say so. The brain now appends a note when a reply over a daily item names no rep
 And the note the brain appends when a reply names no stored time
 (`STORED_TIME_NOTE`, `schedule_claim.py`) was added under replies that named it as `17h30` and
 `10h00`, because `names_time_of_day` read only English clock forms. That reader now also reads
-`9 Uhr`, `9.30 Uhr`, and `17h30` or `9 h 15` after a word for a point in time (`à`, `vers`, `um`,
-`gegen`, `a las`, `at`), and not a duration such as `dure 2h30`, `pendant 1h30` or `dans 2h30`.
-Replayed through the old and the new reader, 1 of the 195 distinct replies recorded that night
-changed, the French list reply that names `17h30`; the rule on the word before changed none of
-the 318 recorded by 07:25. Notes in English under a reply in
-another language are [task 999](../refinements/tasks/999-a-note-the-brain-appends-is-english-under-a-reply-in-another-language.md).
+`9 Uhr`, `9.30 Uhr`, and `17h30` or `9 h 15` after a word for a point in time (`à`, `vers`, `dès`,
+`demain`, `aujourd'hui`, `um`, `gegen`, `a las`, `at`, `réglé pour` and the like), and not a
+duration such as `dure 2h30`, `dans 2h30` or `je pars pour 2h30`. Replayed through the old and new
+reader, 1 of the 195 distinct replies recorded that night changed, the French list reply naming
+`17h30`; the later rules on the word before changed none of the 318 recorded by 07:25 or of the 351
+recorded by 09:13. Notes in English under a reply in another language are [task 999](../refinements/tasks/999-a-note-the-brain-appends-is-english-under-a-reply-in-another-language.md).
 
 ## 3. Numbers, currencies and names with diacritics
 

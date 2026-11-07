@@ -55,6 +55,10 @@ _MOVED = "edited abc: now due 2026-11-20T10:00:00+00:00"
         "Te lo recordaré a las 17h30.",
         "I'll remind you at 17h30.",
         "Je vous le rappellerai vers 9h30.",
+        "Rappel réglé pour 17h30.",
+        "Je te le rappelle demain 17h30.",
+        "C'est noté : rappel aujourd'hui, 17h30.",
+        "Rappel programmé dès 17h30 demain.",
     ],
 )
 def test_a_clock_figure_am_or_pm_noon_or_midnight_names_a_time_of_day(reply: str) -> None:
@@ -101,6 +105,11 @@ def test_a_clock_figure_am_or_pm_noon_or_midnight_names_a_time_of_day(reply: str
         "Je te le rappellerai d'ici 2h.",
         "I'll remind you within 24h.",
         "Te lo recuerdo en 24h.",
+        "Il part demain pour 2h30.",
+        "Rappel réglé pour demain, pendant 1h30.",
+        "Il reste aujourd'hui 2h30 de travail.",
+        "Demain, 2h30 de trajet.",
+        "Le trajet prend 1h30 dès demain.",
     ],
 )
 def test_a_reply_with_no_clock_figure_names_no_time_of_day(reply: str) -> None:

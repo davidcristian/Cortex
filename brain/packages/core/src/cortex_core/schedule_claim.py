@@ -43,7 +43,9 @@ _TIME_OF_DAY = re.compile(
     r"\b\d{1,2}(?::\d{2})?\s*[ap]\.?m\.?(?![a-z])|\b\d{1,2}:\d{2}\b|\bnoon\b|\bmidnight\b"
     r"|\b\d{1,2}(?:[.:]\d{2})? ?Uhr\b"
     # An hour written with h only after a word for a point in time, since "dure 2h30" is a duration.
-    r"|\b(?:à|vers|um|gegen|a\s+las|at)\s+\d{1,2} ?h(?: ?[0-5]\d)?\b(?!\s*de\b)",
+    r"|\b(?:à|vers|dès|(?:demain|aujourd['\u2019]hui),?|um|gegen|a\s+las|at"
+    r"|(?:réglé|programmé|prévu|fixé|enregistré|noté)e?s?\s+pour)"
+    r"\s+\d{1,2} ?h(?: ?[0-5]\d)?\b(?!\s*de\b)",
     re.IGNORECASE,
 )
 _DUE = re.compile(r"\bdue \d{4}-\d{2}-\d{2}T(\d{2}:\d{2})")
