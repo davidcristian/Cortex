@@ -5,7 +5,8 @@ from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
-FILENAME = re.compile(r"^(\d{3})-([a-z0-9]+(?:-[a-z0-9]+)*)\.md$")
+# Three digits with leading zeros, or any number from 1000 up with none.
+FILENAME = re.compile(r"^(\d{3}|[1-9]\d{3,})-([a-z0-9]+(?:-[a-z0-9]+)*)\.md$")
 FIELD = re.compile(r"^\*\*([A-Za-z]+):\*\* +(.+?) *$")
 # "done" and "closed" are left out: both are ordinary adjectives in a title, which the substring
 # check would reject.

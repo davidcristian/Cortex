@@ -53,6 +53,7 @@ def test_a_host_file_parses_into_its_own_identity_and_session() -> None:
     [
         "1-wire-the-port.md",
         "0042-wire-the-port.md",
+        "01000-wire-the-port.md",
         "042_wire_the_port.md",
         "042-Wire-The-Port.md",
         "042-wire--the-port.md",
@@ -74,6 +75,8 @@ def test_a_file_name_outside_the_layout_is_rejected(name: str) -> None:
         ("000-a.md", 0, "a"),
         ("007-two-words.md", 7, "two-words"),
         ("999-adr-0001-follow-up.md", 999, "adr-0001-follow-up"),
+        ("1000-past-nine-hundred-ninety-nine.md", 1000, "past-nine-hundred-ninety-nine"),
+        ("12345-a.md", 12345, "a"),
     ],
 )
 def test_a_file_name_inside_the_layout_gives_the_number_and_slug(
