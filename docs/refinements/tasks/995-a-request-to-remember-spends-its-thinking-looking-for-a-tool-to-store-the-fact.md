@@ -43,10 +43,15 @@ A reply that keeps the fact for this chat only now ends with `KEPT_BEYOND_CHAT_N
 left: base searched in 15 of 15 draws, and one system message on a turn `asks_kept` reads cut it
 to 5 of 15, above the bound of 2 its rule set.
 
-1. Write rows and a rule into that readings record before any draw: R01 to R15 on base and on two
-   candidates, the same sentence at the end of the first system message, and a sentence in the
-   `forget_memories` description saying memory stores every exchange by itself and the tool only
-   deletes. Keep the bound of 2 of 15 and the counts of the first rule.
+The same sentence at the end of the first system message searched in 14 of 15 draws, and in the
+`forget_memories` description in 13 of 15
+([readings](../../readings/remember-request-tool-search.md#two-more-places-for-the-sentence-the-draws-2026-11-07)).
+
+1. Write rows and a rule into that readings record before any draw for a typed result text in
+   place of a sentence: a tool that does what the trace looks for, whose result says the exchange
+   is stored when the turn ends. A call adds a round, so the rule weighs the median turn time as a
+   ratio of base's beside the search count. The tool's name is a pick for the maintainer; propose
+   a set with alternatives.
 2. Compare the first requests of each pair before writing a rule item.
 
 ## History
@@ -56,3 +61,5 @@ to 5 of 15, above the bound of 2 its rule set.
 - 2026-11-07: drew base and two candidates on R01 to R15. The note the brain appends after a typed
   check of the reply shipped; the system message on a request to remember searched in 5 of 15
   draws and did not ship.
+- 2026-11-07: drew the sentence at the end of the first system message and in the
+  `forget_memories` description; both searched in at least 13 of 15 draws and neither ships.

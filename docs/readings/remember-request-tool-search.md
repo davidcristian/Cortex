@@ -90,3 +90,40 @@ masked, and A's holds one more system message. So B is judged on its note alone.
 - The chat-only form occurred in 0 of 45 draws here and in 2 of 5 when the task was filed. Those
   five drew with 11 rows in `memories` and these with none; whether recall moves the form is
   untested.
+
+## Two more places for the sentence: rows and rule, 2026-11-07
+
+Written before either was drawn. The rig, rows, counts and order are the first rule's, with base
+now a `git archive` build of `002cee855`, which holds B's note.
+
+- **A2**: base, with A's sentence at the end of the first system message on a turn whose message
+  `asks_kept` reads, in place of a message of its own.
+- **A3**: base, with one sentence at the end of the `forget_memories` description, on every turn:
+  memory stores every exchange by itself when a turn ends, so remembering needs no call, and this
+  tool only deletes.
+
+The first requests of each candidate are compared with base's before any item is read.
+
+- A candidate **passes** when its search count is at most 2 of 15 against at least 10 of 15 on
+  base, no reply of it has the chat-only form, it calls `forget_memories` in no more draws than
+  base, and it stores the fact in no fewer draws than base less one.
+- A passing candidate is built with tests on the next slot on this task; nothing ships from this
+  rule tonight. When both pass, A2 is built, since it reaches only turns `asks_kept` reads.
+- The null result is both failing: the task then stays open with these counts.
+
+## Two more places for the sentence: the draws, 2026-11-07
+
+Run log `rows2.jsonl`, with `spans2.txt` and `analysis2.txt`, beside the first run's. All 45 draws
+ended `turn_complete`, and the SM clock read 0.57 of its maximum at the start and at the end. On
+every row both candidates' first requests differ from base's: A2's first system message is longer,
+and A3's tool list differs.
+
+| Build | Search | Median trace characters | Median turn time | Chat only | Forget | Stored |
+| --- | --- | --- | --- | --- | --- | --- |
+| Base | 15 of 15 | 3,626 | 1 | 0 of 15 | 0 | 15 of 15 |
+| A2 | 14 of 15 | 1,552 | 0.51 of base's | 0 of 15 | 0 | 15 of 15 |
+| A3 | 13 of 15 | 1,307 | 0.50 of base's | 0 of 15 | 0 | 15 of 15 |
+
+Both fail on the search count, so this is the null result. Each halved the trace and the turn
+time and neither stopped the search. A, the sentence in a system message of its own, is still the
+only placement that cut the search, to 5 of 15.
