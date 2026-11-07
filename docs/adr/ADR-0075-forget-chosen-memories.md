@@ -123,9 +123,11 @@ that removes exactly those rows and holds against a turn in flight. This record 
    three, or "actually", open a request only when the message follows the verb, so "use it once
    then forget it" asks. The words after a request to remember in the same sentence are what to
    keep, so "Remember: never record calls" is a rule to store, unless they name the message
-   ("it", "this", "that", "my", "any" and the like). It reads English only, as `claims_kept`
-   does, and never reads a "don't forget" or a statement such as "I don't remember"; a message
-   it misses is recorded as before.
+   ("it", "this", "that", "my", "any" and the like). Beyond English it reads only a negative
+   imperative of a keep verb that opens a clause in French ("ne le retiens pas"), German ("merk
+   dir das nicht"), Spanish ("no lo guardes") or Romanian ("nu-l reține"). It never reads a
+   "don't forget" or a statement such as "I don't remember" or "je ne retiens pas"; a message it
+   misses is recorded as before.
    A reply that says something was forgotten, or removed from memory, on a turn whose forget
    calls deleted no row ends with `UNFORGOTTEN_CLAIM_NOTE`, which the brain appends after a typed
    check of the reply (`forget_claim.py`), because the cortex answered a forget request beside

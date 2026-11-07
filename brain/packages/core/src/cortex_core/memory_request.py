@@ -28,6 +28,19 @@ _NOT_FOR_MEMORY = re.compile(
     r"\bnot\s+(?:for|in|into|to)\s+your\s+(?:memory|memories|notes)\b|\boff\s+the\s+record\b",
     re.IGNORECASE,
 )
+# A negative imperative in French, German, Spanish or Romanian that opens a clause, so a statement
+# such as "je ne retiens pas" or "el nu reține" does not match.
+_OTHER_OPENS = r"(?:^\W*|[,;:]\s*|\b(?:mais|et|aber|und|doch|pero|y|dar|și|însă|bitte)\s+)"
+_DONT_KEEP_OTHER = re.compile(
+    rf"{_OTHER_OPENS}(?:ne\s+(?:l['\u2019]|le\s+|la\s+|les\s+)?"
+    r"(?:retiens|retenez|note|notez|garde|gardez|enregistre|enregistrez|mémorise|mémorisez)\s+pas"
+    r"|merke?\s+(?:es\s+|das\s+|dies\s+)?dir\s+(?:das\s+|es\s+|dies\s+)?nicht"
+    r"|(?:speicher|speichere|notier|notiere|behalt|behalte)\s+(?:das|es|dies)\s+nicht"
+    r"|nicht\s+(?:merken|speichern|notieren|behalten)"
+    r"|no\s+(?:lo\s+|la\s+|los\s+|las\s+)?(?:recuerdes|guardes|anotes|apuntes|memorices)"
+    r"|nu(?:-l|-o)?\s+(?:reține|reţine|salva|nota|memora|ține\s+minte))\b",
+    re.IGNORECASE,
+)
 _FORGET_VERB = r"(?:forget|erase|unlearn)"
 _FORGET = re.compile(
     rf"{_OPENS}{_FORGET_VERB}\b|{_LOOSE}{_FORGET_VERB}\b(?={_MESSAGE})"
@@ -61,6 +74,8 @@ _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
 def _asks_not_kept(sentence: str) -> bool:
     """Whether ``sentence`` asks not to keep, forget or remove something it does not ask kept."""
     if _NOT_FOR_MEMORY.search(sentence) or _REMOVE.search(sentence):
+        return True
+    if _DONT_KEEP_OTHER.search(sentence):
         return True
     remember = _REMEMBER.search(sentence)
     starts = len(sentence) if remember is None else remember.start()

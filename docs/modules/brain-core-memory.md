@@ -107,7 +107,8 @@ pool down to the hits one turn sees. The turn that calls it is in
   remembering", with "you should forget" (or "must", "need to", "have to") before the message, or
   that says "from your memory" or "off the record", asks not to keep; "remember not to", "remember
   to not", "get rid of" and "stop remembering" count only before the message ("it", "this", "my" and the like), as
-  does any form after a request to remember in the same sentence. `asks_files`
+  does any form after a request to remember in the same sentence; in French, German, Spanish and
+  Romanian only a negative imperative of a keep verb at a clause start counts. `asks_files`
   (`file_request.py`) reads a sentence naming files, folders, directories or a file name such as
   `notes.txt` beside a question mark or a request word ("list", "show", "tell", "read", "which",
   "what" and the like), on a message `asks_kept` does not read as a request to remember; an
