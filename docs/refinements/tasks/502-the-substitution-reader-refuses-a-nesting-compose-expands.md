@@ -8,7 +8,7 @@ which is the change a two-variable fallback exists to cover. Checkable with
 the embedder's and the projector's model-file renames of 2026-08-30 are the only two so far, both
 taken without a fallback
 **Origin:** [ADR-0063](../../adr/ADR-0063-compose-checks.md)
-**Verified:** 2026-10-17
+**Verified:** 2026-11-07
 
 `scripts/composedefaults.py` raises `SubstitutionReadError` on a nested expansion. Compose does
 expand it: `${A:-${B:-x}}` resolves to `B`'s value and then to `x` on compose v2.39.1, measured
@@ -90,3 +90,6 @@ are already different callers, so the middle option is a real choice.
 - 2026-10-17: checked again and not fired. No compose change since 2026-10-07 renames a variable:
   they add `CORTEX_INFERENCE_LOAD_WAIT_S`, move two ports, and change a healthcheck, a package
   version, a grace period and batch sizes.
+- 2026-11-07: checked again and not fired. The three compose commits since 2026-10-17 rename no
+  variable: they add `CORTEX_SUBAGENT_CTX_SIZE`, `CORTEX_SUBAGENTS_PARALLEL` and two tool settings,
+  and send the file sidecar's stdout to `/dev/null`.

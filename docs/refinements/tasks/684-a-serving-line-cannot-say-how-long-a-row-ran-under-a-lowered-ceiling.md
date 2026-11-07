@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** vision
 **Origin:** [ADR-0041](../../adr/ADR-0041-injection-image-variant.md)
-**Verified:** 2026-10-17
+**Verified:** 2026-11-07
 **Trigger:** a row whose price is published in `docs/` prints a `card readings every` line with its
 lowest ceiling ratio under 0.50 of max and its highest above 0.50.
 
@@ -43,4 +43,6 @@ with the row that fired it as the example.
   launcher, and for keeping that record in the tree, since each launcher is a script under the
   ignored `measurements/` directory.
 - 2026-10-17: checked again and not fired. No line added under `docs/` since 2026-10-07 prints a
+  `card readings every` line.
+- 2026-11-07: checked again and not fired. No line added under `docs/` since 2026-10-17 prints a
   `card readings every` line.

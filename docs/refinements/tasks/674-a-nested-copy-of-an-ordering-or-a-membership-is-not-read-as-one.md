@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0042](../../adr/ADR-0042-cross-tree-constant-registry.md)
-**Verified:** 2026-10-17
+**Verified:** 2026-11-07
 **Trigger:** a second ordering or membership over sites another entry of the same relation already
 reads, which is countable by walking `crosscheck.CONSTANTS` pairwise over the entries whose relation
 is not `EQUAL` and asking whether either one's sites are a subsequence of the other's.
@@ -62,3 +62,6 @@ the narrower one's.
   three non-equalities.
 - 2026-10-17: checked again and not fired. The three entries whose relation is not `EQUAL` are still
   the ones in `wirecouplings.py`, which has no commit since 2026-10-07.
+- 2026-11-07: checked again and not fired. `crosscheck.CONSTANTS` still has three entries whose
+  relation is not `EQUAL`, all in `wirecouplings.py`; its one commit since, on 2026-10-30, adds an
+  `EQUAL` entry for the refused attachment error code.

@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** vision
 **Origin:** [ADR-0041](../../adr/ADR-0041-injection-image-variant.md)
-**Verified:** 2026-10-17
+**Verified:** 2026-11-07
 **Trigger:** a figure from one of the harnesses below, a turn-cost interval or a decode rate, is
 published in `docs/` with a date after 2026-09-17 and no card reading beside it. The added lines
 of `git log -p --since=<the last check> -- docs/` that match `tok/s`, `test_turn_cost_live` or
@@ -52,4 +52,6 @@ two above are the ones that publish a time or a rate taken on the card.
   outside the tree), so a harness drawn under it has a reading in its run directory; a harness run
   by hand still has none.
 - 2026-10-17: checked again and not fired. No line added under `docs/` since 2026-10-07 matches
+  `tok/s`, `test_turn_cost_live` or `test_decode_cadence_live`.
+- 2026-11-07: checked again and not fired. No line added under `docs/` since 2026-10-17 matches
   `tok/s`, `test_turn_cost_live` or `test_decode_cadence_live`.

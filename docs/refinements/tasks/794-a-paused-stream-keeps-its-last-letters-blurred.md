@@ -5,7 +5,7 @@
 **Origin:** [ADR-0037](../../adr/ADR-0037-whisper-streaming.md) decisions 2 and 5
 **Trigger:** a History line in this file recording the maintainer's pick of a pause signal, a finish
 and a rule for the last word, from the three choices in the proposal.
-**Verified:** 2026-10-17
+**Verified:** 2026-11-07
 
 The whispered reply condenses letters on a front that trails the arrivals, and a letter inside the
 nine-letter band (`BAND_LETTERS` in `body/app/src/whisper/front.ts`) holds part opacity and blur
@@ -71,3 +71,5 @@ tests; `useWhisperClock.ts` has 264 of its 300 lines.
 - 2026-10-17: checked again and not fired, with no pick recorded. `BAND_LETTERS` is still 9 and
   `goalOf` and `rampAt` read as described; the `front.ts` changes of 2026-10-15 change how a reply
   is split into letters, not the front.
+- 2026-11-07: checked again and not fired, with no pick recorded. `whisper/` has no commit since
+  2026-10-17, and `BAND_LETTERS` is still 9.

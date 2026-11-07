@@ -4,7 +4,7 @@
 **Area:** body-overlay
 **Origin:** [ADR-0052](../../adr/ADR-0052-overlay-focus-and-announcements.md)
 **Trigger:** a History line in this file recording the maintainer's pick of A or B.
-**Verified:** 2026-10-17
+**Verified:** 2026-11-07
 
 The conversation scrolls in `.history` in `body/app/src/components/ChatView.tsx`, a `div` with no
 `tabIndex`, and no key handler in the overlay moves it: `useLogScroll.ts` and `logRoll.ts` set
@@ -40,3 +40,5 @@ focusable child a tab stop of its own, so WebView2 may give the conversation one
 - 2026-10-17: checked again and not fired, with no pick recorded. `.history` still has no `tabIndex`
   and no key handler scrolls it. Since 2026-10-15 sending a message also moves the log to its end,
   which the account above now lists.
+- 2026-11-07: checked again and not fired, with no pick recorded. `.history` in `ChatView.tsx` still
+  has no `tabIndex`, and the only `Home` and `End` handler is the tab strip's.

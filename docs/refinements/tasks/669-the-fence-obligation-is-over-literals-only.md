@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0062](../../adr/ADR-0062-shared-check-readers.md)
-**Verified:** 2026-10-17
+**Verified:** 2026-11-07
 **Trigger:** a module under `scripts/` decides whether a line is a fence by testing it against
 `markdownfences.MARKERS`, or against anything read off that tuple, rather than by asking `Fences`.
 One search over the modules importing any name from `markdownfences` other than `Fences` and
@@ -58,3 +58,6 @@ reading kept in one place by there being one module to import from.
   been cut to one line; it now counts five and points at the ADR. The remedy stands.
 - 2026-10-17: checked again and not fired. Every module importing from `markdownfences` imports
   `Fences` alone.
+- 2026-11-07: checked again and not fired. Every module importing from `markdownfences` imports
+  `Fences` alone; only the tuple's own test imports `MARKERS`, and it has no commit since
+  2026-09-23.

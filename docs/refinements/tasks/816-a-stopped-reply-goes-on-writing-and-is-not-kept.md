@@ -5,7 +5,7 @@
 **Origin:** [ADR-0037](../../adr/ADR-0037-whisper-streaming.md) decision 2
 **Trigger:** a History line in this file recording the maintainer's pick of what a Stop keeps on
 screen.
-**Verified:** 2026-10-17
+**Verified:** 2026-11-07
 
 On the Linux shell a Stop pressed while the cortex wrote a long essay ended the turn in the brain at
 once, and the overlay went on drawing the reply's text for at least 14 s
@@ -41,3 +41,6 @@ alone where the overlay showed part of a reply, and later prompts hold the quest
   the stopped turn with its declined call is the in-chat pick here, which is unchanged.
 - 2026-10-17: checked again and not fired, with no pick recorded. `MAX_PACE` is still 150 letters a
   second; the `front.ts` changes of 2026-10-15 split letters differently and leave the pace alone.
+- 2026-11-07: checked again and not fired, with no pick recorded. `MAX_PACE` is still 150,
+  `whisper/` has no commit since 2026-10-17, and the `stop` action in `overlayState.ts` still ends
+  the reply with all the text received.
