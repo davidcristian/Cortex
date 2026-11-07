@@ -28,11 +28,13 @@ row holds; each reply said it could not find the old number. Over 60 draws of M0
 ## What to do
 
 1. An unmatched first call naming the new value. Its result text, on a call whose text follows
-   "now" or "new" in the message, asks for one word naming the fact; the
+   "now" or "new" in a message that asks to forget the old value, asks for one word naming the
+   fact; the
    [rows and the rule](../../readings/forget-naming-the-new-value.md#rows-and-the-rule-2026-11-07)
    are written, with a row for a value never stored, where "nothing about it was stored" is
-   correct. Next: write the reader's near-miss tests, build the candidate in `dispatch_round.py`
-   and draw it under that rule.
+   correct. The candidate and its near-miss tests are built and kept as a
+   [patch](../../readings/forget-new-value-patch.md). Next: a row whose first request does not hold
+   the old value, with its rule written first, drawn on a build of that patch.
 
 ## History
 
@@ -64,3 +66,8 @@ row holds; each reply said it could not find the old number. Over 60 draws of M0
   never stored that follows "now", and no shipped build drawn.
 - 2026-11-07: one of the night's draws claimed the delete before its card was answered; filed as
   [R-996](996-a-round-s-text-can-claim-a-forget-before-its-card-is-answered.md).
+- 2026-11-07: the premise still holds in the code. Step 2's candidate was built with 27 tests,
+  fourteen mutation rows over them all failed, and the rows were drawn through the proxy: none of
+  60 N01 and N02 draws counted (every first call named the old number, which recall showed),
+  and every V01 draw said nothing was stored, so the rule gave no result and the candidate is
+  [recorded as a patch](../../readings/forget-new-value-patch.md) rather than committed.

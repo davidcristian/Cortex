@@ -11,7 +11,10 @@ This record decides step 2 of
 
 Written before any draw. The candidate: a `forget_memories` result that matched nothing, in a turn
 with no earlier delete, whose text follows `now` or `new` in the person's message with at most
-three words between them (`is now 0699000000`, `new phone number is 0699000000`), reads "nothing
+three words between them (`is now 0699000000`, `new phone number is 0699000000`), right after
+`now`, `is`, `are` or `to`, in a message that asks to forget an old value (`delete`, `forget`,
+`remove`, `erase`, `drop`, `clear` or `wipe` opening a clause, then `old`, `previous`, `former`,
+`earlier` or `prior` within three words), reads "nothing
 was forgotten: that text is the new value the user just gave, which no remembered exchange holds,
 so call `forget_memories` again with one word from the request that names the fact, such as
 "phone", and do not say that the old value was not stored" in place of `_NONE_FOUND`. The tool
@@ -45,3 +48,39 @@ or `phone number` deleted before each draw.
 - The null result is counted draws whose turn makes no later call; then the result text does not
   move the model, and a search the brain runs itself for a word of the message is the next form to
   write a rule for.
+
+## The draws, 2026-11-07
+
+Drawn on a build of `97d26b572` with the [recorded patch](forget-new-value-patch.md) as a second
+brain (`cortexn15-brain-r969n`) through the proxy, beside the `cortexn15` stack brain, with the
+seed row (`User: Remember that my phone number is 0612345678.`) copied in before each N01 and N02
+draw and no phone row before each V01 draw. Every card was approved. The SM clock read 0.57 to
+0.69 of its maximum; no draw ended in an error. Scratch logs:
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/37073e3c-5ca6-42f6-aae1-df9e67b0e4db/scratchpad/slot4/`.
+
+| Of the draws | N01 | N02 | V01 |
+| --- | --- | --- | --- |
+| Draws | 30 | 30 | 5 |
+| First call's text the old value `0612345678`, card shown and approved, old row deleted | 30 | 30 | |
+| Counted: a call naming `0699000000` matching nothing before any delete | 0 | 0 | |
+| A row holding the old number after the draw | 0 | 0 | |
+| No card, nothing deleted, value not asked for, reply says nothing was stored | | | 5 |
+
+Before the draws every recorded first-call text was replayed with its message through the shipped
+result, where every unmatched call reads `_NONE_FOUND`, and through the reader: `0699000000` in
+M02, M05 and N02 and `8426` in the locker code form M01 read the new result, while `0612345678`,
+`phone number`, `old phone number`, `phone`, `7319`, `locker code` and V01's `0699000000` keep
+`_NONE_FOUND`.
+
+Every N01 and N02 draw's first request held the seed row among the recalled notes, and every first
+call named the old number. In V01 the call named `0699000000` and read
+`_NONE_FOUND`, because the message names no old value, and each reply said the number was not
+stored, for example "I didn't have that phone number stored in my memory, so there's nothing to
+forget."
+
+The rule counted 0 of the first 30 draws, under its 2, and 0 of the 15 more of each row it then
+calls for, so **the candidate does not ship** and the behaviour stays. The form came in 6 of
+60 draws of M02 over three earlier nights and in none of tonight's; those requests are not recorded,
+so whether they held the seed row is not known. The next row is one whose first request does not
+hold the old value, for example a pool in which recall leaves the seed row out, with its rule
+written before it is drawn.
