@@ -100,3 +100,23 @@ a number left out is the near miss `I have also removed the phone number.` that 
 keep, and a verb for another is outside the list. Over the 99,249 distinct sentences of the
 readings, task files and brain tests, the new reading changes 245 and reads 2 pairs as one that the
 old one read as two, each a sentence and its own contracted form.
+
+## A live row on the new hold: rows, 2026-11-07
+
+Written after the fix was committed and before any draw of its own. The stack brain, rebuilt from
+the tree with the new hold, draws W04 15 times over `Converse` with every card approved, `memories`
+cleared of the draw's rows after each. The driver splits each reply's text at its `tool_activity`
+events. It counts the calling draws, those with text before the call, and the replies in which a
+round after the first opens with a sentence an earlier round wrote, as the new hold reads them. It
+checks that the change broke nothing live and decides nothing.
+
+## A live row on the new hold: result, 2026-11-07
+
+Run log `live.jsonl` and the driver `turn_rounds.py` in the same directory as the draws, the SM
+clock at 0.57 of its maximum before the draws and 0.68 after them. Of the 15 draws, 11 call
+`forget_memories` and 3 of those write text before the call, which each reply shows. No later round
+opens with a sentence an earlier round wrote. In one of the 3 the first round ends `I have also
+removed your phone number 0612345678 from my memory.` and the second round is `I have also removed
+your phone number from my memory as requested.`: the form with the number left out, which the hold
+keeps. In the other 2, the round after the call writes a new sentence. The brain's note for a forget
+that deleted nothing ends both replies that claim a removal, since `memories` held no phone row.
