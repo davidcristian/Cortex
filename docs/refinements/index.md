@@ -81,9 +81,9 @@ never a reading of what the tree does now.
 - **[R-1007](tasks/1007-a-request-to-forget-in-another-language-answered-without-a-call-is-stored.md)** A request to forget in another language answered without a call is stored (memory). Its claim was checked against the code on 2026-11-07.
 - **[R-1011](tasks/1011-a-reply-that-offers-a-repeat-hides-the-daily-note.md)** A reply that offers a repeat hides the daily note (scheduling). Its claim was checked against the code on 2026-11-07.
 - **[R-1012](tasks/1012-a-duration-in-hours-and-minutes-reads-as-a-clock-time-in-a-reminder-reply.md)** A duration in hours and minutes reads as a clock time in a reminder reply (scheduling). Its claim was checked against the code on 2026-11-07.
-- **[R-1013](tasks/1013-a-request-to-remember-in-another-language-refuses-a-reminder-or-volume-it-also-asks-for.md)** A request to remember in another language refuses a reminder or volume it also asks for (memory). Its claim was checked against the code on 2026-11-07.
 - **[R-1015](tasks/1015-a-forget-card-shows-its-rows-as-one-paragraph-in-the-overlay.md)** A forget card shows its rows as one paragraph in the overlay (body-overlay). Its claim was checked against the code on 2026-11-07.
 - **[R-1016](tasks/1016-an-english-keep-idiom-or-a-contrast-before-a-request-to-remember-withholds-the-turn.md)** An English keep idiom or a contrast before a request to remember withholds the turn (memory). Its claim was checked against the code on 2026-11-07.
+- **[R-1017](tasks/1017-an-english-request-to-remember-with-a-second-clause-can-refuse-the-tool-it-asks-for.md)** An English request to remember with a second clause can refuse the tool it asks for (memory). Its claim was checked against the code on 2026-11-07.
 
 ### Actionable, once a port changes (1)
 
@@ -599,8 +599,8 @@ never a reading of what the tree does now.
 - [R-1001](tasks/1001-a-request-to-remember-with-a-reminder-says-the-fact-was-not-saved.md) A request to remember with a reminder says the fact was not saved. open, waiting for its trigger.
 - [R-1003](tasks/1003-a-forget-reports-nothing-of-a-value-left-without-a-word-of-its-text.md) A forget reports nothing of a value left without a word of its text. open, actionable.
 - [R-1007](tasks/1007-a-request-to-forget-in-another-language-answered-without-a-call-is-stored.md) A request to forget in another language answered without a call is stored. open, actionable.
-- [R-1013](tasks/1013-a-request-to-remember-in-another-language-refuses-a-reminder-or-volume-it-also-asks-for.md) A request to remember in another language refuses a reminder or volume it also asks for. open, actionable.
 - [R-1016](tasks/1016-an-english-keep-idiom-or-a-contrast-before-a-request-to-remember-withholds-the-turn.md) An English keep idiom or a contrast before a request to remember withholds the turn. open, actionable.
+- [R-1017](tasks/1017-an-english-request-to-remember-with-a-second-clause-can-refuse-the-tool-it-asks-for.md) An English request to remember with a second clause can refuse the tool it asks for. open, actionable.
 
 ### orchestrator
 

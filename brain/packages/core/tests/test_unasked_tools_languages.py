@@ -93,3 +93,45 @@ def test_a_request_to_remember_a_fact_in_another_language_refuses_both_tools() -
 )
 def test_a_request_to_remember_in_another_language_keeps_the_forget_tool(query: str) -> None:
     assert unasked_forget(query) == frozenset()
+
+
+@pytest.mark.parametrize(
+    ("query", "tool"),
+    [
+        (
+            "Souviens-toi que j'ai rendez-vous chez le dentiste et préviens-moi demain à 9h.",
+            SCHEDULE_TOOL_NAME,
+        ),
+        (
+            "Merk dir, dass ich morgen zum Zahnarzt muss, und sag mir um 9 Uhr Bescheid.",
+            SCHEDULE_TOOL_NAME,
+        ),
+        ("Ține minte că mâine am dentist și anunță-mă la 9.", SCHEDULE_TOOL_NAME),
+        ("Merk dir, dass ich um 6 aufstehe. Weck mich um 5.", SCHEDULE_TOOL_NAME),
+        ("Ține minte că am dentist; anunță-mă la 9.", SCHEDULE_TOOL_NAME),
+        ("Recuerda que me gusta así y sube la música.", SET_VOLUME_TOOL_NAME),
+        ("Souviens-toi que j'aime ça et monte la musique.", SET_VOLUME_TOOL_NAME),
+        ("Souviens-toi que je dors mais monte la musique.", SET_VOLUME_TOOL_NAME),
+    ],
+)
+def test_a_request_to_remember_in_another_language_with_a_second_clause_keeps_both_tools(
+    query: str, tool: str
+) -> None:
+    assert tool not in unasked_tools(query)
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Souviens-toi que le code de mon casier à la piscine est 7731.",
+        "Souviens-toi qu'il y a du pain dans le placard.",
+        "Souviens-toi que j'y vais le mardi.",
+        "Merk dir, dass mein Hund Bello heißt.",
+        "Ține minte că numărul apartamentului meu este 42.",
+        "Mon code est 7731, souviens-toi.",
+    ],
+)
+def test_a_request_to_remember_one_fact_in_another_language_refuses_both_tools(
+    query: str,
+) -> None:
+    assert unasked_tools(query) == _BOTH

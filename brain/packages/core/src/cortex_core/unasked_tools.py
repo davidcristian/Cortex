@@ -4,7 +4,7 @@ import re
 from collections.abc import Sequence
 
 from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
-from cortex_core.memory_request import asks_kept, asks_not_kept
+from cortex_core.memory_request import asks_kept, asks_kept_alone, asks_not_kept
 from cortex_core.schedule_tools import SCHEDULE_TOOL_NAME
 from cortex_core.tools import ToolSpec
 from cortex_core.volume import SET_VOLUME_TOOL_NAME
@@ -122,7 +122,7 @@ def _asks_a_source(query: str, sidecar: Sequence[ToolSpec]) -> bool:
 
 def unasked_tools(query: str) -> frozenset[str]:
     """The tools left out of a turn whose ``query`` asks to remember and names no use for them."""
-    if not asks_kept(query):
+    if not asks_kept_alone(query):
         return frozenset()
     return frozenset(name for name, asked in _ASKED.items() if asked.search(query) is None)
 

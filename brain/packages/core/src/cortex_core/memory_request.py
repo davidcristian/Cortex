@@ -92,6 +92,12 @@ _REMEMBER = re.compile(
     r"|note(?=\s+(?:that|this|these|those|it|my|mine|down)\b))\b",
     re.IGNORECASE,
 )
+# A second clause or sentence can ask for a tool in words the reminder and sound readers miss.
+_SECOND_CLAUSE = re.compile(
+    r"[,;]|[.!?]\s+\S|\b(?:and|et|mais|puis|alors|donc|ou|und|aber|dann|oder|also|pero|luego"
+    r"|entonces|(?<!\bil\s)(?<!['\u2019])y|și|şi|si|dar|apoi|sau|iar|deci)\b",
+    re.IGNORECASE,
+)
 _THE_MESSAGE = re.compile(_MESSAGE, re.IGNORECASE)
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
 
@@ -124,3 +130,11 @@ def asks_kept(query: str) -> bool:
         _REMEMBER.search(sentence) or _REMEMBER_OTHER.search(sentence)
         for sentence in _SENTENCE_END.split(query)
     )
+
+
+def asks_kept_alone(query: str) -> bool:
+    """Whether ``query`` asks to remember in English, or in another language with one clause."""
+    if any(_REMEMBER.search(sentence) for sentence in _SENTENCE_END.split(query)):
+        return True
+    other = _REMEMBER_OTHER.search(query)
+    return other is not None and not _SECOND_CLAUSE.search(query[other.end() :].lstrip(" ,:"))

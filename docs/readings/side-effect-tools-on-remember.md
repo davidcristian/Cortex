@@ -199,3 +199,36 @@ The fixed rows held for "remember" before "note" joined, so the reminder and sou
 `unasked_tools.py` now include "heads up", those six "... me" forms and "turn it, this or that up
 or down". A word read wrongly only keeps a tool offered, which is the behaviour of any message
 that asks nothing to be remembered.
+
+## A second clause in another language, 2026-11-07
+
+Once `asks_kept` read requests to remember in French, German, Spanish and Romanian, a request
+that also asked for a reminder or the sound in words `_REMINDER` and `_SOUND` do not name lost
+the tool (`préviens-moi`, `sag mir Bescheid`, `anunță-mă`, `sube la música`). In those four
+languages `unasked_tools` now leaves the tools out only when no comma, semicolon, conjunction or
+second sentence follows the request to remember (`asks_kept_alone`, `memory_request.py`), so a
+message read wrongly keeps both tools offered. English keeps its word lists. Replayed through the
+old and new readers, 2 of the 94 distinct messages recorded that night changed: the two French
+requests to remember with `rappelle-moi`, which now keep `set_volume` offered. Of 22,008 distinct
+strings in the brain's other test files and the readings records, the only other changes were
+two stored exchange texts that quote a French request.
+
+On the stack brain rebuilt at 06:59 (SM clock 0.57 of `clocks.max.sm`), each message below ran
+once in a new chat `s14-*` with every card approved:
+
+| Message | Tool calls |
+| --- | --- |
+| `Souviens-toi que j'ai rendez-vous chez le coiffeur demain et préviens-moi à 15h.` | `schedule_task` ran |
+| `Merk dir, dass ich morgen zum Friseur gehe, und sag mir um 15 Uhr Bescheid.` | `list_scheduled`, `schedule_task` ran |
+| `Ține minte că mâine merg la frizer și anunță-mă la 15.` | `schedule_task` ran |
+| `Recuerda que me gusta así y sube la música.` | `get_volume`, `set_volume`, both failed (no `pactl` for the shell) |
+
+The same requests about a dentist at 9 called no `schedule_task`: the schedule store already held
+a German dentist reminder for 9 the next day, and each reply said so. A first Romanian draw
+recalled the stored exchange of the two draws before it and said the reminder was already set;
+with those rows deleted, the draw above ran `schedule_task`. The French call used `at_time`, a
+daily item, and its reply had the daily note appended
+([one-time and daily times](schedule-one-time-and-daily.md)). Every `memories` row and schedule
+item of the `s14-*` chats was deleted afterwards. Run logs: `flows.log` to `flows4.log`,
+`replay.log` and `mut2.log` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/37073e3c-5ca6-42f6-aae1-df9e67b0e4db/scratchpad/slot14/`.
