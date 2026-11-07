@@ -2,9 +2,11 @@
 
 import re
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 from cortex_core.errors import MemoryStoreError
 from cortex_core.memory import MemoryRecord
+from cortex_core.memory_values import whole_values
 from cortex_core.ports import MemoryStore
 from cortex_core.scope import MemoryScope
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
@@ -16,7 +18,6 @@ _EXCERPT_CHARS = 60
 _PENDING_CALLS = 32
 _TOKEN = re.compile(r"[^\W_]+")
 _WORD = re.compile(r"[^\W\d_]{4,}")
-_VALUE_DIGITS = 4
 
 _NONE_FOUND = (
     "nothing was forgotten: no remembered exchange contains that text, so tell the user that "
@@ -55,16 +56,26 @@ def _tokens(text: str) -> set[str]:
     return {token.lower() for token in _TOKEN.findall(text)}
 
 
-def _values(records: Sequence[MemoryRecord]) -> list[str]:
-    """The tokens of ``records`` with at least four digits, such as a code or a phone number."""
-    tokens = (token for record in records for token in sorted(_tokens(record.text)))
-    return list(dict.fromkeys(t for t in tokens if sum(c.isdigit() for c in t) >= _VALUE_DIGITS))
+def _values(records: Sequence[MemoryRecord]) -> dict[str, str]:
+    """The whole values of ``records``, such as a code or a phone number, in order."""
+    values: dict[str, str] = {}
+    for record in records:
+        for key, form in whole_values(record.text).items():
+            values.setdefault(key, form)
+    return values
 
 
-def _repeats(record: MemoryRecord, value: str, words: set[str]) -> bool:
-    """Whether ``record`` holds ``value`` as a whole token and a word of the call's text."""
-    tokens = _tokens(record.text)
-    return value in tokens and not tokens.isdisjoint(words)
+def _repeats(record: MemoryRecord, key: str, words: set[str]) -> bool:
+    """Whether ``record`` holds the whole value ``key`` and a word of the call's text."""
+    return key in whole_values(record.text) and not _tokens(record.text).isdisjoint(words)
+
+
+@dataclass(frozen=True)
+class _Chosen:
+    """The rows a card listed: their ids, and whether rows holding a value stayed."""
+
+    ids: tuple[str, ...]
+    left_out: bool
 
 
 class ForgetChosenTool:
@@ -73,7 +84,7 @@ class ForgetChosenTool:
     def __init__(self, store: MemoryStore, scope: MemoryScope) -> None:
         self._store = store
         self._scope = scope
-        self._shown: dict[str, tuple[str, ...] | str] = {}
+        self._shown: dict[str, _Chosen | str] = {}
         self._deleted_turns: dict[str, None] = {}
 
     @property
@@ -124,15 +135,15 @@ class ForgetChosenTool:
         words = {word.lower() for word in _WORD.findall(_text(call))}
         seen = {record.id for record in found}
         extra: list[tuple[MemoryRecord, str]] = []
-        for value in _values(found) if words else []:
+        for key, form in (_values(found) if words else {}).items():
             for record in await self._store.find_text(
-                value,
+                form,
                 limit=FORGET_CHOSEN_LIMIT + 1,
                 scopes=self._scope.read_scopes(call.stamp.session_id),
             ):
-                if record.id not in seen and _repeats(record, value, words):
+                if record.id not in seen and _repeats(record, key, words):
                     seen.add(record.id)
-                    extra.append((record, value))
+                    extra.append((record, form))
         return extra
 
     async def card(self, call: ToolCall) -> str | None:
@@ -143,8 +154,8 @@ class ForgetChosenTool:
             del self._shown[next(iter(self._shown))]
         return card
 
-    async def _choose(self, call: ToolCall) -> tuple[tuple[str, ...] | str, str | None]:
-        """The ids to delete and the card listing them, or why nothing will be and no card."""
+    async def _choose(self, call: ToolCall) -> tuple[_Chosen | str, str | None]:
+        """The rows to delete and the card listing them, or why nothing will be and no card."""
         if not _text(call):
             return "nothing was forgotten: the call named no text", None
         try:
@@ -152,7 +163,7 @@ class ForgetChosenTool:
             extra = await self._repeating(call, found) if len(found) <= FORGET_CHOSEN_LIMIT else []
         except MemoryStoreError as err:
             return f"the memory store is unavailable, so nothing was forgotten: {err}", None
-        if len(found) + len(extra) > FORGET_CHOSEN_LIMIT:
+        if len(found) > FORGET_CHOSEN_LIMIT:
             return (
                 f"nothing was forgotten: more than {FORGET_CHOSEN_LIMIT} remembered exchanges "
                 "contain that text, so ask the user for a longer, more exact text"
@@ -161,10 +172,22 @@ class ForgetChosenTool:
             return _ALREADY_DELETED, None
         if not found:
             return _NONE_FOUND, None
-        listed = [(record, _text(call)) for record in found] + extra
-        lines = "\n".join(f"- {_excerpt(record, text)}" for record, text in listed)
-        card = f"Deletes for good, with no undo, these {len(listed)} remembered exchanges:\n{lines}"
-        return tuple(record.id for record, _ in listed), card
+        left_out = len(found) + len(extra) > FORGET_CHOSEN_LIMIT
+        repeats: list[tuple[MemoryRecord, str]] = [] if left_out else extra
+        listed = [*found, *(record for record, _ in repeats)]
+        lines = [f"- {_excerpt(record, _text(call))}" for record in found]
+        for form in dict.fromkeys(form for _, form in repeats):
+            lines.append(f"Listed because they also hold {form}:")
+            lines.extend(f"- {_excerpt(record, form)}" for record, held in repeats if held == form)
+        if left_out:
+            lines.append(
+                f"More than {FORGET_CHOSEN_LIMIT} exchanges also hold a value of these, "
+                "so they stay."
+            )
+        card = "\n".join(
+            [f"Deletes for good, with no undo, these {len(listed)} remembered exchanges:", *lines]
+        )
+        return _Chosen(tuple(record.id for record in listed), left_out), card
 
     def _result(self, call: ToolCall, content: str, *, error: bool = True) -> ToolResult:
         """The call's result: ``content`` as one sentence."""
@@ -184,7 +207,7 @@ class ForgetChosenTool:
         if isinstance(shown, str):
             return self._result(call, shown, error=shown not in (_NONE_FOUND, _ALREADY_DELETED))
         try:
-            removed = await self._store.delete_ids(shown)
+            removed = await self._store.delete_ids(shown.ids)
             self._deleted_turns[call.stamp.turn_id] = None
             while len(self._deleted_turns) > _PENDING_CALLS:
                 del self._deleted_turns[next(iter(self._deleted_turns))]
@@ -196,6 +219,13 @@ class ForgetChosenTool:
                 call,
                 f"forgot {removed} remembered exchanges, but {len(left)} written since the "
                 "card was shown still contain that text, so it is not forgotten",
+            )
+        if shown.left_out:
+            return self._result(
+                call,
+                f"forgot {removed} remembered exchanges that contain that text, but more exchanges "
+                "also hold its value and were not listed, since a card lists at most "
+                f"{FORGET_CHOSEN_LIMIT}, so the value is not forgotten",
             )
         return self._result(
             call,

@@ -270,6 +270,7 @@ async def test_a_phrase_also_lists_the_memories_repeating_a_value_of_its_matches
     assert await _card_lines(tool, _call(_PHRASE)) == [
         "Deletes for good, with no undo, these 2 remembered exchanges:",
         "- User: Souviens-toi que le code de mon casier à la piscine est 7731. Assistant: Noté.",
+        "Listed because they also hold 7731:",
         "- ...cker code? Assistant: Votre code de casier à la piscine est 7731.",
     ]
     assert _said(await tool.invoke(_call(_PHRASE))).startswith("forgot 2 remembered exchanges;")
@@ -282,7 +283,10 @@ async def test_an_english_label_lists_a_recall_that_restates_the_value() -> None
     store = await _store(_record("asked", asked), _record("recall", recall, minutes=1))
     tool = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
     lines = await _card_lines(tool, _call("code for my gym locker"))
-    assert lines[2] == "- ...r: What opens my locker? Assistant: Your gym locker code is 5819."
+    assert lines[2:] == [
+        "Listed because they also hold 5819:",
+        "- ...r: What opens my locker? Assistant: Your gym locker code is 5819.",
+    ]
     await tool.invoke(_call("code for my gym locker"))
     assert await _texts(store) == []
 
@@ -304,7 +308,7 @@ async def test_a_repeat_holding_two_values_is_listed_once() -> None:
     recall = "User: Codes?\nAssistant: Locker 7731, gate 4410."
     store = await _store(_record("asked", asked), _record("recall", recall, minutes=1))
     tool = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
-    assert len(await _card_lines(tool, _call("my locker code"))) == 3
+    assert len(await _card_lines(tool, _call("my locker code"))) == 4
     await tool.invoke(_call("my locker code"))
     assert await _texts(store) == []
 
@@ -317,7 +321,7 @@ async def test_a_word_inside_another_word_or_a_longer_number_is_not_a_repeat() -
         _record("part", "User: Gym?\nAssistant: Your casier is 7731-B.", minutes=3),
     )
     tool = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
-    assert len(await _card_lines(tool, _call(_PHRASE))) == 3
+    assert len(await _card_lines(tool, _call(_PHRASE))) == 4
     await tool.invoke(_call(_PHRASE))
     assert await _texts(store) == ["barcode", "longer"]
 
@@ -354,17 +358,17 @@ async def test_a_repeat_in_another_chat_is_not_listed_on_a_session_scope() -> No
     assert await _texts(store) == ["other"]
 
 
-async def test_repeats_past_the_limit_delete_nothing() -> None:
+async def test_repeats_past_the_limit_leave_the_text_match_listed_and_deleted() -> None:
     repeats = [
         _record(f"r{i:02}", _LOCKER_RECALL, minutes=i + 1) for i in range(FORGET_CHOSEN_LIMIT)
     ]
     store = await _store(_record("asked", _LOCKER), *repeats)
     tool = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
-    assert await tool.card(_call(_PHRASE)) is None
-    assert _said(await tool.invoke(_call(_PHRASE))).startswith(
-        f"nothing was forgotten: more than {FORGET_CHOSEN_LIMIT}"
-    )
-    assert len(await _texts(store)) == FORGET_CHOSEN_LIMIT + 1
+    assert len(await _card_lines(tool, _call(_PHRASE))) == 3
+    result = await tool.invoke(_call(_PHRASE))
+    assert _said(result).startswith("forgot 1 remembered exchanges that contain that text, but")
+    assert result.is_error is True
+    assert len(await _texts(store)) == FORGET_CHOSEN_LIMIT
 
 
 async def test_a_store_down_while_finding_repeats_deletes_nothing() -> None:

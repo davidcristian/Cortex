@@ -6,8 +6,8 @@
 **Verified:** 2026-11-07
 
 The `forget_memories` card lists the rows that contain the call's text and each other row that
-holds a value of those rows (a token with four or more digits) beside a word of the text. A row
-that holds the value with no word of the text, such as `User: What number did I give you?
+holds a whole value of those rows (a phone number or code in full) beside a word of the text. A
+row that holds the value with no word of the text, such as `User: What number did I give you?
 Assistant: 7731.` after a forget of `code de mon casier à la piscine`, is not listed, so it stays.
 `invoke` then searches only for the text, finds nothing, and says `no remembered exchange contains
 that text now`, so the reply says the code is forgotten while a later chat can recall it

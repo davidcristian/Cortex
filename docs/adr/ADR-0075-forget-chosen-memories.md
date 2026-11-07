@@ -53,8 +53,12 @@ that removes exactly those rows and holds against a turn in flight. This record 
    Its confirmation card runs `find_text` over the session's read scopes and lists an excerpt of
    each matching row, so the card shows stored text and never text the model wrote; that is why the
    dispatcher may show it on a tainted turn. When the text has a word of four or more letters, the
-   card also lists each other row that holds a value of a matching row and a word of the text, both
-   as whole tokens, where a value is a token with at least four digits. A recall reply restates a
+   card also lists each other row that holds a whole value of a matching row and a word of the
+   text as a whole token, under a line naming that value. A whole value is a run of tokens with a
+   digit, joined by a space, `.`, `-` or `/`, compared by its letters and digits: a phone number or
+   code in full, never a part of one. A run with fewer than four digits, a year alone or in a date,
+   a time such as `18h30` and an amount beside a currency sign or word is no value, since rows
+   about other facts share them. A recall reply restates a
    value in other words (`The code for your gym locker is 5819.`), so a forget of `gym locker code`
    left its row and a new chat recalled the value
    ([readings](../readings/forget-value-repeats.md)). A forget that deletes nothing whatever the answer (no
@@ -144,9 +148,12 @@ that removes exactly those rows and holds against a turn in flight. This record 
    So does a reply on a turn with a call refused as unasked, unless `claims_kept` reads it and
    `names_removal` does not
    ([readings](../readings/forget-refused-stated-fact.md#a-note-on-a-refused-call-2026-10-31)).
-6. **A card lists at most 20 rows**, the rows repeating a value included. More rows delete nothing
-   and ask for a more exact text, so a short text such as one letter cannot clear the memory behind
-   a card nobody reads.
+6. **A card lists at most 20 rows**, the rows repeating a value included. More rows containing the
+   text delete nothing and ask for a more exact text, so a short text such as one letter cannot
+   clear the memory behind a card nobody reads. When the text matches at most 20 and the rows
+   repeating a value would pass 20, the card lists the text matches alone and says that the rows
+   holding the value stay, and the result says the value is not forgotten, so a value in many rows
+   never makes a forget delete less than its text matches.
    The pass rule is in [forget-chosen-memories.md](../readings/forget-chosen-memories.md).
 
 ## Consequences
@@ -157,8 +164,8 @@ that removes exactly those rows and holds against a turn in flight. This record 
 - A row that repeats a forgotten fact and was written by a turn that committed first survives the
   delete. Finding it is the search's job, not the delete's.
 - A recall reply that repeats a stored fact is still recorded like any exchange. The text search
-  reaches every copy holding the text, and the value search a copy that restates a value beside a
-  word of the text. A copy holding the value with no such word stays, and the result does not
+  reaches every copy holding the text, and the value search a copy that restates a whole value
+  beside a word of the text. A copy holding the value with no such word stays, and the result does not
   report it.
 - `find_text` scans `memories` row by row, since no index serves a substring match; it runs only
   when a person asks for a forget, never on a turn's recall.
