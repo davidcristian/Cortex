@@ -3,6 +3,7 @@
 from collections.abc import Iterator, Sequence
 
 from cortex_core.access_claim import UNSEARCHED_FILES_NOTE, unsearched_files_claim
+from cortex_core.chat_only_claim import KEPT_BEYOND_CHAT_NOTE, claims_chat_only
 from cortex_core.conversation import ToolRun
 from cortex_core.events import TurnEvent
 from cortex_core.file_claim import UNREAD_FOLDERS_NOTE, unread_folders_claim
@@ -46,7 +47,9 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
     reply = "".join(parts)
     made = (*earlier, *runs)
     claimed = unscheduled_claim(made, reply, said)
-    unkept = memory_withheld(caps, taint, made, query=query) and unkept_note_due(query, reply)
+    withheld = memory_withheld(caps, taint, made, query=query)
+    unkept = withheld and unkept_note_due(query, reply)
+    stored = caps.memory is not None and not withheld and claims_chat_only(reply)
     # A refused call deleted nothing, and no reader names every way to claim it did. A reply saying
     # it kept the fact and naming no removal is the common end of a plain request to remember.
     unforgotten = unforgotten_claim(made, reply, unmatched=taint.forget_unmatched) or (
@@ -65,6 +68,8 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
         yield from append_note(parts, STORED_TIME_NOTE.format(time=taint.stored_time))
     if unkept:
         yield from append_note(parts, UNKEPT_CLAIM_NOTE)
+    if stored:
+        yield from append_note(parts, KEPT_BEYOND_CHAT_NOTE)
     if unforgotten:
         yield from append_note(parts, UNFORGOTTEN_CLAIM_NOTE)
     if unread:

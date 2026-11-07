@@ -38,19 +38,21 @@ from the same search. That is an assumption no row has tested.
 
 ## What to do
 
-1. Write rows and a rule into a readings record before any draw: R01 to R15 of
-   [side-effect-tools-on-remember.md](../../readings/side-effect-tools-on-remember.md), each drawn
-   on the baseline and on a candidate in turn, counting traces that look for a tool to store the
-   fact, trace characters, replies that limit the fact to the chat, `forget_memories` calls, and
-   rows stored.
-2. Candidates to compare: one sentence in the system message saying each exchange is kept for
-   later chats and needs no call; or a brain-appended correction when a reply on a request to
-   remember limits the fact to the chat, read by a typed check of the reply. The first removes the
-   search; the second only fixes what the person reads.
-3. Before writing a rule item over rows a change may not reach, compare the first requests of both
-   builds.
+A reply that keeps the fact for this chat only now ends with `KEPT_BEYOND_CHAT_NOTE`
+([readings](../../readings/remember-request-tool-search.md#the-draws-2026-11-07)). The search is
+left: base searched in 15 of 15 draws, and one system message on a turn `asks_kept` reads cut it
+to 5 of 15, above the bound of 2 its rule set.
+
+1. Write rows and a rule into that readings record before any draw: R01 to R15 on base and on two
+   candidates, the same sentence at the end of the first system message, and a sentence in the
+   `forget_memories` description saying memory stores every exchange by itself and the tool only
+   deletes. Keep the bound of 2 of 15 and the counts of the first rule.
+2. Compare the first requests of each pair before writing a rule item.
 
 ## History
 
 - 2026-11-07: filed from the shared stack's bring-up, where the proof turn of the turn driver
   showed the search on its first request to remember.
+- 2026-11-07: drew base and two candidates on R01 to R15. The note the brain appends after a typed
+  check of the reply shipped; the system message on a request to remember searched in 5 of 15
+  draws and did not ship.

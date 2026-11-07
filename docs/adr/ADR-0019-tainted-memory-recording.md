@@ -173,7 +173,9 @@ across turns (a recalled memory).
    recalled memory deleted runs after the reply is shown and saved
    ([ADR-0008](ADR-0008-memory-v1.md) decision 12), so the note does not cover it: covering it
    would mean writing before the reply is saved, and a turn cancelled during a slow write would
-   then lose its saved reply.
+   then lose its saved reply. The opposite claim on a turn memory does store, that the fact is kept
+   for this chat only, ends with `KEPT_BEYOND_CHAT_NOTE` (`chat_only_claim.py`), since every later
+   chat can recall it ([readings](../readings/remember-request-tool-search.md)).
 
 ## Consequences
 
