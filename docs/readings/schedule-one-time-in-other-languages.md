@@ -133,6 +133,16 @@ negation, and `repeat` alone (`Repeat after me`) is not a statement. It also rea
 `cada noche` and `zi de zi`. Replayed through the old and the new reader, none of the 318
 distinct replies recorded on 2026-11-07 by 07:25 changed: the same 13 name a repeat under both.
 
+That reader then missed a stated repeat followed by a purpose clause or a courtesy, such as
+`I'll remind you every day at 8 so you can take your pills.`, `so you don't forget`,
+`pour que tu n'oublies pas` or `like you asked`, since `can`, `like` and the negation in the
+purpose clause counted against the sentence. It now removes a purpose clause (`so you`,
+`so that`, `in order to`, `pour que`, `afin de`, `damit`, `para que`, `ca să`) up to the next
+comma or semicolon, and `like you asked`, before it looks for a condition, an offer or a
+negation; a question mark anywhere in the sentence still states none. Replayed through the reader
+at the start of that change and the new one, none of the 351 distinct replies recorded on
+2026-11-07 by 09:13 changed, and none states a repeat in one of these forms.
+
 On the stack brain rebuilt with that reader at 06:40 UTC (SM clock 0.57 of `clocks.max.sm`),
 `Rappelle-moi à 8h d'arroser les plantes.` stored a daily rule at 08:00, replied
 `D'accord, je vous rappellerai d'arroser les plantes à 8h00.` and got the daily note, while

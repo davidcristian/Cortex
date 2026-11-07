@@ -90,7 +90,9 @@ decision 2).
   turn left (`TaintLedger.daily_stored`, `schedule_daily.py`) and appends `DAILY_STORED_NOTE`
   when no sentence of the reply states a repeat in English, German, French, Spanish or Romanian.
   A question, a condition, an offer or a negation states none, so a doubtful reply gets the note
-  ([readings](../readings/schedule-one-time-in-other-languages.md)).
+  ([readings](../readings/schedule-one-time-in-other-languages.md)). A purpose clause
+  (`so you don't forget`, `pour que`, `damit`) and `like you asked` are read past, since they say
+  why a repeat was set and do not make it a choice.
 - The record gains an added `rule` object, decoded with `.get` so an older record reads as having
   none; a rule that is present is decoded strictly, so a malformed one fails loudly rather than
   becoming a one-shot.

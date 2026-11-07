@@ -38,17 +38,25 @@ _NEGATION = re.compile(
     r"|n['\u2019]t\b|\bn['\u2019]",
     re.IGNORECASE,
 )
+# A purpose clause or "like you asked" says why a repeat was set, so it never makes one a choice.
+_ASIDE = re.compile(
+    r"\b(?:so\s+(?:that\s+)?(?:you|it|we|they)|in\s+order\s+to|pour\s+(?:que|qu['\u2019]|ne)"
+    r"|afin\s+(?:de|d['\u2019]|que|qu['\u2019])|damit|para\s+que|ca\s+s[ăa])\b[^,;]*"
+    r"|\b(?:like|as)\s+you\s+(?:asked|said|requested|wanted)\b",
+    re.IGNORECASE,
+)
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
 _CLAUSE_END = re.compile(r"[,;]")
 
 
 def _states_repeat(sentence: str) -> bool:
     """Whether ``sentence`` states a repeat, rather than asking, offering or negating one."""
-    if "?" in sentence or _CHOICE.search(sentence) is not None:
+    told = _ASIDE.sub("", sentence)
+    if "?" in sentence or _CHOICE.search(told) is not None:
         return False
     return any(
         _NEGATION.search(clause) is None and _REPEATS.search(clause) is not None
-        for clause in _CLAUSE_END.split(sentence)
+        for clause in _CLAUSE_END.split(told)
     )
 
 
