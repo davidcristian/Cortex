@@ -45,9 +45,11 @@ that removes exactly those rows and holds against a turn in flight. This record 
    the value when the model knows it, and otherwise one word from the request that names it, such
    as `passport`, because a model told to pass only the value asked the person to type it. A
    search that finds nothing returns a result telling the model to say that nothing about it was
-   stored and not to ask for the value. When an earlier call in the same turn already deleted rows,
-   the result says instead that the earlier call deleted what was asked and that the reply must
-   not say it was not stored or could not be found. A later call of a turn that asks twice matches
+   stored and not to ask for the value. When an earlier call in the same turn already deleted rows
+   and the later text names the same fact (a deleted row contains it, it contains an earlier
+   call's text, or it holds a whole value of a deleted row), the result says instead that the
+   earlier call deleted what was asked and that the reply must not say it was not stored or could
+   not be found. A later text about another fact gets the plain no-match result. A later call of a turn that asks twice matches
    nothing, and after the plain no-match result such replies said the value was already gone or
    could not be found ([readings](../readings/forget-after-delete-provoked.md)).
    Its confirmation card runs `find_text` over the session's read scopes and lists an excerpt of

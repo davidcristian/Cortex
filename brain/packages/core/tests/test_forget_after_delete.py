@@ -65,10 +65,12 @@ class _FailingDelete(InMemoryMemoryStore):
         raise MemoryStoreError(msg)
 
 
-async def test_a_later_unmatched_call_in_the_turn_names_the_earlier_delete() -> None:
+async def test_a_later_call_naming_a_deleted_row_names_the_earlier_delete() -> None:
     tool = await _tool(_record("old", _OLD))
     assert (await _run(tool, _call("0612345678", "c1"))).is_error is False
-    later = await _run(tool, _call("0699000000", "c2"))
+    later = await _run(tool, _call("old phone", "c2"))
+    assert _said(later) == _NONE_FOUND
+    later = await _run(tool, _call("my phone number", "c3"))
     assert _said(later) == _ALREADY_DELETED
     assert later.is_error is False
     assert later.matched_nothing is False
@@ -78,6 +80,23 @@ async def test_a_repeat_of_the_deleting_text_names_the_delete_too() -> None:
     tool = await _tool(_record("old", _OLD))
     await _run(tool, _call("0612345678", "c1"))
     assert _said(await _run(tool, _call("0612345678", "c2"))) == _ALREADY_DELETED
+
+
+async def test_a_later_text_holding_the_deleting_text_or_its_value_names_the_delete() -> None:
+    tool = await _tool(_record("old", _OLD))
+    await _run(tool, _call("phone", "c1"))
+    assert _said(await _run(tool, _call("PHONE   of mine", "c2"))) == _ALREADY_DELETED
+    assert _said(await _run(tool, _call("06-1234-5678", "c3"))) == _ALREADY_DELETED
+
+
+async def test_a_later_call_about_another_fact_says_nothing_about_it_was_stored() -> None:
+    phone = "User: Remember my phone number is 0176 5550 1234.\nAssistant: Noted."
+    tool = await _tool(_record("phone", phone))
+    assert _said(await _run(tool, _call("phone number", "c1"))).startswith("forgot 1")
+    for call_id, text in (("c2", "blue Fiat"), ("c3", "0699000000"), ("c4", "number 0176")):
+        later = await _run(tool, _call(text, call_id))
+        assert _said(later) == _NONE_FOUND
+        assert later.matched_nothing is True
 
 
 async def test_an_unmatched_call_in_a_later_turn_says_nothing_was_stored() -> None:
@@ -117,5 +136,5 @@ async def test_only_the_latest_turns_keep_their_delete() -> None:
     tool = await _tool(*(_record(f"r{index}", f"note {index:02d}") for index in range(33)))
     for index in range(33):
         await _run(tool, _call(f"note {index:02d}", f"c{index}", turn=f"t{index}"))
-    assert _said(await _run(tool, _call("passport", "x0", turn="t0"))) == _NONE_FOUND
-    assert _said(await _run(tool, _call("passport", "x1", turn="t1"))) == _ALREADY_DELETED
+    assert _said(await _run(tool, _call("note 00", "x0", turn="t0"))) == _NONE_FOUND
+    assert _said(await _run(tool, _call("note 01", "x1", turn="t1"))) == _ALREADY_DELETED
