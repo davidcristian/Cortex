@@ -240,3 +240,9 @@ went on until a fourth draw left a row. Every draw that left a row ends with the
 draw has it, so the note ships with the count. A French reply ends with the note in English, as
 the brain's other notes do. The run record is
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/37073e3c-5ca6-42f6-aae1-df9e67b0e4db/scratchpad/slot18/draws.jsonl`.
+
+Replayed through the readers, the 121 distinct recorded replies of tonight's turns that ran
+`forget_memories`: `claims_forgotten` reads 55 and `says_forgotten` 93, and `names_still_held`
+none. The extra 38 are mostly replies saying a forget was declined or found nothing, such as `I was
+unable to forget it because the action was declined.`; they get the note only after a result with
+a count, when the note is true.
