@@ -71,7 +71,7 @@ never a reading of what the tree does now.
 
 - **[R-959](tasks/959-a-turn-refused-as-deleted-while-the-overlay-is-away-raises-an-empty-preview.md)** A turn refused as deleted while the overlay is away raises an empty preview (session-read-rpc). Its claim was checked against the code on 2026-11-05.
 - **[R-967](tasks/967-a-request-to-remember-a-new-value-and-forget-the-old-one-keeps-neither.md)** A request to remember a new value and forget the old one keeps neither (memory). Its claim was checked against the code on 2026-11-05.
-- **[R-969](tasks/969-a-forget-of-the-old-value-can-match-nothing-and-say-none-is-stored.md)** A forget of the old value can match nothing and say none is stored (memory). Its claim was checked against the code on 2026-11-06.
+- **[R-969](tasks/969-a-forget-of-the-old-value-can-match-nothing-and-say-none-is-stored.md)** A forget of the old value can match nothing and say none is stored (memory). Its claim was checked against the code on 2026-11-07.
 - **[R-979](tasks/979-the-other-rewordings-of-a-repeated-sentence-are-not-recorded.md)** The other rewordings of a repeated sentence are not recorded (tools-mcp). Its claim was checked against the code on 2026-11-05.
 - **[R-995](tasks/995-a-request-to-remember-spends-its-thinking-looking-for-a-tool-to-store-the-fact.md)** A request to remember spends its thinking looking for a tool to store the fact (memory). Its claim was checked against the code on 2026-11-07.
 

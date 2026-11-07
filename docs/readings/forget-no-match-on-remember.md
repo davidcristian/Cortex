@@ -213,7 +213,7 @@ in 4 of 45.
 
 Run logs `rows.jsonl`, `req.log`, `mem.txt`, `rows.clock` and `run.log` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/a64866e3-d614-4e2e-a757-12775f4290c0/scratchpad/slot10/`,
-on the same candidate (its diff is [recorded as a patch](forget-after-delete-patch.md); the seven
+on the same candidate (the result that [ships](forget-after-delete-provoked.md); the seven
 mutation rows over its tests all failed again), through the proxy beside the stack brain of the
 commit that keeps the file tools on a value named by a record, the `seed4` row copied in before each
 draw. The SM clock read 0.57 to 0.73 of its maximum before the draws. No draw ended in an error; the
@@ -231,10 +231,9 @@ draw. The SM clock read 0.57 to 0.73 of its maximum before the draws. No draw en
 | A row holding the old number after the draw | 6 |
 
 Over the 30 draws of both rows 1 counted, under the rule's 2, so **the candidate does not ship** and
-the behaviour stays; its result text is kept as the patch. The form it changes came in 6 of the 60
-draws of M02 over the three nights and 1 of the 30 on this candidate, so the next draw of step 1 is
-a row written to provoke it (a message that asks twice to forget the old value), under the same
-rule, rather than 15 more of M02. Step 2's form, a first call naming the new number, came in 2 of 15
-again, 6 of 60 in all: in both the old row stayed, the turn was stored and the reply said no old
+the behaviour stayed. The form it changes came in 6 of the 60 draws of M02 over the three nights
+and 1 of the 30 on this candidate, so step 1 was next drawn on a row written to provoke it, under
+the same rule ([readings](forget-after-delete-provoked.md)), where it shipped. Step 2's form, a
+first call naming the new number, came in 2 of 15 again, 6 of 60 in all: in both the old row stayed, the turn was stored and the reply said no old
 number was found. The 2 draws naming `old phone number` matched nothing the same way and replied the
 same; the 2 draws with no forget call asked for the old number.

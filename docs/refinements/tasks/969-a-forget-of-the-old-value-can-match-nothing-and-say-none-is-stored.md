@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-06
+**Verified:** 2026-11-07
 
 `Note that my phone number is now 0699000000, and delete the old one.`, with a row holding
 `0612345678`, called `forget_memories` with a text that matched nothing in 3 of 22 draws of it and its
@@ -15,32 +15,19 @@ One more such draw said the new code "was not kept because you asked to forget s
 message" while a row held it
 ([draw](../../readings/claim-reader-replays.md#the-note-on-every-withheld-request-to-remember-the-draws-2026-10-31)).
 
-A second form was drawn on 2026-11-05
-([draws](../../readings/forget-no-match-on-remember.md#the-texts-of-the-forget-calls-on-a-new-value-2026-11-05)):
-the turn called the forget twice with the old value. The first call's card deleted the row, the
-second call matched nothing, and the reply said the old number "appears it was already gone". The
-no-match result is true of the store when the second call runs and false of the turn.
+A second form, a later call matching nothing after an earlier call of the same turn deleted the
+row, now reads a result naming that delete rather than `_NONE_FOUND`
+([draws](../../readings/forget-after-delete-provoked.md)).
 
-Twenty more draws on 2026-11-05 read every call text through a proxy that records the requests to
-the model host ([draws](../../readings/forget-no-match-on-remember.md#a-repeated-forget-the-draws-2026-11-05)).
+Twenty draws on 2026-11-05 read every call text through a proxy that records the requests to the
+model host ([draws](../../readings/forget-no-match-on-remember.md#a-repeated-forget-the-draws-2026-11-05)).
 The unmatched first call came in 2 of them, and its text was the new number `0699000000`, which no
-row holds; each reply said it could not find the old number. In 4 more, a call with the new number
-followed the delete and matched nothing, and one reply then said no previous number was found to
-delete. A repeat of the deleting call's own text came in 1 of 30 draws.
+row holds; each reply said it could not find the old number. Over 60 draws of M02 that form came in
+6, the old row stayed in each, and the replies said no old number was found or asked for it.
 
 ## What to do
 
-1. A call that matches nothing after an earlier call in the same turn deleted something gets a
-   result naming that delete, not `_NONE_FOUND`, whatever its text. `ForgetChosenTool` keeps the
-   turn ids whose card ran a delete, bounded as `_shown` is. The repeated text alone, as the
-   [rule](../../readings/forget-no-match-on-remember.md#a-repeated-forget-rows-and-the-rule-2026-11-05)
-   named it, reached 1 of 30 draws and none of the 20 drawn for it. The wider form's
-   [rule](../../readings/forget-no-match-on-remember.md#a-forget-after-a-delete-rows-and-the-rule-2026-11-06)
-   needs 2 counted draws; 30 draws gave 1, so the candidate did not ship and its diff is
-   [recorded as a patch](../../readings/forget-after-delete-patch.md). The form came in 6 of 60
-   draws of M02, so the next draw is a row written to provoke it (a message that asks twice to
-   forget the old value), under the same rule, before this step is built from the patch.
-2. An unmatched first call naming the new value. Write rows and a rule for a result text, on a call
+1. An unmatched first call naming the new value. Write rows and a rule for a result text, on a call
    whose text the message states after "now" or "new", that asks for one word naming the fact.
    `_NONE_FOUND` is shared with a forget of a value never stored, where "nothing about it was stored"
    is correct, so both rows are drawn.
@@ -67,3 +54,7 @@ delete. A repeat of the deleting call's own text came in 1 of 30 draws.
   of 30 against the rule's 2, so step 1's candidate is not committed and its diff is recorded as a
   patch in the readings; a row that provokes the form is the next draw. Step 2's form came in 2 of
   15 again, 6 of 60 in all, each reply saying no old number was found.
+- 2026-11-07: the premise still holds in the code. A row written to ask twice for the old value,
+  drawn 15 times on a build of the recorded patch, counted 7 draws, and no counted reply said the
+  old number was not stored, gone or not found, so the rule passed and the result naming an
+  earlier delete ships; step 2 is the one left.

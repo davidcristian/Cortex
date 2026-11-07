@@ -80,7 +80,9 @@ pool down to the hits one turn sees. The turn that calls it is in
   store deletes nothing: `card` returns `None`, so the dispatcher shows no card and runs the call,
   whose result says why. The description asks for the value or one word from the request that names
   it, and the no-match result tells the model to say that nothing about it was stored and not to
-  ask the user for the value. It is a
+  ask the user for the value. After a delete earlier in the same turn (the latest 32 turn ids that
+  ran one are kept), a no-match result says instead that the earlier call deleted it and that the
+  reply must not say it was not stored or could not be found. It is a
   `ResultNote`: the dispatcher ends every result a call to it gets, run, declined, expired or
   refused other than as `UNASKED`, with `FORGET_NOT_KEPT_NOTE`, which says the message is not kept and asks the model to
   have the user send anything else in it again. `record_exchange` stores nothing for a turn that
