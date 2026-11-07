@@ -203,3 +203,9 @@ the read. The rent pair stored `hour 9, minute 0, month_days [3]` after `list_sc
 `edit_scheduled` with `on_month_days: [3]` and no `at_time`; the first reply named 9:00 AM, the
 second named no time and got the appended note "at 09:00". The midnight turn stored a one-time
 `at` due 2026-12-31T00:00 UTC with no refusal, and the reply named midnight, so no note.
+
+On 2026-11-07 at 06:42 UTC, on the stack brain rebuilt with the hour written with h read only
+after a word for a point in time (SM clock 0.57 of `clocks.max.sm`), the French request
+`Rappelle-moi le 20 novembre que le trajet prend 1h30.` stored a reminder at 09:00 and replied
+`D'accord, je vous rappellerai le 20 novembre que le trajet prend 1h30.` with the note "at 09:00"
+appended. The reader before it read `prend 1h30` as a clock time and left that note out.

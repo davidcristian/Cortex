@@ -132,3 +132,8 @@ sentence holding a question mark, a condition or an offer (`if`, `si`, `wenn`, `
 negation, and `repeat` alone (`Repeat after me`) is not a statement. It also reads `cada mañana`,
 `cada noche` and `zi de zi`. Replayed through the old and the new reader, none of the 318
 distinct replies recorded on 2026-11-07 by 07:25 changed: the same 13 name a repeat under both.
+
+On the stack brain rebuilt with that reader at 06:40 UTC (SM clock 0.57 of `clocks.max.sm`),
+`Rappelle-moi à 8h d'arroser les plantes.` stored a daily rule at 08:00, replied
+`D'accord, je vous rappellerai d'arroser les plantes à 8h00.` and got the daily note, while
+`Remind me at 8:00 to water the plants.` stored one time and got none. Both items were cancelled.
