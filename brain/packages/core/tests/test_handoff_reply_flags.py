@@ -22,6 +22,7 @@ from cortex_core import (
 from cortex_core.access_claim import UNSEARCHED_FILES_NOTE
 from cortex_core.brain_phase import BrainPhase
 from cortex_core.schedule_claim import MONTHLY_STORED_NOTE, UNSCHEDULED_CLAIM_NOTE
+from cortex_core.schedule_daily import DAILY_STORED_NOTE
 from cortex_core.schedule_tools import SCHEDULE_TOOL_NAME
 
 _AT = datetime(2026, 11, 5, 5, 0, 0, tzinfo=UTC)
@@ -73,6 +74,19 @@ async def test_a_deep_reply_reads_a_monthly_reminder_the_cortex_stored(*, stored
     )
     assert (MONTHLY_STORED_NOTE in shown) is stored
     assert UNSCHEDULED_CLAIM_NOTE not in shown
+
+
+@pytest.mark.parametrize("daily", [("abc",), ()])
+async def test_a_deep_reply_reads_a_daily_reminder_the_cortex_stored(
+    daily: tuple[str, ...],
+) -> None:
+    shown = await _deep_reply(
+        "Erinnere mich um 17:30 Uhr an die Wäsche.",
+        "Ich habe dich für 17:30 Uhr an die Wäsche erinnert.",
+        TaintLedger(daily_stored=daily),
+        (ToolRun(SCHEDULE_TOOL_NAME, ok=True),),
+    )
+    assert (DAILY_STORED_NOTE in shown) is bool(daily)
 
 
 @pytest.mark.parametrize("refused", [True, False])

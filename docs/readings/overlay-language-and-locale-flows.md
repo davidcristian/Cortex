@@ -91,7 +91,8 @@ schedule zone where day first is usual; the reply named `March 4th`, so the pers
 reading.
 
 Two defects. The German `17:30 Uhr` request was stored as a daily repeat and the reply did not
-say so ([task 998](../refinements/tasks/998-a-one-time-reminder-in-german-is-stored-every-day.md)).
+say so. The brain now appends a note when a reply over a daily item names no repeat
+([readings](schedule-one-time-in-other-languages.md)).
 And the note the brain appends when a reply names no stored time
 (`STORED_TIME_NOTE`, `schedule_claim.py`) was added under replies that named it as `17h30` and
 `10h00`, because `names_time_of_day` read only English clock forms. That reader now also reads

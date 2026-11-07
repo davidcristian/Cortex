@@ -147,6 +147,8 @@ class TaintLedger:
     monthly_stored: bool = False
     # The HH:MM the last successful ``schedule_task`` or ``edit_scheduled`` call stored, else empty.
     stored_time: str = ""
+    # The ids of the items a ``schedule_task`` call this turn stored to repeat every day.
+    daily_stored: tuple[str, ...] = ()
     untrusted_urls: set[str] = field(default_factory=set[str])
     sources: tuple[Provenance, ...] = ()
     # The tainted memories this turn recalled: its record is stored only while they all exist.

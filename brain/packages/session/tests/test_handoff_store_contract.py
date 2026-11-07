@@ -217,7 +217,18 @@ async def test_a_record_written_before_the_file_and_monthly_marks_reads_as_neith
     del fields["sidecar_refused"]
     del fields["monthly_stored"]
     del fields["stored_time"]
+    del fields["daily_stored"]
     await client.set("cortex:handoff:t1", json.dumps(fields))
     loaded = await RedisHandoffStore(client).get("t1")
     assert loaded is not None
     assert (loaded.sidecar_refused, loaded.monthly_stored, loaded.stored_time) == (False, False, "")
+    assert loaded.daily_stored == ()
+
+
+async def test_a_record_keeps_the_ids_its_turn_stored_to_repeat_daily() -> None:
+    store = RedisHandoffStore(FakeAsyncRedis(server=FakeServer()))
+    record = replace(handoff_contract.make_record("t1"), daily_stored=("abc", "def"))
+    await store.put(record)
+    loaded = await store.get("t1")
+    assert loaded is not None
+    assert loaded.daily_stored == ("abc", "def")

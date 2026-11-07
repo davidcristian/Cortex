@@ -35,3 +35,6 @@ another language and adds nothing.
 
 - 2026-11-07: filed from the language and locale flows on the shared stack, where the stored time
   note read `17h30` and `10h00` as no time of day; that reader was widened the same night.
+- 2026-11-07: a French turn made only a `list_scheduled` call and replied `D'accord, j'ai bien
+  noté votre rappel [...] à 17h30.`, a false claim with no note, since `claims_scheduled` reads
+  English forms ([readings](../../readings/schedule-one-time-in-other-languages.md#results)).

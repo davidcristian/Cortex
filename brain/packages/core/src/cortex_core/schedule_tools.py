@@ -37,7 +37,7 @@ TAINTED_TASK_MSG = (
 
 
 _NOT_ADDED = "it was on the schedule before this call, so no copy was added"
-_DAILY_NOTE = (
+DAILY_NOTE = (
     ". This repeats every day. If the user asked for one time only, make it one time with "
     "edit_scheduled, this id and 'every_seconds': 0; otherwise tell the user it repeats every day."
 )
@@ -188,7 +188,7 @@ class ScheduleTaskTool:
             await self._detach_if_deleted(item.session_id)
             content = _confirmation(item, self._zone, now)
         if item.rule is not None and item.rule.on == DAILY:
-            content += _DAILY_NOTE
+            content += DAILY_NOTE
         return ToolResult(call_id=call.id, content=content, trust=Trust.TRUSTED)
 
     async def _detach_if_deleted(self, session_id: str) -> None:

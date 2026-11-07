@@ -85,7 +85,11 @@ decision 2).
   one-time request ("at 9") is mistaken for, so its confirmation adds that the item repeats every
   day and that `edit_scheduled` with `every_seconds` 0 makes it one time. The model reads that in
   the same turn and either corrects the item or tells the user it repeats. A rule on chosen days
-  has no such note ([readings](../readings/schedule-time-edges.md)).
+  has no such note ([readings](../readings/schedule-time-edges.md)). A model can also store the
+  daily item and say nothing about the repeat, so the brain records the ids of the daily items a
+  turn left (`TaintLedger.daily_stored`, `schedule_daily.py`) and appends `DAILY_STORED_NOTE`
+  when the reply names no repeat in English, German, French, Spanish or Romanian
+  ([readings](../readings/schedule-one-time-in-other-languages.md)).
 - The record gains an added `rule` object, decoded with `.get` so an older record reads as having
   none; a rule that is present is decoded strictly, so a malformed one fails loudly rather than
   becoming a one-shot.

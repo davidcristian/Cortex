@@ -58,6 +58,7 @@ class HandoffRecord:
     sidecar_refused: bool = False
     monthly_stored: bool = False
     stored_time: str = ""
+    daily_stored: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if self.requested_at.tzinfo is None or self.requested_at.utcoffset() is None:
@@ -83,6 +84,7 @@ class HandoffRecord:
             sidecar_refused=self.sidecar_refused,
             monthly_stored=self.monthly_stored,
             stored_time=self.stored_time,
+            daily_stored=self.daily_stored,
         )
 
 
@@ -155,4 +157,5 @@ class EscalationSlot:
             sidecar_refused=self.refs.taint.sidecar_refused,
             monthly_stored=self.refs.taint.monthly_stored,
             stored_time=self.refs.taint.stored_time,
+            daily_stored=self.refs.taint.daily_stored,
         )
