@@ -63,3 +63,7 @@ The same sentence at the end of the first system message searched in 14 of 15 dr
   draws and did not ship.
 - 2026-11-07: drew the sentence at the end of the first system message and in the
   `forget_memories` description; both searched in at least 13 of 15 draws and neither ships.
+- 2026-11-07: in the language and locale flows, two of four requests to remember in French,
+  German, Spanish and Romanian ended the search with a `spawn_subagents` call that ran, since
+  `asks_kept` reads only English; the brain refused the same call on two English requests
+  ([readings](../../readings/overlay-language-and-locale-flows.md#1-the-tools-in-four-languages)).
