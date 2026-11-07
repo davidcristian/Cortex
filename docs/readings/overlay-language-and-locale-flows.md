@@ -163,3 +163,11 @@ the same verb (`je ne retiens pas`, `ich kann mir das nicht merken`, `no recuerd
 `el nu reține`). Replayed through the old and new reader, of the 72 distinct messages in the
 night's turn records only these two changed, and of 21,645 distinct strings in the brain's test
 files and the readings records only the new tests' own did.
+
+## 7. The same turns on the build with both readers
+
+The stack brain was rebuilt from the tree with both readers widened, and three new chats ran at
+04:19. `Mon code PIN de la banque est 6620, mais ne le retiens pas.` and
+`Mein Garagencode ist 3318, aber merk dir das nicht.` stored no `memories` row (0 rows name
+either code), and `Rappelle-moi demain à 17h30 de sortir les poubelles.` stored the reminder with
+a reply naming `17h30` and no note.
