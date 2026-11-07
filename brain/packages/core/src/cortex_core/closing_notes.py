@@ -14,6 +14,7 @@ from cortex_core.memory_claim import (
     memory_withheld,
     unkept_note_due,
 )
+from cortex_core.numbers_left_claim import NUMBERS_LEFT_NOTE, numbers_left_claim
 from cortex_core.schedule_claim import (
     MONTHLY_STORED_NOTE,
     STORED_TIME_NOTE,
@@ -57,6 +58,7 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
     unforgotten = unforgotten_claim(made, reply, unmatched=taint.forget_unmatched) or (
         taint.forget_refused and (not claims_kept(reply) or names_removal(reply))
     )
+    held = numbers_left_claim(reply, left=taint.forget_numbers_left)
     unread = unread_folders_claim(taint, query, reply)
     unsearched = unsearched_files_claim(taint, reply)
     yield from cap_note(stops, parts)
@@ -70,13 +72,13 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
         yield from append_note(parts, STORED_TIME_NOTE.format(time=taint.stored_time))
     if taint.daily_stored and not names_repeat(reply):
         yield from append_note(parts, DAILY_STORED_NOTE)
-    if unkept:
-        yield from append_note(parts, UNKEPT_CLAIM_NOTE)
-    if stored:
-        yield from append_note(parts, KEPT_BEYOND_CHAT_NOTE)
-    if unforgotten:
-        yield from append_note(parts, UNFORGOTTEN_CLAIM_NOTE)
-    if unread:
-        yield from append_note(parts, UNREAD_FOLDERS_NOTE)
-    if unsearched:
-        yield from append_note(parts, UNSEARCHED_FILES_NOTE)
+    for due, note in (
+        (unkept, UNKEPT_CLAIM_NOTE),
+        (stored, KEPT_BEYOND_CHAT_NOTE),
+        (unforgotten, UNFORGOTTEN_CLAIM_NOTE),
+        (held, NUMBERS_LEFT_NOTE),
+        (unread, UNREAD_FOLDERS_NOTE),
+        (unsearched, UNSEARCHED_FILES_NOTE),
+    ):
+        if due:
+            yield from append_note(parts, note)

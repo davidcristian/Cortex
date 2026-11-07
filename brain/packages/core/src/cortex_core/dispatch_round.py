@@ -201,8 +201,9 @@ async def run_round(
         context.taint.monthly_stored |= not result.is_error and stores_monthly(call)
         context.taint.stored_time = stored_time(call, result.content) or context.taint.stored_time
         context.taint.daily_stored = daily_after(call, result, context.taint.daily_stored)
-        if call.name == FORGET_CHOSEN_TOOL_NAME and result.matched_nothing:
-            context.taint.forget_unmatched += 1
+        if call.name == FORGET_CHOSEN_TOOL_NAME:
+            context.taint.forget_unmatched += int(result.matched_nothing)
+            context.taint.forget_numbers_left = result.numbers_left
         context.taint.observe(
             result, source=as_source(SourceKind.TOOL, None if spec is None else spec.name)
         )

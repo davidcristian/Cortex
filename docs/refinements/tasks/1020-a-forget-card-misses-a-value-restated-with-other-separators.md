@@ -11,7 +11,10 @@ rows holding the value with `find_text(form)`, where `form` is the value as the 
 and both stores match that text literally (`find_text` in `fakes_memory.py` and the
 `FIND_SCOPED` query of `cortex_memory`). A row writing the same number with other separators, or
 none, never comes back from the store, so the key comparison in `_repeats` never sees it, and the
-restatement stays after the forget. The token reader before it missed these rows too.
+restatement stays after the forget. The token reader before it missed these rows too. The result
+of the delete counts such a row, since `digit_runs` compares the remaining rows by their digits
+alone, and a reply saying the number was forgotten ends with `NUMBERS_LEFT_NOTE`; the card still
+does not list the row.
 
 Reproduction, unit level (`SCRATCH/slot16/probe.py`): rows "my phone number is 0151 2345 6789"
 and "Call my phone at 015123456789 later", call text `phone number`: the card lists 1 row. The

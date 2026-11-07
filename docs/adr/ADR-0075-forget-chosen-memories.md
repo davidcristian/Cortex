@@ -72,7 +72,14 @@ that removes exactly those rows and holds against a turn in flight. This record 
    was shown is never deleted unseen. The ids live in the brain process only between the card and
    the answer to it, the same span the dispatcher holds the call. After the delete it searches again
    and reports any row still matching, so the reply never claims a fact is gone while a row holds
-   it.
+   it. When no row matches, it also counts the remaining rows that hold a run of four or more
+   digits a deleted row held, years and codes alike, compared by digits so separators do not
+   matter, and the result says how many and that a forget of the number itself would remove them,
+   without naming it. The card's listing is not widened for this, since a reader of values errs
+   both ways. A reply that still says the fact was forgotten while the last such result had a count
+   ends with a note the brain appends after a typed check of the reply, because the model read the
+   count and still made that claim in half the draws that left a row
+   ([readings](../readings/forget-value-repeats.md)).
    On a request to remember that can retract nothing, a call to it is refused by name and the
    turn is recorded: `unasked_forget` (`unasked_tools.py`) reads a message `asks_kept` reads and
    `asks_not_kept` does not, holding no word that can retract something, no negation, no question,

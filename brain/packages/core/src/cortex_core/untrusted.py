@@ -141,6 +141,8 @@ class TaintLedger:
     forget_unmatched: int = 0
     # Whether a ``forget_memories`` call was refused as unasked, which leaves no run and no count.
     forget_refused: bool = False
+    # Whether the last ``forget_memories`` result left rows holding a number of the deleted rows.
+    forget_numbers_left: bool = False
     # Whether a sidecar call, or a call that runs sidecar tools, was refused as unasked.
     sidecar_refused: bool = False
     # Whether a ``schedule_task`` call stored a rule that repeats on days of every month.

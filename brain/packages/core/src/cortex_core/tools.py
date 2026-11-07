@@ -97,6 +97,8 @@ class ToolResult:
     images: tuple[ImagePart, ...] = ()
     # Set when the call ran and found nothing its arguments name, so it changed nothing.
     matched_nothing: bool = False
+    # Set when a forget deleted rows and other rows still hold a number the deleted ones held.
+    numbers_left: bool = False
 
 
 @dataclass(frozen=True, slots=True)

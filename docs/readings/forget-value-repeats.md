@@ -74,9 +74,8 @@ No forget deleted a row its card did not list, since `invoke` deletes the listed
 passes, so the change ships. The rows listed by value are the form the change fixes: they occur in
 four of the seven draws whose text was a label or a phrase, and in two of five draws with the
 unforced flows. In en1 to en3 every recall reply restated `gym locker code`, so the text alone
-reached every row. A row holding the value with no word of the text is still left, and the result
-does not say so
-([task 1003](../refinements/tasks/1003-a-forget-reports-nothing-of-a-value-left-without-a-word-of-its-text.md)).
+reached every row. A row holding the value with no word of the text is still left by the card,
+and the result counts it ([below](#a-result-that-counts-the-numbers-left-flows-and-rule-2026-11-07)).
 
 The first reply of fr1 was `C'est noté, je记下 (je retiens) que le code de votre casier à la
 piscine est 7731.`, with a Chinese word, and that row was then listed on its card
@@ -84,7 +83,6 @@ piscine est 7731.`, with a Chinese word, and that row was then listed on its car
 
 ## A value left with no word of the text: flow and rule, 2026-11-07
 
-For [task 1003](../refinements/tasks/1003-a-forget-reports-nothing-of-a-value-left-without-a-word-of-its-text.md).
 The `en-v` flow runs the English turns a, d and e above, and between a and d one recall that names
 only the value: `Reply with only the number: which number did I ask you to keep?`. Its row holds
 `5819` and no word of `gym locker code`, so the card does not list it.
@@ -123,7 +121,7 @@ a line naming that value. The pass rule above applies unchanged.
 | en1 | `gym locker` | 3, 0 | 0 | no | pass |
 | fr2 | `code de mon casier à la piscine` | 2, 1 | 0 | no | pass |
 | en2 | `gym locker code` | 3, 0 | 0 | no | pass |
-| fr3 | `casier à la piscine` | 2, 0 | 1 | yes | fail, the form of task 1003 |
+| fr3 | `casier à la piscine` | 2, 0 | 1 | yes | fail, a value left with no word of the text |
 | en3 | `gym locker code` | 3, 0 | 0 | no | pass |
 | en-r1 | `5819` | 3, 0 | 0 | no | pass, the value as text |
 | en-r2 | `5819` | 3, 0 | 0 | no | pass, the value as text |
@@ -131,8 +129,7 @@ a line naming that value. The pass rule above applies unchanged.
 No forget deleted a row its card did not list. In fr3 the row left is the English recall `Your
 swimming pool locker code is 7731.`, which holds neither `casier` nor `piscine`, so no word of the
 text; the reader of the commit that lists repeats, run on the same three rows and text, lists
-the same two. So fr3 is not a change of this build but the form of
-[task 1003](../refinements/tasks/1003-a-forget-reports-nothing-of-a-value-left-without-a-word-of-its-text.md),
+the same two. So fr3 is not a change of this build but a value left with no word of the text,
 and its turn d reply said the code was forgotten. The run records are
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/37073e3c-5ca6-42f6-aae1-df9e67b0e4db/scratchpad/slot13/draws-c.jsonl`
 and `draws-r.jsonl` beside it.
@@ -202,7 +199,8 @@ code was forgotten while one row held it, and the thinking of yrv3 quotes the co
 four fail the rule, so the count does not ship. The later result failed pp in two of three draws,
 against none of two on the start hash, whose plain no-match result told the model to say nothing
 was stored; so neither later result ships, and pph2 shows the start hash's own form, a deleted
-fact said not to be found. Neither change is in the tree. The patch of both is
+fact said not to be found. Neither result alone is in the tree; the count ships with the note
+below. The patch of both is
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/37073e3c-5ca6-42f6-aae1-df9e67b0e4db/scratchpad/slot17/both-parts.patch`,
 and the run record `draws.jsonl` beside it.
 
@@ -218,3 +216,27 @@ forget result of the turn had the count and the reply says something was forgott
 over the `fr-v` and `yr-v` flows drawn until four draws show the form, every turn d reply in a
 draw with the form either does not say the code was forgotten or ends with the note, and no draw
 without the form gets the note.
+
+## The note the brain appends, drawn, 2026-11-07
+
+Seven draws of the `fr-v` and `yr-v` flows on a second brain built from the candidate tree (the
+count of build 1 without its later result, and the note), sharing the stack's model host and
+store, every card approved, the SM clock at 0.53 of its maximum before and 0.58 to 0.67 after.
+Form means the first call's result had the count; rows left are counted after the turn.
+
+| Draw | Texts of the calls | Value rows left | Form | Turn d reply | Result |
+| --- | --- | --- | --- | --- | --- |
+| frv1 | `code de mon casier à la piscine` | 1 | yes | `C'est fait, j'ai oublié le code de votre casier à la piscine.` and the note | pass |
+| yrv1 | `1987` | 0 | no | `I've forgotten your door code.` | pass, the value as text |
+| frv2 | `code de mon casier à la piscine` | 1 | yes | as frv1, and the note | pass |
+| yrv2 | `door code` | 1 | yes | `I've forgotten your door code.` and the note | pass |
+| frv3 | `7731` | 0 | no | `C'est fait, j'ai oublié le code de votre casier.` | pass, the value as text |
+| yrv3 | `door code`, then `1987` | 0 | yes | `OK. I've forgotten your door code.` | pass |
+| frv4 | `code de mon casier à la piscine` | 1 | yes | `C'est fait, j'ai oublié le code de votre casier.` and the note | pass |
+
+In yrv3, as in yr2 and yrv2 above, the count made the model call the forget again with the value,
+which deleted the last row, so its claim was true and its last result had no count. The draws
+went on until a fourth draw left a row. Every draw that left a row ends with the note and no other
+draw has it, so the note ships with the count. A French reply ends with the note in English, as
+the brain's other notes do. The run record is
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/37073e3c-5ca6-42f6-aae1-df9e67b0e4db/scratchpad/slot18/draws.jsonl`.

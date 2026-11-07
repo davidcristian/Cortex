@@ -5,6 +5,7 @@ import re
 _GROUP = r"\b(?=[^\W_]*\d)[^\W_]+"
 _RUN = re.compile(rf"{_GROUP}(?:[ ./-]{_GROUP})*")
 _SEPARATOR = re.compile(r"[ ./-]")
+_DIGIT_RUN = re.compile(r"\d+(?:[ ./-]\d+)*")
 _MIN_DIGITS = 4
 _YEAR_DIGITS = 4
 _DATE_PART_DIGITS = 2
@@ -43,3 +44,13 @@ def whole_values(text: str) -> dict[str, str]:
             continue
         values.setdefault(key, match.group())
     return values
+
+
+def digit_runs(text: str) -> dict[str, str]:
+    """Each run of four or more digits in ``text``, years and codes alike, by its digits alone."""
+    runs: dict[str, str] = {}
+    for match in _DIGIT_RUN.finditer(text):
+        key = "".join(_SEPARATOR.split(match.group()))
+        if len(key) >= _MIN_DIGITS:
+            runs.setdefault(key, match.group())
+    return runs

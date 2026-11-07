@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from cortex_core.errors import MemoryStoreError
 from cortex_core.memory import MemoryRecord
-from cortex_core.memory_values import whole_values
+from cortex_core.memory_values import digit_runs, whole_values
 from cortex_core.ports import MemoryStore
 from cortex_core.scope import MemoryScope
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
@@ -15,6 +15,8 @@ FORGET_CHOSEN_TOOL_NAME = "forget_memories"
 
 FORGET_CHOSEN_LIMIT = 20
 _EXCERPT_CHARS = 60
+# A row may write a number with other separators, and the store matches text literally.
+_PREFIX_DIGITS = 4
 _PENDING_CALLS = 32
 _TOKEN = re.compile(r"[^\W_]+")
 _WORD = re.compile(r"[^\W\d_]{4,}")
@@ -81,6 +83,19 @@ def _about(text: str, deleted: tuple[str, ...]) -> bool:
     return any(
         asked in _flat(held) or _flat(held) in asked or not keys.isdisjoint(whole_values(held))
         for held in deleted
+    )
+
+
+def _forgot(removed: int, holding: int) -> str:
+    """The result of a delete that left no match, ``holding`` other rows holding its numbers."""
+    if not holding:
+        return (
+            f"forgot {removed} remembered exchanges; no remembered exchange contains that text now"
+        )
+    return (
+        f"forgot {removed} remembered exchanges that contain that text, but {holding} other "
+        "remembered exchanges still hold a number a deleted one held, so that number is still "
+        "remembered; a forget of the number itself would remove them"
     )
 
 
@@ -161,6 +176,20 @@ class ForgetChosenTool:
                     extra.append((record, form))
         return extra
 
+    async def _holding(self, call: ToolCall, shown: _Chosen) -> int:
+        """How many remaining memories hold a run of four or more digits a deleted row held."""
+        runs = {key: form for text in shown.texts for key, form in digit_runs(text).items()}
+        holders: set[str] = set()
+        for search in {text for key, form in runs.items() for text in (form, key[:_PREFIX_DIGITS])}:
+            for record in await self._store.find_text(
+                search,
+                limit=FORGET_CHOSEN_LIMIT + 1,
+                scopes=self._scope.read_scopes(call.stamp.session_id),
+            ):
+                if not runs.keys().isdisjoint(digit_runs(record.text)):
+                    holders.add(record.id)
+        return len(holders)
+
     async def card(self, call: ToolCall) -> str | None:
         """List the stored memories the delete will remove; ``None`` when it removes none."""
         shown, card = await self._choose(call)
@@ -206,7 +235,9 @@ class ForgetChosenTool:
         )
         return chosen, card
 
-    def _result(self, call: ToolCall, content: str, *, error: bool = True) -> ToolResult:
+    def _result(
+        self, call: ToolCall, content: str, *, error: bool = True, holding: int = 0
+    ) -> ToolResult:
         """The call's result: ``content`` as one sentence."""
         return ToolResult(
             call_id=call.id,
@@ -214,6 +245,7 @@ class ForgetChosenTool:
             is_error=error,
             trust=Trust.TRUSTED,
             matched_nothing=content == _NONE_FOUND,
+            numbers_left=holding > 0,
         )
 
     async def invoke(self, call: ToolCall) -> ToolResult:
@@ -234,6 +266,7 @@ class ForgetChosenTool:
             while len(self._deleted_turns) > _PENDING_CALLS:
                 del self._deleted_turns[next(iter(self._deleted_turns))]
             left = await self._found(call)
+            holding = 0 if left or shown.left_out else await self._holding(call, shown)
         except MemoryStoreError as err:
             return self._result(call, f"the memory store failed during the forget: {err}")
         if left:
@@ -249,8 +282,4 @@ class ForgetChosenTool:
                 "also hold its value and were not listed, since a card lists at most "
                 f"{FORGET_CHOSEN_LIMIT}, so the value is not forgotten",
             )
-        return self._result(
-            call,
-            f"forgot {removed} remembered exchanges; no remembered exchange contains that text now",
-            error=False,
-        )
+        return self._result(call, _forgot(removed, holding), error=False, holding=holding)

@@ -55,6 +55,7 @@ class HandoffRecord:
     forget_calls: int = 0
     forget_unmatched: int = 0
     forget_refused: bool = False
+    forget_numbers_left: bool = False
     sidecar_refused: bool = False
     monthly_stored: bool = False
     stored_time: str = ""
@@ -81,6 +82,7 @@ class HandoffRecord:
             forget_calls=self.forget_calls,
             forget_unmatched=self.forget_unmatched,
             forget_refused=self.forget_refused,
+            forget_numbers_left=self.forget_numbers_left,
             sidecar_refused=self.sidecar_refused,
             monthly_stored=self.monthly_stored,
             stored_time=self.stored_time,
@@ -154,6 +156,7 @@ class EscalationSlot:
             forget_calls=self.refs.taint.forget_calls,
             forget_unmatched=self.refs.taint.forget_unmatched,
             forget_refused=self.refs.taint.forget_refused,
+            forget_numbers_left=self.refs.taint.forget_numbers_left,
             sidecar_refused=self.refs.taint.sidecar_refused,
             monthly_stored=self.refs.taint.monthly_stored,
             stored_time=self.refs.taint.stored_time,

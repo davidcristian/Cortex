@@ -83,7 +83,11 @@ pool down to the hits one turn sees. The turn that calls it is in
   `FORGET_CHOSEN_LIMIT` (20), the card lists the text matches alone and says the others stay, and
   the result says the value is not forgotten. It keeps the listed ids under the call's id (the
   latest 32 calls). `invoke` deletes exactly those ids with `delete_ids`, searches again, and says
-  how many were removed and whether any match is left. No text, no match, more than 20 rows
+  how many were removed and whether any match is left. When none is, it searches the remaining
+  rows for each run of four or more digits a deleted row held (`digit_runs` in `memory_values.py`:
+  years and codes alike, compared by digits alone), and when a row holds one the result says how
+  many do and that a forget of the number itself would remove them, without naming it, and sets
+  `ToolResult.numbers_left`. No text, no match, more than 20 rows
   containing the text or a failed store deletes nothing: `card` returns `None`, so the dispatcher shows no card and runs the call,
   whose result says why. The description asks for the value or one word from the request that names
   it, and the no-match result tells the model to say that nothing about it was stored and not to
@@ -182,6 +186,14 @@ pool down to the hits one turn sees. The turn that calls it is in
   refused as unasked and either `claims_kept` does not read the reply or `names_removal` does, which
   reads a statement naming a removal in any words with no negation in its clause. The handoff record keeps `forget_refused`, `forget_calls` and `forget_unmatched`, so a cortex
   forget that matched nothing before a handoff still counts as one in the deep phase.
+  `run_round` sets `TaintLedger.forget_numbers_left` from each `forget_memories` result's
+  `numbers_left`, so a later call that deletes the number clears it, and the handoff record keeps
+  it. `limit_notes` then appends `NUMBERS_LEFT_NOTE` when `says_forgotten` (`numbers_left_claim.py`:
+  `claims_forgotten`, `names_removal`, or a past participle of forgetting or deleting in French,
+  German, Spanish or Romanian with no negation in its clause) reads the reply and `names_still_held`
+  does not. The note tells the person the number is still held and that a forget of the number
+  itself removes it; it deletes nothing
+  ([readings](../readings/forget-value-repeats.md#the-note-the-brain-appends-drawn-2026-11-07)).
 - `RecallPolicy` (port, `rerank.py`) turns an over-fetched pool into the final `k` hits:
   `candidate_k(k)` sizes the pool and `async select(hits, *, query, now, k, session_id=None,
   turn_id=None) -> Ranking` reranks and cuts it, returning at most `k` hits from the pool, none

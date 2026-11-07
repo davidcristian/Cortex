@@ -232,3 +232,22 @@ async def test_a_record_keeps_the_ids_its_turn_stored_to_repeat_daily() -> None:
     loaded = await store.get("t1")
     assert loaded is not None
     assert loaded.daily_stored == ("abc", "def")
+
+
+@pytest.mark.parametrize("left", [True, False])
+async def test_a_record_keeps_whether_its_last_forget_left_a_number(*, left: bool) -> None:
+    store = RedisHandoffStore(FakeAsyncRedis(server=FakeServer()))
+    await store.put(replace(handoff_contract.make_record("t1"), forget_numbers_left=left))
+    loaded = await store.get("t1")
+    assert loaded is not None
+    assert loaded.forget_numbers_left is left
+
+
+async def test_a_record_written_before_the_number_mark_reads_as_none_left() -> None:
+    client = FakeAsyncRedis(server=FakeServer())
+    fields = cast("dict[str, Any]", json.loads(encode_record(handoff_contract.make_record("t1"))))
+    del fields["forget_numbers_left"]
+    await client.set("cortex:handoff:t1", json.dumps(fields))
+    loaded = await RedisHandoffStore(client).get("t1")
+    assert loaded is not None
+    assert loaded.forget_numbers_left is False
