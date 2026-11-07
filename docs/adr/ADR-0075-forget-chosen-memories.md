@@ -73,8 +73,9 @@ that removes exactly those rows and holds against a turn in flight. This record 
    the answer to it, the same span the dispatcher holds the call. After the delete it searches again
    and reports any row still matching, so the reply never claims a fact is gone while a row holds
    it. When no row matches, it also counts the remaining rows that hold a run of four or more
-   digits a row deleted in the turn held, years and codes alike, compared by digits so separators
-   do not matter, and the result says how many and that a forget of the number itself would remove
+   digits a row deleted in the turn held, compared by digits so separators do not matter, a year
+   or a date only from a row that names a code or a number, since unrelated facts share years,
+   and the result says how many and that a forget of the number itself would remove
    them, without naming it. The card's listing is not widened for this, since a reader of values
    errs both ways. A reply that still says the fact was forgotten while the turn's last delete had a
    count ends with a note the brain appends after a typed check of the reply, because the model read the

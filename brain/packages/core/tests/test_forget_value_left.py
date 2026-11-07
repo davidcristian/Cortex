@@ -1,6 +1,8 @@
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
 from cortex_core import (
     FORGET_CHOSEN_TOOL_NAME,
     GLOBAL_MEMORY_SCOPE,
@@ -10,7 +12,7 @@ from cortex_core import (
     MemoryStoreError,
     ToolCall,
 )
-from cortex_core.memory_values import digit_runs
+from cortex_core.memory_values import code_runs, digit_runs
 
 _AT = datetime(2026, 11, 7, 8, 0, 0, tzinfo=UTC)
 _CLEAN = "forgot 1 remembered exchanges; no remembered exchange contains that text now."
@@ -171,3 +173,62 @@ def test_a_digit_run_is_read_with_its_separators_years_and_units_alike() -> None
         "14112026": "14.11.2026",
         "7731": "7731",
     }
+
+
+@pytest.mark.parametrize(
+    ("asked", "other", "text"),
+    [
+        (
+            "User: Remember that I got married in 2015.\nAssistant: Noted, married in 2015.",
+            "User: Remember that I moved to Berlin in 2015.\nAssistant: Noted.",
+            "married",
+        ),
+        (
+            "User: Remind me about the dentist.\nAssistant: It is set for 2026-11-10 at 09:00.",
+            "User: Remind me about the gym.\nAssistant: It is set for 2026-11-10 at 18:00.",
+            "dentist",
+        ),
+        (
+            "User: Je me suis marié en 2015.\nAssistant: C'est noté.",
+            "User: Ich bin 2015 nach Berlin gezogen.\nAssistant: Notiert.",
+            "marié",
+        ),
+        (
+            "User: The meeting is on 14.11.2026.\nAssistant: Noted.",
+            "User: My flight leaves on 14.11.2026.\nAssistant: Noted.",
+            "meeting",
+        ),
+    ],
+    ids=["shared-year", "shared-date-in-replies", "year-in-another-language", "shared-dotted-date"],
+)
+async def test_a_year_or_date_an_unrelated_row_shares_is_not_counted(
+    asked: str, other: str, text: str
+) -> None:
+    _, said, _, left = await _forget(text, _record("asked", asked), _record("other", other, 1))
+    assert (said, left) == (_CLEAN, ["other"])
+
+
+@pytest.mark.parametrize(
+    ("asked", "text"),
+    [
+        ("User: Le code de ma porte est 1987.\nAssistant: C'est noté.", "porte"),
+        ("User: Mein Türcode ist 1987.\nAssistant: Notiert.", "Türcode"),
+        ("User: El código de la puerta es 1987.\nAssistant: Anotado.", "puerta"),
+        ("User: Codul ușii este 1987.\nAssistant: Notat.", "ușii"),
+        ("User: My PIN is 1987.\nAssistant: Noted.", "PIN"),
+        ("User: Remember the number 1987 for the door.\nAssistant: Noted.", "door"),
+        ("User: My bike code is 4512 and I was born in 1987.\nAssistant: Noted.", "bike"),
+    ],
+    ids=["french", "german", "spanish", "romanian", "pin", "number", "code-elsewhere-in-row"],
+)
+async def test_a_year_shaped_number_a_row_names_as_a_code_is_counted(asked: str, text: str) -> None:
+    other = "User: Which one was it?\nAssistant: 1987"
+    _, said, _, left = await _forget(text, _record("asked", asked), _record("o", other, 1))
+    assert (said, left) == (_held(1, 1), ["o"])
+
+
+def test_a_code_run_keeps_a_year_or_date_only_in_a_text_naming_a_code() -> None:
+    assert code_runs("I got married in 2015 on 14.11.2026, call 0151 2345.") == {
+        "01512345": "0151 2345"
+    }
+    assert code_runs("Code 1987, on 14.11.2026.") == {"1987": "1987", "14112026": "14.11.2026"}

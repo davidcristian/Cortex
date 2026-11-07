@@ -84,8 +84,9 @@ pool down to the hits one turn sees. The turn that calls it is in
   the result says the value is not forgotten. It keeps the listed ids under the call's id (the
   latest 32 calls). `invoke` deletes exactly those ids with `delete_ids`, searches again, and says
   how many were removed and whether any match is left. When none is, it searches the remaining
-  rows for each run of four or more digits a row deleted in the turn held (`digit_runs` in `memory_values.py`:
-  years and codes alike, compared by digits alone), and when a row holds one the result says how
+  rows for each run of four or more digits a row deleted in the turn held (`code_runs` in
+  `memory_values.py`, compared by digits alone: a year or a date only from a row naming a code or
+  a number, such as `code`, `PIN`, `Nummer`, `código` or `codul`), and when a row holds one the result says how
   many do and that a forget of the number itself would remove them, without naming it, and sets
   `ToolResult.numbers_left`. No text, no match, more than 20 rows
   containing the text or a failed store deletes nothing: `card` returns `None`, so the dispatcher shows no card and runs the call,

@@ -15,6 +15,12 @@ _UNIT_AFTER = re.compile(
     re.IGNORECASE,
 )
 _UNIT_BEFORE = re.compile(r"[€$£]\s?$")
+_CODE_WORD = re.compile(
+    r"\b(?:\w*codes?|pins?|numbers?|\w*nummer\w*|\w*zahl|num[ée]ros?|n[uú]meros?|c[oó]digos?"
+    r"|claves?|cod(?:ul|ului|uri)?|num[aă]r(?:ul|ului)?|passwor[dt]s?|kennwort|contrase[nñ]as?"
+    r"|parol[aă]|combinations?|combinaisons?|kombination)\b",
+    re.IGNORECASE,
+)
 
 
 def _is_year(group: str) -> bool:
@@ -54,3 +60,10 @@ def digit_runs(text: str) -> dict[str, str]:
         if len(key) >= _MIN_DIGITS:
             runs.setdefault(key, match.group())
     return runs
+
+
+def code_runs(text: str) -> dict[str, str]:
+    """The digit runs of ``text``, a year or a date only when ``text`` names a code or a number."""
+    named = _CODE_WORD.search(text) is not None
+    runs = digit_runs(text).items()
+    return {key: form for key, form in runs if named or not _dated(_SEPARATOR.split(form))}

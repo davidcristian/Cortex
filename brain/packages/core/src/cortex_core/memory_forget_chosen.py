@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from cortex_core.errors import MemoryStoreError
 from cortex_core.memory import MemoryRecord
-from cortex_core.memory_values import digit_runs, whole_values
+from cortex_core.memory_values import code_runs, digit_runs, whole_values
 from cortex_core.ports import MemoryStore
 from cortex_core.scope import MemoryScope
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
@@ -180,7 +180,7 @@ class ForgetChosenTool:
     async def _holding(self, call: ToolCall) -> int:
         """How many remaining memories hold four or more digits a row the turn deleted held."""
         deleted = self._deleted_rows.get(call.stamp.turn_id, ())
-        runs = {key: form for text in deleted for key, form in digit_runs(text).items()}
+        runs = {key: form for text in deleted for key, form in code_runs(text).items()}
         holders: set[str] = set()
         for search in {text for key, form in runs.items() for text in (form, key[:_PREFIX_DIGITS])}:
             for record in await self._store.find_text(
