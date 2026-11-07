@@ -1,5 +1,6 @@
 """The ``forget_memories`` built-in: delete the remembered exchanges that contain a named text."""
 
+import re
 from collections.abc import Sequence
 
 from cortex_core.errors import MemoryStoreError
@@ -13,6 +14,9 @@ FORGET_CHOSEN_TOOL_NAME = "forget_memories"
 FORGET_CHOSEN_LIMIT = 20
 _EXCERPT_CHARS = 60
 _PENDING_CALLS = 32
+_TOKEN = re.compile(r"[^\W_]+")
+_WORD = re.compile(r"[^\W\d_]{4,}")
+_VALUE_DIGITS = 4
 
 _NONE_FOUND = (
     "nothing was forgotten: no remembered exchange contains that text, so tell the user that "
@@ -44,6 +48,23 @@ def _excerpt(record: MemoryRecord, text: str) -> str:
     start = max(flat.lower().find(" ".join(text.lower().split())) - _EXCERPT_CHARS, 0)
     end = start + 2 * _EXCERPT_CHARS + len(text)
     return ("..." if start else "") + flat[start:end] + ("..." if end < len(flat) else "")
+
+
+def _tokens(text: str) -> set[str]:
+    """The runs of letters and digits in ``text``, lower case."""
+    return {token.lower() for token in _TOKEN.findall(text)}
+
+
+def _values(records: Sequence[MemoryRecord]) -> list[str]:
+    """The tokens of ``records`` with at least four digits, such as a code or a phone number."""
+    tokens = (token for record in records for token in sorted(_tokens(record.text)))
+    return list(dict.fromkeys(t for t in tokens if sum(c.isdigit() for c in t) >= _VALUE_DIGITS))
+
+
+def _repeats(record: MemoryRecord, value: str, words: set[str]) -> bool:
+    """Whether ``record`` holds ``value`` as a whole token and a word of the call's text."""
+    tokens = _tokens(record.text)
+    return value in tokens and not tokens.isdisjoint(words)
 
 
 class ForgetChosenTool:
@@ -96,6 +117,24 @@ class ForgetChosenTool:
             scopes=self._scope.read_scopes(call.stamp.session_id),
         )
 
+    async def _repeating(
+        self, call: ToolCall, found: Sequence[MemoryRecord]
+    ) -> list[tuple[MemoryRecord, str]]:
+        """Other memories holding a value of ``found`` and a word of the call's text."""
+        words = {word.lower() for word in _WORD.findall(_text(call))}
+        seen = {record.id for record in found}
+        extra: list[tuple[MemoryRecord, str]] = []
+        for value in _values(found) if words else []:
+            for record in await self._store.find_text(
+                value,
+                limit=FORGET_CHOSEN_LIMIT + 1,
+                scopes=self._scope.read_scopes(call.stamp.session_id),
+            ):
+                if record.id not in seen and _repeats(record, value, words):
+                    seen.add(record.id)
+                    extra.append((record, value))
+        return extra
+
     async def card(self, call: ToolCall) -> str | None:
         """List the stored memories the delete will remove; ``None`` when it removes none."""
         shown, card = await self._choose(call)
@@ -110,9 +149,10 @@ class ForgetChosenTool:
             return "nothing was forgotten: the call named no text", None
         try:
             found = await self._found(call)
+            extra = await self._repeating(call, found) if len(found) <= FORGET_CHOSEN_LIMIT else []
         except MemoryStoreError as err:
             return f"the memory store is unavailable, so nothing was forgotten: {err}", None
-        if len(found) > FORGET_CHOSEN_LIMIT:
+        if len(found) + len(extra) > FORGET_CHOSEN_LIMIT:
             return (
                 f"nothing was forgotten: more than {FORGET_CHOSEN_LIMIT} remembered exchanges "
                 "contain that text, so ask the user for a longer, more exact text"
@@ -121,9 +161,10 @@ class ForgetChosenTool:
             return _ALREADY_DELETED, None
         if not found:
             return _NONE_FOUND, None
-        lines = "\n".join(f"- {_excerpt(record, _text(call))}" for record in found)
-        card = f"Deletes for good, with no undo, these {len(found)} remembered exchanges:\n{lines}"
-        return tuple(record.id for record in found), card
+        listed = [(record, _text(call)) for record in found] + extra
+        lines = "\n".join(f"- {_excerpt(record, text)}" for record, text in listed)
+        card = f"Deletes for good, with no undo, these {len(listed)} remembered exchanges:\n{lines}"
+        return tuple(record.id for record, _ in listed), card
 
     def _result(self, call: ToolCall, content: str, *, error: bool = True) -> ToolResult:
         """The call's result: ``content`` as one sentence."""

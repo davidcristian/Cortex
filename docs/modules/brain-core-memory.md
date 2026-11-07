@@ -74,9 +74,11 @@ pool down to the hits one turn sees. The turn that calls it is in
 - `ForgetChosenTool(store, scope)` (`memory_forget_chosen.py`, ADR-0075) is `forget_memories`: one
   `text` argument, `confirm_required`, and a `RecordCard`. `card` runs `find_text` over the
   session's read scopes and lists an excerpt of each match, so the card holds stored text and never
-  the model's; it keeps the matched ids under the call's id (the latest 32 calls). `invoke` deletes
+  the model's. It also lists each other row holding a value of a match (a token with four or more
+  digits) and a word of four or more letters from the text, both as whole tokens, since a recall
+  reply restates the value in other words. It keeps the matched ids under the call's id (the latest 32 calls). `invoke` deletes
   exactly those ids with `delete_ids`, searches again, and says how many were removed and whether
-  any match is left. No text, no match, more than `FORGET_CHOSEN_LIMIT` (20) matches or a failed
+  any match is left. No text, no match, more than `FORGET_CHOSEN_LIMIT` (20) rows listed or a failed
   store deletes nothing: `card` returns `None`, so the dispatcher shows no card and runs the call,
   whose result says why. The description asks for the value or one word from the request that names
   it, and the no-match result tells the model to say that nothing about it was stored and not to

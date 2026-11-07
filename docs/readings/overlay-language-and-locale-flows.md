@@ -137,7 +137,7 @@ so this is not a language gap
 The French call forgot the phrase `code de mon casier à la piscine`, which the two recall
 exchanges (`Votre code de casier à la piscine est 7731.`) do not contain, so a new English chat
 asking for the code was answered `7731` again
-([task 1002](../refinements/tasks/1002-a-forget-by-phrase-leaves-the-recalled-value-in-other-rows.md)). After the
+([forget-value-repeats.md](forget-value-repeats.md)). After the
 German forget, `What is my dog called?` searched the file tools and said it had no record.
 
 ## 6. Requests in other languages and the English readers

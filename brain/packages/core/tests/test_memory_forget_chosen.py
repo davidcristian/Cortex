@@ -250,3 +250,137 @@ async def test_only_the_latest_cards_are_kept() -> None:
     first = await tool.invoke(_call(call_id="c0"))
     assert _said(first) == "nothing was forgotten: no card listed what to delete"
     assert (await tool.invoke(_call(call_id="c1"))).is_error is False
+
+
+_LOCKER = "User: Souviens-toi que le code de mon casier à la piscine est 7731.\nAssistant: Noté."
+_LOCKER_RECALL = (
+    "User: What is my swimming pool locker code?\n"
+    "Assistant: Votre code de casier à la piscine est 7731."
+)
+_PHRASE = "code de mon casier à la piscine"
+
+
+async def test_a_phrase_also_lists_the_memories_repeating_a_value_of_its_matches() -> None:
+    store = await _store(
+        _record("asked", _LOCKER),
+        _record("recall", _LOCKER_RECALL, minutes=1),
+        _record("wifi", "wifi"),
+    )
+    tool = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
+    assert await _card_lines(tool, _call(_PHRASE)) == [
+        "Deletes for good, with no undo, these 2 remembered exchanges:",
+        "- User: Souviens-toi que le code de mon casier à la piscine est 7731. Assistant: Noté.",
+        "- ...cker code? Assistant: Votre code de casier à la piscine est 7731.",
+    ]
+    assert _said(await tool.invoke(_call(_PHRASE))).startswith("forgot 2 remembered exchanges;")
+    assert await _texts(store) == ["wifi"]
+
+
+async def test_an_english_label_lists_a_recall_that_restates_the_value() -> None:
+    asked = "User: Remember that the code for my gym locker is 5819.\nAssistant: Noted."
+    recall = "User: What opens my locker?\nAssistant: Your gym locker code is 5819."
+    store = await _store(_record("asked", asked), _record("recall", recall, minutes=1))
+    tool = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
+    lines = await _card_lines(tool, _call("code for my gym locker"))
+    assert lines[2] == "- ...r: What opens my locker? Assistant: Your gym locker code is 5819."
+    await tool.invoke(_call("code for my gym locker"))
+    assert await _texts(store) == []
+
+
+async def test_a_value_with_no_word_of_the_phrase_is_not_listed() -> None:
+    store = await _store(
+        _record("asked", _LOCKER),
+        _record("door", "User: What is my door code?\nAssistant: It is 7731.", minutes=1),
+        _record("short", "User: La porte de mon garage?\nAssistant: 7731.", minutes=2),
+    )
+    tool = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
+    assert len(await _card_lines(tool, _call("casier à la piscine"))) == 2
+    await tool.invoke(_call("casier à la piscine"))
+    assert await _texts(store) == ["door", "short"]
+
+
+async def test_a_repeat_holding_two_values_is_listed_once() -> None:
+    asked = "User: Remember my locker code 7731 and gate code 4410.\nAssistant: Noted."
+    recall = "User: Codes?\nAssistant: Locker 7731, gate 4410."
+    store = await _store(_record("asked", asked), _record("recall", recall, minutes=1))
+    tool = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
+    assert len(await _card_lines(tool, _call("my locker code"))) == 3
+    await tool.invoke(_call("my locker code"))
+    assert await _texts(store) == []
+
+
+async def test_a_word_inside_another_word_or_a_longer_number_is_not_a_repeat() -> None:
+    store = await _store(
+        _record("asked", _LOCKER),
+        _record("barcode", "User: Scan it.\nAssistant: The barcode reads 7731.", minutes=1),
+        _record("longer", "User: Gym?\nAssistant: Your casier is 77310.", minutes=2),
+        _record("part", "User: Gym?\nAssistant: Your casier is 7731-B.", minutes=3),
+    )
+    tool = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
+    assert len(await _card_lines(tool, _call(_PHRASE))) == 3
+    await tool.invoke(_call(_PHRASE))
+    assert await _texts(store) == ["barcode", "longer"]
+
+
+async def test_a_number_under_four_digits_does_not_widen_the_card() -> None:
+    asked = "User: Remember that my locker number is 312.\nAssistant: Noted."
+    recall = "User: Which one?\nAssistant: Your locker is 312."
+    store = await _store(_record("asked", asked), _record("recall", recall, minutes=1))
+    tool = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
+    assert len(await _card_lines(tool, _call("my locker number"))) == 2
+    await tool.invoke(_call("my locker number"))
+    assert await _texts(store) == ["recall"]
+
+
+async def test_the_value_itself_lists_only_the_memories_holding_it() -> None:
+    store = await _store(
+        _record("asked", "User: My code is 7731 and my gate is 4410.\nAssistant: Noted."),
+        _record("gate", "User: And the gate code?\nAssistant: 4410.", minutes=1),
+    )
+    tool = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
+    assert len(await _card_lines(tool, _call("7731"))) == 2
+    await tool.invoke(_call("7731"))
+    assert await _texts(store) == ["gate"]
+
+
+async def test_a_repeat_in_another_chat_is_not_listed_on_a_session_scope() -> None:
+    store = await _store(
+        _record("asked", _LOCKER, scope="chat-a"),
+        _record("other", _LOCKER_RECALL, scope="b", minutes=1),
+    )
+    tool = ForgetChosenTool(store, SessionMemoryScope())
+    assert len(await _card_lines(tool, _call(_PHRASE))) == 2
+    await tool.invoke(_call(_PHRASE))
+    assert await _texts(store) == ["other"]
+
+
+async def test_repeats_past_the_limit_delete_nothing() -> None:
+    repeats = [
+        _record(f"r{i:02}", _LOCKER_RECALL, minutes=i + 1) for i in range(FORGET_CHOSEN_LIMIT)
+    ]
+    store = await _store(_record("asked", _LOCKER), *repeats)
+    tool = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
+    assert await tool.card(_call(_PHRASE)) is None
+    assert _said(await tool.invoke(_call(_PHRASE))).startswith(
+        f"nothing was forgotten: more than {FORGET_CHOSEN_LIMIT}"
+    )
+    assert len(await _texts(store)) == FORGET_CHOSEN_LIMIT + 1
+
+
+async def test_a_store_down_while_finding_repeats_deletes_nothing() -> None:
+    store = _FailingRepeatSearch()
+    await store.add(_record("asked", _LOCKER))
+    tool = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
+    assert await tool.card(_call(_PHRASE)) is None
+    assert _said(await tool.invoke(_call(_PHRASE))).startswith("the memory store is unavailable")
+    assert await _texts(store) == ["asked"]
+
+
+class _FailingRepeatSearch(InMemoryMemoryStore):
+    async def find_text(
+        self, text: str, *, limit: int, scopes: Sequence[str] | None = None
+    ) -> Sequence[MemoryRecord]:
+        if text == "7731":
+            msg = "pgvector is down"
+            raise MemoryStoreError(msg)
+        return await super().find_text(text, limit=limit, scopes=scopes)
