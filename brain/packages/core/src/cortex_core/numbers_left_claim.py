@@ -25,16 +25,28 @@ _STILL_HELD = re.compile(
     r"|stored|kept|saved|held|mentions?|mentioned|appears?\s+in|in\s+(?:my\s+)?memory)\b",
     re.IGNORECASE,
 )
-_ENGLISH_NEGATION = re.compile(r"\b(?:no|nothing|none|not|never)\b|n['\u2019]t\b", re.IGNORECASE)
+_ENGLISH_NEGATION = re.compile(
+    r"\b(?:no|nothing|none|nowhere|not|never)\b|n['\u2019]t\b", re.IGNORECASE
+)
+_ENGLISH_HEDGE = re.compile(
+    rf"{_ENGLISH_NEGATION.pattern}|\b(?:if|should|whether|unless|in\s+case)\b", re.IGNORECASE
+)
 _CLAUSE_BREAK = re.compile(r"[,;:]")
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
 
 
-def _stated(pattern: re.Pattern[str], negation: re.Pattern[str], reply: str) -> bool:
-    """Whether a sentence of ``reply`` asking nothing holds ``pattern`` in an unnegated clause."""
+def _stated(
+    pattern: re.Pattern[str],
+    before: re.Pattern[str],
+    reply: str,
+    after: re.Pattern[str] | None = None,
+) -> bool:
+    """Whether a sentence of ``reply`` asking nothing holds ``pattern`` in a clause that has
+    ``before`` nowhere before it and ``after`` nowhere after it."""
     return any(
         not sentence.rstrip().endswith("?")
-        and negation.search(_CLAUSE_BREAK.split(sentence[: found.start()])[-1]) is None
+        and before.search(_CLAUSE_BREAK.split(sentence[: found.start()])[-1]) is None
+        and (after is None or after.search(_CLAUSE_BREAK.split(sentence[found.end() :])[0]) is None)
         for sentence in _SENTENCE_END.split(reply)
         for found in pattern.finditer(sentence)
     )
@@ -46,8 +58,8 @@ def says_forgotten(reply: str) -> bool:
 
 
 def names_still_held(reply: str) -> bool:
-    """Whether a statement in ``reply`` says something is still held or remembered."""
-    return _stated(_STILL_HELD, _ENGLISH_NEGATION, reply)
+    """Whether ``reply`` states, with no condition or negation, that something is still held."""
+    return _stated(_STILL_HELD, _ENGLISH_HEDGE, reply, _ENGLISH_NEGATION)
 
 
 def numbers_left_claim(reply: str, *, left: bool) -> bool:

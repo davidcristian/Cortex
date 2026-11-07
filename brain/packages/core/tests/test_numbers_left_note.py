@@ -82,6 +82,10 @@ STILL_HELD = [
     "I removed one exchange; the number can still be recalled from another one.",
     "I've forgotten your door code, though another exchange still mentions 1987.",
     "I've forgotten it, but the number still appears in one other memory.",
+    "I've forgotten it, but if you check, the number still appears in one other memory.",
+    "I've forgotten it, but one exchange still holds 1987, not the door code.",
+    "I've forgotten it, but one exchange still holds 1987 if you want that gone too.",
+    "I've forgotten it. Should you ask, I can say that one exchange still holds 1987.",
 ]
 
 NOT_STILL_HELD = [
@@ -92,6 +96,18 @@ NOT_STILL_HELD = [
     "I've forgotten it, and nothing still mentions it.",
     "I've forgotten it; no other exchange still appears in my memory with it.",
     "I've forgotten it, and it still appears that nothing else was stored.",
+    "I've forgotten your door code. If it still appears in another chat, tell me.",
+    "I've forgotten your door code. Should it still appear in a later chat, ask me again.",
+    "I've forgotten your door code; it still appears in no other memory.",
+    "I've forgotten your door code. If anything is still stored, tell me.",
+    "I've forgotten your door code. Tell me whether it is still stored anywhere.",
+    "I've forgotten your door code. Ask again in case it is still held somewhere.",
+    "I've forgotten your door code. It is gone unless it is still stored elsewhere.",
+    "I've forgotten your door code. The number is still stored nowhere.",
+    "I've forgotten your door code. Another exchange still holds none of it.",
+    "I've forgotten your door code. The number no longer appears in any memory.",
+    "I've forgotten your door code. The number still appears nowhere.",
+    "I've forgotten your door code, so nothing still mentions it.",
 ]
 
 
@@ -134,6 +150,13 @@ def test_a_forgotten_claim_with_a_number_left_ends_with_the_note(reply: str) -> 
 @pytest.mark.parametrize("reply", [*NOT_FORGOTTEN, *STILL_HELD])
 def test_a_reply_that_claims_nothing_gone_or_names_the_row_gets_no_note(reply: str) -> None:
     assert _closed(reply, left=True) == reply
+
+
+@pytest.mark.parametrize("reply", NOT_STILL_HELD[-12:])
+def test_a_forgotten_claim_naming_the_row_only_in_a_condition_or_negation_gets_the_note(
+    reply: str,
+) -> None:
+    assert _closed(reply, left=True) == reply + NUMBERS_LEFT_NOTE
 
 
 class _Rounds:
