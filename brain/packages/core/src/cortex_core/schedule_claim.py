@@ -41,7 +41,9 @@ _MONTHLY = re.compile(r"\bmonth(?:s|ly)?\b", re.IGNORECASE)
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
 _TIME_OF_DAY = re.compile(
     r"\b\d{1,2}(?::\d{2})?\s*[ap]\.?m\.?(?![a-z])|\b\d{1,2}:\d{2}\b|\bnoon\b|\bmidnight\b"
-    r"|(?<!\bin )(?<!dans )\b\d{1,2} ?h ?[0-5]\d\b|\b\d{1,2}(?:[.:]\d{2})? ?Uhr\b",
+    r"|(?<!\bin )(?<!dans )\b\d{1,2} ?h ?[0-5]\d\b|\b\d{1,2}(?:[.:]\d{2})? ?Uhr\b"
+    # A bare hour only after a word for a point in time, since "dure 2h" is a duration.
+    r"|\b(?:à|vers|um|gegen|a\s+las|at)\s+\d{1,2} ?h\b(?!\s*de\b)",
     re.IGNORECASE,
 )
 _DUE = re.compile(r"\bdue \d{4}-\d{2}-\d{2}T(\d{2}:\d{2})")

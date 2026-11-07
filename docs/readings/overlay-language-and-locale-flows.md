@@ -216,10 +216,15 @@ message below ran in new chats `s11-*` with every card approved:
 
 The refused call left the turn untainted, so it was stored. Every reply was in the person's
 language and said the fact was kept. The French reminder reply named `18h` and still had
-`STORED_TIME_NOTE` appended, since `names_time_of_day` does not read a bare hour
-([task 1006](../refinements/tasks/1006-a-reply-that-names-a-bare-hour-such-as-18h-gets-the-stored-time-note.md)).
+`STORED_TIME_NOTE` appended, since `names_time_of_day` read no bare hour. It now reads one after a
+word for a point in time (`à 18h`, `vers 9h`, `um 18h`, `a las 18h`), and not a duration
+(`dure 2h`, `dans 2h`, `en 2 h`, `à 2h de route`). Replayed through the old and new reader, 1 of
+the 290 distinct replies recorded that night, with their appended notes removed, changed: this
+one. On the brain rebuilt with it at 05:39 (SM clock 0.57 of `clocks.max.sm`), the same message
+with `mon frère s'appelle Marc` ran `schedule_task` and the reply `demain à 18h` had no note.
+
 The section 4 message and its English form with `Lucia` ran three times each in new chats: no
-draw called `forget_memories`, and no reply said the fact was not saved. The draws' 17 `memories`
-rows and their one schedule item were deleted afterwards. Run logs: `flows1.log`, `flows2.log`,
-`replay2.log` and `mut2.log` in
+draw called `forget_memories`, and no reply said the fact was not saved. The draws' 18 `memories`
+rows and their two schedule items were deleted afterwards. Run logs: `flows1.log` to `flows3.log`,
+`replay2.log`, `replay_time.log`, `mut2.log` and `mut_time.log` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/37073e3c-5ca6-42f6-aae1-df9e67b0e4db/scratchpad/slot11/`.
