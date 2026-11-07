@@ -53,7 +53,12 @@ export function ConfirmCard({ confirm, onRespond }: ConfirmCardProps) {
           ))}
         </dl>
       )}
-      <p className="confirm-reason">{confirm.reason}</p>
+      <div className="confirm-reason">
+        {confirm.reason.split("\n").map((line, index) => (
+          // Two rows of a card can read the same, so a line's place is its key.
+          <p key={index}>{line}</p>
+        ))}
+      </div>
       <div className="confirm-actions">
         <button
           type="button"

@@ -82,4 +82,21 @@ describe("ConfirmCard", () => {
     expect(fireEvent.mouseDown(screen.getByText("Approve"))).toBe(false);
     expect(field).toHaveFocus();
   });
+
+  it("shows each line of a reason as its own line, so a forget card's rows stay apart", () => {
+    const lines = [
+      "Deletes for good, with no undo, these 2 remembered exchanges:",
+      "- User: Remember that my locker code is 7731. Assistant: Noted.",
+      "Listed because they also hold 7731:",
+      "- ...Assistant: Your locker code is 7731.",
+    ];
+    const { container } = render(
+      <ConfirmCard
+        confirm={confirm({ toolName: "forget_memories", reason: lines.join("\n") })}
+        onRespond={vi.fn()}
+      />,
+    );
+    const shown = [...container.querySelectorAll(".confirm-reason > p")].map((n) => n.textContent);
+    expect(shown).toEqual(lines);
+  });
 });

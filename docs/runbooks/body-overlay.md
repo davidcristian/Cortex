@@ -66,10 +66,10 @@ And check the loop end to end.
 3. Confirm that follow-ups keep context. The brain persists session state, and each turn is a
    fresh `Converse` sharing the app's `session_id`.
 4. **The approval flow**, which needs the email sidecar's write path enabled on the stack
-   (`CORTEX_EMAIL_SEND_ENABLED=true` plus SMTP credentials, see
-   [email-imap.md](email-imap.md)). Ask for a send, such as "email ada a quick hello". The reply
-   pauses on the approval card, showing the tool name, the draft as key and value lines, and the
-   reason. Approve and the send runs and the reply reports it sent; deny and the reply relays that
+   (`CORTEX_EMAIL_SEND_ENABLED=true` plus SMTP credentials, see [email-imap.md](email-imap.md)). Ask
+   for a send, such as "email ada a quick hello". The reply pauses on the approval card, showing the
+   tool name, the draft as key and value lines, and the reason with each of its lines on a line of
+   its own. Approve and the send runs and the reply reports it sent; deny and the reply relays that
    it was not sent. Then check that it fails closed: trigger another approval and ignore it, or
    dismiss to the orb. The brain denies on timeout, 120 s by default, and the reply says the user
    declined. An approval arriving while minimized surfaces the preview, which must not auto-fade
