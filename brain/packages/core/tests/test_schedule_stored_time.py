@@ -41,6 +41,10 @@ _MOVED = "edited abc: now due 2026-11-20T10:00:00+00:00"
         "I'll remind you at 9AM.",
         "I'll remind you at noon on the 14th.",
         "I'll remind you at midnight.",
+        "Je vous rappellerai d'appeler votre sœur demain à 17h30.",
+        "Je vous le rappellerai à 9 h 15.",
+        "Ich erinnere dich morgen um 9 Uhr.",
+        "Ich erinnere dich um 9.30 Uhr an den Termin.",
     ],
 )
 def test_a_clock_figure_am_or_pm_noon_or_midnight_names_a_time_of_day(reply: str) -> None:
@@ -57,6 +61,11 @@ def test_a_clock_figure_am_or_pm_noon_or_midnight_names_a_time_of_day(reply: str
         "I'll remind you in 9 minutes.",
         "Mia's birthday on 9 August is set, every year.",
         "I made 5 amendments to the plan.",
+        "I'll remind you in 2h.",
+        "I'll remind you in 2h30.",
+        "Je vous le rappellerai dans 2h30.",
+        "Die Uhr im Flur geht 5 Minuten vor.",
+        "Ich habe 3 Uhren gefunden.",
     ],
 )
 def test_a_reply_with_no_clock_figure_names_no_time_of_day(reply: str) -> None:
@@ -103,6 +112,8 @@ def _closed(reply: str, time: str) -> str:
         ("I've set a reminder for 14 December at 9:00 AM.", "09:00", False),
         ("I'll remind you at noon on the 14th.", "12:00", False),
         ("I'll remind you at midnight on 14 December.", "00:00", False),
+        ("C'est fait ! Je vous rappellerai demain à 17h30.", "17:30", False),
+        ("Alles klar, ich erinnere dich morgen um 9 Uhr.", "09:00", False),
         ("I've set a reminder for 14 December to post the parcel.", "", False),
     ],
 )
