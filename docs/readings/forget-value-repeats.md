@@ -209,3 +209,12 @@ and the run record `draws.jsonl` beside it.
 Replayed at unit level through the start hash and build 1, the 20 recorded forget draws above
 this section get the same cards and results, except fr3 of the whole value replay, whose result on
 build 1 counts its one row left. None of them has a second call in the turn.
+
+## The rule for a note the brain appends, 2026-11-07
+
+Written before any draw of it. The candidate keeps the count above and appends a note, after the
+reply, that a remembered exchange still holds a number the forgotten ones held, when the last
+forget result of the turn had the count and the reply says something was forgotten. It ships when,
+over the `fr-v` and `yr-v` flows drawn until four draws show the form, every turn d reply in a
+draw with the form either does not say the code was forgotten or ends with the note, and no draw
+without the form gets the note.

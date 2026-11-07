@@ -17,10 +17,12 @@ the card was shown is missed the same way.
 ## What to do
 
 1. Build the note the brain appends after a typed check of the reply, as `forget_claim.py` does
-   for a forget that deleted nothing: when the last forget result of the turn counted remaining
-   rows that hold a number of the deleted rows and `claims_forgotten` reads the reply, append that
-   a remembered exchange still holds the number. The count is in the patch the
-   [readings](../../readings/forget-value-repeats.md#the-draws-of-both-results-2026-11-07) name.
+   for a forget that deleted nothing. Apply the count of the patch the [readings](../../readings/forget-value-repeats.md#the-draws-of-both-results-2026-11-07) name; set
+   a `TaintLedger` field in `dispatch_round.py` from each `forget_memories` result (true after a
+   result with a count, false after any other result of that tool, as `daily_after` sets
+   `daily_stored`), keep it in the handoff record as `forget_unmatched` is, and in
+   `closing_notes.py` append the note when the field is true and `claims_forgotten` reads the
+   reply.
 2. Draw the `fr-v` and `yr-v` flows of the readings with the note until four draws show the form,
    under the rule there.
 
