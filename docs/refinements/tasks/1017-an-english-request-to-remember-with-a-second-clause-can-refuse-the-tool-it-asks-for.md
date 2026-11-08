@@ -37,7 +37,7 @@ under the couch, and turn the heating down.`
   message keeps both. 57 of 13,291 replayed strings changed, all toward keeping; the replay,
   the near misses and six stack draws are in
   [the second clause readings](../../readings/side-effect-tools-second-clause.md). The draw of a
-  weekday reminder filed
-  [R-1036](1036-a-reminder-on-a-named-weekday-can-be-stored-to-repeat-every-week.md).
+  weekday reminder led to the refusal of a weekly rule beside one named weekday
+  ([readings](../../readings/schedule-one-time-weekday.md)).
   A clause of a verb with no object is left open in
   [R-1037](1037-an-english-second-clause-with-a-verb-and-no-object-can-refuse-the-tool-it-asks-for.md).

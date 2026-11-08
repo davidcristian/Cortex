@@ -78,7 +78,7 @@ On the stack brain rebuilt at 02:38 (SM clock 0.57 of `clocks.max.sm`), with the
 | `Retiens que mon code est 4512. Merci beaucoup !` | none | passes |
 
 The barber call stored a reminder for every Tuesday, which the message did not ask for
-([R-1036](../refinements/tasks/1036-a-reminder-on-a-named-weekday-can-be-stored-to-repeat-every-week.md)).
+([one-time weekday readings](schedule-one-time-weekday.md)).
 Every `memories` row and schedule item of the draws was deleted afterwards. Run logs `draws.log`,
 `replay.log` and `mut.log` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot3/`.

@@ -18,6 +18,7 @@ from cortex_core.schedule_claim import stored_time
 from cortex_core.schedule_daily import daily_after
 from cortex_core.schedule_midnight import midnight_unasked
 from cortex_core.schedule_offset import offset_date_wrong, offset_refusal
+from cortex_core.schedule_weekly import weekly_unasked
 from cortex_core.schedule_yearly import monthly_for_yearly, same_month_days, stores_monthly
 from cortex_core.stops import StopLedger
 from cortex_core.tool_budget import DispatchBudget
@@ -64,6 +65,8 @@ class ToolLoopContext:
     midnight_refused: tuple[ToolCall, ...] = ()
     # The yearly schedule calls refused for a wrong date in a loop this one continues.
     offset_refused: tuple[ToolCall, ...] = ()
+    # The weekly schedule calls refused for one named weekday in a loop this one continues.
+    weekly_refused: tuple[ToolCall, ...] = ()
 
     @property
     def unit_id(self) -> str:
@@ -85,6 +88,8 @@ class LoopRecord:
     midnight_refused: list[ToolCall] = field(default_factory=list[ToolCall])
     # The yearly schedule calls refused once in this turn for a wrong date; a second one runs.
     offset_refused: list[ToolCall] = field(default_factory=list[ToolCall])
+    # The weekly schedule calls refused once in this turn for one named weekday; a second one runs.
+    weekly_refused: list[ToolCall] = field(default_factory=list[ToolCall])
 
 
 def _unasked_refusal(
@@ -103,6 +108,9 @@ def _unasked_refusal(
     if not record.midnight_refused and midnight_unasked(call, context.query):
         record.midnight_refused.append(call)
         return DispatchRefusal.MIDNIGHT_TIME
+    if not record.weekly_refused and weekly_unasked(call, context.query):
+        record.weekly_refused.append(call)
+        return DispatchRefusal.WEEKLY_DAY
     return None
 
 

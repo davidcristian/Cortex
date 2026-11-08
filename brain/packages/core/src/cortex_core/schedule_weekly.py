@@ -1,0 +1,55 @@
+"""Read whether a schedule call repeats weekly when the person named one weekday and no repeat."""
+
+import re
+
+from cortex_core.schedule_tools import SCHEDULE_TOOL_NAME
+from cortex_core.tools import ToolCall
+
+WEEKLY_DAY_MSG = (
+    "REFUSED: the person's message names one weekday and no repeat, so this call with 'on_days', "
+    "which repeats every week, was not run. For that one day, call again with 'at' set to the "
+    "ISO-8601 date-time of its next date and no 'at_time' or 'on_days'."
+)
+
+_WEEKDAYS = (
+    ("monday", "lundi", "montag", "lunes", "luni"),
+    ("tuesday", "mardi", "dienstag", "martes", "marți", "marti", "marţi"),
+    ("wednesday", "mercredi", "mittwoch", "miércoles", "miercoles", "miercuri"),
+    ("thursday", "jeudi", "donnerstag", "jueves", "joi"),
+    ("friday", "vendredi", "freitag", "viernes", "vineri"),
+    ("saturday", "samedi", "samstag", "sonnabend", "sábado", "sabado", "sâmbătă", "sambata"),
+    ("sunday", "dimanche", "sonntag", "domingo", "duminică", "duminica"),
+)
+_WEEKDAY = {name: day for day, names in enumerate(_WEEKDAYS) for name in names}
+_NAMES = "|".join(sorted(_WEEKDAY, key=len, reverse=True))
+_NAMED = re.compile(rf"\b(?:{_NAMES})\b", re.IGNORECASE)
+# Any of these may mean the person wants a repeat, so a call beside one is never refused.
+_MAY_REPEAT = re.compile(
+    r"\b(?:every|each|first|second|third|fourth|fifth|last|premier|dernier|ersten|letzten|primer"
+    r"|último|ultimo|prima|ultima|weekly|weeks?|fortnight\w*|biweekly|repeat\w*|recur\w*"
+    r"|regular\w*|always|usually|routine|until|from\s+now\s+on|again|weekends?|\w+days|move\w*"
+    r"|chang\w*|switch\w*|resched\w*|instead|shift\w*|push\w*|later|chaque|tous|toutes|hebdo\w*"
+    r"|semaines?|toujours|jusqu\w*|désormais|plutôt|déplac\w*|les\s+(?:lun|mar|mercre|jeu|vendre"
+    r"|same|diman)\w*|le\s+(?:lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)(?!\s*\d)"
+    r"|jede[nrs]?|wochen?|wöchentlich\w*|immer|regelmäßig\w*|bis|wieder\w*|\w+tags|statt|anstatt"
+    r"|verschieb\w*|änder\w*|todos|todas|cada|semanal\w*|semanas?|siempre|hasta|los\s+(?:lunes"
+    r"|martes|mi[ée]rcoles|jueves|viernes|s[áa]bados?|domingos?)|en\s+vez|en\s+lugar|cambi\w*"
+    r"|mueve|mover|fiecare|săptămân\w*|saptaman\w*|mereu|întotdeauna|până|pana|lunea|marțea|martea"
+    r"|marţea|miercurea|joia|vinerea|sâmbăta|sambata|duminica|mută|muta|schimb\w*|în\s+loc)\b",
+    re.IGNORECASE,
+)
+
+
+def names_one_weekday(message: str) -> bool:
+    """Whether ``message`` names exactly one weekday and no word that may ask for a repeat."""
+    days = {_WEEKDAY[match.group(0).lower()] for match in _NAMED.finditer(message)}
+    return len(days) == 1 and _MAY_REPEAT.search(message) is None
+
+
+def weekly_unasked(call: ToolCall, query: str) -> bool:
+    """Whether ``call`` stores a weekly rule while the ``query`` names one weekday and no repeat."""
+    return (
+        call.name == SCHEDULE_TOOL_NAME
+        and call.arguments.get("on_days") is not None
+        and names_one_weekday(query)
+    )
