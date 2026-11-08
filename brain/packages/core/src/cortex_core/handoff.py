@@ -60,6 +60,7 @@ class HandoffRecord:
     monthly_stored: bool = False
     stored_time: str = ""
     daily_stored: tuple[str, ...] = ()
+    once_after_weekly: bool = False
 
     def __post_init__(self) -> None:
         if self.requested_at.tzinfo is None or self.requested_at.utcoffset() is None:
@@ -87,6 +88,7 @@ class HandoffRecord:
             monthly_stored=self.monthly_stored,
             stored_time=self.stored_time,
             daily_stored=self.daily_stored,
+            once_after_weekly=self.once_after_weekly,
         )
 
 
@@ -161,4 +163,5 @@ class EscalationSlot:
             monthly_stored=self.refs.taint.monthly_stored,
             stored_time=self.refs.taint.stored_time,
             daily_stored=self.refs.taint.daily_stored,
+            once_after_weekly=self.refs.taint.once_after_weekly,
         )

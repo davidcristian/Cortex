@@ -223,4 +223,5 @@ calls are read from the brain's `tool.invocation` log lines.
 | `Remind me at 6pm the evening ahead of Tuesday's dentist appointment.` | `on_days` `["mon"]` refused by the weekly reader, then `at` 2026-11-09T18:00 refused by the weekday reader | nothing: the turn ended at the round cap | fails |
 
 Both failures follow a refusal of a correct call. [schedule-weekday-day-after.md](schedule-weekday-day-after.md) narrows the weekday reader to the day after, and
-[task 1045](../refinements/tasks/1045-the-weekly-refusal-refuses-a-weekly-rule-asked-in-rarer-forms.md) those the weekly reader still misses.
+[schedule-weekly-false-refusal.md](schedule-weekly-false-refusal.md) records what follows a
+weekly refusal the reader should not have made.

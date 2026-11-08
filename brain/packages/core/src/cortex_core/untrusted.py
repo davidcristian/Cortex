@@ -152,6 +152,8 @@ class TaintLedger:
     stored_time: str = ""
     # The ids of the items a ``schedule_task`` call this turn stored to repeat every day.
     daily_stored: tuple[str, ...] = ()
+    # Whether a ``schedule_task`` call stored a one-time item after a weekly call was refused.
+    once_after_weekly: bool = False
     untrusted_urls: set[str] = field(default_factory=set[str])
     sources: tuple[Provenance, ...] = ()
     # The tainted memories this turn recalled: its record is stored only while they all exist.

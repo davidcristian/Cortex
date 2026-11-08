@@ -43,3 +43,42 @@ fit either: of 11 recorded draw messages naming one weekday and no repeat word, 
 among them the French bare weekday (`Rappelle-moi mardi à 9h`, a one-time request) and the
 audit's `the evening ahead of Tuesday's dentist appointment`, whose weekly call on Monday the
 refusal caught correctly.
+
+## Live rows for the note, written before the first draw, 2026-11-08
+
+The stack brain is rebuilt from the working tree that appends "(The reminder set in this turn is
+for one day only. Ask to make it weekly if you meant every week.)" when a turn's `schedule_task`
+call with no repeat field runs after the weekly reader refused a call in that turn. One draw per
+chat, every card approved, items read back from Redis, calls from the brain's `tool.invocation`
+lines, the note read from the reply the driver records. The draws run on Sunday 2026-11-08.
+
+| Row | Message | Draws |
+| --- | --- | --- |
+| F1 | `Remind me Tuesday at 8 to stretch, keep it going.` | 4 |
+| F2 | `Remind me Tuesday at 8 to stretch, all the time.` | 4 |
+| W1 to W4 | the W rows of [schedule-one-time-weekday.md](schedule-one-time-weekday.md) | 1 each |
+
+**The form** is a draw whose turn stores a one-time item after a weekly refusal. Its count is
+recorded per row and is not part of the rule.
+
+**Rule.** The build ships only if every draw that shows the form ends its reply with the note, no
+draw whose turn had no weekly refusal shows it, and no draw whose only item stored after a
+refusal repeats weekly shows it. With no form in twelve draws the first part is met by no draw,
+and the tests over fakes stay its evidence.
+
+## Results of the live rows
+
+Stack brain image `6b8be04027e3`, built from the working tree at 06:20, draws from 06:21 to
+06:26, chats `s11-*`, SM clock 0.57 of `clocks.max.sm` after every draw.
+
+| Row | Calls | Stored | Note |
+| --- | --- | --- | --- |
+| F1 | 4 weekly refused; 3 retried the weekly rule, 1 `at` 2026-11-10T08:00 | 3 weekly Tuesday 08:00, 1 one-shot | in the one-shot draw only |
+| F2 | 4 weekly refused; 2 retried the weekly rule, 2 `at` 2026-11-10T08:00 | 2 weekly Tuesday 08:00, 2 one-shot | in the two one-shot draws only |
+| W1 to W4 | one `at` each, none refused | one-shot on the date and hour wanted | in none |
+
+**Result.** The rule passes. The form came in 3 of 12 draws (s11-f1d, s11-f2b, s11-f2d), and
+each reply ended with the note; none of the five weekly retries and none of the four W draws
+showed it. Log `draws.log`, records `draws.jsonl`, items `items.tsv` and calls `calls.py` over
+`brain-draws.log` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot11/`;
+every item and row of the draws was deleted.

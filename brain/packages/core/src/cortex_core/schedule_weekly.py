@@ -1,17 +1,23 @@
-"""Read whether a schedule call repeats weekly when the person named one weekday and no repeat."""
+"""Refuse a weekly rule for one named weekday, and note a one-time item stored after the refusal."""
 
 import re
 from datetime import date, datetime, time, timedelta
 
+from cortex_core.schedule_args import parse_number
 from cortex_core.schedule_day_args import parse_at_time
 from cortex_core.schedule_time import DisplayZone
 from cortex_core.schedule_tools import SCHEDULE_TOOL_NAME
-from cortex_core.tools import ToolCall
+from cortex_core.tools import ToolCall, ToolResult
 
 WEEKLY_DAY_MSG = (
     "REFUSED: the person's message names one weekday and no repeat, so this call with 'on_days', "
     "which repeats every week, was not run. For that one day, call again with 'at' set to the "
     "ISO-8601 date-time of its next date and no 'at_time' or 'on_days'."
+)
+
+ONCE_STORED_NOTE = (
+    "\n\n(The reminder set in this turn is for one day only. Ask to make it weekly if you meant "
+    "every week.)"
 )
 
 WEEKDAY_NAMES = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
@@ -90,3 +96,13 @@ def weekly_refusal(call: ToolCall, query: str, now: datetime, zone: DisplayZone)
     if day is None:
         return WEEKLY_DAY_MSG
     return f"{WEEKLY_DAY_MSG} The next {WEEKDAY_NAMES[named]} is {day.isoformat()}."
+
+
+def stores_once(call: ToolCall, result: ToolResult) -> bool:
+    """Whether ``call`` ran and stored one time: no ``at_time`` and no nonzero ``every_seconds``."""
+    return (
+        call.name == SCHEDULE_TOOL_NAME
+        and not result.is_error
+        and call.arguments.get("at_time") is None
+        and not parse_number(call.arguments.get("every_seconds"))
+    )
