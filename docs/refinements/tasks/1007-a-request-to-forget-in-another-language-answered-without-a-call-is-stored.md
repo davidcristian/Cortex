@@ -40,6 +40,4 @@ Reproduction: send `Oublie le code de mon casier 7731.` in new chats until a dra
   keep, each a forget request; a third person statement after `et` or `y` is withheld
   ([readings](../../readings/claim-reader-replays.md#a-forget-in-four-more-languages-and-an-english-keep-idiom-2026-11-08)).
   Filed [R-1034](1034-a-third-person-statement-after-a-conjunction-reads-as-a-request-to-forget.md)
-  for that statement and
-  [R-1035](1035-a-request-to-forget-in-romanian-searched-the-files-and-made-no-forget-call.md) for
-  a Romanian draw that made no forget call.
+  for that statement.

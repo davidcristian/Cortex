@@ -215,3 +215,11 @@ forget draw took the path this change closes (no call and no tool output): two c
 tool, and on the Romanian turn the model read "uită" as possibly "look" and searched the files,
 so the forget path and the tainted path withhold those turns as well. The three stored rows were
 deleted.
+
+That Romanian turn made no forget call, so it was replicated with a rule written first: a row
+holding 7788 is seeded in a new chat, `Uită codul meu 7788.` and `Te rog, uită codul meu 7788.` are
+drawn 4 times each in new chats with cards approved, and the no-call form needs work if the row
+stays in at least 2 of 8. Every draw called `forget_memories` and removed the row: it stayed in 0
+of 8, so nothing is built. Driver `rep.sh`, records `rep.jsonl`; the SM clock read 0.58 to 0.71 of
+its maximum. With no row to match, the model searched the files in 1 of 1; with a row, it called
+the forget tool in 8 of 8.
