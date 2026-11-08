@@ -57,6 +57,15 @@ _ASIDE = re.compile(
     r"|\b(?:like|as)\s+you\s+(?:asked|said|requested|wanted)\b",
     re.IGNORECASE,
 )
+# A relative pronoun or a later "you" and its verb starts the reminder's own text ("the pill you
+# take every morning"), so a repeat phrase from there to the clause's end is not read.
+_OWN_TEXT = re.compile(
+    r"(?<=\S\s)you\s+(?!(?:every|each|at|on|in|to|daily|about|of|for|once|again|this|today"
+    r"|tomorrow|tonight|from|by|with)\b)[^\W\d_]+|\b(?:que|dont)\s+(?:tu|vous)\b"
+    r"|\bque\s+(?:tú\s+)?[^\W\d_]+(?:as|es)\b|\bpe\s+care\b"
+    r"|\b(?:die|der|das|den|dem)\s+(?:du|Sie|ihr)\b",
+    re.IGNORECASE,
+)
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
 _CLAUSE_END = re.compile(r"[,;]")
 
@@ -68,9 +77,16 @@ def _states_repeat(sentence: str) -> bool:
         return False
     return any(
         _NEGATION.search(clause) is None
-        and (_REPEATS.search(clause) is not None or _DAILY_BESIDE.search(clause) is not None)
+        and (_REPEATS.search(head) is not None or _DAILY_BESIDE.search(head) is not None)
         for clause in _CLAUSE_END.split(told)
+        for head in (_head(clause),)
     )
+
+
+def _head(clause: str) -> str:
+    """The part of ``clause`` before the reminder's own text begins, or the whole clause."""
+    own = _OWN_TEXT.search(clause)
+    return clause if own is None else clause[: own.start()]
 
 
 def names_repeat(reply: str) -> bool:

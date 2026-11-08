@@ -37,7 +37,8 @@ that `names_repeat` reads as naming a repeat states it about the reminder.
   `zilnic` now name a repeat only within two words of a word for the reminder or for reminding
   (`_DAILY_BESIDE`), so the five adjective replies above read as naming none and show the note,
   while "a daily reminder" and "einen täglichen Reminder" still name one. Replaying 1,157 distinct
-  recorded replies and quoted readings changed 2, both quoted fragments, both toward the note. The
-  phrase form ("the pill you take every morning") is left out: telling a relative clause from a
-  reply that states the repeat needs a parse no word list gives, and it is filed as
-  [R-1038](1038-a-repeat-phrase-in-the-reminder-text-hides-the-daily-note.md).
+  recorded replies and quoted readings changed 2, both quoted fragments, both toward the note. For
+  the phrase form ("the pill you take every morning") each clause is read only up to a relative
+  form or a later `you` and its verb (`_OWN_TEXT`: `you take`, `que tu`, `que tomas`, `pe care`,
+  `die du`), so the relative clause replies show the note while "I'll remind you at 8 every
+  morning" still names a repeat; replaying 1,198 recorded replies changed none.

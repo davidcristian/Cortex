@@ -82,6 +82,17 @@ _WEEKLY = "scheduled reminder abc: due 2026-11-09T17:30:00+01:00 (Monday), every
         "Je te le rappellerai quotidiennement à 8h.",
         "Te lo recordaré a diario a las 8.",
         "Tienes un recordatorio diario a las 8.",
+        "I'll remind you at 8 every morning.",
+        "I'll remind you at 8 every morning to take your pill.",
+        "You will get a reminder at 8 every morning.",
+        "Done, you will get a reminder every morning at 8.",
+        "Ich erinnere dich um 8 Uhr jeden Morgen an die Tablette.",
+        "Je te le rappellerai à 8h chaque matin.",
+        "Te lo recordaré a las 8 cada mañana.",
+        "Îți voi aminti la 8 în fiecare dimineață.",
+        "Te lo recordaré a las 8. (Ten en cuenta que esto se repetirá todos los días).",
+        "Note que ce rappel se répète chaque jour.",
+        "Am setat un memento care se repetă în fiecare zi.",
     ],
 )
 def test_a_reply_that_says_it_repeats_names_a_repeat(reply: str) -> None:
@@ -154,6 +165,12 @@ def test_a_reply_that_says_it_repeats_names_a_repeat(reply: str) -> None:
         "Te recordaré a las 8 tu paseo diario.",
         "Îți voi aminti la 8 de plimbarea zilnică.",
         "Done, it goes off daily at 8.",
+        "I'll remind you at 8 to take the pill you take every morning.",
+        "I'll remind you at 8 about the walk that you take each evening.",
+        "Ich erinnere dich um 8 an die Tablette, die du jeden Morgen nimmst.",
+        "Je te rappellerai à 8h de prendre le cachet que tu prends chaque matin.",
+        "Te recordaré a las 8 tomar la pastilla que tomas cada mañana.",
+        "Îți voi aminti la 8 să iei pastila pe care o iei în fiecare dimineață.",
     ],
 )
 def test_a_reply_for_one_time_or_saying_no_repeat_names_none(reply: str) -> None:
