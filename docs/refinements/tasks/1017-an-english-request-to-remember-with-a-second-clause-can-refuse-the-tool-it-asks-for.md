@@ -1,9 +1,8 @@
 # An English request to remember with a second clause can refuse the tool it asks for
 
-**Status:** open, actionable
+**Status:** done 2026-11-08
 **Area:** memory
 **Origin:** [ADR-0019](../../adr/ADR-0019-tainted-memory-recording.md)
-**Verified:** 2026-11-07
 
 `unasked_tools` (`unasked_tools.py`) leaves `schedule_task` and `set_volume` out of an English
 request to remember unless `_REMINDER` or `_SOUND` names its use. A second clause that asks for
@@ -32,3 +31,11 @@ under the couch, and turn the heating down.`
 
 - 2026-11-07: filed by the slot that limited the refusal of those tools in four more languages
   to a request to remember with one clause.
+- 2026-11-08: done. `actions_asked` (`memory_request.py`) reads a clause beside an English request
+  that opens with a verb and its object, and `unasked_tools` keeps both tools when neither word
+  list reads that clause, so both messages above keep the tool they ask for and the heating
+  message keeps both. 57 of 13,291 replayed strings changed, all toward keeping; the replay,
+  the near misses and six stack draws are in
+  [the second clause readings](../../readings/side-effect-tools-second-clause.md). The draw of a
+  weekday reminder filed
+  [R-1036](1036-a-reminder-on-a-named-weekday-can-be-stored-to-repeat-every-week.md).

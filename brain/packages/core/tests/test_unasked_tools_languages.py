@@ -112,6 +112,11 @@ def test_a_request_to_remember_in_another_language_keeps_the_forget_tool(query: 
         ("Recuerda que me gusta así y sube la música.", SET_VOLUME_TOOL_NAME),
         ("Souviens-toi que j'aime ça et monte la musique.", SET_VOLUME_TOOL_NAME),
         ("Souviens-toi que je dors mais monte la musique.", SET_VOLUME_TOOL_NAME),
+        ("Merke dir: mein Gewicht ist 72,5 kg, sag mir morgen Bescheid.", SCHEDULE_TOOL_NAME),
+        ("Ține minte că am dentist la 9, anunță-mă.", SCHEDULE_TOOL_NAME),
+        ("Merke dir: ich wiege 72,5 kg und mach die Musik an.", SET_VOLUME_TOOL_NAME),
+        ("Recuerda que mi cita es a las 9. Gracias, y avísame antes.", SCHEDULE_TOOL_NAME),
+        ("Retiens que mon rendez-vous est à 9h. Merci de me prévenir.", SCHEDULE_TOOL_NAME),
     ],
 )
 def test_a_request_to_remember_in_another_language_with_a_second_clause_keeps_both_tools(
@@ -129,9 +134,25 @@ def test_a_request_to_remember_in_another_language_with_a_second_clause_keeps_bo
         "Merk dir, dass mein Hund Bello heißt.",
         "Ține minte că numărul apartamentului meu este 42.",
         "Mon code est 7731, souviens-toi.",
+        "Merke dir: mein Gewicht ist 72,5 kg.",
+        "Retiens que mon code est 4512. Merci beaucoup !",
+        "Ține minte că am 1,80 m. Mulțumesc!",
     ],
 )
 def test_a_request_to_remember_one_fact_in_another_language_refuses_both_tools(
     query: str,
 ) -> None:
     assert unasked_tools(query) == _BOTH
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Recuerda que mi código es 4512. Gracias.",
+        "Recuerda que mi código es 4512, ¡muchas gracias!",
+    ],
+)
+def test_a_request_to_remember_in_spanish_with_a_closing_thanks_refuses_the_volume_tool(
+    query: str,
+) -> None:
+    assert unasked_tools(query) == {SET_VOLUME_TOOL_NAME}

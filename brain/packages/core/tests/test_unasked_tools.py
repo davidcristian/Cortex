@@ -79,11 +79,40 @@ _SPAWN = ToolSpec(name=SPAWN_TOOL_NAME, description="", parameters={}, calls_sid
         "Note down my locker number 42.",
         "Remember that my brother texts me every day.",
         "Note that the heads of the team meet on Monday.",
-        "Remember that the remote is under the couch, and turn the heating down.",
+        "Remember that I turn the heating down at night.",
+        "Remember that I like apples and pears.",
+        "Remember that I am vegetarian and allergic to nuts.",
+        "Remember that I have two kids, a boy and a girl.",
+        "Remember that the keys are on the hook, and the remote is under the couch.",
+        "Remember that my sister is a nurse and her husband is a cook.",
+        "Remember that the meeting is at 9, in the big room.",
+        "Remember that my code is 7319. Thanks!",
+        "Remember that my code is 7319, thank you.",
+        "Hi! Please remember that my code is 7319.",
     ],
 )
 def test_a_request_to_remember_a_fact_asks_for_neither_tool(query: str) -> None:
     assert unasked_tools(query) == _BOTH
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Remember that I have the dentist tomorrow and give me a shout at 9.",
+        "Remember that I like it like this and crank up the music.",
+        "Remember that the remote is under the couch, and turn the heating down.",
+        "Remember that I have the dentist tomorrow. Give me a shout at 9.",
+        "Give me a shout at 9, and remember that I have the dentist.",
+        "Note my flight on Friday, then please ring me at 6.",
+        "Keep in mind the baby is asleep, so keep it down.",
+        "Remember my exam on Monday; get me up early that day.",
+        "Remember my flight on Friday, give me a shout at 6 and turn the volume up.",
+    ],
+)
+def test_a_request_to_remember_with_a_second_clause_no_reader_names_keeps_both_tools(
+    query: str,
+) -> None:
+    assert unasked_tools(query) == frozenset()
 
 
 @pytest.mark.parametrize(

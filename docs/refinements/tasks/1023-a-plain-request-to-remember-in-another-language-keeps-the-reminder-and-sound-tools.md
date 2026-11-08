@@ -1,9 +1,8 @@
 # A plain request to remember in another language keeps the reminder and sound tools
 
-**Status:** open, actionable
+**Status:** done 2026-11-08
 **Area:** memory
 **Origin:** [ADR-0019](../../adr/ADR-0019-tainted-memory-recording.md)
-**Verified:** 2026-11-07
 
 `unasked_tools` leaves `schedule_task` and `set_volume` out of a turn that only asks to remember,
 since the cortex model called them unasked on such turns
@@ -32,3 +31,9 @@ Reproduction, unit level: `SCRATCH/slot16/probe.py` prints `old=True head=False`
 ## History
 
 - 2026-11-07: filed by the second audit of the night; reproduced at unit level, no turn sent.
+- 2026-11-08: done for two of the three rows. `_SECOND_CLAUSE` no longer reads a comma before a
+  digit, and `asks_kept_alone` drops a closing thanks before reading it, so the German and
+  Spanish rows refuse the tools they did before (Spanish keeps `schedule_task`, since
+  `recuerda` also reminds). The `et` inside a fact still keeps both tools: no word list tells it
+  from a second clause, and the cost is on the safe side
+  ([readings](../../readings/side-effect-tools-second-clause.md)).

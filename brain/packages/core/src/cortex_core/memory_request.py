@@ -111,9 +111,28 @@ _REMEMBER = re.compile(
     re.IGNORECASE,
 )
 # A second clause or sentence can ask for a tool in words the reminder and sound readers miss.
+# A comma before a digit and a closing thanks open none.
 _SECOND_CLAUSE = re.compile(
-    r"[,;]|[.!?]\s+\S|\b(?:and|et|mais|puis|alors|donc|ou|und|aber|dann|oder|also|pero|luego"
+    r";|,(?!\d)|[.!?]\s+\S|\b(?:and|et|mais|puis|alors|donc|ou|und|aber|dann|oder|also|pero|luego"
     r"|entonces|(?<!\bil\s)(?<!['\u2019])y|și|şi|si|dar|apoi|sau|iar|deci)\b",
+    re.IGNORECASE,
+)
+_THANKS = re.compile(
+    r"[\s,.;!¡]*\b(?:merci(?:\s+beaucoup)?|danke(?:\s+sch(?:ö|oe|o)n)?|vielen\s+dank"
+    r"|(?:muchas\s+)?gracias|mul[țţt]umesc(?:\s+frumos)?|mersi)\W*$",
+    re.IGNORECASE,
+)
+# A clause opening with a verb and its object asks for an action ("and give me a shout at 9"),
+# which no list of reminder or sound words can name. The first word is no subject or linking word.
+_ACTION = re.compile(
+    r"(?:^\W*|[,;:]\s*|\b(?:and|so|then|but|plus)\s+)(?:(?:please|also|just|then|now)\s+)*"
+    r"(?!(?:i|we|you|he|she|it|they|my|our|your|his|her|their|its|the|a|an|this|that|these|those"
+    r"|there|here|and|or|but|so|then|plus|yet|because|since|while|if|when|where|which|who|whose"
+    r"|in|on|at|for|with|from|to|of|by|about|after|before|during|near|under|over|into|like|as"
+    r"|than|until|not|only|even|all|both|half|is|are|was|were|be|been|has|have|had|do|does|did"
+    r"|will|would|can|could|should|may|might|must|up|down|off|out|back)\b)[a-z]+\s+"
+    r"(?:(?:up|down|on|off|out|over|back)\s+)?(?:me|us|it|this|that|them|the|my|our|a|an|some)\b"
+    r"(?:(?!\b(?:and|so|then|but|plus)\b)[^,;:])*",
     re.IGNORECASE,
 )
 _THE_MESSAGE = re.compile(_MESSAGE, re.IGNORECASE)
@@ -155,4 +174,20 @@ def asks_kept_alone(query: str) -> bool:
     if any(_REMEMBER.search(sentence) for sentence in _SENTENCE_END.split(query)):
         return True
     other = _REMEMBER_OTHER.search(query)
-    return other is not None and not _SECOND_CLAUSE.search(query[other.end() :].lstrip(" ,:"))
+    if other is None:
+        return False
+    rest = _THANKS.sub("", query[other.end() :].lstrip(" ,:"))
+    return _SECOND_CLAUSE.search(rest) is None
+
+
+def actions_asked(query: str) -> list[str]:
+    """The clauses of ``query`` beside an English request to remember that ask for an action."""
+    found: list[str] = []
+    for sentence in _SENTENCE_END.split(query):
+        request = _REMEMBER.search(sentence)
+        if request is None:
+            found.extend(match.group() for match in _ACTION.finditer(sentence))
+            continue
+        found.extend(match.group() for match in _ACTION.finditer(sentence, 0, request.start()))
+        found.extend(match.group() for match in _ACTION.finditer(sentence, request.end()))
+    return found
