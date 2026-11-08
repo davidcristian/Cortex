@@ -23,8 +23,8 @@ _NOT = r"(?:don['\u2019]?t|do\s+not|never)"
 # "people just forget" state a habit.
 _SUBJECT = r"(?<!\bI\s)(?<!\bwe\s)(?<!\byou\s)(?<!\bthey\s)"
 _OPENS = (
-    rf"(?:^\W*|[,;:]\s*|{_SUBJECT}\b(?:and|but|so|please|kindly)\s+)"
-    r"(?:(?:please|also|just|then|actually|kindly|I\s+meant?,?)\s+)*"
+    rf"(?:^\W*|[,;:]\s*|{_SUBJECT}\b(?:and|but|so|please|kindly)\s+|\bwhat\s+I\s+meant?\s+is,?\s+)"
+    r"(?:(?:please|also|just|then|actually|kindly|I\s+meant?(?:\s+to\s+say)?,?)\s+)*"
 )
 # After any other word an adverb opens a request only when the message follows the verb:
 # "use it once then forget it" asks, "my kids then forget their homework" states a habit.
@@ -41,8 +41,8 @@ _DONT_KEEP = re.compile(
 )
 # "Keep it nowhere" asks not to keep; "keep it nowhere near the kids" names a place.
 _KEEP_NOWHERE = re.compile(
-    rf"{_OPENS}(?:save|store|keep|record|note|write)\s+(?:(?:it|this|that|them|these|those)\s+)?"
-    r"(?:down\s+)?nowhere\b(?!\s+near\b)",
+    rf"{_OPENS}(?:save|store|keep|record|note|write|put)\s+(?:(?:it|this|that|them|these|those)\s+)?"
+    r"(?:down\s+)?(?:to\s+)?nowhere\b(?!\s+near\b)",
     re.IGNORECASE,
 )
 _NOT_FOR_MEMORY = re.compile(

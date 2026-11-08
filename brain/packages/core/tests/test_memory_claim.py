@@ -513,6 +513,10 @@ def test_a_negated_keep_verb_without_its_idiom_still_asks_not_kept(query: str) -
         "Store this nowhere, my PIN is 4412.",
         "Please write it down nowhere.",
         "Do not keep this to yourself, keep it nowhere.",
+        "My PIN is 4412. What I mean is don't save it.",
+        "My PIN is 4412. I meant to say don't save it.",
+        "My PIN is 4412. Put it nowhere.",
+        "My PIN is 4412. Save it to nowhere.",
     ],
 )
 def test_a_request_not_to_keep_after_i_mean_or_with_nowhere_asks_not_kept(query: str) -> None:
@@ -528,6 +532,11 @@ def test_a_request_not_to_keep_after_i_mean_or_with_nowhere_asks_not_kept(query:
         "Keep it somewhere safe.",
         "Keep it nowhere near the kids.",
         "I keep it nowhere I can find it.",
+        "What I mean is don't forget it.",
+        "What I mean is I don't store food in the garage.",
+        "I meant to say don't forget the milk.",
+        "Put it nowhere near the stove.",
+        "I put it nowhere I could lose it.",
     ],
 )
 def test_i_mean_or_a_keep_verb_with_a_place_that_asks_nothing_is_not_read_as_not_kept(
