@@ -40,10 +40,17 @@ _MAY_REPEAT = re.compile(
 )
 
 
+def named_weekday(message: str) -> int | None:
+    """The one weekday ``message`` names, Monday as 0, beside no repeat word; else ``None``."""
+    days = {_WEEKDAY[match.group(0).lower()] for match in _NAMED.finditer(message)}
+    if len(days) != 1 or _MAY_REPEAT.search(message) is not None:
+        return None
+    return days.pop()
+
+
 def names_one_weekday(message: str) -> bool:
     """Whether ``message`` names exactly one weekday and no word that may ask for a repeat."""
-    days = {_WEEKDAY[match.group(0).lower()] for match in _NAMED.finditer(message)}
-    return len(days) == 1 and _MAY_REPEAT.search(message) is None
+    return named_weekday(message) is not None
 
 
 def weekly_unasked(call: ToolCall, query: str) -> bool:

@@ -80,21 +80,93 @@ with no `rule`; "weekly" a rule on the named weekday and hour. SM clock during e
 In the baseline each b draw found its a draw's item already on the schedule (the same text, due
 time and rule), so it added none; that match is how its rule was read. The baseline's form
 frequency is two of eight W draws, both W1; the second condition's is none of eight. W4a in the second
-condition stored Friday 2026-11-13 for "am Donnerstag" with no refusal in its turn, filed as
-[R-1039](../refinements/tasks/1039-a-one-time-reminder-on-a-named-weekday-can-be-stored-a-day-late.md).
+condition stored Friday 2026-11-13 for "am Donnerstag" with no refusal in its turn; the rows
+below measure that late date.
 
 | Run | W1 | K1 to K4 | Refusals |
 | --- | --- | --- | --- |
 | replication, second condition | 4 one-shot, no form | 4 weekly | none |
 
 **Result.** The rule with the third item passes: no call in any of the twelve K draws on the
-build was refused, and every W draw stored a reminder on the right weekday. No W draw under the
+build was refused, and every W draw stored a reminder, all on the right weekday but W4a's. No W draw under the
 second condition showed the form (0 of 12), so the item over what a refused call is retried with
 is met by no draw; the one refused call (first condition) was retried weekly for the reason the
-second condition removed. Measuring that retry with the first call fixed is
-[R-1040](../refinements/tasks/1040-measure-the-retry-after-a-weekly-rule-is-refused-beside-one-weekday.md).
+second condition removed. The replay rows B1 and B2 below measure that retry with the first call
+fixed.
 The replay of 9,099 distinct recorded draw messages, readings quotes and test strings through
 `names_one_weekday` found 52 that name one weekday and no repeat word; none asks for a weekly
 repeat. Run logs `base.log`, `build.log`, `build2.log`, `rep.log` and `replay2.log` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot4/`.
 Every `memories` row and schedule item of the draws was deleted afterwards.
+
+## A one-time date on another weekday
+
+Whether a one-time `at` the cortex writes for one named weekday falls on that weekday. Same rig
+and second condition as above, on a second brain built from `838d7085c` that sends its requests
+through the stack's recording proxy, chats `s5-*`.
+
+**Rows, written before the first draw.** Each row is drawn four times; Thursday is 2026-11-12.
+
+| Row | Message | Stored as wanted |
+| --- | --- | --- |
+| D1 | "Erinnere mich am Donnerstag um 7 Uhr an den Arzttermin." | one-shot 2026-11-12 07:00 |
+| D2 | "Remind me on Thursday at 7 to call the doctor." | one-shot 2026-11-12 07:00 |
+| D3 | "Rappelle-moi jeudi à 7h d'appeler le médecin." | one-shot 2026-11-12 07:00 |
+
+**The form** is a draw whose first `schedule_task` call holds an `at` on a date that is not a
+Thursday. Its count is recorded and is not part of the pass rule.
+
+**Pass rule for a typed check of `at` against the one named weekday:** it ships only if, in unit
+tests and in a replay where the first call is fixed to the wrong date, it refuses that call once
+with a result naming the weekday the date falls on, the retry runs, and no call whose date is the
+named weekday is refused in any D draw on the build.
+
+**Replay rows, written after the D draws on the start build and before any replay.** Each row
+sends one request recorded through the proxy from a second brain built from `838d7085c` straight
+to the model host four times, with only the named message or result changed, and reads the next
+call. Request 110 is draw D2c's second request: its first call was weekly and was refused.
+
+| Row | Request | Next call wanted |
+| --- | --- | --- |
+| P1 | D2b's second request, its call's `at` set to 2026-11-13T07:00:00 and its result to the weekday refusal | `at` 2026-11-12T07:00 |
+| P2 | D2c's third request, its second result set to the weekday refusal | `at` 2026-11-12T07:00 |
+| B1 | request 110 as recorded | `at` 2026-11-12T07:00, no `on_days` |
+| B2 | request 110 with the W1 barber message and a weekly call on Tuesday at 08:00 | `at` 2026-11-10T08:00, no `on_days` |
+
+The P rows record what the cortex sends after the weekday refusal; a retry on another weekday
+runs, because the refusal fires once per turn, and is counted. The B rows measure the retry after the weekly refusal:
+they pass when every next call is a one-time `at` on the date in the table and none drops the
+reminder.
+
+## Results of the one-time date rows
+
+Calls are read from the proxy's request log (start build) and the second brain's audit log
+(build). SM clock 0.57 of `clocks.max.sm` in every draw. "weekly, then X" is a first call with
+`on_days`, refused by the weekly check, then X.
+
+| Run | D1 | D2 | D3 | Stored a day late |
+| --- | --- | --- | --- | --- |
+| start build `838d7085c`, chats `s5-*` | 4 Thursday | 2 Thursday; 1 weekly, then Friday | 3 Thursday; 1 weekly, then Thursday | 1 of 12 (D2c) |
+| build with the weekday check, chats `s5b-*` | 4 Thursday | 1 asked "7 AM or 7 PM?"; 1 Thursday; 1 weekly, then Friday refused, then Thursday; 1 weekly, then Thursday | 4 Thursday | 0 of 12 |
+
+| Replay row | Next call, four draws |
+| --- | --- |
+| P1 | 4 `at` 2026-11-12T07:00 |
+| P2 | 4 `at` 2026-11-12T07:00 |
+| B1 | 2 `at` 2026-11-12T07:00, 2 `at` 2026-11-13T07:00 |
+| B2 | 3 `at` 2026-11-10T08:00, 1 `at` 2026-11-11T08:00 |
+
+**Result.** The form, a first call with a one-time date off the named weekday, came in 0 of 24
+draws. The late date in every draw where it came was the retry after the weekly refusal: D2c and
+s5b-d2b live, and 3 of 8 B replays, none of which kept the weekly rule or dropped the reminder.
+The B rows fail their rule, so the weekly refusal's text is
+[R-1041](../refinements/tasks/1041-name-the-next-date-in-the-refusal-of-a-weekly-rule-beside-one-weekday.md).
+The weekday check passes its rule: the unit tests refuse a wrong date once and run the retry,
+every P replay retried on the right Thursday, s5b-d2b's late retry was refused and its next call
+stored Thursday, and no call on the named weekday was refused in any build draw. After the build
+draws the check was narrowed to a date one day either side of the named weekday, because "Note my
+flight on Friday, then please ring me at 6" may mean today; no build draw's call is more than one
+day off. The replay of 9,134 recorded strings found 55 that name one weekday and no repeat word,
+46 of them with no word that moves the day. Logs `draws.log`, `draws-build.log`, `replay.log`
+and `replay_msgs.log` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot5/`; every row and item of the draws was deleted.

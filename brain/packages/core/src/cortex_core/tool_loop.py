@@ -118,6 +118,7 @@ async def stream_tool_loop(
         yearly_refused=list(context.yearly_refused),
         midnight_refused=list(context.midnight_refused),
         weekly_refused=list(context.weekly_refused),
+        weekday_refused=list(context.weekday_refused),
         offset_refused=list(context.offset_refused),
     )
     said: list[str] = []

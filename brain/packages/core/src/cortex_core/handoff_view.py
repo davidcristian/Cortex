@@ -8,6 +8,7 @@ from cortex_core.escalate import ESCALATION_QUEUED_MSG
 from cortex_core.handoff import HandoffRecord
 from cortex_core.schedule_midnight import MIDNIGHT_TIME_MSG
 from cortex_core.schedule_offset import OFFSET_DATE_MSG
+from cortex_core.schedule_weekday import WEEKDAY_DATE_MSG
 from cortex_core.schedule_weekly import WEEKLY_DAY_MSG
 from cortex_core.schedule_yearly import YEARLY_DATE_MSG
 from cortex_core.tools import ToolCall
@@ -70,6 +71,11 @@ def midnight_refused_calls(record: HandoffRecord) -> list[ToolCall]:
 def weekly_refused_calls(record: HandoffRecord) -> list[ToolCall]:
     """The schedule calls refused for an unasked weekly rule before the handoff, from the tail."""
     return _refused_calls(record, WEEKLY_DAY_MSG)
+
+
+def weekday_refused_calls(record: HandoffRecord) -> list[ToolCall]:
+    """The one-time schedule calls refused for another weekday before the handoff, from the tail."""
+    return _refused_calls(record, WEEKDAY_DATE_MSG)
 
 
 def offset_refused_calls(record: HandoffRecord) -> list[ToolCall]:

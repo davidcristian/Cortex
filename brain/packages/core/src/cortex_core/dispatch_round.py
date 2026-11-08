@@ -18,6 +18,7 @@ from cortex_core.schedule_claim import stored_time
 from cortex_core.schedule_daily import daily_after
 from cortex_core.schedule_midnight import midnight_unasked
 from cortex_core.schedule_offset import offset_date_wrong, offset_refusal
+from cortex_core.schedule_weekday import weekday_date_wrong, weekday_mismatch, weekday_refusal
 from cortex_core.schedule_weekly import weekly_unasked
 from cortex_core.schedule_yearly import monthly_for_yearly, same_month_days, stores_monthly
 from cortex_core.stops import StopLedger
@@ -67,6 +68,8 @@ class ToolLoopContext:
     offset_refused: tuple[ToolCall, ...] = ()
     # The weekly schedule calls refused for one named weekday in a loop this one continues.
     weekly_refused: tuple[ToolCall, ...] = ()
+    # The one-time schedule calls refused for another weekday in a loop this one continues.
+    weekday_refused: tuple[ToolCall, ...] = ()
 
     @property
     def unit_id(self) -> str:
@@ -90,6 +93,8 @@ class LoopRecord:
     offset_refused: list[ToolCall] = field(default_factory=list[ToolCall])
     # The weekly schedule calls refused once in this turn for one named weekday; a second one runs.
     weekly_refused: list[ToolCall] = field(default_factory=list[ToolCall])
+    # The one-time schedule calls refused once in this turn for another weekday; a second one runs.
+    weekday_refused: list[ToolCall] = field(default_factory=list[ToolCall])
 
 
 def _unasked_refusal(
@@ -102,15 +107,17 @@ def _unasked_refusal(
     if not retried and monthly_for_yearly(call, context.query):
         record.yearly_refused.append(call)
         return DispatchRefusal.YEARLY_DATE
-    if not record.offset_refused and offset_date_wrong(call, context.query):
-        record.offset_refused.append(call)
-        return DispatchRefusal.OFFSET_DATE
-    if not record.midnight_refused and midnight_unasked(call, context.query):
-        record.midnight_refused.append(call)
-        return DispatchRefusal.MIDNIGHT_TIME
-    if not record.weekly_refused and weekly_unasked(call, context.query):
-        record.weekly_refused.append(call)
-        return DispatchRefusal.WEEKLY_DAY
+    checks = (
+        (record.offset_refused, offset_date_wrong, DispatchRefusal.OFFSET_DATE),
+        (record.midnight_refused, midnight_unasked, DispatchRefusal.MIDNIGHT_TIME),
+        (record.weekly_refused, weekly_unasked, DispatchRefusal.WEEKLY_DAY),
+        (record.weekday_refused, weekday_date_wrong, DispatchRefusal.WEEKDAY_DATE),
+    )
+    # Each of these refuses once per turn, so the model's retry always runs.
+    for refused, wrong, refusal in checks:
+        if not refused and wrong(call, context.query):
+            refused.append(call)
+            return refusal
     return None
 
 
@@ -141,9 +148,10 @@ def _told(
     result: ToolResult, refusal: DispatchRefusal | None, call: ToolCall, query: str
 ) -> ToolResult:
     """The result the model reads: a wrong-date refusal names the date and the field to fix."""
-    if refusal is not DispatchRefusal.OFFSET_DATE:
-        return result
-    return replace(result, content=offset_refusal(query, call))
+    if refusal is DispatchRefusal.OFFSET_DATE:
+        return replace(result, content=offset_refusal(query, call))
+    mismatch = weekday_mismatch(call, query) if refusal is DispatchRefusal.WEEKDAY_DATE else None
+    return result if mismatch is None else replace(result, content=weekday_refusal(*mismatch))
 
 
 def _stamp(context: ToolLoopContext) -> TurnStamp:
