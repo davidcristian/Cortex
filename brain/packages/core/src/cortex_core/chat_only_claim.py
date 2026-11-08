@@ -12,7 +12,8 @@ _KEEP = (
     r"|store|stored|save|saved|track)\b"
 )
 _CHAT = (
-    r"\b(?:for|during|in|throughout|within|until\s+the\s+end\s+of|while|as\s+long\s+as)\s+"
+    r"\b(?:for|during|in|throughout|within|until\s+the\s+end\s+of|while|as\s+long\s+as"
+    r"|as\s+we\s+(?:continue|go\s+on\s+with))\s+"
     r"(?:the\s+(?:rest|course|length)\s+of\s+)?"
     r"(?:this|our|the)\s+(?:current\s+)?(?:conversation|chat|session)\b(?!['\u2019]s\b)"
 )

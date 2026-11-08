@@ -54,7 +54,7 @@ from the brain's `tool.invocation` log lines.
 | o1 | no: the retry stored `every_seconds` 604800 | `list_scheduled` | one item every 7 days from 10 Nov 08:00 | "déjà configuré" | yes |
 | n1 | no: the turn deleted the other holder itself | a forget that matched nothing | no row holds 5521 | "nothing for me to forget" | yes, R-1059 |
 | u1 | yes | none, the exchange was stored | a row holds 0699000000 | "I've noted" | yes |
-| c1 | no, R-1060 | `forget_memories` `14C` (card) | no row holds 14C | "I've forgotten" | yes |
+| c1 | no, see below | `forget_memories` `14C` (card) | no row holds 14C | "I've forgotten" | yes |
 | c2 | yes, English (R-999) | `forget_memories` `14C` (card) | no row holds 14C | "j'ai oublié" | yes |
 
 - **t1 and t2.** `edit_scheduled` has no argument for a one-time date and time, so `at_time` made
@@ -66,8 +66,11 @@ from the brain's `tool.invocation` log lines.
   row still held 5521, and forgot `5521` too, unasked; the second card listed the shed padlock
   exchange. Filed as
   [R-1059](../refinements/tasks/1059-a-forget-deletes-another-fact-that-shares-its-number-unasked.md).
-- **c1.** The reply "I'll keep that in mind as we continue our conversation!" got no note. Filed
-  as [R-1060](../refinements/tasks/1060-the-chat-only-reader-misses-as-we-continue-our-conversation.md).
+- **c1.** The reply "I'll keep that in mind as we continue our conversation!" got no note,
+  because `claims_chat_only` did not read `as we continue`. The same slot added `as we continue`
+  and `as we go on with` before the conversation word, with near-miss replies as tests first. Of
+  813 recorded replies in this run's and the previous night's driver records, only c1's reads
+  differently through the new reader.
 - **o1.** `tout le temps` did not stop the weekly refusal; the model then stored the repeat as a
   seven-day interval, which the refusal does not read, so the person got a weekly item.
 

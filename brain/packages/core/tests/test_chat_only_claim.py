@@ -38,6 +38,9 @@ CHAT_ONLY = [
     "I'll remember it until the end of our conversation.",
     "I'll keep it in mind while this chat lasts.",
     "I'll remember it as long as this conversation lasts.",
+    "I've noted that your seat on the train is 14C. I'll keep that in mind as we continue our "
+    "conversation!",
+    "I'll remember it as we go on with this chat.",
 ]
 
 NOT_CHAT_ONLY = [
@@ -54,6 +57,10 @@ NOT_CHAT_ONLY = [
     "I'll remember it until the end of the year.",
     "I'll keep it in mind while you travel.",
     "I'll remember it as long as you like, in this chat and later ones.",
+    "Noted. We can continue our conversation whenever you like.",
+    "I'll keep that in mind as we continue to plan your trip.",
+    "As we continue our conversation, tell me if anything changes.",
+    "I'll keep it in mind as we continue our conversations in the future.",
 ]
 
 
