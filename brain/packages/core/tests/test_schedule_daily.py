@@ -21,7 +21,12 @@ from cortex_core import (
     TurnCapabilities,
 )
 from cortex_core.closing_notes import limit_notes
-from cortex_core.schedule_daily import DAILY_STORED_NOTE, daily_after, names_repeat
+from cortex_core.schedule_daily import (
+    DAILY_STORED_NOTE,
+    DAILY_STORED_NOTES,
+    daily_after,
+    names_repeat,
+)
 from cortex_core.schedule_tools import DAILY_NOTE
 from cortex_core.schedule_verbs import CANCEL_SCHEDULED_TOOL_NAME, EDIT_SCHEDULED_TOOL_NAME
 from cortex_core.stops import StopLedger
@@ -226,11 +231,11 @@ async def test_the_tool_s_own_daily_result_is_read_as_a_daily_store() -> None:
     assert daily_after(call, result, ()) == (item,)
 
 
-def _closed(reply: str, daily: tuple[str, ...]) -> str:
+def _closed(reply: str, daily: tuple[str, ...], query: str = "") -> str:
     parts = [reply]
     taint = TaintLedger(daily_stored=daily)
     runs = (ToolRun(name=SCHEDULE_TOOL_NAME, ok=True),)
-    list(limit_notes(StopLedger(), runs, parts, caps=TurnCapabilities(), taint=taint, query=""))
+    list(limit_notes(StopLedger(), runs, parts, caps=TurnCapabilities(), taint=taint, query=query))
     return "".join(parts)
 
 
@@ -249,6 +254,20 @@ def test_a_reply_naming_no_repeat_over_a_daily_store_gets_the_note(
     reply: str, daily: tuple[str, ...], *, noted: bool
 ) -> None:
     assert _closed(reply, daily) == (reply + DAILY_STORED_NOTE if noted else reply)
+
+
+@pytest.mark.parametrize(
+    ("query", "language"),
+    [
+        ("Rappelle-moi à 17h30 d'appeler le plombier.", "fr"),
+        ("Erinnere mich um 17:30 Uhr an die Wäsche.", "de"),
+        ("Recuérdame a las 17:30 llamar al fontanero.", "es"),
+        ("Amintește-mi la ora 17:30 să sun instalatorul.", "ro"),
+    ],
+)
+def test_a_daily_note_is_written_in_the_language_of_the_message(query: str, language: str) -> None:
+    reply = "OK, 17:30."
+    assert _closed(reply, ("abc",), query) == reply + DAILY_STORED_NOTES[language]
 
 
 async def _loop(calls: list[ToolCall]) -> TaintLedger:

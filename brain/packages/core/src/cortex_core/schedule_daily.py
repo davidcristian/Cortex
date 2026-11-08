@@ -10,6 +10,16 @@ from cortex_core.tools import ToolCall, ToolResult
 DAILY_STORED_NOTE = (
     "\n\n(This reminder repeats every day. Ask to make it one time if you meant only once.)"
 )
+DAILY_STORED_NOTES = {
+    "fr": "\n\n(Ce rappel se répète tous les jours. Demandez à le rendre unique si vous ne le "
+    "vouliez qu'une fois.)",
+    "de": "\n\n(Diese Erinnerung wiederholt sich jeden Tag. Bitten Sie darum, sie einmalig zu "
+    "machen, wenn Sie sie nur einmal wollten.)",
+    "es": "\n\n(Este recordatorio se repite todos los días. Pide que sea de una sola vez si lo "
+    "querías solo una vez.)",
+    "ro": "\n\n(Acest memento se repetă în fiecare zi. Cere să fie o singură dată dacă îl voiai "
+    "doar o dată.)",
+}
 
 _STORED_ID = re.compile(r"\bscheduled \w+ (\S+): due ")
 _REPEATS = re.compile(

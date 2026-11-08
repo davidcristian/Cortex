@@ -22,6 +22,16 @@ STORED_TIME_NOTE = (
     "\n\n(The reminder set or changed in this turn is at {time}. Ask to change it if you meant "
     "another time of day.)"
 )
+STORED_TIME_NOTES = {
+    "fr": "\n\n(Le rappel créé ou modifié ici est fixé à {time}. Demandez à le modifier si vous "
+    "pensiez à une autre heure.)",
+    "de": "\n\n(Die hier erstellte oder geänderte Erinnerung ist auf {time} gestellt. Bitten Sie "
+    "um eine Änderung, wenn Sie eine andere Uhrzeit meinten.)",
+    "es": "\n\n(El recordatorio creado o cambiado aquí es a las {time}. Pide cambiarlo si te "
+    "referías a otra hora del día.)",
+    "ro": "\n\n(Mementoul creat sau modificat aici este la ora {time}. Cere să fie schimbat dacă "
+    "te gândeai la altă oră.)",
+}
 
 SCHEDULING_TOOLS = frozenset(
     {SCHEDULE_TOOL_NAME, EDIT_SCHEDULED_TOOL_NAME, SNOOZE_SCHEDULED_TOOL_NAME}

@@ -18,7 +18,12 @@ from cortex_core import (
     TurnCapabilities,
 )
 from cortex_core.closing_notes import limit_notes
-from cortex_core.schedule_claim import STORED_TIME_NOTE, names_time_of_day, stored_time
+from cortex_core.schedule_claim import (
+    STORED_TIME_NOTE,
+    STORED_TIME_NOTES,
+    names_time_of_day,
+    stored_time,
+)
 from cortex_core.schedule_verbs import EDIT_SCHEDULED_TOOL_NAME, SNOOZE_SCHEDULED_TOOL_NAME
 from cortex_core.stops import StopLedger
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
@@ -151,11 +156,11 @@ def test_the_stored_time_is_read_from_a_timed_schedule_or_edit_result(
     assert stored_time(ToolCall(id="c", name=name, arguments=arguments), result) == time
 
 
-def _closed(reply: str, time: str) -> str:
+def _closed(reply: str, time: str, query: str = "") -> str:
     parts = [reply]
     taint = TaintLedger(stored_time=time)
     runs = (ToolRun(name=SCHEDULE_TOOL_NAME, ok=True),)
-    list(limit_notes(StopLedger(), runs, parts, caps=TurnCapabilities(), taint=taint, query=""))
+    list(limit_notes(StopLedger(), runs, parts, caps=TurnCapabilities(), taint=taint, query=query))
     return "".join(parts)
 
 
@@ -182,6 +187,23 @@ def test_a_reply_naming_no_time_over_a_stored_time_gets_the_note(
     shown = _closed(reply, time)
     expected = reply + STORED_TIME_NOTE.format(time=time) if noted else reply
     assert shown == expected
+
+
+@pytest.mark.parametrize(
+    ("query", "language"),
+    [
+        ("Rappelle-moi le 14 décembre d'envoyer le colis.", "fr"),
+        ("Erinnere mich am 14. Dezember an das Paket.", "de"),
+        ("Recuérdame el 14 de diciembre enviar el paquete.", "es"),
+        ("Amintește-mi pe 14 decembrie să trimit coletul.", "ro"),
+    ],
+)
+def test_a_stored_time_note_is_written_in_the_language_of_the_message(
+    query: str, language: str
+) -> None:
+    reply = "OK, 14.12."
+    expected = reply + STORED_TIME_NOTES[language].format(time="09:00")
+    assert _closed(reply, "09:00", query) == expected
 
 
 async def _loop(calls: list[ToolCall]) -> TaintLedger:

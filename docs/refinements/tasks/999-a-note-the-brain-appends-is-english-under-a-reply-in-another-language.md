@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** cross-cutting
 **Origin:** [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md)
-**Verified:** 2026-11-07
+**Verified:** 2026-11-08
 
 Every note `limit_notes` in `closing_notes.py` appends is a fixed English sentence, and the readers
 that decide whether one is due (`names_time_of_day`, `claims_scheduled`, `claims_yearly`,
@@ -38,3 +38,8 @@ another language and adds nothing.
 - 2026-11-07: a French turn made only a `list_scheduled` call and replied `D'accord, j'ai bien
   noté votre rappel [...] à 17h30.`, a false claim with no note, since `claims_scheduled` reads
   English forms ([readings](../../readings/schedule-one-time-in-other-languages.md#results)).
+- 2026-11-08: step 1 done: every note `limit_notes` appends, its reader and what a missed form does
+  are in the [readings](../../readings/closing-note-language.md); the readers that drop a note are
+  task R-1049. Step 2 decided in [ADR-0076](../../adr/ADR-0076-closing-note-language.md), the
+  language of the person's message, and built for `STORED_TIME_NOTE` and `DAILY_STORED_NOTE`. Left
+  open for the other notes' mappings.

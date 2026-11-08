@@ -15,16 +15,18 @@ from cortex_core.memory_claim import (
     memory_withheld,
     unkept_note_due,
 )
+from cortex_core.note_language import in_language, message_language
 from cortex_core.numbers_left_claim import NUMBERS_LEFT_NOTE, numbers_left_claim
 from cortex_core.schedule_claim import (
     MONTHLY_STORED_NOTE,
     STORED_TIME_NOTE,
+    STORED_TIME_NOTES,
     UNSCHEDULED_CLAIM_NOTE,
     claims_yearly,
     names_time_of_day,
     unscheduled_claim,
 )
-from cortex_core.schedule_daily import DAILY_STORED_NOTE, names_repeat
+from cortex_core.schedule_daily import DAILY_STORED_NOTE, DAILY_STORED_NOTES, names_repeat
 from cortex_core.schedule_weekly import ONCE_STORED_NOTE
 from cortex_core.stops import StopLedger
 from cortex_core.turn_context import TurnCapabilities
@@ -71,10 +73,12 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
         yield from append_note(parts, UNSCHEDULED_CLAIM_NOTE)
     if taint.monthly_stored and claims_yearly(reply):
         yield from append_note(parts, MONTHLY_STORED_NOTE)
+    language = message_language(query)
     if taint.stored_time and not names_time_of_day(reply):
-        yield from append_note(parts, STORED_TIME_NOTE.format(time=taint.stored_time))
+        timed = in_language(STORED_TIME_NOTE, STORED_TIME_NOTES, language)
+        yield from append_note(parts, timed.format(time=taint.stored_time))
     if taint.daily_stored and not names_repeat(reply):
-        yield from append_note(parts, DAILY_STORED_NOTE)
+        yield from append_note(parts, in_language(DAILY_STORED_NOTE, DAILY_STORED_NOTES, language))
     if taint.once_after_weekly:
         yield from append_note(parts, ONCE_STORED_NOTE)
     for due, note in (
