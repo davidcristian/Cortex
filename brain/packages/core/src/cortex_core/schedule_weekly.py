@@ -16,7 +16,7 @@ WEEKLY_DAY_MSG = (
 )
 
 ONCE_STORED_NOTE = (
-    "\n\n(The reminder set in this turn is for one day only. Ask to make it weekly if you meant "
+    "\n\n(A reminder set in this turn is for one day only. Ask to make it weekly if you meant "
     "every week.)"
 )
 

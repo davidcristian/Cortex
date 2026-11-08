@@ -157,3 +157,14 @@ async def test_a_deep_one_time_store_after_the_cortex_refusal_shows_the_note(
     slot = harness.prepared_slot(tail=_round("c0", _WEEKLY, said))
     shown = _shown(await harness.run_handoff(live, slot))
     assert shown.endswith(ONCE_STORED_NOTE) is flagged
+
+
+@pytest.mark.parametrize("calls", [[_WEEKLY, _WEEKLY, _ONCE], [_WEEKLY, _ONCE, _WEEKLY]])
+async def test_a_turn_that_also_stores_a_weekly_rule_gets_a_note_true_of_both(
+    calls: Sequence[Mapping[str, object]],
+) -> None:
+    taint = await _taint(calls)
+    parts = ["Done: every Tuesday at 8, and once on 2026-11-10."]
+    list(limit_notes(StopLedger(), (), parts, caps=TurnCapabilities(), taint=taint, query=_STRETCH))
+    assert "".join(parts).endswith(ONCE_STORED_NOTE)
+    assert ONCE_STORED_NOTE.startswith("\n\n(A reminder set in this turn is for one day only.")

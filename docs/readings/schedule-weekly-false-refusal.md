@@ -98,3 +98,12 @@ the note, and 2 kept the weekly rule with no note. Each of the six follow-ups ca
 `list_scheduled`, then `edit_scheduled` on the one-time item's id with `at_time` 08:00 and
 `on_days` `["tue"]`, and left one pending weekly rule on Tuesday at 08:00 and no other item. Log
 `follow.log`, records `follow.jsonl` and items `follow-items.tsv` in the slot directory above.
+
+## The note's text when a turn also stores a weekly rule
+
+The weekly refusal is sent once per turn, so a second call with `on_days` runs. A turn that stores
+a one-time item after the refusal and also a weekly rule, in either order, still shows the note,
+which now opens "(A reminder set in this turn is for one day only." and so is true of both items.
+Of the 16 retries recorded above, 7 kept `on_days` and 9 stored a one-time `at`; no draw stored
+both, and the 5 retries in the start build's proxy log (`req.log` in the stack's `logs/`) all
+used `at`. The tests over fakes in `test_schedule_weekly_once.py` are the evidence for both orders.
