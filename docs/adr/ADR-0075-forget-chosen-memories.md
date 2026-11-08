@@ -60,7 +60,11 @@ that removes exactly those rows and holds against a turn in flight. This record 
    digit, joined by a space, `.`, `-` or `/`, compared by its letters and digits: a phone number or
    code in full, never a part of one. A run with fewer than four digits, a year alone or in a date,
    a time such as `18h30` and an amount beside a currency sign or word is no value, since rows
-   about other facts share them. A recall reply restates a
+   about other facts share them. A text that is itself a value lists each other row holding that
+   value. Since `find_text` matches text literally, those rows are found by the value as written,
+   by its letters and digits alone and by each four consecutive characters of them, so a row writing the value
+   with other separators is listed, and one writing it only in groups under four characters is not
+   found and stays, which keeps rows when unsure. A recall reply restates a
    value in other words (`The code for your gym locker is 5819.`), so a forget of `gym locker code`
    left its row and a new chat recalled the value
    ([readings](../readings/forget-value-repeats.md)). A forget that deletes nothing whatever the answer (no
@@ -72,7 +76,7 @@ that removes exactly those rows and holds against a turn in flight. This record 
    was shown is never deleted unseen. The ids live in the brain process only between the card and
    the answer to it, the same span the dispatcher holds the call. After the delete it searches again
    and reports any row still matching, so the reply never claims a fact is gone while a row holds
-   it. When no row matches, it also counts the remaining rows that hold a run of four or more
+   it. When no row matches, it also counts, by the same searches, the remaining rows that hold a run of four or more
    digits a row deleted in the turn held, compared by digits so separators do not matter, a year
    or a date only from a row that names a code or a number, since unrelated facts share years,
    and the result says how many and that a forget of the number itself would remove

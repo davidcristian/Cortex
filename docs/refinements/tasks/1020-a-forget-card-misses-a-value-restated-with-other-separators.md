@@ -1,9 +1,8 @@
 # A forget card misses a value restated with other separators
 
-**Status:** open, actionable
+**Status:** done 2026-11-08
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-07
 
 `whole_values` keys each value by its letters and digits alone, so `0151 2345 6789` and
 `015123456789` share one key. `_repeating` in `memory_forget_chosen.py` then asks the store for
@@ -31,3 +30,12 @@ same with the forms swapped: 1 row.
 ## History
 
 - 2026-11-07: filed by the second audit of the night; reproduced at unit level, no turn sent.
+- 2026-11-08: done without a port change. `value_searches` (`memory_values.py`) finds the rows by
+  the value as written, by its letters and digits alone and by each four consecutive characters of them, and
+  `_repeats` still requires the whole value, so the card lists both pairs above, and a text that is
+  itself the value lists them too. `+49 151 2345 6789` is not the same value: its digits differ, so
+  it stays off the card. Near misses stay (another number sharing a prefix, a longer number, a year
+  or date, the digits split across two values). The holding count uses the same searches. Replayed
+  through the start hash and this build, the 49 calls of the 46 recorded forget turns of
+  2026-11-07 get the same cards, results and rows left. A value written only in groups under four
+  characters is still missed: [1042](1042-a-forget-misses-a-value-written-in-groups-under-four.md).

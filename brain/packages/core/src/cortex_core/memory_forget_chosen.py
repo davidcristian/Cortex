@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from cortex_core.errors import MemoryStoreError
 from cortex_core.memory import MemoryRecord
-from cortex_core.memory_values import code_runs, digit_runs, whole_values
+from cortex_core.memory_values import code_runs, digit_runs, value_searches, whole_values
 from cortex_core.ports import MemoryStore
 from cortex_core.scope import MemoryScope
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
@@ -15,8 +15,6 @@ FORGET_CHOSEN_TOOL_NAME = "forget_memories"
 
 FORGET_CHOSEN_LIMIT = 20
 _EXCERPT_CHARS = 60
-# A row may write a number with other separators, and the store matches text literally.
-_PREFIX_DIGITS = 4
 _PENDING_CALLS = 32
 _TOKEN = re.compile(r"[^\W_]+")
 _WORD = re.compile(r"[^\W\d_]{4,}")
@@ -73,8 +71,9 @@ def _values(records: Sequence[MemoryRecord]) -> dict[str, str]:
 
 
 def _repeats(record: MemoryRecord, key: str, words: set[str]) -> bool:
-    """Whether ``record`` holds the whole value ``key`` and a word of the call's text."""
-    return key in whole_values(record.text) and not _tokens(record.text).isdisjoint(words)
+    """Whether ``record`` holds the whole value ``key`` and a word of ``words``, if any."""
+    held = key in whole_values(record.text)
+    return held and (not words or not _tokens(record.text).isdisjoint(words))
 
 
 def _about(text: str, deleted: tuple[str, ...]) -> bool:
@@ -161,20 +160,23 @@ class ForgetChosenTool:
 
     async def _repeating(
         self, call: ToolCall, found: Sequence[MemoryRecord]
-    ) -> list[tuple[MemoryRecord, str]]:
-        """Other memories holding a value of ``found`` and a word of the call's text."""
+    ) -> list[tuple[MemoryRecord, str, str]]:
+        """Other memories holding a value of ``found`` and a word of the call or the value named."""
         words = {word.lower() for word in _WORD.findall(_text(call))}
+        named = whole_values(_text(call)).keys()
         seen = {record.id for record in found}
-        extra: list[tuple[MemoryRecord, str]] = []
-        for key, form in (_values(found) if words else {}).items():
-            for record in await self._store.find_text(
-                form,
-                limit=FORGET_CHOSEN_LIMIT + 1,
-                scopes=self._scope.read_scopes(call.stamp.session_id),
-            ):
-                if record.id not in seen and _repeats(record, key, words):
-                    seen.add(record.id)
-                    extra.append((record, form))
+        extra: list[tuple[MemoryRecord, str, str]] = []
+        values = [(key, form) for key, form in _values(found).items() if words or key in named]
+        for key, form in values:
+            for search in value_searches(key, form):
+                for record in await self._store.find_text(
+                    search,
+                    limit=FORGET_CHOSEN_LIMIT + 1,
+                    scopes=self._scope.read_scopes(call.stamp.session_id),
+                ):
+                    if record.id not in seen and _repeats(record, key, words):
+                        seen.add(record.id)
+                        extra.append((record, form, whole_values(record.text)[key]))
         return extra
 
     async def _holding(self, call: ToolCall) -> int:
@@ -182,7 +184,7 @@ class ForgetChosenTool:
         deleted = self._deleted_rows.get(call.stamp.turn_id, ())
         runs = {key: form for text in deleted for key, form in code_runs(text).items()}
         holders: set[str] = set()
-        for search in {text for key, form in runs.items() for text in (form, key[:_PREFIX_DIGITS])}:
+        for search in {text for key, form in runs.items() for text in value_searches(key, form)}:
             for record in await self._store.find_text(
                 search,
                 limit=FORGET_CHOSEN_LIMIT + 1,
@@ -218,12 +220,14 @@ class ForgetChosenTool:
             deleted = self._deleted_turns.get(call.stamp.turn_id, ())
             return (_ALREADY_DELETED if _about(_text(call), deleted) else _NONE_FOUND), None
         left_out = len(found) + len(extra) > FORGET_CHOSEN_LIMIT
-        repeats: list[tuple[MemoryRecord, str]] = [] if left_out else extra
-        listed = [*found, *(record for record, _ in repeats)]
+        repeats = [] if left_out else extra
+        listed = [*found, *(record for record, _, _ in repeats)]
         lines = [f"- {_excerpt(record, _text(call))}" for record in found]
-        for form in dict.fromkeys(form for _, form in repeats):
+        for form in dict.fromkeys(form for _, form, _ in repeats):
             lines.append(f"Listed because they also hold {form}:")
-            lines.extend(f"- {_excerpt(record, form)}" for record, held in repeats if held == form)
+            lines.extend(
+                f"- {_excerpt(record, own)}" for record, held, own in repeats if held == form
+            )
         if left_out:
             lines.append(
                 f"More than {FORGET_CHOSEN_LIMIT} exchanges also hold a value of these, "

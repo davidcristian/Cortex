@@ -79,12 +79,15 @@ pool down to the hits one turn sees. The turn that calls it is in
   the model's. It also lists, under a line naming the value, each other row holding a whole value
   of a match (`whole_values` in `memory_values.py`: a phone number or code in full, never a part,
   a year, a date, a time or an amount) and a word of four or more letters from the text, since a
-  recall reply restates the value in other words. When those rows would pass
+  recall reply restates the value in other words; a text that is itself a value lists each row
+  holding that value. Those rows are found by the value as written, by its letters and digits
+  alone and by each four consecutive characters of them (`value_searches`), since `find_text` is literal, so a
+  row writing the value only in groups under four characters stays. When those rows would pass
   `FORGET_CHOSEN_LIMIT` (20), the card lists the text matches alone and says the others stay, and
   the result says the value is not forgotten. It keeps the listed ids under the call's id (the
   latest 32 calls). `invoke` deletes exactly those ids with `delete_ids`, searches again, and says
   how many were removed and whether any match is left. When none is, it searches the remaining
-  rows for each run of four or more digits a row deleted in the turn held (`code_runs` in
+  rows, by the same searches, for each run of four or more digits a row deleted in the turn held (`code_runs` in
   `memory_values.py`, compared by digits alone: a year or a date only from a row naming a code or
   a number, such as `code`, `PIN`, `Nummer`, `código` or `codul`), and when a row holds one the result says how
   many do and that a forget of the number itself would remove them, without naming it, and sets
