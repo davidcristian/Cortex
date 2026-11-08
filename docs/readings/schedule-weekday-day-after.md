@@ -3,7 +3,8 @@
 Whether `weekday_mismatch` (`brain/packages/core/src/cortex_core/schedule_weekday.py`) refuses a
 one-time `at` that falls on another weekday than the one the message names only when the date is
 wrong. Read with [schedule-one-time-weekday.md](schedule-one-time-weekday.md), which has the rig,
-the earlier rows and the audit draws, and [ADR-0025](../adr/ADR-0025-scheduling-reminders.md).
+the earlier rows and the audit draws, and [ADR-0025](../adr/ADR-0025-scheduling-reminders.md). Its last
+section replaces the refusal with a note.
 
 ## The evidence before the change, 2026-11-08
 
@@ -118,3 +119,83 @@ meeting stored Monday 09:00, `clean up afterwards` after Friday's party stored F
 `when Monday is over` stored Monday 20:00. None was the day after the named weekday, so the start
 reader would not have refused them either; the first is the model reading `next morning` as
 tomorrow, which no reader checks. Their items were cancelled and their rows deleted.
+
+## The refusal or a note, 2026-11-08
+
+`_MOVES_DAY` grew three times tonight, each time because the refusal moved a correct reminder for
+the day after an event onto the named day: the bins row, the audit's words above, and
+`follow up on Monday's call`. Three shapes are compared over every recorded call: (a) keep the
+refusal and add that task's words; (b) run every call and, after the turn, append a note naming
+the stored weekday and date when a one-time item falls one day before or after the one weekday the
+message names, with no word list; (c) remove the check.
+
+**Rows and the rule, written before the replay.** The replay reads every one-time item tonight's
+draws stored (the `items*.tsv` files of slots 4 to 13, joined to the message by chat) and the
+audit probes (that task's three messages and the bins message, each with `at` the day after, on
+Sunday 2026-11-08). It counts each item's date against the named weekday (on it, a day before, a
+day after, other) and what each shape does with it.
+
+- (b) passes when its note shows on every replayed item one day off the named weekday, no item is
+  refused or moved, and no item on the named weekday has the note. How many items are one day off
+  is counted apart and is not part of the rule.
+- (a) passes only when it refuses no item whose date the person wanted.
+- (c) is chosen only when no stored item was a day late, first call or retry, once the weekly
+  refusal named the date.
+
+**Results of the replay.** 78 stored one-time items, one per chat and date, and the four probes.
+Script `replay3.py` and log `replay3.log` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot14/`.
+
+| Date against the named weekday | Items | Refused by (a) as it stands | Note by (b) |
+| --- | --- | --- | --- |
+| on it | 68 | 0 | 0 |
+| a day before | 5 | 0 | 5 |
+| a day after | 6 | 4 | 6 |
+| no single weekday read | 3 | 0 | 0 |
+
+Of the 11 items a day off, 8 are the date the person wanted: the bins on Sunday evening for
+Monday's collection (4, in three languages), the chairs on Sunday after Saturday's party (2), the
+agenda in two hours (1) and `follow up on Monday's call` on Tuesday (1). 3 are wrong: W4a and D2c,
+Friday for Thursday, and the bins probe on Tuesday. (a) as it stands refuses the 3 wrong ones and
+the follow up probe; with that task's words it would refuse only the 3, so (a) passes on this
+replay, as it passed each time before a new form appeared. (b) passes: the note on 11 of 11 items
+a day off, on none of the 68 on the named weekday, and nothing refused or moved. For (c), no item
+stored after the weekly refusal named the date was a day late, but W4a's form is a first call,
+which that refusal does not reach, and (c) would show it nothing.
+
+**Decision: (b).** Both (a) and (b) pass on the replay. (b) is built because its rule holds for a
+correct reminder a day off in any words, while (a) holds only for the words its list has, and
+each of its three widenings tonight followed a correct reminder it moved. The cost is that a
+wrong date a day off is no longer moved onto the named day, as 8 of 8 P replays did; the note
+names it instead. That form came as a first call in 1 of the 62 draws of the W, D and L rows. The two other
+probes (`once Monday's payday has cleared`, `post Monday`) read no single weekday on this tree, so
+neither shape acts on them.
+
+**Live rows for the note, written before any draw on it.** The stack brain rebuilt from the
+working tree with the note, one new chat per draw, every card approved, each chat's rows and items
+deleted after its turn; model time capped at 10 minutes.
+
+| Row | Message | Draws |
+| --- | --- | --- |
+| N1 | `Remind me at 9 to follow up on Monday's call.` | 2 |
+| N2 | `Remind me on Thursday at 7 to call the doctor.` | 2 |
+| N3 | `Erinnere mich am Donnerstag um 7 Uhr an den Arzttermin.` | 1 |
+| N4 | `Remind me at 6pm to put the bins out for Monday's collection.` | 1 |
+
+**Rule.** No call is refused by a weekday reader; every draw whose stored one-time item is a day
+off the named weekday ends its reply with the note naming that item's weekday and date in the
+message's language; no draw whose item is on the named weekday shows it. How many items are a
+day off is counted apart.
+
+| Row | Stored | Note |
+| --- | --- | --- |
+| N1 | 2 one-shots at Sunday 2026-11-08 09:00, a day before Monday | 2 of 2, "on Sunday 2026-11-08" |
+| N2 | 2 one-shots at Thursday 2026-11-12 07:00 | 0 of 2 |
+| N3 | 1 one-shot at Thursday 2026-11-12 07:00 | 0 of 1 |
+| N4 | 1 one-shot at Sunday 2026-11-08 18:00, a day before Monday | 1 of 1 |
+
+**Result.** The rule passes: no call was refused, the note closed all 3 replies whose item was a
+day off and none of the 3 on Thursday. Both N1 draws stored today for a follow up after Monday's
+call, which is likely not the day the person meant; the old reader did not refuse a date that is
+today, and the note now names it. SM clock 0.51 to 0.57 of `clocks.max.sm`. Chats `s14-*`, log
+`draws.log` in the slot directory above; every item was cancelled and every row deleted.

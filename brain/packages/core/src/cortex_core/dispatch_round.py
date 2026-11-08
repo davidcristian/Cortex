@@ -2,7 +2,6 @@
 
 from collections.abc import AsyncGenerator, Mapping
 from dataclasses import dataclass, field, replace
-from datetime import date
 
 from cortex_core.cadence import CadenceWatch
 from cortex_core.conversation import Message
@@ -20,7 +19,7 @@ from cortex_core.schedule_daily import daily_after
 from cortex_core.schedule_midnight import midnight_unasked
 from cortex_core.schedule_offset import offset_date_wrong, offset_refusal
 from cortex_core.schedule_time import UTC_DISPLAY, DisplayZone
-from cortex_core.schedule_weekday import weekday_date_wrong, weekday_mismatch, weekday_refusal
+from cortex_core.schedule_weekday import weekday_off
 from cortex_core.schedule_weekly import stores_once, weekly_refusal, weekly_unasked
 from cortex_core.schedule_yearly import monthly_for_yearly, same_month_days, stores_monthly
 from cortex_core.stops import StopLedger
@@ -70,8 +69,6 @@ class ToolLoopContext:
     offset_refused: tuple[ToolCall, ...] = ()
     # The weekly schedule calls refused for one named weekday in a loop this one continues.
     weekly_refused: tuple[ToolCall, ...] = ()
-    # The one-time schedule calls refused for another weekday in a loop this one continues.
-    weekday_refused: tuple[ToolCall, ...] = ()
     # The person's zone, in which a refusal counts the date it names from today.
     zone: DisplayZone = UTC_DISPLAY
 
@@ -97,8 +94,6 @@ class LoopRecord:
     offset_refused: list[ToolCall] = field(default_factory=list[ToolCall])
     # The weekly schedule calls refused once in this turn for one named weekday; a second one runs.
     weekly_refused: list[ToolCall] = field(default_factory=list[ToolCall])
-    # The one-time schedule calls refused once in this turn for another weekday; a second one runs.
-    weekday_refused: list[ToolCall] = field(default_factory=list[ToolCall])
 
 
 def _unasked_refusal(
@@ -116,11 +111,6 @@ def _unasked_refusal(
         (record.offset_refused, offset_date_wrong(call, query), DispatchRefusal.OFFSET_DATE),
         (record.midnight_refused, midnight_unasked(call, query), DispatchRefusal.MIDNIGHT_TIME),
         (record.weekly_refused, weekly_unasked(call, query), DispatchRefusal.WEEKLY_DAY),
-        (
-            record.weekday_refused,
-            weekday_date_wrong(call, query, _today(context), context.zone.tz),
-            DispatchRefusal.WEEKDAY_DATE,
-        ),
     )
     # Each of these refuses once per turn, so the model's retry always runs.
     for refused, wrong, refusal in checks:
@@ -128,11 +118,6 @@ def _unasked_refusal(
             refused.append(call)
             return refusal
     return None
-
-
-def _today(context: ToolLoopContext) -> date:
-    """Today's date in the person's zone."""
-    return context.clock.now().astimezone(context.zone.tz).date()
 
 
 def _refused_by(
@@ -168,10 +153,7 @@ def _told(
     if refusal is DispatchRefusal.WEEKLY_DAY:
         said = weekly_refusal(call, query, context.clock.now(), context.zone)
         return replace(result, content=said)
-    mismatch = None
-    if refusal is DispatchRefusal.WEEKDAY_DATE:
-        mismatch = weekday_mismatch(call, query, _today(context), context.zone.tz)
-    return result if mismatch is None else replace(result, content=weekday_refusal(*mismatch))
+    return result
 
 
 def _stamp(context: ToolLoopContext) -> TurnStamp:
@@ -245,6 +227,8 @@ async def run_round(
         context.taint.stored_time = stored_time(call, result.content) or context.taint.stored_time
         context.taint.daily_stored = daily_after(call, result, context.taint.daily_stored)
         context.taint.once_after_weekly |= bool(record.weekly_refused) and stores_once(call, result)
+        off = weekday_off(call, result, context.query, context.zone.tz)
+        context.taint.weekday_off = off or context.taint.weekday_off
         if call.name == FORGET_CHOSEN_TOOL_NAME:
             _note_forget(context.taint, result)
         context.taint.observe(

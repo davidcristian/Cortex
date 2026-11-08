@@ -219,12 +219,14 @@ async def test_a_record_written_before_the_file_and_monthly_marks_reads_as_neith
     del fields["stored_time"]
     del fields["daily_stored"]
     del fields["once_after_weekly"]
+    del fields["weekday_off"]
     await client.set("cortex:handoff:t1", json.dumps(fields))
     loaded = await RedisHandoffStore(client).get("t1")
     assert loaded is not None
     assert (loaded.sidecar_refused, loaded.monthly_stored, loaded.stored_time) == (False, False, "")
     assert loaded.daily_stored == ()
     assert not loaded.once_after_weekly
+    assert loaded.weekday_off == ""
 
 
 async def test_a_record_keeps_the_ids_its_turn_stored_to_repeat_daily() -> None:
@@ -264,3 +266,12 @@ async def test_a_record_written_before_the_number_mark_reads_as_none_left() -> N
     loaded = await RedisHandoffStore(client).get("t1")
     assert loaded is not None
     assert loaded.forget_numbers_left is False
+
+
+@pytest.mark.parametrize("stored", ["2026-11-13", ""])
+async def test_a_record_keeps_the_date_a_day_off_the_named_weekday(stored: str) -> None:
+    store = RedisHandoffStore(FakeAsyncRedis(server=FakeServer()))
+    await store.put(replace(handoff_contract.make_record("t1"), weekday_off=stored))
+    loaded = await store.get("t1")
+    assert loaded is not None
+    assert loaded.weekday_off == stored

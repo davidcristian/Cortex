@@ -1,88 +1,53 @@
-"""Read whether a one-time schedule call falls on another weekday than the one the person named."""
+"""Read whether a stored one-time reminder falls a day off the one weekday the person named."""
 
-import re
-from datetime import date, datetime, timedelta, tzinfo
+from datetime import date, datetime, tzinfo
 
-from cortex_core.schedule_tools import SCHEDULE_TOOL_NAME
-from cortex_core.schedule_weekly import WEEKDAY_NAMES, named_weekday
-from cortex_core.tools import ToolCall
+from cortex_core.schedule_weekly import WEEKDAY_NAMES, named_weekday, stores_once
+from cortex_core.tools import ToolCall, ToolResult
 
-WEEKDAY_DATE_MSG = (
-    "REFUSED: the person's message names one weekday, and this call's 'at' falls on another, so "
-    "it was not run."
+WEEKDAY_OFF_NOTE = (
+    "\n\n(The reminder set in this turn is on {day} {date}. Ask to move it if you meant another "
+    "day.)"
 )
-
-# A word that moves the reminder off the named day, or a named date that may decide it instead.
-_MOVES_DAY = re.compile(
-    r"\b(?:before|beforehand|ahead|advance|after|afterwards?|prior|eve|earlier|previous|following"
-    r"|next\s+(?:morning|afternoon|evening)|is\s+over|(?:has|have)\s+passed|tomorrow"
-    r"|today|tonight|yesterday|night|midnight|overnight|ago|days?|veille|lendemain|surlendemain"
-    r"|avant|après|apres|demain|aujourd|ce\s+soir|nuit|minuit|hier|jours?|(?:matin|soir|soirée)"
-    r"\s+suivante?|vorher|davor|danach"
-    r"|nach|vor|vortag|vorabend"
-    r"|morgen|übermorgen|heute|gestern|nachts?|mitternacht|tage?n?|antes|después|despues"
-    r"|víspera|vispera|anterior|siguiente|(?<!la\s)mañana|(?<!la\s)manana|hoy|noche|medianoche"
-    r"|ayer|d[íi]as?|înainte|inainte|după|dupa|ajun|mâine|maine|azi|astăzi|astazi|noaptea?"
-    r"|miezul|ieri|zi|zile|zilei|january|february|march|april|may|june|july|august|september"
-    r"|october|november|december|janvier|février|fevrier|mars|avril|mai|juin|juillet|août|aout"
-    r"|septembre|octobre|novembre|décembre|decembre|januar|februar|märz|maerz|juni|juli"
-    r"|oktober|dezember|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre"
-    r"|octubre|noviembre|diciembre|ianuarie|februarie|martie|aprilie|iunie|iulie|septembrie"
-    r"|octombrie|noiembrie|decembrie|\d{1,2}(?:st|nd|rd|th)|\d{1,2}[./]\d{1,2}|den\s+\d{1,2})\b",
-    re.IGNORECASE,
-)
-# Before 04:00 or from 22:00 a written date may be read as the night of the day before or after.
-_CLEAR_HOURS = range(4, 22)
+WEEKDAY_OFF_NOTES = {
+    "fr": "\n\n(Le rappel créé ici est fixé au {day} {date}. Demandez à le déplacer si vous "
+    "pensiez à un autre jour.)",
+    "de": "\n\n(Die hier erstellte Erinnerung ist auf {day}, {date} gestellt. Bitten Sie um eine "
+    "Verschiebung, wenn Sie einen anderen Tag meinten.)",
+    "es": "\n\n(El recordatorio creado aquí es para el {day} {date}. Pide moverlo si te referías a "
+    "otro día.)",
+    "ro": "\n\n(Mementoul creat aici este pentru {day}, {date}. Cere să fie mutat dacă te gândeai "
+    "la altă zi.)",
+}
+_DAY_NAMES = {
+    "fr": ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"),
+    "de": ("Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"),
+    "es": ("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"),
+    "ro": ("luni", "marți", "miercuri", "joi", "vineri", "sâmbătă", "duminică"),
+}
 
 
-def _written_at(call: ToolCall, tz: tzinfo) -> datetime | None:
-    """The date-time of ``call``'s one-time ``at`` in ``tz``, at a clear hour, or ``None``."""
+def weekday_off(call: ToolCall, result: ToolResult, query: str, tz: tzinfo) -> str:
+    """The ISO date a one-time ``call`` stored a day before or after the weekday ``query`` names.
+
+    Empty when the call stored nothing one time, or its date is on that weekday or further off.
+    """
     at = call.arguments.get("at")
-    if call.name != SCHEDULE_TOOL_NAME or not isinstance(at, str):
-        return None
+    named = named_weekday(query)
+    if not stores_once(call, result) or not isinstance(at, str) or named is None:
+        return ""
     try:
         when = datetime.fromisoformat(at)
     except ValueError:
-        return None
+        return ""
     if when.tzinfo is not None:
         when = when.astimezone(tz)
-    return when if when.hour in _CLEAR_HOURS else None
+    return when.date().isoformat() if (when.weekday() - named) % 7 in {1, 6} else ""
 
 
-def _named(query: str) -> int | None:
-    """The one weekday ``query`` names as the reminder's own day, or ``None``."""
-    return None if _MOVES_DAY.search(query) is not None else named_weekday(query)
-
-
-def weekday_mismatch(
-    call: ToolCall, query: str, today: date, tz: tzinfo
-) -> tuple[date, int] | None:
-    """The date ``call`` writes and the weekday ``query`` names, when it is the day after it.
-
-    ``today`` is the date in the person's zone ``tz``; a date that is today is never read as wrong.
-    """
-    when = _written_at(call, tz)
-    named = _named(query)
-    # A date before the named day, or today, may be for a reminder ahead of it, and a date further
-    # off is more often another day the person meant.
-    if when is None or named is None or when.date() == today or (when.weekday() - named) % 7 != 1:
-        return None
-    return when.date(), named
-
-
-def weekday_date_wrong(call: ToolCall, query: str, today: date, tz: tzinfo) -> bool:
-    """Whether ``call`` stores a one-time date the day after the weekday ``query`` names."""
-    return weekday_mismatch(call, query, today, tz) is not None
-
-
-def weekday_refusal(day: date, named: int) -> str:
-    """The refusal text: the ``named`` weekday, the one ``day`` is, and the dates around it."""
-    before = day - timedelta(days=(day.weekday() - named) % 7)
-    after = before + timedelta(days=7)
-    name, written = WEEKDAY_NAMES[named], WEEKDAY_NAMES[day.weekday()]
-    return (
-        f"{WEEKDAY_DATE_MSG} The message names {name}; {day.isoformat()} is a "
-        f"{written}. The {name}s on either side of it are {before.isoformat()} "
-        f"and {after.isoformat()}. Call again with 'at' on the {name} the person meant, keeping "
-        "the time of day."
-    )
+def weekday_off_note(stored: str, language: str) -> str:
+    """The note naming the weekday and date of the ``stored`` ISO date, in ``language``."""
+    day = date.fromisoformat(stored)
+    names = _DAY_NAMES.get(language, WEEKDAY_NAMES)
+    text = WEEKDAY_OFF_NOTES.get(language, WEEKDAY_OFF_NOTE)
+    return text.format(day=names[day.weekday()], date=stored)

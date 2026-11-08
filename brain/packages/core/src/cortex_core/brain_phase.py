@@ -16,7 +16,6 @@ from cortex_core.handoff_view import (
     deep_tail,
     midnight_refused_calls,
     offset_refused_calls,
-    weekday_refused_calls,
     weekly_refused_calls,
     yearly_refused_calls,
 )
@@ -113,7 +112,6 @@ class BrainPhase:
             yearly_refused=tuple(yearly_refused_calls(record)),
             midnight_refused=tuple(midnight_refused_calls(record)),
             weekly_refused=tuple(weekly_refused_calls(record)),
-            weekday_refused=tuple(weekday_refused_calls(record)),
             offset_refused=tuple(offset_refused_calls(record)),
             results_spent=sum(len(m.text) for m in tail if m.role is Role.TOOL),
             query=query,
