@@ -184,7 +184,7 @@ the item first for a precise correction, and the fenced transition gives the aut
 
 `edit_scheduled` changes `text` and the recurrence through one pure `apply_edit` over a
 `ScheduleEdit` value. `every_seconds` sets an interval (and clears a rule), `0` stops either form
-repeating, and omitting it leaves the recurrence alone. An interval edit leaves `due_at` in place,
+repeating, and omitting it leaves the recurrence alone. An `at` alone moves a one-time item to that date-time through the store's `snooze` and keeps it one time, and is refused on an item that repeats (`schedule_edit_at.py`), because `at_time` on a one-time item made it repeat. An interval edit leaves `due_at` in place,
 so only later reschedulings take the new interval. **Setting a rule is the exception**: a rule
 derives its occurrences from the wall clock, so the tool computes the rule's next occurrence (or its first on or after a `starting` day, as creation does) and
 passes both as one `RuleChange(rule, due_at)`, which reschedules the item as a snooze does (PENDING,

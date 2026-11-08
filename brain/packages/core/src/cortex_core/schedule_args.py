@@ -153,6 +153,11 @@ def _parse_due_at(arguments: Mapping[str, Any], now: datetime, zone: DisplayZone
         return _ONE_WHEN
     if at is None:
         return _delay_from(now, in_seconds)
+    return parse_at(at, now, zone)
+
+
+def parse_at(at: object, now: datetime, zone: DisplayZone) -> datetime | str:
+    """A one-time ``at`` that has not passed, or the correction for it."""
     due_at = _parse_at(at, zone, now)
     if isinstance(due_at, datetime) and due_at < now - PAST_MARGIN:
         return _past_at(due_at, now, zone)

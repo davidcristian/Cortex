@@ -14,6 +14,7 @@ from cortex_core.schedule_day_args import (
     has_day_selector,
     in_zone_property,
 )
+from cortex_core.schedule_edit_at import at_repeats, parse_move, raced
 from cortex_core.schedule_render import describe_item, effective_zone
 from cortex_core.schedule_time import UTC_DISPLAY, UTC_ZONE_CONTEXT, DisplayZone, ZoneContext
 from cortex_core.schedule_transitions import ScheduleEdit
@@ -185,7 +186,8 @@ class EditScheduledTool:
                 "'in_zone', optionally on given 'on_days', 'on_month_days', or 'on_dates'). An "
                 "'every_seconds' change leaves the next due time alone; "
                 "'at_time' moves it to that rule's next occurrence, or its first on or after "
-                "'starting'. Use the id from list_scheduled."
+                "'starting', and makes it repeat. To move a one-time item, pass 'at' alone. Use "
+                "the id from list_scheduled."
             ),
             parameters={
                 "type": "object",
@@ -206,6 +208,13 @@ class EditScheduledTool:
                             "'every_seconds' interval this schedule had."
                         ),
                     },
+                    "at": {
+                        "type": "string",
+                        "description": (
+                            "New one-time due time of a one-time item, an ISO-8601 date-time as "
+                            "schedule_task takes; the item stays one time (optional)."
+                        ),
+                    },
                     **day_selector_properties(),
                     **in_zone_property(),
                     **starting_property(),
@@ -219,6 +228,8 @@ class EditScheduledTool:
         item_id = call.arguments.get("id")
         if not isinstance(item_id, str) or not item_id:
             return error_result(call.id, "'id' must be a non-empty string")
+        if call.arguments.get("at") is not None:
+            return await self._move(call, item_id)
         try:
             arguments = await self._with_kept_time(item_id, call.arguments)
             parsed = parse_edit(
@@ -236,6 +247,27 @@ class EditScheduledTool:
         if edit.rule is not None:
             zone = effective_zone(edit.rule.rule, self._zone)
             content = f"{content}: now due {zone.render(edit.rule.due_at)}"
+        return ToolResult(call_id=call.id, content=content, trust=Trust.TRUSTED)
+
+    async def _move(self, call: ToolCall, item_id: str) -> ToolResult:
+        """Move a one-time item to the call's ``at``, keeping it one time."""
+        moved = parse_move(call.arguments, now=self._clock.now(), zone=self._zone)
+        if isinstance(moved, str):
+            return error_result(call.id, moved)
+        text, due = moved
+        try:
+            item = await self._store.get(item_id)
+            if item is not None and (item.rule is not None or item.every is not None):
+                return error_result(call.id, at_repeats(item_id))
+            edit = ScheduleEdit(text=text, tainted=call.stamp.tainted)
+            correction = await self._edit(item_id, edit, live_taint=call.stamp.live_taint)
+            if correction is None and not await self._store.snooze(item_id, until=due):
+                correction = raced(item_id)
+        except ScheduleStoreError as err:
+            return store_down_result(call.id, err)
+        if correction is not None:
+            return error_result(call.id, correction)
+        content = f"edited {item_id}: now due {self._zone.render(due)}"
         return ToolResult(call_id=call.id, content=content, trust=Trust.TRUSTED)
 
     async def _with_kept_time(

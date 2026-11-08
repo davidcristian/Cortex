@@ -29,8 +29,8 @@ and the daily note's own follow-up (`every_seconds` 0) keeps today's due time, n
 
 ## What to do
 
-1. Give `edit_scheduled` a way to set a one-time item's new date and time, such as an `at`
-   argument read as `schedule_task` reads its `at`, with its contract test and fake.
+1. Done 2026-11-08: `edit_scheduled` takes `at` alone for a one-time item
+   (`schedule_edit_at.py`), applied through the store's existing `snooze`, so no port changed.
 2. Decide what `at_time` alone, or with one weekday, does on a one-time item when the message
    names no repeat: keep it one time on the new date and time, or refuse with a result naming
    `at`, as `schedule_weekly.py` refuses a weekly rule. Record the choice in ADR-0025.
@@ -41,3 +41,6 @@ and the daily note's own follow-up (`every_seconds` 0) keeps today's due time, n
 - 2026-11-08: filed from flows t1, t2 and x1 and a shell flow in
   [the readings](../../readings/overlay-corrections-flows.md); the same slot made `daily_after`
   read the daily form, so its reply closes with the daily note.
+- 2026-11-08: step 1 built: `at` on `edit_scheduled` moves a one-time item and keeps it one
+  time, and the tool description says `at_time` makes an item repeat. Steps 2 and 3 remain: the
+  model may still pass `at_time`, and no flow was drawn on the new argument yet.
