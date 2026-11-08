@@ -46,5 +46,5 @@ and the daily note's own follow-up (`every_seconds` 0) keeps today's due time, n
   model may still pass `at_time`, and no flow was drawn on the new argument yet.
 - 2026-11-08: t1, t2 and x1 drawn once each on the rebuilt stack brain: all three items stayed one
   time on the new date and time ([the readings](../../readings/overlay-corrections-flows.md)).
-  Step 2 waits on a rate: draw each flow 8 times before deciding whether `at_time` on a one-time
-  item still needs a refusal.
+  Three more t1 and x1 draws each: one t1 edit still passed `at_time` and made a daily rule, so
+  step 2 is still needed; draw each flow 8 times beside it.

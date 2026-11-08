@@ -169,6 +169,9 @@ one-time item, and t1, t2 and x1 were drawn once more (chats `s17-t1`, `s17-t2`,
 `flows.sh`, log `flows1.log` and `pass1-items.tsv` in the `slot17` directory beside `slot16`).
 All three items stayed one time: t1 on 14 Dec 15:00, t2 on 14 Dec 15:00, x1 on 11 Nov 09:00, each
 one item with no rule and no interval. The replies said "3:00 PM on 14 December", "le 14 décembre à
-15h00" and "Wednesday, November 11th, at 9:00 AM". The SM clock read 0.57 of its maximum. One draw
-each is not a rate.
+15h00" and "Wednesday, November 11th, at 9:00 AM". The SM clock read 0.57 of its maximum. At 09:44
+t1 and x1 were drawn three times more each (chats `s17-t1r*`, `s17-x1r*`, `pass2-items.tsv`): every
+x1 item stayed one time on 11 Nov 09:00, and two of three t1 items on 14 Dec 15:00. The third t1
+edit passed `at_time` 15:00, so the item became a daily rule due today, and the reply said "3:00 PM
+on 14 December" and closed with `DAILY_STORED_NOTE`. Over both passes 7 of 8 items stayed one time.
 
