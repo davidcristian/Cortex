@@ -129,7 +129,8 @@ that removes exactly those rows and holds against a turn in flight. This record 
    with no call often enough that its exchange held the value
    ([readings](../readings/forget-request-wordings.md#a-check-of-the-no-call-case-the-candidate-2026-10-30)).
    `asks_not_kept` (`memory_request.py`) reads the message: a "don't", "never" or "no need to"
-   before "save", "keep", "remember" or "write it down" at a clause start, a "you don't need
+   before "save", "keep", "remember" or "write it down" at a clause start, except in "keep it to
+   yourself", "keep me waiting" or a "note everything, but remember" form, a "you don't need
    to" before one, "not for your memory", "off the record", an imperative "forget", "erase" or
    "unlearn", a "you should", "must", "need to" or "have to" before one of those three and the
    message at a clause start or after "remember", and a "delete" or "remove" with "from your
@@ -149,7 +150,11 @@ that removes exactly those rows and holds against a turn in flight. This record 
    pas"), German ("merk dir das nicht"), Spanish ("no lo guardes") or Romanian ("nu-l reține"), unless an idiom word
    such as "rancune", "rencor", "răul" or "für dich" follows the verb, at most one word after it,
    so "ne garde pas rancune" or "behalt das nicht für dich" is recorded and any other object or
-   tail, such as "cette information" or "porfa", withholds the turn. It never reads a "don't forget" or a statement such as "I don't remember" or "je ne retiens pas"; a message it
+   tail, such as "cette information" or "porfa", withholds the turn. It also reads an imperative
+   to forget or erase that opens a clause in those four languages ("oublie", "efface", "vergiss",
+   "lösche", "olvida", "borra", "uită", "șterge"), but not "oublie pas", "vergiss es nicht" or
+   "uită-te", so a third person statement after "et" or "y" is withheld too. It never reads a
+   "don't forget" or a statement such as "I don't remember" or "je ne retiens pas"; a message it
    misses is recorded as before.
    A reply that says something was forgotten, or removed from memory, on a turn whose forget
    calls deleted no row ends with `UNFORGOTTEN_CLAIM_NOTE`, which the brain appends after a typed

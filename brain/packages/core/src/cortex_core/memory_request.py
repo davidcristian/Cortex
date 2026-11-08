@@ -2,7 +2,20 @@
 
 import re
 
-_KEEP = r"(?:save|store|keep|remember|record|memori[sz]e|note|write(?=(?:\s+\w+)?\s+down\b))"
+# "Keep it to yourself" and "keep me waiting" are idioms, and "don't note everything, but
+# remember" asks to keep what follows.
+_IDIOM = (
+    r"(?!(?:\s+(?:it|this|that|them))?\s+to\s+(?:yourself|yourselves)\b"
+    r"|\s+(?:me|us|him|her|them|everyone|people)\s+\w+ing\b)"
+)
+_ALL_BUT = (
+    r"(?!\s+(?:everything|it\s+all|all\s+of\s+it)\W+(?:but|just|only)\s+(?:please\s+)?"
+    r"(?:remember|note|keep|save|store)\b)"
+)
+_KEEP = (
+    rf"(?:(?:save|store|keep{_IDIOM}|remember|record|memori[sz]e|note"
+    rf"|write(?=(?:\s+\w+)?\s+down\b)){_ALL_BUT})"
+)
 _NOT = r"(?:don['\u2019]?t|do\s+not|never)"
 # A request starts a clause, after any adverbs, or follows a conjunction; "I just forget" and
 # "people just forget" state a habit.
@@ -45,6 +58,16 @@ _DONT_KEEP_OTHER = re.compile(
     r"|nicht\s+(?:merken|speichern|notieren|behalten)"
     r"|no\s+(?:lo\s+|la\s+|los\s+|las\s+)?(?:recuerdes|guardes|anotes|apuntes|memorices)"
     rf"|nu(?:-l|-o)?\s+(?:reține|reţine|salva|nota|memora|ține\s+minte))\b{_OTHER_END}",
+    re.IGNORECASE,
+)
+# An imperative to forget in the same four languages, at a clause start: "n'oublie pas",
+# "vergiss es nicht", "nu uita" and "uită-te" (look) do not match.
+_FORGET_OTHER = re.compile(
+    rf"{_OTHER_OPENS}(?:(?:oubli|effac)(?:e|ez)(?!\s+(?:pas|jamais)\b)"
+    r"|(?:vergiss|vergessen\s+sie|l(?:ö|oe|o)sch(?:e|en\s+sie)?)"
+    r"(?![^,.;:!?]*\b(?:nicht|nie|niemals)\b)"
+    r"|(?:olvid|borr)(?:a|e|ad)|olv[ií]da(?:lo|la|los|las|te)|b[oó]rra(?:lo|la|los|las)"
+    r"|uit[ăa](?!-te\b)|uita[țţ]i|[șşs]terge(?:[țţ]i)?)\b",
     re.IGNORECASE,
 )
 # An imperative to remember in the same four languages, at a clause start: "je me souviens",
@@ -101,7 +124,7 @@ def _asks_not_kept(sentence: str) -> bool:
     """Whether ``sentence`` asks not to keep, forget or remove something it does not ask kept."""
     if _NOT_FOR_MEMORY.search(sentence) or _REMOVE.search(sentence):
         return True
-    if _DONT_KEEP_OTHER.search(sentence):
+    if _DONT_KEEP_OTHER.search(sentence) or _FORGET_OTHER.search(sentence):
         return True
     remember = _REMEMBER.search(sentence)
     starts = len(sentence) if remember is None else remember.start()

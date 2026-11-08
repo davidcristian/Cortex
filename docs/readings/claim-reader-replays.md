@@ -170,3 +170,28 @@ read pictures", so that kind and the two with no row are read on the fake turns 
 The turn that stored the value in M01's third draw called the forget with a text that matched nothing, and
 said the code "was not kept because you asked to forget something in the same message"
 ([R-969](../refinements/tasks/969-a-forget-of-the-old-value-can-match-nothing-and-say-none-is-stored.md)).
+
+## A forget in four more languages and an English keep idiom, 2026-11-08
+
+`asks_not_kept` now reads an imperative to forget or erase at a clause start in French, German,
+Spanish and Romanian (`oublie`, `efface`, `vergiss`, `lösche`, `olvida`, `borra`, `uită`, `șterge`
+and their formal and enclitic forms), except before `pas` or `jamais`, before a `nicht` or `nie` in
+the same clause, and in `uită-te` (look). It stops reading an English negated `keep` before `to
+yourself` or before a person and a gerund (`keep me waiting`), and any negated keep verb before
+`everything` or `it all` followed by "but", "just" or "only" and a keep verb. The corpus is the
+draw records of both nights' slot directories (135 strings), every string in the brain's test files
+(7,781) and every backticked text in `docs/` (5,663): 13,259 distinct strings. Script `replay.py` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot2/`.
+
+| Reader | Old reads | New reads | False to true | True to false |
+| --- | --- | --- | --- | --- |
+| `asks_not_kept` | 140 | 164 | 31 | 7 |
+
+The 38 changes, read by hand, are all the intended forms. Of the 31, 25 are test strings (8 of them
+earlier tests of the forget tool, now under a test that expects them read) and 6 are recorded
+forget requests (`Olvida mi color favorito.`, `Vergiss, wie mein Hund
+heißt.`, `Oublie le code de mon casier à la piscine.` among them). The 7 are the two idioms and the
+"note everything, but remember" form the task names, with this change's four other test strings. No
+recorded statement, question or reminder holding one of the new verbs changed. A third person
+statement after a conjunction (`Il arrive en retard et oublie ses clés.`) is withheld: the verb has
+the imperative's form, and this reader withholds when unsure.

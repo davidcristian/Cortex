@@ -163,5 +163,65 @@ def test_a_request_not_to_keep_in_another_language_asks_not_kept(query: str) -> 
     assert asks_not_kept(query)
 
 
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Oublie le code de mon casier 7731.",
+        "Efface mon code 7731 de ta mémoire.",
+        "Mon code est 7731, mais oublie-le.",
+        "Oubliez mon adresse, s'il vous plaît.",
+        "Merci pour la recette. Oublie mon code 7731.",
+        "Vergiss meinen Code 4402.",
+        "Bitte vergiss das.",
+        "Vergessen Sie meine Nummer.",
+        "Lösche meinen Code 4402.",
+        "Olvida mi PIN 1234.",
+        "Pero olvida mi PIN.",
+        "Olvídalo, mi PIN es 1234.",
+        "Borra mi número 612345678.",
+        "Uită codul meu 7788.",
+        "Uita codul meu 7788.",
+        "Șterge codul meu 7788.",
+        "Sterge codul meu 7788.",
+    ],
+)
+def test_a_request_to_forget_in_another_language_asks_not_kept(query: str) -> None:
+    assert asks_not_kept(query)
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "J'oublie toujours mes clés.",
+        "J'ai oublié mon code.",
+        "Tu as oublié ?",
+        "N'oublie pas d'acheter du pain.",
+        "Oublie pas d'acheter du pain.",
+        "Je n'efface jamais mes messages.",
+        "Ich vergesse das immer.",
+        "Ich vergesse oft meine Schlüssel.",
+        "Vergiss nicht, den Müll rauszubringen.",
+        "Vergiss es nicht.",
+        "Vergiss den Termin nicht.",
+        "Vergiss nie, dass ich Vegetarier bin.",
+        "Lösch das nicht.",
+        "Se me olvidó la contraseña.",
+        "Olvidé mi PIN.",
+        "Siempre olvido mis llaves.",
+        "No olvides llamar a tu madre.",
+        "Ella siempre borra sus mensajes.",
+        "Am uitat codul.",
+        "Nu uita să cumperi pâine.",
+        "Uită-te la asta.",
+        "Ți-ai uitat cheile?",
+        "El șterge mereu mesajele.",
+    ],
+)
+def test_a_statement_question_or_reminder_with_a_forget_verb_does_not_ask_not_kept(
+    query: str,
+) -> None:
+    assert not asks_not_kept(query)
+
+
 def test_a_request_to_remember_after_an_idiom_in_another_language_asks_kept() -> None:
     assert asks_kept("Merk dir nicht alles, aber merk dir, dass mein Code 4512 ist.")

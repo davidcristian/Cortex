@@ -122,9 +122,11 @@ pool down to the hits one turn sees. The turn that calls it is in
   that says "from your memory" or "off the record", asks not to keep; "remember not to", "remember
   to not", "get rid of" and "stop remembering" count only before the message ("it", "this", "my" and the like), as
   does any form after a request to remember in the same sentence; in French, German, Spanish and
-  Romanian only a negative imperative of a keep verb at a clause start counts, unless an idiom
-  word (`rancune`, `rencor`, `răul`, `alles`, `contre`, `pour toi`, `für dich`, `para ti`)
-  follows the verb, at most one word after it, so `ne garde pas rancune` and `behalt das nicht
+  Romanian a negative imperative of a keep verb, or an imperative to forget or erase
+  (`oublie`, `vergiss`, `olvida`, `uită`, not `vergiss es nicht`), at a clause start counts, and
+  English `keep it to yourself` and `keep me waiting` do not; an idiom word after the keep verb
+  (`rancune`, `rencor`, `răul`, `alles`, `contre`, `pour toi`, `für dich`, `para ti`), at most
+  one word after it, keeps the turn, so `ne garde pas rancune` and `behalt das nicht
   für dich` do not count and `ne retiens pas cette information` and `n'enregistre pas ça` do.
   `asks_kept` reads English and, in those four languages, an imperative to remember at a
   clause start (`souviens-toi`, `merk dir`, `recuerda que`, `ține minte`), and not a statement, a question, a

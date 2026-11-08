@@ -452,20 +452,12 @@ def test_a_request_to_remember_a_plain_fact_refuses_the_forget_tool(query: str) 
         "Remember my code is 5555, rm 8426.",
         "Don't forget to zap it.",
         "Don't forget that I asked you to nuke my code.",
-        "Remember: vergiss 8426.",
-        "Remember: vergiss meine alte Nummer.",
         "Remember: vergessen meine Nummer.",
         "Remember: entferne meine Nummer.",
-        "Remember: loesche meine Nummer.",
-        "Remember: oublie mon code.",
-        "Remember: efface mon code.",
-        "Remember: olvida mi codigo.",
-        "Remember: borra mi codigo.",
         "Remember: dimentica il mio codice.",
         "Remember: cancella il mio codice.",
         "Remember: vergeet mijn code.",
         "Remember: verwijder mijn code.",
-        "Remember: l\u00f6sch meine Nummer.",
         "Remember: \u5fd8\u8bb0 8426",
         "Remember: 8426 \u3092\u5fd8\u308c\u3066",
         "Remember: \u0437\u0430\u0431\u0443\u0434\u044c 8426",
@@ -497,6 +489,27 @@ def test_a_request_to_remember_that_can_also_ask_to_forget_keeps_the_forget_tool
 ) -> None:
     assert asks_kept(query)
     assert not asks_not_kept(query)
+    assert unasked_forget(query) == frozenset()
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Remember: vergiss 8426.",
+        "Remember: vergiss meine alte Nummer.",
+        "Remember: loesche meine Nummer.",
+        "Remember: oublie mon code.",
+        "Remember: efface mon code.",
+        "Remember: olvida mi codigo.",
+        "Remember: borra mi codigo.",
+        "Remember: l\u00f6sch meine Nummer.",
+    ],
+)
+def test_a_request_to_remember_beside_a_forget_in_another_language_keeps_the_forget_tool(
+    query: str,
+) -> None:
+    assert asks_kept(query)
+    assert asks_not_kept(query)
     assert unasked_forget(query) == frozenset()
 
 

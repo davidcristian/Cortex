@@ -453,7 +453,42 @@ def test_a_request_to_remember_or_a_statement_about_oneself_is_not(query: str) -
     assert not asks_not_kept(query)
 
 
-@pytest.mark.parametrize("query", RULES)
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Don't keep it to yourself, my sister is getting married on 12 May.",
+        "Don't keep this to yourself: I got the job.",
+        "Don't keep me waiting, my train leaves at 6.",
+        "Don't keep them waiting, the party starts at 8.",
+        "Don't note everything, but remember that my code is 4512.",
+        "Don't save it all, just remember my code 4512.",
+    ],
+)
+def test_a_keep_idiom_or_a_keep_everything_before_a_request_to_remember_is_not(
+    query: str,
+) -> None:
+    assert not asks_not_kept(query)
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Don't keep this.",
+        "Don't save my card number.",
+        "Don't keep a record of this.",
+        "Don't note it down, please.",
+        "Don't record me talking.",
+        "Don't keep me on file.",
+        "Don't save everything I tell you.",
+        "Don't keep everything, my PIN is 5521.",
+        "Just don't keep it, my PIN is 5521.",
+    ],
+)
+def test_a_negated_keep_verb_without_its_idiom_still_asks_not_kept(query: str) -> None:
+    assert asks_not_kept(query)
+
+
+@pytest.mark.parametrize("query", [*RULES, "Remember not to keep them waiting."])
 def test_a_rule_inside_a_request_to_remember_is_what_to_keep(query: str) -> None:
     assert asks_kept(query)
     assert not asks_not_kept(query)

@@ -1,9 +1,8 @@
 # An English keep idiom or a contrast before a request to remember withholds the turn
 
-**Status:** open, actionable
+**Status:** done 2026-11-08
 **Area:** memory
 **Origin:** [ADR-0019](../../adr/ADR-0019-tainted-memory-recording.md)
-**Verified:** 2026-11-07
 
 `asks_not_kept` (`memory_request.py`) reads any English negated keep verb at a clause start as a
 request not to keep, whatever follows it, and `memory_withheld` then stores nothing of the turn.
@@ -35,3 +34,8 @@ match before a request to remember counts even when the request names what to ke
 
 - 2026-11-07: filed by the slot that narrowed the reader of a request not to keep in four more
   languages, which left the English reader as it was.
+- 2026-11-08: done. A negated `keep` before `to yourself` or a person and a gerund, and a negated keep
+  verb before `everything, but remember`, no longer withhold; the four near misses above, `Don't record
+  me talking.` and `Don't keep everything, my PIN is 5521.` still do. Of 13,259 replayed strings, 7
+  stopped being requests not to keep, each one of these forms
+  ([readings](../../readings/claim-reader-replays.md#a-forget-in-four-more-languages-and-an-english-keep-idiom-2026-11-08)).

@@ -1,9 +1,8 @@
 # A request to forget in another language answered without a call is stored
 
-**Status:** open, actionable
+**Status:** done 2026-11-08
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-07
 
 `memory_withheld` (`memory_claim.py`) keeps a turn out of memory when its message `asks_not_kept`
 reads, because the model can answer a forget request without calling `forget_memories` and the
@@ -35,3 +34,8 @@ Reproduction: send `Oublie le code de mon casier 7731.` in new chats until a dra
 - 2026-11-07: drew the French, German, Spanish and Romanian messages above once each on the
   rebuilt stack brain with the card denied: all four called `forget_memories` (three matched
   nothing, one was declined) and none was stored, so the path with no call occurred in 0 of 4.
+- 2026-11-08: done. `asks_not_kept` reads an imperative to forget or erase at a clause start in the
+  four languages, and 23 near misses (habits, past reports, questions, `n'oublie pas`, `oublie pas`,
+  `vergiss es nicht`, `uită-te`) stay unread. Of 13,259 replayed strings, 31 became requests not to
+  keep, each a forget request; a third person statement after `et` or `y` is withheld
+  ([readings](../../readings/claim-reader-replays.md#a-forget-in-four-more-languages-and-an-english-keep-idiom-2026-11-08)).
