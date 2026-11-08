@@ -43,3 +43,6 @@ another language and adds nothing.
   task R-1049. Step 2 decided in [ADR-0076](../../adr/ADR-0076-closing-note-language.md), the
   language of the person's message, and built for `STORED_TIME_NOTE`, `DAILY_STORED_NOTE` and
   `NUMBERS_LEFT_NOTE`. Left open for the other notes' mappings.
+- 2026-11-08: the second audit of the night found that `ONCE_STORED_NOTE`, added the same night
+  for a one-time item stored after the weekly refusal, is English too, and that refusal reads
+  French, German, Spanish and Romanian weekdays. It needs its mapping like the others.
