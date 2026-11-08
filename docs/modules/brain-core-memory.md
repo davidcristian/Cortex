@@ -156,11 +156,11 @@ pool down to the hits one turn sees. The turn that calls it is in
   memory off the check is false and no note shows.
 - `claims_chat_only(reply)` (`chat_only_claim.py`) is true when a statement, not a question, says
   something is kept, remembered, noted or kept in mind "for", "during" or "in" this or our chat,
-  conversation or session, and names no later or future one and no "not just". On a turn memory
-  stores under a scope that `recalls_across_chats`, `limit_notes` then appends
-  `KEPT_BEYOND_CHAT_NOTE`, since the exchange is recalled in every later chat
-  ([readings](../readings/remember-request-tool-search.md)). Under `SessionMemoryScope` the claim
-  is correct and no note shows.
+  conversation or session, and names no later or future one and no "not just"; in French, German,
+  Spanish and Romanian a keep verb and a chat phrase ("pour la suite de notre conversation") count
+  in either order. On a turn memory stores under a scope that `recalls_across_chats`, `limit_notes`
+  then appends `KEPT_BEYOND_CHAT_NOTE`, since every later chat recalls the exchange
+  ([readings](../readings/remember-request-tool-search.md)); under `SessionMemoryScope` none shows.
 - `unread_folders_claim(taint, query, reply)` (`file_claim.py`) is true on an untainted turn whose
   `query` `asks_files` when `claims_folders(reply, query=query)` finds a statement with no condition
   ("if", "once", "such as") that says "I can read" or "access", "I have access" or "I am allowed to",

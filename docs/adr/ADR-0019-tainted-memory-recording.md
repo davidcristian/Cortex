@@ -175,7 +175,8 @@ across turns (a recalled memory).
    would mean writing before the reply is saved, and a turn cancelled during a slow write would
    then lose its saved reply. The opposite claim on a turn memory does store under a scope every
    chat reads, that the fact is kept for this chat only, ends with `KEPT_BEYOND_CHAT_NOTE`
-   (`chat_only_claim.py`), since every later chat can recall it
+   (`chat_only_claim.py`), since every later chat can recall it. The reader reads the claim in
+   English, French, German, Spanish and Romanian, and a form it misses drops the note
    ([readings](../readings/remember-request-tool-search.md)).
 
 ## Consequences

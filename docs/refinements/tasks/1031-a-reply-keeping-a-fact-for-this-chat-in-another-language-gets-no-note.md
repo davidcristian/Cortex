@@ -1,9 +1,8 @@
 # A reply keeping a fact for this chat in another language gets no note
 
-**Status:** open, actionable
+**Status:** done 2026-11-08
 **Area:** memory
 **Origin:** [ADR-0019](../../adr/ADR-0019-tainted-memory-recording.md)
-**Verified:** 2026-11-07
 
 `claims_chat_only` in `chat_only_claim.py` reads English only, so `KEPT_BEYOND_CHAT_NOTE` closes an
 English reply that keeps a stored fact "for our conversation" and no reply in the four other
@@ -29,3 +28,7 @@ den Rest unseres Gesprächs." and for "Lo recordaré durante esta conversación.
 ## History
 
 - 2026-11-07: filed by the third audit of the night's changes, from a real turn.
+- 2026-11-08: done. `claims_chat_only` reads a keep verb and a chat phrase in either order in French,
+  German, Spanish and Romanian; over 749 recorded replies it flags the two French chat-only replies
+  the old reader missed and nothing else
+  ([readings](../../readings/remember-request-tool-search.md#the-chat-only-form-in-four-more-languages-2026-11-08)).

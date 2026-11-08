@@ -51,12 +51,61 @@ NOT_CHAT_ONLY = [
 ]
 
 
-@pytest.mark.parametrize("reply", CHAT_ONLY)
+CHAT_ONLY_OTHER = [
+    "C'est bien noté. Je m'en souviendrai pour la suite de notre conversation.",
+    "C'est noté, j'ai retenu que votre code est 4512. Je m'en souviendrai pour la suite de notre "
+    "conversation !",
+    "Je le garde en tête pendant cette conversation.",
+    "Pendant cette conversation, je m'en souviendrai.",
+    "J'ai noté votre code pour la durée de cet échange.",
+    "Ich merke es mir für den Rest unseres Gesprächs.",
+    "Ich habe es in diesem Gespräch notiert.",
+    "Für die Dauer dieses Chats behalte ich das im Kopf.",
+    "Lo recordaré durante esta conversación.",
+    "Lo tendré en cuenta durante el resto de nuestra charla.",
+    "He anotado tu código para esta sesión.",
+    "Voi reține asta pe parcursul conversației.",
+    "Am notat codul pentru restul conversației noastre.",
+    "O să țin minte în această conversație.",
+    "Voi reţine asta pe parcursul conversaţiei.",
+    "Ich merke es mir für den Rest unseres Gesprächs, alles klar.",
+    "Ich merke es mir in diesem Gespräch, Sie können es jederzeit ändern.",
+    "Je garde votre code pendant cette conversation, et chaque détail compte.",
+]
+
+NOT_CHAT_ONLY_OTHER = [
+    "Merci pour cette conversation.",
+    "Je suis ravi de vous aider pendant cette conversation.",
+    "Dans cette conversation, vous m'avez demandé l'heure.",
+    "Je m'en souviendrai pour nos prochaines conversations.",
+    "Je m'en souviendrai, pas seulement pendant cette conversation.",
+    "Voulez-vous que je m'en souvienne pendant cette conversation ?",
+    "C'est noté.",
+    "Danke für dieses Gespräch.",
+    "In diesem Gespräch haben Sie nach der Uhrzeit gefragt.",
+    "Ich merke es mir auch für künftige Gespräche.",
+    "Ich merke es mir nicht nur für dieses Gespräch.",
+    "Gracias por esta conversación.",
+    "En esta conversación me preguntaste la hora.",
+    "Lo recordaré también en futuras conversaciones.",
+    "¿Quieres que lo recuerde durante esta conversación?",
+    "Mulțumesc pentru această conversație.",
+    "În această conversație m-ați întrebat ora.",
+    "Voi reține asta și în conversațiile viitoare.",
+    "Voi reține asta, nu doar pe parcursul conversației.",
+    "Je m'en souviendrai pendant cette conversation et dans chaque nouvelle conversation.",
+    "Ich merke es mir in diesem Gespräch und in jedem anderen Gespräch.",
+    "Lo recordaré en esta conversación y en otras conversaciones.",
+    "Voi reține asta în această conversație și în toate conversațiile.",
+]
+
+
+@pytest.mark.parametrize("reply", CHAT_ONLY + CHAT_ONLY_OTHER)
 def test_a_reply_keeping_the_fact_for_this_chat_claims_chat_only(reply: str) -> None:
     assert claims_chat_only(reply)
 
 
-@pytest.mark.parametrize("reply", NOT_CHAT_ONLY)
+@pytest.mark.parametrize("reply", NOT_CHAT_ONLY + NOT_CHAT_ONLY_OTHER)
 def test_a_reply_without_a_chat_limit_does_not_claim_chat_only(reply: str) -> None:
     assert not claims_chat_only(reply)
 

@@ -127,3 +127,21 @@ and A3's tool list differs.
 Both fail on the search count, so this is the null result. Each halved the trace and the turn
 time and neither stopped the search. A, the sentence in a system message of its own, is still the
 only placement that cut the search, to 5 of 15.
+
+## The chat-only form in four more languages, 2026-11-08
+
+`claims_chat_only` read English only. Its replay is over every turn record of the last two nights'
+scratchpads (749 distinct replies, 189 of them in French, German, Spanish or Romanian by a word
+count over message and reply), each reply cut at its first appended note.
+
+| Replies | Chat-only form | Old reader | New reader |
+| --- | --- | --- | --- |
+| French, 112 | 2 ("Je m'en souviendrai pour la suite de notre conversation") | 0 | 2 |
+| German 36, Spanish 16, Romanian 21 | 0 | 0 | 0 |
+| English, 564 | 2 | 2 | 2 |
+
+The new reader flags no other reply. Both French replies answered a fact under the default global
+scope: "Je n'enregistre pas les appels, mais le code de mon casier est 5819." (`s20-t11915`,
+2026-11-07) and "Retiens que mon code est 4512. Merci beaucoup !" (`s3-f`, 2026-11-08). A needless
+note is the safe side here, so a keep verb and a chat phrase count in either order in the four
+languages.
