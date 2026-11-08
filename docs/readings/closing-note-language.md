@@ -155,3 +155,11 @@ capitals and a capitalized word beside another one inside a sentence, and the En
 223 distinct turn log messages changed once (`EU meeting Thursday 15:00, set reminder.`, Romanian
 to English) and 1,810 backticked strings of `docs/readings/` changed none. Script
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot19/replay3.py`.
+
+German capitalizes every noun, so that skip also dropped `Uhr`, `Morgen` and the polite `Sie`
+beside a noun: `Termin Montag 9 Uhr` and `Rufen Sie Herrn Weber an` got the English note. Those
+three words now count beside a capitalized word, while a German article inside a name
+(`Watch Die Hard Friday`) stays skipped. Replayed against the picker before this change, 223 turn
+log messages and 1,814 readings strings changed none, and four German probes moved from English to
+German. Script
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot20/replay.py`.

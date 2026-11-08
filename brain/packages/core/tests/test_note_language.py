@@ -94,3 +94,24 @@ def test_a_name_inside_a_message_in_another_language_keeps_that_language(
     message: str, language: str
 ) -> None:
     assert message_language(message) == language
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "Termin Montag 9 Uhr",
+        "Arzt Freitag 10 Uhr",
+        "Zahnarzt Montag Morgen",
+        "Rufen Sie Herrn Weber an",
+    ],
+)
+def test_a_word_german_always_capitalizes_counts_beside_a_noun(message: str) -> None:
+    assert message_language(message) == "de"
+
+
+@pytest.mark.parametrize(
+    "message",
+    ["Watch Die Hard Friday", "Renew Der Spiegel Monday", "Book Das Boot tickets Friday"],
+)
+def test_a_german_article_inside_a_name_stays_skipped(message: str) -> None:
+    assert message_language(message) == ENGLISH

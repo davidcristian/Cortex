@@ -34,6 +34,8 @@ _WORDS: Mapping[str, frozenset[str]] = {
         "rog mulțumesc ora care ce"
     ),
 }
+# German writes its nouns and the polite "Sie" capitalized anywhere, so a capital is no name there.
+_ALWAYS_CAPITALIZED = _words("sie uhr morgen")
 _MARKS: Mapping[str, str] = {"es": "¿¡"}
 _WORD = re.compile(r"[^\W\d_]+")
 _ENDS_SENTENCE = ".!?¿¡\n"
@@ -57,7 +59,11 @@ def _counted(message: str) -> list[str]:
         m.group().lower()
         for i, m in enumerate(found)
         if not (len(m.group()) > 1 and m.group().isupper())
-        and not (capital[i] and (padded[i] or padded[i + 2]))
+        and not (
+            capital[i]
+            and (padded[i] or padded[i + 2])
+            and m.group().lower() not in _ALWAYS_CAPITALIZED
+        )
     ]
 
 
