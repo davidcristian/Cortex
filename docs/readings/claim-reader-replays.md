@@ -195,3 +195,23 @@ heißt.`, `Oublie le code de mon casier à la piscine.` among them). The 7 are t
 recorded statement, question or reminder holding one of the new verbs changed. A third person
 statement after a conjunction (`Il arrive en retard et oublie ses clés.`) is withheld: the verb has
 the imperative's form, and this reader withholds when unsure.
+
+Six turns drawn on the shared stack brain built from this change, cards denied, one new chat each,
+with the pass rule written first: the three forget requests store no row holding their value, and
+the three English forms store the turn. Driver `draws.sh`, records `draws.jsonl` in the same slot
+directory; the SM clock read 0.55 to 0.65 of its maximum between turns.
+
+| Message | Calls | Row stored |
+| --- | --- | --- |
+| `Oublie le code de mon casier 7731.` | `forget_memories`, matched nothing | no |
+| `Vergiss meinen Code 4402.` | `forget_memories`, matched nothing | no |
+| `Uită codul meu 7788.` | `list_allowed_directories`, `search_files` | no |
+| `Don't keep me waiting, my train leaves at 6.` | none | yes |
+| `Don't keep it to yourself, my sister is getting married on 12 May.` | none | yes |
+| `Don't note everything, but remember that my code is 4512.` | none | yes |
+
+All six pass. The three English turns are the change itself: the old reader withholds each. No
+forget draw took the path this change closes (no call and no tool output): two called the forget
+tool, and on the Romanian turn the model read "uită" as possibly "look" and searched the files,
+so the forget path and the tainted path withhold those turns as well. The three stored rows were
+deleted.
