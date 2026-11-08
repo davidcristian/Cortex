@@ -111,3 +111,10 @@ while the schedule tool and `today` count the date in `CORTEX_SCHEDULE_TZ`. With
 (Monday 21:00 there) was refused as a Tuesday. An offset `at` is now read in the person's zone; a
 naive `at` is already local. In `Europe/Berlin` the two dates agree at every hour from 04:00 to
 21:59, so no recorded draw changes.
+
+Three live turns on the stack brain built from that commit (chats `s13-a` to `s13-c`, SM clock
+0.57 of `clocks.max.sm`) ran each first call with no refusal: `next morning` after Monday's
+meeting stored Monday 09:00, `clean up afterwards` after Friday's party stored Friday 23:00, and
+`when Monday is over` stored Monday 20:00. None was the day after the named weekday, so the start
+reader would not have refused them either; the first is the model reading `next morning` as
+tomorrow, which no reader checks. Their items were cancelled and their rows deleted.

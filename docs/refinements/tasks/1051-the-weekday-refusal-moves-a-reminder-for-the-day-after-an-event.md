@@ -25,3 +25,7 @@ weekday alone does not tell the two apart.
 
 - 2026-11-08: filed by the second audit of the night's changes, from unit probes; the same audit
   added `afterwards`, `next morning`, `is over`, `has passed` and `matin suivant` to `_MOVES_DAY`.
+- 2026-11-08: a live turn of `Remind me at 9 next morning to send the notes from Monday's meeting.`
+  stored Monday 09:00, the named day, with no refusal: the model read `next morning` as tomorrow
+  ([readings](../../readings/schedule-weekday-day-after.md#audit-2026-11-08)). Step 1 should count
+  that form too.
