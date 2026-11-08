@@ -43,11 +43,15 @@ An English request to remember kept its word lists, so a second clause asking fo
 other words lost it (`and give me a shout at 9`, `and crank up the music`). `actions_asked`
 (`memory_request.py`) now reads each clause beside an English request that opens with a verb and
 its object: after a comma, semicolon, colon, `and`, `so`, `then`, `but` or a sentence start, a
-first word that is no pronoun, determiner, preposition or auxiliary, then `me`, `us`, a pronoun or
-a determiner. When `_REMINDER` and `_SOUND` read none of such a clause, `unasked_tools` keeps both
-tools; a clause they read (`and remind me the day before`) keeps the old refusal of the other one.
+first word that is no pronoun, determiner, preposition or auxiliary, then `me` or `us` (also after
+`at`, `to`, `for` or `with`), a pronoun or a determiner. A verb with no object (`and ring at 9`)
+is not read and still refuses both tools
+([R-1037](../refinements/tasks/1037-an-english-second-clause-with-a-verb-and-no-object-can-refuse-the-tool-it-asks-for.md)).
+When `_REMINDER` and `_SOUND` read none of such a clause, `unasked_tools` keeps both tools; a
+clause they read (`and remind me the day before`) keeps the old refusal of the other one.
 `Remember that the remote is under the couch, and turn the heating down.` now keeps both tools: it
-asks for an action, and the rows above that measured the refusal hold only plain facts. In the
+asks for an action, and the rows that measured the refusal
+([side-effect-tools-on-remember.md](side-effect-tools-on-remember.md)) hold only plain facts. In the
 four other languages `asks_kept_alone` no longer reads a comma before a digit (`72,5 kg`) or a
 closing thanks (`Gracias.`, `Merci beaucoup !`) as a second clause. A conjunction inside the fact
 (`Retiens que mon vélo est rouge et bleu.`) still keeps both tools offered, since no word list
@@ -59,6 +63,7 @@ refused to both kept. Of the 11 in draws or docs, every one asks for an action (
 delete, a file listing, `crank up the music`). Two fact-only test strings changed, on the safe
 side: `Remember that I feed the cat and walk the dog.` and `Remember that my cat, Mia, sleeps on
 the sofa.` No string changed toward a refusal.
+Reading `me` or `us` after `at`, `to`, `for` or `with` changed none of 13,332 distinct strings.
 
 On the stack brain rebuilt at 02:38 (SM clock 0.57 of `clocks.max.sm`), with the rows written in
 `expect.txt` first, each message ran once in a new chat with every card approved:

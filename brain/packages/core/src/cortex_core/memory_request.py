@@ -131,7 +131,8 @@ _ACTION = re.compile(
     r"|in|on|at|for|with|from|to|of|by|about|after|before|during|near|under|over|into|like|as"
     r"|than|until|not|only|even|all|both|half|is|are|was|were|be|been|has|have|had|do|does|did"
     r"|will|would|can|could|should|may|might|must|up|down|off|out|back)\b)[a-z]+\s+"
-    r"(?:(?:up|down|on|off|out|over|back)\s+)?(?:me|us|it|this|that|them|the|my|our|a|an|some)\b"
+    r"(?:(?:up|down|on|off|out|over|back)\s+)?"
+    r"(?:(?:at|to|for|with)\s+(?:me|us)|me|us|it|this|that|them|the|my|our|a|an|some)\b"
     r"(?:(?!\b(?:and|so|then|but|plus)\b)[^,;:])*",
     re.IGNORECASE,
 )

@@ -89,6 +89,7 @@ _SPAWN = ToolSpec(name=SPAWN_TOOL_NAME, description="", parameters={}, calls_sid
         "Remember that my code is 7319. Thanks!",
         "Remember that my code is 7319, thank you.",
         "Hi! Please remember that my code is 7319.",
+        "Remember that I swim, and go to the gym on Mondays.",
     ],
 )
 def test_a_request_to_remember_a_fact_asks_for_neither_tool(query: str) -> None:
@@ -107,6 +108,8 @@ def test_a_request_to_remember_a_fact_asks_for_neither_tool(query: str) -> None:
         "Keep in mind the baby is asleep, so keep it down.",
         "Remember my exam on Monday; get me up early that day.",
         "Remember my flight on Friday, give me a shout at 6 and turn the volume up.",
+        "Remember that I have the dentist tomorrow and shout at me at 9.",
+        "Note my flight on Friday, then talk to me about it at 6.",
     ],
 )
 def test_a_request_to_remember_with_a_second_clause_no_reader_names_keeps_both_tools(
