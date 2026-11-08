@@ -33,7 +33,9 @@ Three ways to write the note in the right language were compared.
    (`cortex_core/note_language.py`): the one of English, French, German, Spanish and Romanian
    whose word list the message matches most, plus the Spanish marks ¿ and ¡. A word two of the
    languages share does not count ("la", "de", "que"). Letters are not read, because a name such
-   as Jürgen or María has them in a message of any language.
+   as Jürgen or María has them in a message of any language. A word in capitals (`EU`, `EST`) and
+   a capitalized word beside another inside a sentence (`Las Vegas`) are names and do not count;
+   the `am` of a clock figure such as `9am` counts as English.
 2. **English is the fallback.** A message with no match, or a tie between two languages, gets the
    English note. English is what every note was before, so a wrong or missing pick shows today's
    text and never a third language.

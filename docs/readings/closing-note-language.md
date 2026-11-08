@@ -144,3 +144,14 @@ recordatorio creado o cambiado aquí es a las 09:00. ...)". In L3 the weekly cal
 the retry kept the repeat as `every_seconds` 604800, so no one day note was due and none showed.
 No note was in a wrong language, so the rows pass. Log `draws.log`, records `draws.jsonl` and
 items `items.tsv` in the slot directory of the replay above; every item and row was deleted.
+
+## Names and abbreviations
+
+On 2026-11-08 unit probes found five short English requests whose note language came from one
+name or abbreviation: `EU` read as Romanian, `EST` and `Le Bernardin` as French, `Las Vegas` as
+Spanish, and `die` in `so they don't die` as German. `message_language` now skips a word in
+capitals and a capitalized word beside another one inside a sentence, and the English list holds
+`they`, `don`, `set`, `reminder`, `alarm` and `meeting`. Replayed through the old and new picker,
+223 distinct turn log messages changed once (`EU meeting Thursday 15:00, set reminder.`, Romanian
+to English) and 1,810 backticked strings of `docs/readings/` changed none. Script
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot19/replay3.py`.

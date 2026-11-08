@@ -15,7 +15,7 @@ def _words(text: str) -> frozenset[str]:
 _WORDS: Mapping[str, frozenset[str]] = {
     ENGLISH: _words(
         "i my me the is to and please remind remember forget you it of at for what this that "
-        "tomorrow with am are was"
+        "tomorrow with am are was they don set reminder alarm meeting"
     ),
     "fr": _words(
         "je j vous nous est et mais pour avec dans qui pas mon mes moi le les des au aux cette "
@@ -36,11 +36,34 @@ _WORDS: Mapping[str, frozenset[str]] = {
 }
 _MARKS: Mapping[str, str] = {"es": "¿¡"}
 _WORD = re.compile(r"[^\W\d_]+")
+_ENDS_SENTENCE = ".!?¿¡\n"
+
+
+def _opens_sentence(message: str, start: int) -> bool:
+    before = message[:start].rstrip(" \t\"'(")
+    return not before or before[-1] in _ENDS_SENTENCE
+
+
+def _counted(message: str) -> list[str]:
+    """The lowercase words of ``message`` less abbreviations and names inside a sentence."""
+    # "EU" and "Las Vegas" name nothing about the language; a lone "Sie" or "Uhr" still counts.
+    found = list(_WORD.finditer(message))
+    capital = [
+        len(m.group()) > 1 and m.group()[0].isupper() and not _opens_sentence(message, m.start())
+        for m in found
+    ]
+    padded = [False, *capital, False]
+    return [
+        m.group().lower()
+        for i, m in enumerate(found)
+        if not (len(m.group()) > 1 and m.group().isupper())
+        and not (capital[i] and (padded[i] or padded[i + 2]))
+    ]
 
 
 def message_language(message: str) -> str:
     """The one language the most words and marks of ``message`` belong to, else English."""
-    words = [word.lower() for word in _WORD.findall(message)]
+    words = _counted(message)
     scores = {
         language: sum(word in vocabulary for word in words)
         + sum(message.count(mark) for mark in _MARKS.get(language, ""))

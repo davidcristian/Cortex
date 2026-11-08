@@ -57,3 +57,40 @@ def test_a_note_with_no_form_in_the_language_stays_english() -> None:
 
 def test_a_note_with_a_form_in_the_language_uses_it() -> None:
     assert in_language("Note.", {"fr": "Remarque."}, "fr") == "Remarque."
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "EU meeting Thursday 3pm, set reminder",
+        "Reminder Sunday 10:00, water plants so they don't die",
+        "Reminder: call Bob 9 EST Monday",
+        "Reminder Sunday 9:00: flight Las Vegas",
+        "Alarm Friday 18:00 Le Bernardin",
+        "Call Bob 9 EST Monday",
+        "EU summit Thursday 15:00",
+        "Flight Las Vegas Sunday 9:00",
+        "Dinner Friday 18:00 Le Bernardin",
+    ],
+)
+def test_one_name_or_abbreviation_in_an_english_message_keeps_english(message: str) -> None:
+    assert message_language(message) == ENGLISH
+
+
+@pytest.mark.parametrize(
+    ("message", "language"),
+    [
+        ("Erinnern Sie mich morgen um 9 Uhr.", "de"),
+        ("Die Pflanzen brauchen Wasser, erinnere mich daran.", "de"),
+        ("Merke dir, dass die Katze Futter braucht.", "de"),
+        ("Rappelle-moi de réserver Le Bernardin demain.", "fr"),
+        ("Recuérdame el vuelo a Las Vegas mañana.", "es"),
+        ("Le code est 4412. Le Bernardin est fermé.", "fr"),
+        ("Die Kinder abholen.", "de"),
+        ("Wann Sie wollen.", "de"),
+    ],
+)
+def test_a_name_inside_a_message_in_another_language_keeps_that_language(
+    message: str, language: str
+) -> None:
+    assert message_language(message) == language
