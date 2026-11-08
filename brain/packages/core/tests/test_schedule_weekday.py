@@ -64,6 +64,10 @@ def _call(arguments: Mapping[str, object], name: str = SCHEDULE_TOOL_NAME) -> To
         ("Remind me on Thursday at 7 to call the head office.", "2026-11-13T07:00:00"),
         ("Remind me Tuesday evening at 7.", "2026-11-11T19:00:00"),
         ("Remind me at 6pm to put the bins out for Monday's collection.", "2026-11-10T18:00:00"),
+        ("Remind me Monday morning at 9 to send the report.", "2026-11-10T09:00:00"),
+        ("Remind me next Monday at 9 to send the report.", "2026-11-10T09:00:00"),
+        ("Remind me Monday at 9 to hand over the keys.", "2026-11-10T09:00:00"),
+        ("Rappelle-moi lundi à 9h d'envoyer le rapport suivant.", "2026-11-10T09:00:00"),
     ],
 )
 def test_a_one_time_date_the_day_after_the_weekday_named_is_wrong(message: str, at: str) -> None:
@@ -123,6 +127,17 @@ def test_a_date_the_day_after_the_weekday_named_is_wrong_unless_it_is_today() ->
         ("Recuérdame mañana la cita del jueves.", "2026-11-09T07:00:00"),
         ("Amintește-mi cu o zi înainte de joi la 7.", "2026-11-11T07:00:00"),
         ("Amintește-mi mâine de programarea de joi.", "2026-11-09T07:00:00"),
+        (
+            "Remind me at 9 next morning to send the notes from Monday's meeting.",
+            "2026-11-10T09:00:00",
+        ),
+        (
+            "I have a party on Friday. Remind me at 11 to clean up afterwards.",
+            "2026-11-14T11:00:00",
+        ),
+        ("Remind me at 8 when Monday is over to file the report.", "2026-11-10T08:00:00"),
+        ("Remind me at 8 once the Monday deadline has passed.", "2026-11-10T08:00:00"),
+        ("Rappelle-moi le matin suivant lundi à 9h.", "2026-11-10T09:00:00"),
     ],
 )
 def test_the_named_weekday_the_day_before_today_a_moving_word_or_an_unclear_hour_is_not_wrong(

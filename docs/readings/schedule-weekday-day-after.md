@@ -89,3 +89,18 @@ naming one weekday with no moving word for a date the day before, and the new on
 both refuse all 85 the day after when it is not today. Logs `draws.log`, `draws2.log`,
 `items.tsv`, `items2.tsv`, `replay2.log` and `replay3.log` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot10/`; every row and item of the draws was deleted.
+
+## Audit, 2026-11-08
+
+Unit probes of messages that ask for the day after the named weekday in words the reader did not
+read: `next morning`, `afterwards`, `when Monday is over`, `once the deadline has passed` and the
+French `le matin suivant`. Each refused a correct date the day after, and the refusal asks for the
+named day. These words now move the day. Replayed through the start and the new reader, 4998
+quoted strings from tonight's and last night's drivers, the readings and the schedule tests: none
+changed except the six audit probes. Still refused, and filed as a task: a possessive weekday
+naming an event the day before (`follow up on Monday's call`, `once Monday's payday has cleared`),
+the same form as the bins row above. On the safe side, `named_weekday` reads no weekday, so
+neither refusal runs, for one-time requests holding `forever`, `always`, `move` or `change`
+(4 of 6 probes), and `in advance` in `Remind me Friday at 9 to pay in advance.` keeps any date
+(2 of 2). Probes in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot13/`.
