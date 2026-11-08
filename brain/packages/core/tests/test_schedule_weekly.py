@@ -43,6 +43,9 @@ _ONCE = {"text": "barber", "at": "2026-11-10T08:00:00"}
         "Recuérdame el martes a las 9 llamar al dentista.",
         "Amintește-mi marți la 9 să sun la dentist.",
         "Amintește-mi marti la 9 să sun la dentist.",
+        "Remind me Tuesday morning at 8 to put the bins out.",
+        "Remind me on Tuesday night to set the alarm.",
+        "Rappelle-moi mardi soir, sur la deuxième étagère.",
     ],
 )
 def test_one_weekday_and_no_repeat_word_names_one_weekday(message: str) -> None:
@@ -75,6 +78,15 @@ def test_one_weekday_and_no_repeat_word_names_one_weekday(message: str) -> None:
         "Recuérdame los martes a las 9 sacar la basura.",
         "Amintește-mi în fiecare marți la 9 să duc gunoiul.",
         "Amintește-mi marțea la 9 să duc gunoiul.",
+        "Remind me Tuesday mornings at 8 to put the bins out.",
+        "Remind me on Tuesday evenings at 7 to call grandma.",
+        "Remind me Tuesday nights and afternoons to stretch.",
+        "Remind me on Tuesday at 8 going forward.",
+        "Remind me on Tuesday at 8, ongoing.",
+        "Remind me on Tuesday at 8, indefinitely.",
+        "Remind me on Tuesday at 8, permanently.",
+        "Remind me on Tuesday at 8, forever.",
+        "Rappelle-moi un mardi sur deux à 9h de sortir les poubelles.",
     ],
 )
 def test_a_repeat_word_a_change_word_or_no_single_weekday_names_no_one_weekday(

@@ -31,6 +31,8 @@ _NAMED = re.compile(rf"\b(?:{_NAMES})\b", re.IGNORECASE)
 _MAY_REPEAT = re.compile(
     r"\b(?:every|each|first|second|third|fourth|fifth|last|premier|dernier|ersten|letzten|primer"
     r"|último|ultimo|prima|ultima|weekly|weeks?|fortnight\w*|biweekly|repeat\w*|recur\w*"
+    r"|mornings|afternoons|evenings|nights|forever|indefinitely|permanently|ongoing|going\s+forward"
+    r"|sur\s+deux"
     r"|regular\w*|always|usually|routine|until|from\s+now\s+on|again|weekends?|\w+days|move\w*"
     r"|chang\w*|switch\w*|resched\w*|instead|shift\w*|push\w*|later|chaque|tous|toutes|hebdo\w*"
     r"|semaines?|toujours|jusqu\w*|désormais|plutôt|déplac\w*|les\s+(?:lun|mar|mercre|jeu|vendre"
