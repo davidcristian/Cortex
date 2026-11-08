@@ -10,9 +10,10 @@ from cortex_core.schedule_time import DisplayZone
 
 AT_ALONE = (
     "'at' moves a one-time item to a new date and time, so do not combine it with 'at_time', "
-    "'every_seconds', 'starting' or a day selector"
+    "'every_seconds', 'starting', 'in_zone' or a day selector; give another zone's time as an "
+    "offset in 'at'"
 )
-_RULE_ARGUMENTS = ("at_time", "every_seconds", "starting")
+_RULE_ARGUMENTS = ("at_time", "every_seconds", "starting", "in_zone")
 
 
 def at_repeats(item_id: str) -> str:

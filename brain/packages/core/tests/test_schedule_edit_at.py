@@ -83,6 +83,7 @@ async def test_at_with_new_text_changes_both() -> None:
         ({"at": "2026-11-11T09:00:00", "at_time": "09:00"}, AT_ALONE),
         ({"at": "2026-11-11T09:00:00", "on_days": ["wed"]}, AT_ALONE),
         ({"at": "2026-11-11T09:00:00", "every_seconds": 0}, AT_ALONE),
+        ({"at": "2026-11-11T09:00:00", "in_zone": "America/New_York"}, AT_ALONE),
         ({"at": "2026-11-11T09:00:00", "text": "  "}, "'text' must be a non-empty string"),
         ({"at": "Wednesday"}, "'at' must be an ISO-8601 date-time, e.g. 2026-07-12T18:00:00"),
     ],
