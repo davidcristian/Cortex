@@ -18,8 +18,9 @@ from cortex_core.schedule_claim import stored_time
 from cortex_core.schedule_daily import daily_after
 from cortex_core.schedule_midnight import midnight_unasked
 from cortex_core.schedule_offset import offset_date_wrong, offset_refusal
+from cortex_core.schedule_time import UTC_DISPLAY, DisplayZone
 from cortex_core.schedule_weekday import weekday_date_wrong, weekday_mismatch, weekday_refusal
-from cortex_core.schedule_weekly import weekly_unasked
+from cortex_core.schedule_weekly import weekly_refusal, weekly_unasked
 from cortex_core.schedule_yearly import monthly_for_yearly, same_month_days, stores_monthly
 from cortex_core.stops import StopLedger
 from cortex_core.tool_budget import DispatchBudget
@@ -70,6 +71,8 @@ class ToolLoopContext:
     weekly_refused: tuple[ToolCall, ...] = ()
     # The one-time schedule calls refused for another weekday in a loop this one continues.
     weekday_refused: tuple[ToolCall, ...] = ()
+    # The person's zone, in which a refusal counts the date it names from today.
+    zone: DisplayZone = UTC_DISPLAY
 
     @property
     def unit_id(self) -> str:
@@ -145,11 +148,15 @@ def _refused_by(
 
 
 def _told(
-    result: ToolResult, refusal: DispatchRefusal | None, call: ToolCall, query: str
+    result: ToolResult, refusal: DispatchRefusal | None, call: ToolCall, context: ToolLoopContext
 ) -> ToolResult:
     """The result the model reads: a wrong-date refusal names the date and the field to fix."""
+    query = context.query
     if refusal is DispatchRefusal.OFFSET_DATE:
         return replace(result, content=offset_refusal(query, call))
+    if refusal is DispatchRefusal.WEEKLY_DAY:
+        said = weekly_refusal(call, query, context.clock.now(), context.zone)
+        return replace(result, content=said)
     mismatch = weekday_mismatch(call, query) if refusal is DispatchRefusal.WEEKDAY_DATE else None
     return result if mismatch is None else replace(result, content=weekday_refusal(*mismatch))
 
@@ -207,7 +214,7 @@ async def run_round(
                 confirm_required=spec is not None and spec.confirm_required,
                 refusal=refusal,
             )
-        result = _told(result, refusal, call, context.query)
+        result = _told(result, refusal, call, context)
         if refusal is None and says_declined(result.content):
             context.declined.append(call)
         if refusal is None and spec is not None:

@@ -1,7 +1,10 @@
 """Read whether a schedule call repeats weekly when the person named one weekday and no repeat."""
 
 import re
+from datetime import date, datetime, time, timedelta
 
+from cortex_core.schedule_day_args import parse_at_time
+from cortex_core.schedule_time import DisplayZone
 from cortex_core.schedule_tools import SCHEDULE_TOOL_NAME
 from cortex_core.tools import ToolCall
 
@@ -11,6 +14,7 @@ WEEKLY_DAY_MSG = (
     "ISO-8601 date-time of its next date and no 'at_time' or 'on_days'."
 )
 
+WEEKDAY_NAMES = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 _WEEKDAYS = (
     ("monday", "lundi", "montag", "lunes", "luni"),
     ("tuesday", "mardi", "dienstag", "martes", "marți", "marti", "marţi"),
@@ -60,3 +64,27 @@ def weekly_unasked(call: ToolCall, query: str) -> bool:
         and call.arguments.get("on_days") is not None
         and names_one_weekday(query)
     )
+
+
+def next_named_date(named: int, at_time: object, now: datetime, zone: DisplayZone) -> date | None:
+    """The first ``named`` weekday in ``zone`` whose ``at_time`` is still ahead of ``now``."""
+    wall = parse_at_time(at_time)
+    if isinstance(wall, str):
+        return None
+    today = now.astimezone(zone.tz).date()
+    ahead = (named - today.weekday()) % 7
+    # Today only while an 'at' at that time would still be ahead; once it is reached, a week on.
+    if ahead == 0 and zone.resolve_after(datetime.combine(today, time(*wall)), now) <= now:
+        ahead = 7
+    return today + timedelta(days=ahead)
+
+
+def weekly_refusal(call: ToolCall, query: str, now: datetime, zone: DisplayZone) -> str:
+    """The refusal text, naming the next date of the weekday ``query`` names when it is known."""
+    named = named_weekday(query)
+    if named is None:
+        return WEEKLY_DAY_MSG
+    day = next_named_date(named, call.arguments.get("at_time"), now, zone)
+    if day is None:
+        return WEEKLY_DAY_MSG
+    return f"{WEEKLY_DAY_MSG} The next {WEEKDAY_NAMES[named]} is {day.isoformat()}."

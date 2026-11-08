@@ -11,6 +11,7 @@ from redis.asyncio import Redis
 from cortex_core import BuiltinTool, Clock, ScheduleStore, SessionStore, ToolCall, TurnStamp
 from cortex_orchestrator import run_from_env, wiring
 from cortex_orchestrator.config_schedule import ScheduleConfig
+from cortex_orchestrator.engines import StreamEngines
 from cortex_orchestrator.schedule_builders import build_schedule_tools
 from cortex_seam import BrainServiceStub, DeleteSessionRequest
 from cortex_session import RedisScheduleStore, RedisSessionStore
@@ -85,3 +86,28 @@ async def test_the_brains_schedule_task_clears_a_chat_deleted_before_its_add(
         task.cancel()
         await reader.aclose()
     assert origins == {"in the deleted chat": "", "in the live chat": "live"}
+
+
+async def test_the_brains_turns_get_the_schedule_zone(monkeypatch: pytest.MonkeyPatch) -> None:
+    port = _free_loopback_port()
+    monkeypatch.setenv("CORTEX_SEAM_HOST", "127.0.0.1")
+    monkeypatch.setenv("CORTEX_SEAM_PORT", str(port))
+    monkeypatch.setenv("CORTEX_SCHEDULE_TZ", "Pacific/Auckland")
+    server = FakeServer()
+    made: list[StreamEngines] = []
+
+    def recording(**parts: object) -> StreamEngines:
+        engines = StreamEngines(**parts)  # pyright: ignore[reportArgumentType]
+        made.append(engines)
+        return engines
+
+    monkeypatch.setattr(wiring, "StreamEngines", recording)
+    chats = RedisSessionStore(FakeAsyncRedis(server=server))
+    task = asyncio.create_task(run_from_env(store_factory=lambda _url: chats))
+    try:
+        await _delete(f"127.0.0.1:{port}", "any")
+        os.kill(os.getpid(), signal.SIGTERM)
+        await asyncio.wait_for(task, timeout=10)
+    finally:
+        task.cancel()
+    assert [engines.zone.name for engines in made] == ["Pacific/Auckland"]

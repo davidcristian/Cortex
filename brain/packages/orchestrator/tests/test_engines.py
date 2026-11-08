@@ -2,6 +2,7 @@ import asyncio
 from collections.abc import AsyncIterator, Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 from fakeredis import FakeAsyncRedis, FakeServer
@@ -14,10 +15,12 @@ from cortex_core import (
     HANDOFF_AHEAD_DETAIL,
     LOAD_POLL_INTERVAL_S,
     MODEL_LOADING,
+    SCHEDULE_TOOL_NAME,
     SWAPPING,
     AsyncioSleeper,
     AttachmentError,
     CaptureBounds,
+    DisplayZone,
     EscalatingTurnEngine,
     GenerationBounds,
     HashEmbedder,
@@ -86,6 +89,7 @@ class _Model:
     def __init__(self, script: Mapping[str, Sequence[Sequence[InferenceEvent]]]) -> None:
         self._script = {model: list(rounds) for model, rounds in script.items()}
         self.requests: list[_Request] = []
+        self.seen: list[Message] = []
 
     async def stream(
         self,
@@ -97,7 +101,8 @@ class _Model:
         bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
         """Record the request, then yield this tier's next scripted round (the last repeats)."""
-        del messages, schema
+        del schema
+        self.seen = list(messages)
         rounds = self._script[model]
         step = min(sum(1 for request in self.requests if request.model == model), len(rounds) - 1)
         self.requests.append(
@@ -269,6 +274,39 @@ async def test_the_deep_model_is_offered_the_tier_set_the_root_built_for_it() ->
     assert deep, "the deep phase never ran, so nothing was offered to it"
     assert CAPTURE_SCREEN_TOOL_NAME not in deep
     assert GET_VOLUME_TOOL_NAME in deep, "the deep tier keeps every other built-in"
+
+
+class _Fixed:
+    def __init__(self, at: datetime) -> None:
+        self._at = at
+
+    def now(self) -> datetime:
+        return self._at
+
+
+async def test_the_deployments_zone_names_the_date_a_weekly_refusal_gives() -> None:
+    weekly = ToolCall(
+        id="c1",
+        name=SCHEDULE_TOOL_NAME,
+        arguments={"text": "lock up", "at_time": "23:55", "on_days": ["wed"]},
+    )
+    backend = _Model({"cortex": [[weekly], [TextChunk("done")]]})
+
+    async def handler(arguments: Mapping[str, object]) -> str:
+        del arguments
+        return "scheduled"
+
+    spec = ToolSpec(name=SCHEDULE_TOOL_NAME, description="s", parameters={})
+    tools = InMemoryToolRegistry({SCHEDULE_TOOL_NAME: (spec, handler)})
+    zone = DisplayZone(name="Pacific/Auckland", tz=ZoneInfo("Pacific/Auckland"))
+    # 00:10 on Thursday in Auckland, still Wednesday 11:10 in UTC.
+    clock = _Fixed(datetime(2026, 11, 11, 11, 10, tzinfo=UTC))
+    engines = replace(_engines(backend, tools=tools), zone=zone, clock=clock)
+    engine = engines.for_stream(RecordingConfirmer(answer=True), RecordingProgressSink())
+    await _run(engine, "Remind me on Wednesday at 23:55 to lock up.", turn_id="t1")
+
+    told = [message.text for message in backend.seen if message.role is Role.TOOL]
+    assert any("The next Wednesday is 2026-11-18." in said for said in told)
 
 
 async def test_the_deployments_reply_bounds_reach_both_phases_of_a_turn() -> None:

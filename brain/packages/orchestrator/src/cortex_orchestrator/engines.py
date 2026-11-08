@@ -4,12 +4,14 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
 
 from cortex_core import (
+    UTC_DISPLAY,
     AsyncioSleeper,
     BrainPhase,
     BuiltinTool,
     CadenceTerms,
     Clock,
     Confirmer,
+    DisplayZone,
     EscalatingTurnEngine,
     GenerationBounds,
     HandoffAheadBackend,
@@ -67,6 +69,7 @@ class StreamEngines:
     bounds: GenerationBounds | None
     deep: DeepTier | None
     load_wait_s: float = 0.0
+    zone: DisplayZone = UTC_DISPLAY
     sleeper: Sleeper = field(default_factory=AsyncioSleeper)
     turns: SessionTurnLocks = field(default_factory=SessionTurnLocks)
 
@@ -154,6 +157,7 @@ class StreamEngines:
             bounds=self.bounds,
             residency=None if self.deep is None else self.deep.swap.manager,
             sight=self.sight,
+            zone=self.zone,
         )
 
     def _recaller(self, backend: InferenceBackend, model: str) -> MemoryRecaller | None:

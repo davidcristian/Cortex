@@ -159,8 +159,7 @@ Calls are read from the proxy's request log (start build) and the second brain's
 **Result.** The form, a first call with a one-time date off the named weekday, came in 0 of 24
 draws. The late date in every draw where it came was the retry after the weekly refusal: D2c and
 s5b-d2b live, and 3 of 8 B replays, none of which kept the weekly rule or dropped the reminder.
-The B rows fail their rule, so the weekly refusal's text is
-[R-1041](../refinements/tasks/1041-name-the-next-date-in-the-refusal-of-a-weekly-rule-beside-one-weekday.md).
+The B rows fail their rule, so the weekly refusal's text is measured again in rows B3 and B4.
 The weekday check passes its rule: the unit tests refuse a wrong date once and run the retry,
 every P replay retried on the right Thursday, s5b-d2b's late retry was refused and its next call
 stored Thursday, and no call on the named weekday was refused in any build draw. After the build
@@ -174,8 +173,8 @@ and `replay_msgs.log` in
 **Rows for a weekly refusal that names the date, written after the B results and before any draw
 under them.** B3 and B4 are B1 and B2 with one sentence added to the refusal: "The next Thursday
 is 2026-11-12." (B3) or "The next Tuesday is 2026-11-10." (B4), four draws each. They pass under
-the B rule. A pass measures only the text; shipping it needs the zone in the dispatch round
-([R-1041](../refinements/tasks/1041-name-the-next-date-in-the-refusal-of-a-weekly-rule-beside-one-weekday.md)).
+the B rule. A pass measures only the text; shipping it needs the person's zone in the dispatch
+round, which the build under the live rows below adds.
 
 | Replay row | Next call, four draws |
 | --- | --- |
@@ -185,3 +184,26 @@ the B rule. A pass measures only the text; shipping it needs the zone in the dis
 **Result.** B3 and B4 pass: with the date named, 8 of 8 retries were on it, against 5 of 8 for
 the same requests without it (B1, B2). SM clock 0.57 of `clocks.max.sm`; log `replay2.log` in the
 slot directory above.
+
+**Live rows for the build, written before any draw on it.** The stack brain is rebuilt from the
+working tree whose weekly refusal names the next date, counted in `CORTEX_SCHEDULE_TZ`
+(Europe/Berlin) from the brain's clock. Second condition, chats `s6-*`. L1 is B1's message, "Remind
+me on Thursday at 7 to call the doctor.", and L2 is B2's, the W1 barber message; eight draws each.
+The form is a draw whose first `schedule_task` call holds `on_days`; its count is recorded and is
+not part of the rule. Calls are read from the stack brain's audit log, items from Redis.
+
+**Rule (the B rule, drawn live).** Every draw that shows the form ends with one one-shot item at
+2026-11-12 07:00 (L1) or 2026-11-10 08:00 (L2) and no weekly item; no draw drops the reminder after
+a refusal. A draw with no form is counted by what it stored and is not part of the rule. With no
+form in sixteen draws the rule is met by no draw, and the replay rows B3 and B4 stay its evidence.
+
+| Run | L1 | L2 | Refusals |
+| --- | --- | --- | --- |
+| build, chats `s6-*` | 7 Thursday; 1 weekly, then Thursday | 7 Tuesday; 1 weekly, then Tuesday | 2 weekly |
+
+**Result.** The rule passes. The form came in 2 of 16 draws (s6-l1b, s6-l2b); each weekly call
+was refused once and its retry stored a one-shot at 2026-11-12 07:00 and 2026-11-10 08:00, with no
+weekly item. All sixteen draws stored a one-shot on the wanted date and hour. SM clock 0.53 to 0.57
+of `clocks.max.sm`. Logs `draws.log`, `items.tsv` and `calls-live.txt` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot6/`;
+every row and item of the draws was deleted.

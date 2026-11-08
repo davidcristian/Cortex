@@ -19,6 +19,7 @@ from cortex_core.progress import ProgressSink
 from cortex_core.provenance import SourceKind, as_source
 from cortex_core.recall import MemoryRecaller
 from cortex_core.recall_budget import fit_recalled
+from cortex_core.schedule_time import UTC_DISPLAY, DisplayZone
 from cortex_core.sighted import VisionProbe
 from cortex_core.tool_loop import ToolLoopContext
 from cortex_core.tool_replay import RECALLED_RUNS_NOTE, replay_runs
@@ -62,6 +63,7 @@ class TurnCapabilities:
     residency: ResidencyQueue | None = None
     sight: VisionProbe | None = None
     memory_write_timeout_s: float = MEMORY_WRITE_TIMEOUT_S
+    zone: DisplayZone = UTC_DISPLAY
 
 
 def _render_memory_context(

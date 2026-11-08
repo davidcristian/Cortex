@@ -150,6 +150,7 @@ async def run_from_env(
             bounds=reply_bounds,
             deep=None if swap is None else DeepTier(swap, deep_builtins, scheduler),
             load_wait_s=inference.load_wait_s,
+            zone=schedule_config.display_zone(),
         )
         await serve(
             rpc_config,

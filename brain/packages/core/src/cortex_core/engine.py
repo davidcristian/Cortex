@@ -156,6 +156,7 @@ class TurnEngine:
             progress=self._caps.progress,
             escalation=self._caps.escalation,
             query=text,
+            zone=self._caps.zone,
         )
         working = attach_images(
             await assemble_inference_messages(text, history, self._caps, context, self._clock),

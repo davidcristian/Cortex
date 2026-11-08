@@ -117,6 +117,7 @@ class BrainPhase:
             offset_refused=tuple(offset_refused_calls(record)),
             results_spent=sum(len(m.text) for m in tail if m.role is Role.TOOL),
             query=query,
+            zone=self._caps.zone,
         )
         assembled = await assemble_inference_messages(
             query, history, self._caps, context, self._clock

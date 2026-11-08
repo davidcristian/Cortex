@@ -4,7 +4,7 @@ import re
 from datetime import date, datetime, timedelta
 
 from cortex_core.schedule_tools import SCHEDULE_TOOL_NAME
-from cortex_core.schedule_weekly import named_weekday
+from cortex_core.schedule_weekly import WEEKDAY_NAMES, named_weekday
 from cortex_core.tools import ToolCall
 
 WEEKDAY_DATE_MSG = (
@@ -12,7 +12,6 @@ WEEKDAY_DATE_MSG = (
     "it was not run."
 )
 
-_DAY_NAMES = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 # A word that moves the reminder off the named day, or a named date that may decide it instead.
 _MOVES_DAY = re.compile(
     r"\b(?:before|after|prior|eve|earlier|previous|following|tomorrow|today|tonight|yesterday"
@@ -70,10 +69,10 @@ def weekday_refusal(day: date, named: int) -> str:
     """The refusal text: the ``named`` weekday, the one ``day`` is, and the dates around it."""
     before = day - timedelta(days=(day.weekday() - named) % 7)
     after = before + timedelta(days=7)
-    name = _DAY_NAMES[named]
+    name, written = WEEKDAY_NAMES[named], WEEKDAY_NAMES[day.weekday()]
     return (
         f"{WEEKDAY_DATE_MSG} The message names {name}; {day.isoformat()} is a "
-        f"{_DAY_NAMES[day.weekday()]}. The {name}s on either side of it are {before.isoformat()} "
+        f"{written}. The {name}s on either side of it are {before.isoformat()} "
         f"and {after.isoformat()}. Call again with 'at' on the {name} the person meant, keeping "
         "the time of day."
     )
