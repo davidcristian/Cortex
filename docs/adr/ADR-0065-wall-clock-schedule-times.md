@@ -87,7 +87,8 @@ decision 2).
   the same turn and either corrects the item or tells the user it repeats. A rule on chosen days
   has no such note ([readings](../readings/schedule-time-edges.md)). A model can also store the
   daily item and say nothing about the repeat, so the brain records the ids of the daily items a
-  turn left (`TaintLedger.daily_stored`, `schedule_daily.py`) and appends `DAILY_STORED_NOTE`
+  turn left (`TaintLedger.daily_stored`, `schedule_daily.py`), counting an item `edit_scheduled`
+  gave `at_time` with no day selector, even a one-time one, and appends `DAILY_STORED_NOTE`
   when no sentence of the reply states a repeat in English, German, French, Spanish or Romanian.
   A question, a condition, an offer or a negation states none, so a doubtful reply gets the note
   ([readings](../readings/schedule-one-time-in-other-languages.md)). A purpose clause

@@ -41,6 +41,7 @@ _HELD = (
 )
 _ONCE = "scheduled reminder abc: due 2026-11-07T17:30:00+01:00 (today)"
 _WEEKLY = "scheduled reminder abc: due 2026-11-09T17:30:00+01:00 (Monday), every mon"
+_EDITED = "edited abc: now due 2026-11-08T15:00:00+01:00 (today)"
 
 
 @pytest.mark.parametrize(
@@ -211,6 +212,33 @@ def _run(name: str, **arguments: object) -> ToolCall:
             ("abc",),
             ("abc",),
         ),
+        (_run(EDIT_SCHEDULED_TOOL_NAME, id="abc", at_time="15:00"), _result(_EDITED), (), ("abc",)),
+        (
+            _run(EDIT_SCHEDULED_TOOL_NAME, id="abc", at_time="15:00"),
+            _result(_EDITED),
+            ("abc",),
+            ("abc",),
+        ),
+        (
+            _run(EDIT_SCHEDULED_TOOL_NAME, id="abc", at_time="15:00", every_seconds=0),
+            _result(_EDITED),
+            ("x",),
+            ("x", "abc"),
+        ),
+        (
+            _run(EDIT_SCHEDULED_TOOL_NAME, id="abc", at_time="15:00", on_days=["mon"]),
+            _result(_EDITED),
+            ("abc",),
+            (),
+        ),
+        (
+            _run(EDIT_SCHEDULED_TOOL_NAME, id="abc", at_time="15:00"),
+            _result(_EDITED, error=True),
+            (),
+            (),
+        ),
+        (_run(EDIT_SCHEDULED_TOOL_NAME, at_time="15:00"), _result(_EDITED), (), ()),
+        (_run(SCHEDULE_TOOL_NAME, id="abc", at_time="15:00"), _result(_EDITED), (), ()),
         (_run(CANCEL_SCHEDULED_TOOL_NAME, id="abc"), _result(""), ("abc", "x"), ("x",)),
         (_run("list_scheduled", id="abc"), _result(_DAILY), ("abc",), ("abc",)),
     ],

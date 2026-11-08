@@ -111,6 +111,15 @@ def daily_after(call: ToolCall, result: ToolResult, held: tuple[str, ...]) -> tu
     stored = _STORED_ID.search(result.content)
     if call.name == SCHEDULE_TOOL_NAME and DAILY_NOTE in result.content and stored is not None:
         return held if stored.group(1) in held else (*held, stored.group(1))
+    item = call.arguments.get("id")
+    # An edit's 'at_time' with no day selector makes the item a daily rule, even a one-time one.
+    if (
+        call.name == EDIT_SCHEDULED_TOOL_NAME
+        and isinstance(item, str)
+        and call.arguments.get("at_time") is not None
+        and not has_day_selector(call.arguments)
+    ):
+        return held if item in held else (*held, item)
     ended = call.name == CANCEL_SCHEDULED_TOOL_NAME or (
         call.name == EDIT_SCHEDULED_TOOL_NAME
         and (call.arguments.get("every_seconds") is not None or has_day_selector(call.arguments))
