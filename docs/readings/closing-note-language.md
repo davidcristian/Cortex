@@ -104,3 +104,23 @@ Each turn made one successful `schedule_task` call stored at 09:00; the SM clock
 | `Erinnere mich am 14. Dezember an das Paket.` | no | German |
 | `Recuérdame cada año el 12 de octubre el cumpleaños de Ana.` | `a las 09:00` | none |
 | `Amintește-mi pe 14 decembrie să trimit coletul.` | `la ora 09:00` | none |
+
+## The pick without letters: replay, 2026-11-08
+
+A name's letters picked the note's language under an English message (`Lunch with Jürgen Müller
+and Björn on Friday.` read German), so the pick now reads only the word lists and the Spanish
+marks ¿ and ¡, and the Spanish list adds `guarda` and `guardes`. The rule of the first
+replay applies unchanged. Over the same 749 messages, with each reply read by the earlier pick:
+
+| Reply read as | Picked the same | Picked English | Picked another language |
+| --- | --- | --- | --- |
+| French, 110 | 107 | 3 | 0 |
+| German, 53 | 50 | 3 | 0 |
+| Spanish, 20 | 20 | 0 | 0 |
+| Romanian, 25 | 23 | 2 | 0 |
+| English, 541 | 536 | none | 5 |
+
+One pick changed: `No guardes rencor, mi jefe se llama Luis.` moved from English to Spanish under
+a Spanish reply. The five English rows are the same five read by eye above, so the pick
+**passes**. Replay `replay3.py` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot15/`.

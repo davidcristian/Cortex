@@ -31,8 +31,9 @@ Three ways to write the note in the right language were compared.
 
 1. **A closing note is written in the language `message_language(query)` picks**
    (`cortex_core/note_language.py`): the one of English, French, German, Spanish and Romanian
-   whose word list and letters the message matches most. A word or letter two of the languages
-   share does not count ("la", "de", "que", "é").
+   whose word list the message matches most, plus the Spanish marks ¿ and ¡. A word two of the
+   languages share does not count ("la", "de", "que"). Letters are not read, because a name such
+   as Jürgen or María has them in a message of any language.
 2. **English is the fallback.** A message with no match, or a tie between two languages, gets the
    English note. English is what every note was before, so a wrong or missing pick shows today's
    text and never a third language.

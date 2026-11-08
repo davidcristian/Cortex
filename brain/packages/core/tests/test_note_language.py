@@ -15,6 +15,14 @@ from cortex_core.note_language import ENGLISH, in_language, message_language
         "Ce am programat?",
         "Ok",
         "Merci, gracias!",
+        "Lunch with Jürgen Müller and Björn on Friday.",
+        "Call José María García López tomorrow",
+        "Dinner at Señor Muñoz's with María on Friday",
+        "Remind me: Straße, Größe, Fußgänger at 9",
+        "Remind me to visit Ștefan și Țuțu at 9",
+        "Fiesta mañana at 9",
+        "Call Jürgen",
+        "Book the Champs-Élysées crème brûlée place",
     ],
 )
 def test_a_message_with_no_clear_other_language_is_english(message: str) -> None:
@@ -32,6 +40,11 @@ def test_a_message_with_no_clear_other_language_is_english(message: str) -> None
         ("Amintește-mi mâine la ora 9 de dentist.", "ro"),
         ("Uită codul meu 7788.", "ro"),
         ("¿Cuándo?", "es"),
+        ("¡Recuérdalo!", "es"),
+        ("No guardes este número, porfa: mi taquilla es la 7731.", "es"),
+        ("No guardes rencor, mi jefe se llama Luis.", "es"),
+        ("Guarda mi número de taquilla: 7731.", "es"),
+        ("Grüß dich, Jürgen.", "de"),
     ],
 )
 def test_a_message_in_another_language_names_it(message: str, language: str) -> None:
