@@ -25,3 +25,8 @@ the unsafe side of this reader.
 
 - 2026-11-08: filed by the slot that kept both tools beside an English clause of a verb and its
   object; reproduced at unit level, no turn sent.
+- 2026-11-08: a probe read a clause opening with a verb that is no pronoun, determiner or form
+  of "be", then `at`, `in`, `by`, `around` or `before` and a digit, after a comma, semicolon,
+  `and`, `so`, `then` or `but`. Of 13,335 distinct replay strings it would change one, a
+  stored exchange text (`Noted, married in 2015.`), and no person message. Facts such as
+  `I start at 9 and finish at 5` are absent from the corpus, so write them as near misses first.
