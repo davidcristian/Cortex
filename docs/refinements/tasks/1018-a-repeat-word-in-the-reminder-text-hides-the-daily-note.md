@@ -1,9 +1,8 @@
 # A repeat word in the reminder text hides the daily note
 
-**Status:** open, actionable
+**Status:** done 2026-11-08
 **Area:** scheduling
 **Origin:** [ADR-0065](../../adr/ADR-0065-wall-clock-schedule-times.md)
-**Verified:** 2026-11-07
 
 `names_repeat` (`schedule_daily.py`) reads a repeat in any clause that states one, so a repeat
 word inside the reminder's own text counts as saying the reminder repeats. `limit_notes` then
@@ -34,3 +33,11 @@ that `names_repeat` reads as naming a repeat states it about the reminder.
 ## History
 
 - 2026-11-07: filed by the review of the reader that reads a repeat only where a reply states it.
+- 2026-11-08: done for the adjective forms. `daily`, `täglich`, `quotidien`, `diario` and
+  `zilnic` now name a repeat only within two words of a word for the reminder or for reminding
+  (`_DAILY_BESIDE`), so the five adjective replies above read as naming none and show the note,
+  while "a daily reminder" and "einen täglichen Reminder" still name one. Replaying 1,157 distinct
+  recorded replies and quoted readings changed 2, both quoted fragments, both toward the note. The
+  phrase form ("the pill you take every morning") is left out: telling a relative clause from a
+  reply that states the repeat needs a parse no word list gives, and it is filed as
+  [R-1038](1038-a-repeat-phrase-in-the-reminder-text-hides-the-daily-note.md).

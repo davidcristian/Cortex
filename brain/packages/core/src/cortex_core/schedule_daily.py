@@ -13,14 +13,26 @@ DAILY_STORED_NOTE = (
 
 _STORED_ID = re.compile(r"\bscheduled \w+ (\S+): due ")
 _REPEATS = re.compile(
-    r"\b(?:every|each)\s+(?:single\s+)?(?:day|morning|afternoon|evening|night)\b|\bdaily\b"
+    r"\b(?:every|each)\s+(?:single\s+)?(?:day|morning|afternoon|evening|night)\b"
     r"|\brepeat(?:s|ing)\b|\brecurring\b"
-    r"|\bjeden\s+(?:Tag|Morgen|Nachmittag|Abend)\b|\btäglich\w*|\bwiederholt\b|\bwiederkehrend\w*"
+    r"|\bjeden\s+(?:Tag|Morgen|Nachmittag|Abend)\b|\bwiederholt\b|\bwiederkehrend\w*"
     r"|\btous\s+les\s+(?:jours|matins|après-midi|soirs)\b|\bchaque\s+(?:jour|matin|soir)\b"
-    r"|\bquotidien\w*|\bse\s+répète\b|\brécurrent\w*"
+    r"|\bse\s+répète\b|\brécurrent\w*"
     r"|\btodos\s+los\s+días\b|\btodas\s+las\s+(?:mañanas|tardes|noches)\b"
-    r"|\bcada\s+(?:día|mañana|tarde|noche)\b|\bdiari(?:o|a|amente)\b|\bse\s+repite\b"
-    r"|\bîn\s+fiecare\s+(?:zi|dimineață|seară)\b|\bzi\s+de\s+zi\b|\bzilnic\w*|\bse\s+repetă\b",
+    r"|\bcada\s+(?:día|mañana|tarde|noche)\b|\bse\s+repite\b"
+    r"|\bîn\s+fiecare\s+(?:zi|dimineață|seară)\b|\bzi\s+de\s+zi\b|\bse\s+repetă\b",
+    re.IGNORECASE,
+)
+# An adjective such as "daily" may describe the reminder's own text ("your daily vitamins"), so it
+# names a repeat only within two words of a word for the reminder or for reminding.
+_REMINDER = (
+    r"(?:remind\w*|alarm\w*|erinner\w*|rappel\w*|recordar\w*|recordatori\w*|recuerd\w*"
+    r"|aminti\w*|amintesc|memento\w*)"
+)
+_DAILY_WORD = r"(?:daily|täglich\w*|quotidien\w*|diari(?:o|a|amente)|zilnic\w*)"
+_DAILY_BESIDE = re.compile(
+    rf"\b{_REMINDER}\S*\s+(?:\S+\s+){{0,2}}{_DAILY_WORD}\b"
+    rf"|\b{_DAILY_WORD}\S*\s+(?:\S+\s+){{0,2}}{_REMINDER}",
     re.IGNORECASE,
 )
 # A condition or an offer anywhere in a sentence makes its repeat a choice rather than the fact.
@@ -55,7 +67,8 @@ def _states_repeat(sentence: str) -> bool:
     if "?" in sentence or _CHOICE.search(told) is not None:
         return False
     return any(
-        _NEGATION.search(clause) is None and _REPEATS.search(clause) is not None
+        _NEGATION.search(clause) is None
+        and (_REPEATS.search(clause) is not None or _DAILY_BESIDE.search(clause) is not None)
         for clause in _CLAUSE_END.split(told)
     )
 

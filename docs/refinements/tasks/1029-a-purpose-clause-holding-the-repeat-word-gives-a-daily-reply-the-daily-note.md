@@ -1,9 +1,8 @@
 # A purpose clause holding the repeat word gives a daily reply the daily note
 
-**Status:** open, actionable
+**Status:** declined 2026-11-08
 **Area:** scheduling
 **Origin:** [ADR-0065](../../adr/ADR-0065-wall-clock-schedule-times.md)
-**Verified:** 2026-11-07
 
 `_states_repeat` in `schedule_daily.py` removes `_ASIDE`, a purpose clause from `so you`, `pour
 que`, `damit` or `para que` up to the next comma, before it looks for the repeat. When the reply
@@ -30,3 +29,9 @@ Reproduction, unit level (`SCRATCH/slot20/probe2.py`, the reader before the chan
 ## History
 
 - 2026-11-07: filed by the third audit of the night's changes.
+- 2026-11-08: declined. In each of the four rows the repeat describes what the person does ("so
+  you remember to take your pills every day"), not the reminder, which is the shape the reminder
+  text reader leaves out on purpose
+  ([R-1018](1018-a-repeat-word-in-the-reminder-text-hides-the-daily-note.md)). None of them states
+  unmistakably that the reminder repeats, and the safe direction for this reader is that the note
+  shows, so the note on them stays.
