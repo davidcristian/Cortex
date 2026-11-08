@@ -200,7 +200,7 @@ pool down to the hits one turn sees. The turn that calls it is in
   German, Spanish or Romanian with no negation in its clause) reads the reply and `names_still_held`
   (English `still` before a verb such as `holds`, `stored`, `mentions` or `appears in`, in a
   clause with no condition such as `if` or `should` and no negation before it, and no negation
-  after it) does not. The note tells the person the number is still held and that a forget of the number
+  after it, or a clause in any of the five languages naming another memory, such as `un autre souvenir` or `eine andere Erinnerung`, with a verb of holding and a digit and no condition, negation or removal) does not. The note tells the person the number is still held and that a forget of the number
   itself removes it; it deletes nothing
   ([readings](../readings/forget-value-repeats.md#the-note-the-brain-appends-drawn-2026-11-07)). When a call of the turn deleted rows and another matched nothing, `limit_notes` appends `DELETED_UNFOUND_NOTE` (`forget_unfound_claim.py`) to a reply `says_not_stored` reads, since the later text may have named the deleted fact in other words; the note says so and is true when it named a fact never stored ([readings](../readings/forget-later-call-other-words.md#the-replay-draws-2026-11-08)).
 - `RecallPolicy` (port, `rerank.py`) turns an over-fetched pool into the final `k` hits:

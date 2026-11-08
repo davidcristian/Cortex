@@ -111,6 +111,51 @@ NOT_STILL_HELD = [
 ]
 
 
+OTHER_HELD = [
+    "I've forgotten your door code. The number 1987 also appears in another memory.",
+    "J'ai oublié votre code, mais un autre souvenir contient encore 1987.",
+    "Ich habe den Türcode vergessen, aber 4512 steht noch in einer anderen Erinnerung.",
+    "I've forgotten it. One other memory holds 1987 too, so ask me to forget 1987 as well.",
+    "He olvidado tu código, pero otro recuerdo todavía contiene 1987.",
+    "Am uitat codul, dar o altă amintire încă conține 1987.",
+]
+
+OTHER_NOT_HELD = [
+    "I've forgotten your door code. It also appears that nothing was stored.",
+    "I've forgotten your door code. No other memory holds 1987.",
+    "I've forgotten your door code. If another memory holds 1987, ask me to forget it too.",
+    "I've forgotten your door code. Another memory that contains 1987 was deleted too.",
+    "I've forgotten your door code. Does another memory hold 1987?",
+    "I've forgotten your door code. Another memory holds your bike code.",
+    "I've forgotten your door code, and the other memories have 1987 removed too.",
+    "J'ai oublié votre code. Aucun autre souvenir ne contient 1987.",
+    "Ich habe den Türcode vergessen. Kein anderer Eintrag enthält 4512.",
+    "He olvidado tu código. Ningún otro recuerdo contiene 1987.",
+    "Am uitat codul. Nicio altă amintire nu conține 1987.",
+    "I've forgotten your door code. Your message mentions 1987.",
+    "I've forgotten your door code. Another memory was from 2025.",
+    "J'ai oublié votre code. Si un autre souvenir contient 1987, dites-le-moi.",
+    "Ich habe den Türcode vergessen. Wenn eine andere Erinnerung 4512 enthält, sag es mir.",
+    "Ich habe den Türcode vergessen. Falls eine andere Erinnerung 4512 enthält, sag es mir.",
+    "Ich habe den Türcode vergessen und prüfe, ob eine andere Erinnerung 4512 enthält.",
+    "Am uitat codul. Spune-mi dacă o altă amintire conține 1987.",
+]
+
+
+@pytest.mark.parametrize("reply", OTHER_HELD)
+def test_a_reply_naming_another_memory_holding_the_number_names_it_still_held(
+    reply: str,
+) -> None:
+    assert names_still_held(reply)
+    assert _closed(reply, left=True) == reply
+
+
+@pytest.mark.parametrize("reply", OTHER_NOT_HELD)
+def test_a_reply_not_stating_another_memory_holds_the_number_keeps_the_note(reply: str) -> None:
+    assert not names_still_held(reply)
+    assert _closed(reply, left=True) == reply + NUMBERS_LEFT_NOTE
+
+
 @pytest.mark.parametrize("reply", FORGOTTEN)
 def test_a_reply_saying_a_fact_went_says_forgotten(reply: str) -> None:
     assert says_forgotten(reply)

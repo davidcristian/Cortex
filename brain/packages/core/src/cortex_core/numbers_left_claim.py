@@ -33,6 +33,22 @@ _ENGLISH_HEDGE = re.compile(
 )
 _CLAUSE_BREAK = re.compile(r"[,;:]")
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
+_OTHER_MEMORY = re.compile(
+    r"\b(?:another|other|autres?|andere[nmrs]?|otros?|otras?|alt[ăa]|alte|altei|altor)\s+"
+    r"(?:memor(?:y|ies)|exchanges?|souvenirs?|Erinnerung(?:en)?|Eintr(?:ag|äge)|recuerdos?"
+    r"|amintir[ei])\b",
+    re.IGNORECASE,
+)
+_HOLDING = re.compile(
+    r"\b(?:holds?|contains?|includes?|mentions?|appears?\s+in|contien(?:t|nent)|enthält|enthalten"
+    r"|steh(?:t|en)\s+(?:noch\s+)?in|contienen?|con[țt]ine|con[țt]in)\b",
+    re.IGNORECASE,
+)
+_DIGIT = re.compile(r"\d")
+_ANY_HEDGE = re.compile(
+    rf"{_ENGLISH_HEDGE.pattern}|{_NEGATION.pattern}|\b(?:si|wenn|falls|ob|dac[ăa]|ning[uú]n\w*)\b",
+    re.IGNORECASE,
+)
 
 
 def _stated(
@@ -57,9 +73,24 @@ def says_forgotten(reply: str) -> bool:
     return claims_forgotten(reply) or names_removal(reply) or _stated(_REMOVED, _NEGATION, reply)
 
 
+def _other_holds(clause: str) -> bool:
+    """Whether ``clause`` says, with no condition, negation or removal, another memory holds it."""
+    return (
+        _OTHER_MEMORY.search(clause) is not None
+        and _HOLDING.search(clause) is not None
+        and _DIGIT.search(clause) is not None
+        and _ANY_HEDGE.search(clause) is None
+        and not says_forgotten(clause)
+    )
+
+
 def names_still_held(reply: str) -> bool:
     """Whether ``reply`` states, with no condition or negation, that something is still held."""
-    return _stated(_STILL_HELD, _ENGLISH_HEDGE, reply, _ENGLISH_NEGATION)
+    return _stated(_STILL_HELD, _ENGLISH_HEDGE, reply, _ENGLISH_NEGATION) or any(
+        not sentence.rstrip().endswith("?")
+        and any(map(_other_holds, _CLAUSE_BREAK.split(sentence)))
+        for sentence in _SENTENCE_END.split(reply)
+    )
 
 
 def numbers_left_claim(reply: str, *, left: bool) -> bool:
