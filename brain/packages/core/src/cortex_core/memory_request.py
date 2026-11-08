@@ -24,7 +24,7 @@ _NOT = r"(?:don['\u2019]?t|do\s+not|never)"
 _SUBJECT = r"(?<!\bI\s)(?<!\bwe\s)(?<!\byou\s)(?<!\bthey\s)"
 _OPENS = (
     rf"(?:^\W*|[,;:]\s*|{_SUBJECT}\b(?:and|but|so|please|kindly)\s+)"
-    r"(?:(?:please|also|just|then|actually|kindly)\s+)*"
+    r"(?:(?:please|also|just|then|actually|kindly|I\s+meant?,?)\s+)*"
 )
 # After any other word an adverb opens a request only when the message follows the verb:
 # "use it once then forget it" asks, "my kids then forget their homework" states a habit.
@@ -37,6 +37,12 @@ _DONT_KEEP = re.compile(
     r"|\byou\s+(?:didn['\u2019]?t|did\s+not|wouldn['\u2019]?t|would\s+not"
     rf"|(?:don['\u2019]?t|do\s+not)\s+(?:need|have)\s+to)\s+{_KEEP}\b"
     rf"|\b(?:don['\u2019]?t|do\s+not)\s+want\s+you\s+to\s+{_KEEP}\b",
+    re.IGNORECASE,
+)
+# "Keep it nowhere" asks not to keep; "keep it nowhere near the kids" names a place.
+_KEEP_NOWHERE = re.compile(
+    rf"{_OPENS}(?:save|store|keep|record|note|write)\s+(?:(?:it|this|that|them|these|those)\s+)?"
+    r"(?:down\s+)?nowhere\b(?!\s+near\b)",
     re.IGNORECASE,
 )
 _NOT_FOR_MEMORY = re.compile(
@@ -145,6 +151,8 @@ _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
 def _asks_not_kept(sentence: str) -> bool:
     """Whether ``sentence`` asks not to keep, forget or remove something it does not ask kept."""
     if _NOT_FOR_MEMORY.search(sentence) or _REMOVE.search(sentence):
+        return True
+    if _KEEP_NOWHERE.search(sentence):
         return True
     if _DONT_KEEP_OTHER.search(sentence) or _FORGET_OTHER.search(sentence):
         return True

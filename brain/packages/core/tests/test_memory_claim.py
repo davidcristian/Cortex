@@ -502,6 +502,40 @@ def test_a_negated_keep_verb_without_its_idiom_still_asks_not_kept(query: str) -
     assert asks_not_kept(query)
 
 
+@pytest.mark.parametrize(
+    "query",
+    [
+        "I mean don't store it.",
+        "I meant don't save this.",
+        "Sorry, I mean never record it.",
+        "Don't keep it to yourself; I mean don't store it.",
+        "Keep it nowhere.",
+        "Store this nowhere, my PIN is 4412.",
+        "Please write it down nowhere.",
+        "Do not keep this to yourself, keep it nowhere.",
+    ],
+)
+def test_a_request_not_to_keep_after_i_mean_or_with_nowhere_asks_not_kept(query: str) -> None:
+    assert asks_not_kept(query)
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "I mean, don't forget it.",
+        "I mean I don't store food in the garage.",
+        "I mean my kids never remember anything.",
+        "Keep it somewhere safe.",
+        "Keep it nowhere near the kids.",
+        "I keep it nowhere I can find it.",
+    ],
+)
+def test_i_mean_or_a_keep_verb_with_a_place_that_asks_nothing_is_not_read_as_not_kept(
+    query: str,
+) -> None:
+    assert not asks_not_kept(query)
+
+
 @pytest.mark.parametrize("query", [*RULES, "Remember not to keep them waiting."])
 def test_a_rule_inside_a_request_to_remember_is_what_to_keep(query: str) -> None:
     assert asks_kept(query)

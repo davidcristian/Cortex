@@ -240,3 +240,11 @@ files (38,068 others). Script `replay1.py` in `/tmp/claude-1000/-home-david-File
 | docs and tests | 38,068 | 205 | 10, all false to true |
 
 The 10 are this change's own near misses and the task's example; nothing became stored.
+
+## A request after "I mean" and "keep it nowhere" (2026-11-08)
+
+`asks_not_kept` now reads a request not to keep after `I mean` or `I meant`, and a keep verb
+before `nowhere` (not `nowhere near`) at a clause start. Same corpus and method, script
+`replay2.py` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot14/`: of 175 recorded messages 27 read as not kept before and after, 0 changed;
+of 38,310 docs and tests strings 207 became 216, 9 false to true, all this change's own tests and
+the task's examples. Nothing became stored.
