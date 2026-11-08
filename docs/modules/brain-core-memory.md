@@ -119,7 +119,7 @@ pool down to the hits one turn sees. The turn that calls it is in
   (`memory_request.py`, ADR-0075 decision 5) reads as a request not to keep, to forget or to
   remove something, with or without a call, a tainted turn under `skip`, and an untainted turn
   whose `query` `asks_files`. The `asks_not_kept` rule in one
-  sentence: a clause that opens, or follows "I mean", "I meant to say" or "what I mean is", with "don't", "never", "no need to", "remember not
+  sentence: a clause that opens (also after a spaced hyphen, an en or em dash or an opening bracket), or follows "I mean", "I meant to say" or "what I mean is", with "don't", "never", "no need to", "remember not
   to" or "remember to not" before a keep verb, a keep verb or "put" before "nowhere" or "to nowhere" (not "nowhere near"), with "forget", "erase", "unlearn", "drop it", "get rid of" or "stop
   remembering", with "you should forget" (or "must", "need to", "have to") before the message, or
   that says "from your memory" or "off the record", asks not to keep; "remember not to", "remember

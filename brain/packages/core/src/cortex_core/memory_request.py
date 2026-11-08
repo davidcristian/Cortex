@@ -19,11 +19,13 @@ _KEEP = (
     rf"|write(?=(?:\s+\w+)?\s+down\b)){_ALL_BUT})"
 )
 _NOT = r"(?:don['\u2019]?t|do\s+not|never)"
+# A clause also starts after a spaced hyphen, an en or em dash or an opening bracket.
+_BREAK = r"[,;:]\s*|\s-+\s*|[\u2013\u2014(\[]\s*"
 # A request starts a clause, after any adverbs, or follows a conjunction; "I just forget" and
 # "people just forget" state a habit.
 _SUBJECT = r"(?<!\bI\s)(?<!\bwe\s)(?<!\byou\s)(?<!\bthey\s)"
 _OPENS = (
-    rf"(?:^\W*|[,;:]\s*|{_SUBJECT}\b(?:and|but|so|please|kindly)\s+|\bwhat\s+I\s+meant?\s+is,?\s+)"
+    rf"(?:^\W*|{_BREAK}|{_SUBJECT}\b(?:and|but|so|please|kindly)\s+|\bwhat\s+I\s+meant?\s+is,?\s+)"
     r"(?:(?:please|also|just|then|actually|kindly|I\s+meant?(?:\s+to\s+say)?,?)\s+)*"
 )
 # After any other word an adverb opens a request only when the message follows the verb:
@@ -51,7 +53,7 @@ _NOT_FOR_MEMORY = re.compile(
 )
 # A negative imperative in French, German, Spanish or Romanian that opens a clause, so a statement
 # such as "je ne retiens pas" or "el nu reține" does not match.
-_OTHER_OPENS = r"(?:^\W*|[,;:]\s*|\b(?:mais|et|aber|und|doch|pero|y|dar|și|însă|bitte)\s+)"
+_OTHER_OPENS = rf"(?:^\W*|{_BREAK}|\b(?:mais|et|aber|und|doch|pero|y|dar|și|însă|bitte)\s+)"
 # An idiom such as "ne garde pas rancune" or "behalt das nicht für dich" follows the negated verb,
 # at most one word after it, and keeps the turn; any other object or tail withholds it.
 _OTHER_END = (

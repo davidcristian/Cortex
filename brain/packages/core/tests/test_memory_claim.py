@@ -545,6 +545,46 @@ def test_i_mean_or_a_keep_verb_with_a_place_that_asks_nothing_is_not_read_as_not
     assert not asks_not_kept(query)
 
 
+@pytest.mark.parametrize(
+    "query",
+    [
+        "My PIN is 4412 - don't keep it.",
+        "My PIN is 4412 -- don't keep it.",
+        "My PIN is 4412 \u2013 don't keep it.",
+        "My PIN is 4412\u2014don't keep it.",
+        "My PIN is 4412 - I mean don't keep it.",
+        "My PIN is 4412 (don't keep it).",
+        "My PIN is 4412 [please never store it].",
+        "My PIN is 4412 - forget it.",
+        "My PIN is 4412 (keep it nowhere).",
+        "Mon code est 4412 - ne le retiens pas.",
+        "Mein Code ist 4412 (vergiss ihn).",
+    ],
+)
+def test_a_request_not_to_keep_after_a_dash_or_bracket_asks_not_kept(query: str) -> None:
+    assert asks_not_kept(query)
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "My bike - I don't store it outside.",
+        "My bike \u2013 we never store it outside.",
+        "My calls (I never record them) are short.",
+        "My PIN is 4412 - don't forget it.",
+        "I use a no-forget list for the trip.",
+        "My PIN is 4412 - I keep it nowhere near the kids.",
+    ],
+)
+def test_a_statement_after_a_dash_or_bracket_is_not_read_as_not_kept(query: str) -> None:
+    assert not asks_not_kept(query)
+
+
+def test_a_request_to_remember_after_a_dash_or_bracket_asks_kept() -> None:
+    assert asks_kept("My PIN is 4412 - remember it.")
+    assert asks_kept("My PIN is 4412 (merk dir das).")
+
+
 @pytest.mark.parametrize("query", [*RULES, "Remember not to keep them waiting."])
 def test_a_rule_inside_a_request_to_remember_is_what_to_keep(query: str) -> None:
     assert asks_kept(query)
