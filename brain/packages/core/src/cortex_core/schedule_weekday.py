@@ -14,9 +14,10 @@ WEEKDAY_DATE_MSG = (
 
 # A word that moves the reminder off the named day, or a named date that may decide it instead.
 _MOVES_DAY = re.compile(
-    r"\b(?:before|after|prior|eve|earlier|previous|following|tomorrow|today|tonight|yesterday"
-    r"|night|midnight|overnight|ago|days?|veille|lendemain|surlendemain|avant|après|apres|demain"
-    r"|aujourd|ce\s+soir|nuit|minuit|hier|jours?|vorher|davor|danach|nach|vor|vortag|vorabend"
+    r"\b(?:before|beforehand|ahead|advance|after|prior|eve|earlier|previous|following|tomorrow"
+    r"|today|tonight|yesterday|night|midnight|overnight|ago|days?|veille|lendemain|surlendemain"
+    r"|avant|après|apres|demain|aujourd|ce\s+soir|nuit|minuit|hier|jours?|vorher|davor|danach"
+    r"|nach|vor|vortag|vorabend"
     r"|morgen|übermorgen|heute|gestern|nachts?|mitternacht|tage?n?|antes|después|despues"
     r"|víspera|vispera|anterior|siguiente|(?<!la\s)mañana|(?<!la\s)manana|hoy|noche|medianoche"
     r"|ayer|d[íi]as?|înainte|inainte|după|dupa|ajun|mâine|maine|azi|astăzi|astazi|noaptea?"

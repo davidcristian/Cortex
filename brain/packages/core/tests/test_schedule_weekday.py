@@ -48,6 +48,8 @@ def _call(arguments: Mapping[str, object], name: str = SCHEDULE_TOOL_NAME) -> To
         ("Rappelle-moi jeudi à 7h d'appeler le médecin.", "2026-11-13T07:00:00Z"),
         ("Recuérdame el jueves a las 7 llamar al médico.", "2026-11-11T07:00:00"),
         ("Amintește-mi joi la 7 să sun la doctor.", "2026-11-13T07:00:00"),
+        ("Remind me on Thursday evening at 7 to call the doctor.", "2026-11-11T19:00:00"),
+        ("Remind me on Thursday at 7 to call the head office.", "2026-11-13T07:00:00"),
     ],
 )
 def test_a_one_time_date_on_another_weekday_than_the_one_named_is_wrong(
@@ -75,6 +77,9 @@ def test_a_one_time_date_on_another_weekday_than_the_one_named_is_wrong(
         ("Remind me on Thursday at 1 to take the bins out.", "2026-11-13T01:00:00"),
         ("Remind me on Thursday at 11 pm to lock up.", "2026-11-11T23:00:00Z"),
         ("Remind me in two days, before Thursday, to pay.", "2026-11-10T07:00:00"),
+        ("Remind me at 6pm the evening ahead of Thursday's meeting.", "2026-11-11T18:00:00"),
+        ("Remind me beforehand about Thursday's meeting, at 7.", "2026-11-11T07:00:00"),
+        ("Remind me in advance of Thursday's meeting, at 7.", "2026-11-11T07:00:00"),
         ("Remind me on Thursday at 7, and again on Friday.", "2026-11-13T07:00:00"),
         ("Remind me on Thursday and Friday at 7 to stretch.", "2026-11-13T07:00:00"),
         ("Remind me every Thursday at 7 to stretch.", "2026-11-13T07:00:00"),

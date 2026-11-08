@@ -80,7 +80,7 @@ never a reading of what the tree does now.
 - **[R-1031](tasks/1031-a-reply-keeping-a-fact-for-this-chat-in-another-language-gets-no-note.md)** A reply keeping a fact for this chat in another language gets no note (memory). Its claim was checked against the code on 2026-11-07.
 - **[R-1037](tasks/1037-an-english-second-clause-with-a-verb-and-no-object-can-refuse-the-tool-it-asks-for.md)** An English second clause with a verb and no object can refuse the tool it asks for (memory). Its claim was checked against the code on 2026-11-08.
 - **[R-1043](tasks/1043-the-not-stored-reader-misses-no-records-of-in-the-plural.md)** The not stored reader misses no records of in the plural (memory). Its claim was checked against the code on 2026-11-08.
-- **[R-1044](tasks/1044-the-weekday-refusal-moves-a-reminder-meant-for-today-or-the-day-ahead.md)** The weekday refusal moves a reminder meant for today or the day ahead (schedules). Its claim was checked against the code on 2026-11-08.
+- **[R-1044](tasks/1044-the-weekday-refusal-moves-a-reminder-meant-for-today.md)** The weekday refusal moves a reminder meant for today (schedules). Its claim was checked against the code on 2026-11-08.
 - **[R-1045](tasks/1045-the-weekly-refusal-refuses-tuesday-mornings-and-other-repeat-forms.md)** The weekly refusal refuses Tuesday mornings and other repeat forms (schedules). Its claim was checked against the code on 2026-11-08.
 - **[R-1046](tasks/1046-a-request-not-to-keep-beside-to-yourself-or-anyone-is-stored.md)** A request not to keep beside to yourself or anyone is stored (memory). Its claim was checked against the code on 2026-11-08.
 
@@ -882,7 +882,7 @@ never a reading of what the tree does now.
 
 2 open of 2.
 
-- [R-1044](tasks/1044-the-weekday-refusal-moves-a-reminder-meant-for-today-or-the-day-ahead.md) The weekday refusal moves a reminder meant for today or the day ahead. open, actionable.
+- [R-1044](tasks/1044-the-weekday-refusal-moves-a-reminder-meant-for-today.md) The weekday refusal moves a reminder meant for today. open, actionable.
 - [R-1045](tasks/1045-the-weekly-refusal-refuses-tuesday-mornings-and-other-repeat-forms.md) The weekly refusal refuses Tuesday mornings and other repeat forms. open, actionable.
 
 ### scheduling
