@@ -39,3 +39,8 @@ same with the forms swapped: 1 row.
   through the start hash and this build, the 49 calls of the 46 recorded forget turns of
   2026-11-07 get the same cards, results and rows left. A value written only in groups under four
   characters is still missed: [1042](1042-a-forget-misses-a-value-written-in-groups-under-four.md).
+- 2026-11-08: two live flows on the stack brain built from `082de5b41` stored "my phone number is
+  0151 2345 6789", then "call my phone at 015123456789 after six", then asked "Forget my phone
+  number.": the model passed `0151 2345 6789` in both, both cards listed the second row under "Listed
+  because they also hold 0151 2345 6789:", and no row holding the number was left (driver
+  `SCRATCH/slot7/live.sh`). The start hash lists no repeat for a call whose text is the value.
