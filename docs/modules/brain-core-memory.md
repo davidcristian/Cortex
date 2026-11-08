@@ -202,7 +202,7 @@ pool down to the hits one turn sees. The turn that calls it is in
   clause with no condition such as `if` or `should` and no negation before it, and no negation
   after it) does not. The note tells the person the number is still held and that a forget of the number
   itself removes it; it deletes nothing
-  ([readings](../readings/forget-value-repeats.md#the-note-the-brain-appends-drawn-2026-11-07)).
+  ([readings](../readings/forget-value-repeats.md#the-note-the-brain-appends-drawn-2026-11-07)). When a call of the turn deleted rows and another matched nothing, `limit_notes` appends `DELETED_UNFOUND_NOTE` (`forget_unfound_claim.py`) to a reply `says_not_stored` reads, since the later text may have named the deleted fact in other words; the note says so and is true when it named a fact never stored ([readings](../readings/forget-later-call-other-words.md#the-replay-draws-2026-11-08)).
 - `RecallPolicy` (port, `rerank.py`) turns an over-fetched pool into the final `k` hits:
   `candidate_k(k)` sizes the pool and `async select(hits, *, query, now, k, session_id=None,
   turn_id=None) -> Ranking` reranks and cuts it, returning at most `k` hits from the pool, none

@@ -67,3 +67,52 @@ call named the passport that was never stored: pph1 says so of the passport only
 and pph2 says the deleted phone was not found either. A call that matched nothing showed no card,
 so those records hold no later text. A note for the form would show on both replies, so its text
 must be true for each.
+
+## The replay draws: condition, 2026-11-08
+
+Written before any replay draw. The form came in 2 of 10 live draws, so the four draws the rule
+needs are reached by replaying the two recorded requests that held it, straight to the model
+host, so the calls and their results are fixed and only the reply is drawn. The requests are the
+last model requests of lk3 (`req.log` line 581: `5819` deleted, then `locker combination`: none
+found) and bk3 (line 554: `4512` deleted, `bike code`: none found, then `bike lock code`: deleted
+earlier), sent with `stream` off and the recorded sampling, alternating lk3 and bk3, until 20
+draws or 10 minutes of model time. Every replay draw shows the form. The note is a check of the
+reply after the model has answered, so both builds send the same requests and the draws serve the
+start hash and the build alike; the build's note is computed for each reply from the same runs and
+the count of calls that matched nothing. A draw whose answer is a tool call has no reply and is
+counted apart. The pass rule above applies to the replay draws as written; its second item is
+measured by replaying every recorded reply of a forget turn through the build.
+
+## The replay draws, 2026-11-08
+
+Twenty draws from 04:58:33 to 04:59:06, 33 seconds of model time, every one a reply (`finish`
+`stop`), on the stack's model host. The SM clock read 0.57 of its maximum before, 0.61 at 38% use
+during and 0.62 after. All twenty show the form. Each reply is read by hand for the rule, and the
+build's note is computed by `unfound_claim` with the request's runs and one call that matched
+nothing (`/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot8/replay_readers.py`, output `readers.log` beside it). No bk3 reply says anything was
+not found; each names the removal, so none fails and none gets the note. The lk3 replies:
+
+| Draw | Turn d reply, after the removal it names | Says not found | Note on the build |
+| --- | --- | --- | --- |
+| 1 | `I couldn't find any entries specifically for "locker combination," but since it's gone now, it won't be stored.` | yes | yes |
+| 3 | `Regarding the locker combination, I didn't have any record of it stored.` | yes | yes |
+| 5 | `I didn't find any stored records for that specific phrase.` | yes | yes |
+| 7 | `It appears that nothing else related to those terms was stored.` | no | no |
+| 9 | `I couldn't find any other entries regarding a "locker combination," so nothing else was deleted.` | other entries | yes |
+| 11 | `I couldn't find any specific entry for that, so it doesn't appear to have been stored.` | yes | yes |
+| 13 | only the removal: `I've removed the gym locker code and the locker combination from my memory.` | no | no |
+| 15 | `I couldn't find any entries for "locker combination," so it appears that information was not stored.` | yes | yes |
+| 17 | `I also checked ... and confirmed that nothing else was stored.` | no | no |
+| 19 | `I couldn't find any existing memory for "locker combination," so there was nothing to delete for that part of your request.` | yes | yes |
+
+On the start hash, which appends no note, 6 of the 20 draws fail: draws 1, 3, 5, 11, 15 and 19. On
+the build all 20 pass: the six and draw 9 end with the note, and no reply that names only the
+removal or `nothing else` gets it. The rule's second item: of the 119 distinct recorded forget
+turns with a successful call (`replay_turns.py`, output `turns.log`, a call with no approved card
+counted as one that matched nothing, which counts the most notes), the 22 with no delete get no
+note, and 3 of the 97 with a delete get it: pph1, whose passport was never stored, pph2, which
+says the deleted phone was not found, and live lk3. The note says the text may be among the
+deleted exchanges, which is true of all three. Over the 143 distinct recorded forget replies, slot
+7's candidate reader reads 22 and the build's reads 18; the 4 it releases say a new phone number
+the forget message gave was not saved, which `FORGET_NOT_KEPT_NOTE` requires. The rule passes, so
+the note ships.

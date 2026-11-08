@@ -1,9 +1,8 @@
 # A later forget with other words says a deleted fact was never stored
 
-**Status:** open, actionable
+**Status:** done 2026-11-08
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-08
 
 When a `forget_memories` call matches nothing after an earlier call in the same turn deleted rows,
 `_about` in `memory_forget_chosen.py` returns `_ALREADY_DELETED` only when the new text is a
@@ -61,3 +60,9 @@ paraphrase.
   reads 22, among them 4 saying a new phone number was not saved because the message asked to
   forget, which `FORGET_NOT_KEPT_NOTE` requires: add them as near misses, or check that their
   turns had no call that matched nothing, before drawing it.
+- 2026-11-08: done. `forget_unfound_claim.py` appends `DELETED_UNFOUND_NOTE` after a reply that
+  `says_not_stored` reads when a forget call of the turn deleted rows and another matched nothing;
+  the note says the text may be among the deleted exchanges, true for both later texts. A
+  question and a clause naming something `new` do not count. On 20 replay draws of the recorded
+  lk3 and bk3 requests, 6 failed with no note and all 20 passed on the build
+  ([readings](../../readings/forget-later-call-other-words.md#the-replay-draws-2026-11-08)).
