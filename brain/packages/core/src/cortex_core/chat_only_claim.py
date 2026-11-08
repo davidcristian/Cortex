@@ -12,7 +12,8 @@ _KEEP = (
     r"|store|stored|save|saved|track)\b"
 )
 _CHAT = (
-    r"\b(?:for|during|in|throughout|within)\s+(?:the\s+(?:rest|course|length)\s+of\s+)?"
+    r"\b(?:for|during|in|throughout|within|until\s+the\s+end\s+of|while|as\s+long\s+as)\s+"
+    r"(?:the\s+(?:rest|course|length)\s+of\s+)?"
     r"(?:this|our|the)\s+(?:current\s+)?(?:conversation|chat|session)\b(?!['\u2019]s\b)"
 )
 _CHAT_ONLY = re.compile(rf"{_KEEP}.*?{_CHAT}", re.IGNORECASE)
@@ -34,10 +35,12 @@ _CHAT_NOUN = (
     r"|conversaci[óo]n|charla|sesi[óo]n|intercambio|conversa[țţt]i|discu[țţt]i|sesiun)\w*"
 )
 _CHAT_OTHER = (
-    r"\b(?:pour|pendant|durant|dans|au\s+cours\s+de|tout\s+au\s+long\s+de"
-    r"|für|während|in|im|bis\s+zum\s+Ende"
-    r"|para|durante|en|a\s+lo\s+largo\s+de|hasta\s+el\s+final\s+de"
-    r"|pentru|pe\s+(?:tot\s+)?parcursul|pe\s+durata|în\s+timpul|în)\s+"
+    r"\b(?:pour(?!\s+le\s+chat\b)|pendant|durant|dans|au\s+cours\s+de|tout\s+au\s+long\s+de"
+    r"|jusqu['\u2019]\s*à|tant\s+que\s+dure"
+    r"|für|während|in|im|bis\s+zum\s+Ende|solange"
+    r"|para|durante|en|a\s+lo\s+largo\s+de|hasta\s+el\s+final\s+de|mientras\s+dure"
+    r"|pentru|pe\s+(?:tot\s+)?parcursul|pe\s+durata|în\s+timpul|în"
+    r"|p[âa]n[ăa]\s+la\s+(?:sf[âa]r[șşs]itul|finalul))\s+"
     r"(?:(?:la\s+suite|le\s+reste|la\s+durée|la\s+fin|den\s+Rest|die\s+Dauer|Laufe|el\s+resto"
     r"|restul|durata)\s+(?:de\s+|d['\u2019]\s*)?)?"
     r"(?:(?:cette|cet|ce|notre|la|le|l['\u2019]|dieses|diesem|dieser|diese|unseres|unserem"

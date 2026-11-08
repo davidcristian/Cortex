@@ -35,6 +35,9 @@ CHAT_ONLY = [
     "I\u2019ll remember it in this conversation.",
     "I'll keep that in mind for our conversation. Anything else I can help with?",
     "I'll keep this in mind for our chat. Tell me later if it changes.",
+    "I'll remember it until the end of our conversation.",
+    "I'll keep it in mind while this chat lasts.",
+    "I'll remember it as long as this conversation lasts.",
 ]
 
 NOT_CHAT_ONLY = [
@@ -48,6 +51,9 @@ NOT_CHAT_ONLY = [
     "In this conversation you told me your car is a Fiat, and I noted it.",
     "Your gym class is on Tuesday, as you said in this chat.",
     "I'll save the file in the folder for this session's notes.",
+    "I'll remember it until the end of the year.",
+    "I'll keep it in mind while you travel.",
+    "I'll remember it as long as you like, in this chat and later ones.",
 ]
 
 
@@ -71,6 +77,14 @@ CHAT_ONLY_OTHER = [
     "Ich merke es mir für den Rest unseres Gesprächs, alles klar.",
     "Ich merke es mir in diesem Gespräch, Sie können es jederzeit ändern.",
     "Je garde votre code pendant cette conversation, et chaque détail compte.",
+    "Lo recordaré mientras dure esta conversación.",
+    "Je m'en souviendrai jusqu'à la fin de notre échange.",
+    "Je m\u2019en souviendrai jusqu\u2019à la fin de cette conversation.",
+    "Je m'en souviendrai tant que dure notre conversation.",
+    "Ich merke es mir, solange dieses Gespräch dauert.",
+    "Voi reține asta până la sfârșitul conversației.",
+    "Je m'en souviendrai pendant le chat.",
+    "J'ai noté votre code pour ce chat.",
 ]
 
 NOT_CHAT_ONLY_OTHER = [
@@ -97,6 +111,12 @@ NOT_CHAT_ONLY_OTHER = [
     "Ich merke es mir in diesem Gespräch und in jedem anderen Gespräch.",
     "Lo recordaré en esta conversación y en otras conversaciones.",
     "Voi reține asta în această conversație și în toate conversațiile.",
+    "J'ai noté d'acheter des croquettes pour le chat.",
+    "Lo recordaré mientras dure el viaje.",
+    "Je m'en souviendrai jusqu'à la fin de l'année.",
+    "Ich merke es mir, solange die Reise dauert.",
+    "Voi reține asta până la sfârșitul anului.",
+    "Lo recordaré mientras dure esta conversación y en las próximas.",
 ]
 
 

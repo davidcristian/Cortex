@@ -145,3 +145,11 @@ scope: "Je n'enregistre pas les appels, mais le code de mon casier est 5819." (`
 2026-11-07) and "Retiens que mon code est 4512. Merci beaucoup !" (`s3-f`, 2026-11-08). A needless
 note is the safe side here, so a keep verb and a chat phrase count in either order in the four
 languages.
+
+The reader then missed a limit written with a duration phrase (`mientras dure esta conversación`,
+`jusqu'à la fin de notre échange`) and read `pour le chat`, the cat, as the conversation. It now
+also reads `until the end of`, `while`, `as long as`, `jusqu'à`, `tant que dure`, `solange`,
+`mientras dure` and `până la sfârșitul` before a chat noun, and `pour le chat` no longer counts;
+`pendant le chat` still does. Replayed over the same 749 replies, the old and new reader each flag
+the same 4 and change none (`replay4.py` and `replay4.log` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot15/`).

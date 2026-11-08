@@ -155,10 +155,10 @@ pool down to the hits one turn sees. The turn that calls it is in
   and a bare "Noted" past the reply's first line, which is a line read back from a file. With
   memory off the check is false and no note shows.
 - `claims_chat_only(reply)` (`chat_only_claim.py`) is true when a statement, not a question, says
-  something is kept, remembered, noted or kept in mind "for", "during" or "in" this or our chat,
-  conversation or session, and names no later or future one and no "not just"; in French, German,
-  Spanish and Romanian a keep verb and a chat phrase ("pour la suite de notre conversation") count
-  in either order. On a turn memory stores under a scope that `recalls_across_chats`, `limit_notes`
+  something is kept, remembered or noted "for", "during", "in", "while" or "until the end of" this
+  or our chat, conversation or session, and names no later or future one and no "not just"; in
+  French, German, Spanish and Romanian a keep verb and a chat phrase ("mientras dure esta
+  conversación") count in either order, and "pour le chat" (the cat) does not. On a turn memory stores under a scope that `recalls_across_chats`, `limit_notes`
   then appends `KEPT_BEYOND_CHAT_NOTE`, since every later chat recalls the exchange
   ([readings](../readings/remember-request-tool-search.md)); under `SessionMemoryScope` none shows.
 - `unread_folders_claim(taint, query, reply)` (`file_claim.py`) is true on an untainted turn whose
