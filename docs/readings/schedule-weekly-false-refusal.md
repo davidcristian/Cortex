@@ -107,3 +107,6 @@ which now opens "(A reminder set in this turn is for one day only." and so is tr
 Of the 16 retries recorded above, 7 kept `on_days` and 9 stored a one-time `at`; no draw stored
 both, and the 5 retries in the start build's proxy log (`req.log` in the stack's `logs/`) all
 used `at`. The tests over fakes in `test_schedule_weekly_once.py` are the evidence for both orders.
+`STORED_TIME_NOTE`, `MONTHLY_STORED_NOTE` and `WEEKDAY_OFF_NOTE` open the same way ("A reminder",
+"Un rappel", "Eine hier erstellte", "Un recordatorio", "Un memento"), since a turn may store two items
+and each note names only one.

@@ -27,7 +27,12 @@ from cortex_core import (
 from cortex_core.closing_notes import limit_notes
 from cortex_core.schedule_time import UTC_DISPLAY, DisplayZone
 from cortex_core.schedule_verbs import EDIT_SCHEDULED_TOOL_NAME
-from cortex_core.schedule_weekday import WEEKDAY_OFF_NOTE, weekday_off, weekday_off_note
+from cortex_core.schedule_weekday import (
+    WEEKDAY_OFF_NOTE,
+    WEEKDAY_OFF_NOTES,
+    weekday_off,
+    weekday_off_note,
+)
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 
 _AT = datetime(2026, 11, 8, 3, 0, 0, tzinfo=UTC)
@@ -39,7 +44,7 @@ _FOLLOW_UP = "Remind me at 9 to follow up on Monday's call."
 _MUM = "Remind me Monday at 9pm to call mum."
 _LOS_ANGELES = ZoneInfo("America/Los_Angeles")
 _ENGLISH_FRIDAY = (
-    "\n\n(The reminder set in this turn is on Friday 2026-11-13. Ask to move it if you meant "
+    "\n\n(A reminder set in this turn is on Friday 2026-11-13. Ask to move it if you meant "
     "another day.)"
 )
 
@@ -237,3 +242,16 @@ async def test_a_deep_store_a_day_off_the_named_weekday_runs_and_shows_the_note(
     )
     shown = _shown(await harness.run_handoff(live, harness.prepared_slot()))
     assert "auf Freitag, 2026-11-13 gestellt" in shown
+
+
+@pytest.mark.parametrize(
+    ("language", "opening"),
+    [
+        ("fr", "(Un rappel créé ici"),
+        ("de", "(Eine hier erstellte Erinnerung"),
+        ("es", "(Un recordatorio creado aquí"),
+        ("ro", "(Un memento creat aici"),
+    ],
+)
+def test_a_translated_note_names_one_reminder_of_the_turn(language: str, opening: str) -> None:
+    assert WEEKDAY_OFF_NOTES[language].removeprefix("\n\n").startswith(opening)

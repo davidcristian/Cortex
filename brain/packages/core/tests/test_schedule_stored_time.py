@@ -19,6 +19,7 @@ from cortex_core import (
 )
 from cortex_core.closing_notes import limit_notes
 from cortex_core.schedule_claim import (
+    MONTHLY_STORED_NOTE,
     STORED_TIME_NOTE,
     STORED_TIME_NOTES,
     names_time_of_day,
@@ -279,3 +280,20 @@ async def test_the_last_timed_call_that_ran_sets_the_stored_time(
     calls: list[ToolCall], time: str
 ) -> None:
     assert (await _loop(calls)).stored_time == time
+
+
+@pytest.mark.parametrize(
+    ("note", "opening"),
+    [
+        (MONTHLY_STORED_NOTE, "(A reminder set in this turn repeats"),
+        (STORED_TIME_NOTE, "(A reminder set or changed in this turn is at"),
+        (STORED_TIME_NOTES["fr"], "(Un rappel créé ou modifié ici"),
+        (STORED_TIME_NOTES["de"], "(Eine hier erstellte oder geänderte Erinnerung"),
+        (STORED_TIME_NOTES["es"], "(Un recordatorio creado o cambiado aquí"),
+        (STORED_TIME_NOTES["ro"], "(Un memento creat sau modificat aici"),
+    ],
+)
+def test_a_note_names_one_reminder_of_the_turn_and_not_its_only_one(
+    note: str, opening: str
+) -> None:
+    assert note.removeprefix("\n\n").startswith(opening)

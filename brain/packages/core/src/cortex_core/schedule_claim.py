@@ -15,22 +15,22 @@ UNSCHEDULED_CLAIM_NOTE = (
 )
 
 MONTHLY_STORED_NOTE = (
-    "\n\n(The reminder set in this turn repeats on that day of every month, not once a year. Ask "
+    "\n\n(A reminder set in this turn repeats on that day of every month, not once a year. Ask "
     "to change it if you meant once a year.)"
 )
 
 STORED_TIME_NOTE = (
-    "\n\n(The reminder set or changed in this turn is at {time}. Ask to change it if you meant "
+    "\n\n(A reminder set or changed in this turn is at {time}. Ask to change it if you meant "
     "another time of day.)"
 )
 STORED_TIME_NOTES = {
-    "fr": "\n\n(Le rappel créé ou modifié ici est fixé à {time}. Demandez à le modifier si vous "
+    "fr": "\n\n(Un rappel créé ou modifié ici est fixé à {time}. Demandez à le modifier si vous "
     "pensiez à une autre heure.)",
-    "de": "\n\n(Die hier erstellte oder geänderte Erinnerung ist auf {time} gestellt. Bitten Sie "
+    "de": "\n\n(Eine hier erstellte oder geänderte Erinnerung ist auf {time} gestellt. Bitten Sie "
     "um eine Änderung, wenn Sie eine andere Uhrzeit meinten.)",
-    "es": "\n\n(El recordatorio creado o cambiado aquí es a {las} {time}. Pide cambiarlo si te "
+    "es": "\n\n(Un recordatorio creado o cambiado aquí es a {las} {time}. Pide cambiarlo si te "
     "referías a otra hora del día.)",
-    "ro": "\n\n(Mementoul creat sau modificat aici este la ora {time}. Cere să fie schimbat dacă "
+    "ro": "\n\n(Un memento creat sau modificat aici este la ora {time}. Cere să fie schimbat dacă "
     "te gândeai la altă oră.)",
 }
 

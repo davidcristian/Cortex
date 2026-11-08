@@ -6,17 +6,16 @@ from cortex_core.schedule_weekly import WEEKDAY_NAMES, named_weekday, stores_onc
 from cortex_core.tools import ToolCall, ToolResult
 
 WEEKDAY_OFF_NOTE = (
-    "\n\n(The reminder set in this turn is on {day} {date}. Ask to move it if you meant another "
-    "day.)"
+    "\n\n(A reminder set in this turn is on {day} {date}. Ask to move it if you meant another day.)"
 )
 WEEKDAY_OFF_NOTES = {
-    "fr": "\n\n(Le rappel créé ici est fixé au {day} {date}. Demandez à le déplacer si vous "
+    "fr": "\n\n(Un rappel créé ici est fixé au {day} {date}. Demandez à le déplacer si vous "
     "pensiez à un autre jour.)",
-    "de": "\n\n(Die hier erstellte Erinnerung ist auf {day}, {date} gestellt. Bitten Sie um eine "
+    "de": "\n\n(Eine hier erstellte Erinnerung ist auf {day}, {date} gestellt. Bitten Sie um eine "
     "Verschiebung, wenn Sie einen anderen Tag meinten.)",
-    "es": "\n\n(El recordatorio creado aquí es para el {day} {date}. Pide moverlo si te referías a "
+    "es": "\n\n(Un recordatorio creado aquí es para el {day} {date}. Pide moverlo si te referías a "
     "otro día.)",
-    "ro": "\n\n(Mementoul creat aici este pentru {day}, {date}. Cere să fie mutat dacă te gândeai "
+    "ro": "\n\n(Un memento creat aici este pentru {day}, {date}. Cere să fie mutat dacă te gândeai "
     "la altă zi.)",
 }
 _DAY_NAMES = {
