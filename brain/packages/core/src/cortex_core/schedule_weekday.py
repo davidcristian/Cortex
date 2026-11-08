@@ -31,7 +31,6 @@ _MOVES_DAY = re.compile(
 )
 # Before 04:00 or from 22:00 a written date may be read as the night of the day before or after.
 _CLEAR_HOURS = range(4, 22)
-_ONE_DAY_OFF = (1, 6)
 
 
 def _written_at(call: ToolCall) -> datetime | None:
@@ -51,19 +50,23 @@ def _named(query: str) -> int | None:
     return None if _MOVES_DAY.search(query) is not None else named_weekday(query)
 
 
-def weekday_mismatch(call: ToolCall, query: str) -> tuple[date, int] | None:
-    """The date ``call`` writes and the weekday ``query`` names, when the two weekdays differ."""
+def weekday_mismatch(call: ToolCall, query: str, today: date) -> tuple[date, int] | None:
+    """The date ``call`` writes and the weekday ``query`` names, when it is the day after it.
+
+    ``today`` is the date in the person's zone; a date that is today is never read as wrong.
+    """
     when = _written_at(call)
     named = _named(query)
-    # Only a day either side: a date further off is more often another day the person meant.
-    if when is None or named is None or (when.weekday() - named) % 7 not in _ONE_DAY_OFF:
+    # A date before the named day, or today, may be for a reminder ahead of it, and a date further
+    # off is more often another day the person meant.
+    if when is None or named is None or when.date() == today or (when.weekday() - named) % 7 != 1:
         return None
     return when.date(), named
 
 
-def weekday_date_wrong(call: ToolCall, query: str) -> bool:
-    """Whether ``call`` stores a one-time date on another weekday than the one ``query`` names."""
-    return weekday_mismatch(call, query) is not None
+def weekday_date_wrong(call: ToolCall, query: str, today: date) -> bool:
+    """Whether ``call`` stores a one-time date the day after the weekday ``query`` names."""
+    return weekday_mismatch(call, query, today) is not None
 
 
 def weekday_refusal(day: date, named: int) -> str:

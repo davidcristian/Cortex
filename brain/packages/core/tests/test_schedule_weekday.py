@@ -1,5 +1,6 @@
 from collections.abc import Mapping
 from datetime import UTC, date, datetime
+from zoneinfo import ZoneInfo
 
 import pytest
 import swap_harness as harness
@@ -21,6 +22,8 @@ from cortex_core import (
 )
 from cortex_core.brain_phase import BrainPhase
 from cortex_core.handoff_view import weekday_refused_calls
+from cortex_core.ports import Clock
+from cortex_core.schedule_time import UTC_DISPLAY, DisplayZone
 from cortex_core.schedule_verbs import EDIT_SCHEDULED_TOOL_NAME
 from cortex_core.schedule_weekday import (
     WEEKDAY_DATE_MSG,
@@ -33,6 +36,15 @@ _AT = datetime(2026, 11, 8, 3, 0, 0, tzinfo=UTC)
 _DOCTOR = "Erinnere mich am Donnerstag um 7 Uhr an den Arzttermin."
 _FRIDAY = {"text": "Arzttermin", "at": "2026-11-13T07:00:00"}
 _THURSDAY = {"text": "Arzttermin", "at": "2026-11-12T07:00:00"}
+_TODAY = date(2026, 11, 8)
+_BERLIN = DisplayZone(name="Europe/Berlin", tz=ZoneInfo("Europe/Berlin"))
+_CHAIRS = "Remind me at 6pm to return the chairs from Saturday's party."
+_SUNDAY_6PM = {"text": "chairs", "at": "2026-11-08T18:00:00"}
+
+
+class _BerlinMidnight:
+    def now(self) -> datetime:
+        return datetime(2026, 11, 7, 23, 30, tzinfo=UTC)
 
 
 def _call(arguments: Mapping[str, object], name: str = SCHEDULE_TOOL_NAME) -> ToolCall:
@@ -44,18 +56,25 @@ def _call(arguments: Mapping[str, object], name: str = SCHEDULE_TOOL_NAME) -> To
     [
         (_DOCTOR, "2026-11-13T07:00:00"),
         ("Remind me on Thursday at 7 to call the doctor.", "2026-11-13T07:00:00"),
-        ("Remind me on Thursday morning at 7 to call the doctor.", "2026-11-11T07:00:00+01:00"),
+        ("Remind me on Thursday morning at 7 to call the doctor.", "2026-11-13T07:00:00+01:00"),
         ("Rappelle-moi jeudi à 7h d'appeler le médecin.", "2026-11-13T07:00:00Z"),
-        ("Recuérdame el jueves a las 7 llamar al médico.", "2026-11-11T07:00:00"),
+        ("Recuérdame el jueves a las 7 llamar al médico.", "2026-11-13T07:00:00"),
         ("Amintește-mi joi la 7 să sun la doctor.", "2026-11-13T07:00:00"),
-        ("Remind me on Thursday evening at 7 to call the doctor.", "2026-11-11T19:00:00"),
+        ("Remind me on Thursday evening at 7 to call the doctor.", "2026-11-13T19:00:00"),
         ("Remind me on Thursday at 7 to call the head office.", "2026-11-13T07:00:00"),
+        ("Remind me Tuesday evening at 7.", "2026-11-11T19:00:00"),
+        ("Remind me at 6pm to put the bins out for Monday's collection.", "2026-11-10T18:00:00"),
     ],
 )
-def test_a_one_time_date_on_another_weekday_than_the_one_named_is_wrong(
-    message: str, at: str
-) -> None:
-    assert weekday_date_wrong(_call({"text": "t", "at": at}), message)
+def test_a_one_time_date_the_day_after_the_weekday_named_is_wrong(message: str, at: str) -> None:
+    assert weekday_date_wrong(_call({"text": "t", "at": at}), message, _TODAY)
+
+
+def test_a_date_the_day_after_the_weekday_named_is_wrong_unless_it_is_today() -> None:
+    call = _call({"text": "t", "at": "2026-11-08T18:00:00"})
+    message = "Remind me at 6pm to return the chairs from Saturday's party."
+    assert weekday_date_wrong(call, message, date(2026, 11, 7))
+    assert not weekday_date_wrong(call, message, _TODAY)
 
 
 @pytest.mark.parametrize(
@@ -63,6 +82,16 @@ def test_a_one_time_date_on_another_weekday_than_the_one_named_is_wrong(
     [
         (_DOCTOR, "2026-11-12T07:00:00"),
         (_DOCTOR, "2026-11-19T07:00:00+01:00"),
+        (_DOCTOR, "2026-11-11T07:00:00"),
+        ("Remind me Tuesday evening at 7.", "2026-11-09T19:00:00"),
+        ("Remind me on Thursday evening at 7 to call the doctor.", "2026-11-11T19:00:00"),
+        ("Remind me at 6pm to put the bins out for Monday's collection.", "2026-11-08T18:00:00"),
+        ("Remind me at 6pm to pack for Tuesday's trip.", "2026-11-09T18:00:00"),
+        ("Remind me this evening to prepare for Monday's meeting.", "2026-11-08T19:00:00"),
+        ("Rappelle-moi ce matin de préparer la réunion de lundi.", "2026-11-08T10:00:00"),
+        ("Erinnere mich in einer Stunde an das Meeting am Montag.", "2026-11-08T06:30:00"),
+        ("Recuérdame en una hora la reunión del lunes.", "2026-11-08T06:30:00"),
+        ("Remind me at 6pm to return the chairs from Saturday's party.", "2026-11-08T18:00:00"),
         ("I work Tuesdays, remind me Friday at 8 to call mum.", "2026-11-13T08:00:00"),
         ("Note my flight on Friday, then please ring me at 6.", "2026-11-08T18:00:00"),
         ("Remind me on Thursday at 7 to call the doctor.", "2026-11-14T07:00:00"),
@@ -96,10 +125,10 @@ def test_a_one_time_date_on_another_weekday_than_the_one_named_is_wrong(
         ("Amintește-mi mâine de programarea de joi.", "2026-11-09T07:00:00"),
     ],
 )
-def test_the_named_weekday_a_day_moving_word_or_an_unclear_hour_is_not_wrong(
+def test_the_named_weekday_the_day_before_today_a_moving_word_or_an_unclear_hour_is_not_wrong(
     message: str, at: str
 ) -> None:
-    assert not weekday_date_wrong(_call({"text": "t", "at": at}), message)
+    assert not weekday_date_wrong(_call({"text": "t", "at": at}), message, _TODAY)
 
 
 @pytest.mark.parametrize(
@@ -115,7 +144,7 @@ def test_the_named_weekday_a_day_moving_word_or_an_unclear_hour_is_not_wrong(
 def test_only_a_schedule_call_with_a_readable_at_is_read(
     name: str, arguments: Mapping[str, object]
 ) -> None:
-    assert not weekday_date_wrong(_call(arguments, name), _DOCTOR)
+    assert not weekday_date_wrong(_call(arguments, name), _DOCTOR, _TODAY)
 
 
 def test_the_refusal_names_both_weekdays_and_the_dates_of_the_named_one_around_it() -> None:
@@ -126,7 +155,9 @@ def test_the_refusal_names_both_weekdays_and_the_dates_of_the_named_one_around_i
     assert "2026-11-12 and 2026-11-19" in said
 
 
-async def _loop(query: str, calls: list[ToolCall]) -> tuple[list[object], list[Message]]:
+async def _loop(
+    query: str, calls: list[ToolCall], clock: Clock | None = None, zone: DisplayZone = UTC_DISPLAY
+) -> tuple[list[object], list[Message]]:
     ran: list[object] = []
 
     async def handler(arguments: Mapping[str, object]) -> str:
@@ -137,12 +168,13 @@ async def _loop(query: str, calls: list[ToolCall]) -> tuple[list[object], list[M
     registry = InMemoryToolRegistry({SCHEDULE_TOOL_NAME: (spec, handler)})
     context = ToolLoopContext(
         dispatcher=ToolDispatcher(registry, RecordingAuditSink(), TickingClock()),
-        clock=TickingClock(),
+        clock=clock or TickingClock(),
         turn_id="t",
         taint=TaintLedger(),
         nonce="n",
         session_id="s",
         query=query,
+        zone=zone,
     )
     working = [Message(role=Role.USER, text=query, at=_AT, turn_id="t")]
     backend = ScriptedBrainBackend(chunks=("done",), tool_calls=calls)
@@ -158,6 +190,15 @@ async def test_a_wrong_weekday_is_refused_once_and_the_retry_always_runs() -> No
     assert WEEKDAY_DATE_MSG in results[0].text
     assert "2026-11-13 is a Friday" in results[0].text
     assert "scheduled" in results[1].text
+
+
+@pytest.mark.parametrize(("zone", "expected"), [(_BERLIN, [_SUNDAY_6PM]), (UTC_DISPLAY, [])])
+async def test_a_date_that_is_today_in_the_persons_zone_runs_at_once(
+    zone: DisplayZone, expected: list[object]
+) -> None:
+    call = ToolCall(id="c1", name=SCHEDULE_TOOL_NAME, arguments=_SUNDAY_6PM)
+    ran, _ = await _loop(_CHAIRS, [call], _BerlinMidnight(), zone)
+    assert ran == expected
 
 
 async def test_a_retry_on_the_named_weekday_runs_after_the_refusal() -> None:
@@ -220,7 +261,7 @@ async def _deep_retry(
         chunks=("done",), tool_calls=(ToolCall(id="c2", name=SCHEDULE_TOOL_NAME, arguments=retry),)
     )
     phase = BrainPhase(
-        sessions, backend, SystemClock(), "brain", TurnCapabilities(tools=dispatcher)
+        sessions, backend, TickingClock(), "brain", TurnCapabilities(tools=dispatcher)
     )
     record = harness.prepared_slot(tail=tail).snapshot(
         turn_id=harness.TURN, session_id=harness.SESSION, requested_at=_AT

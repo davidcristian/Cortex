@@ -2,6 +2,7 @@
 
 from collections.abc import AsyncGenerator, Mapping
 from dataclasses import dataclass, field, replace
+from datetime import date
 
 from cortex_core.cadence import CadenceWatch
 from cortex_core.conversation import Message
@@ -110,18 +111,28 @@ def _unasked_refusal(
     if not retried and monthly_for_yearly(call, context.query):
         record.yearly_refused.append(call)
         return DispatchRefusal.YEARLY_DATE
+    query = context.query
     checks = (
-        (record.offset_refused, offset_date_wrong, DispatchRefusal.OFFSET_DATE),
-        (record.midnight_refused, midnight_unasked, DispatchRefusal.MIDNIGHT_TIME),
-        (record.weekly_refused, weekly_unasked, DispatchRefusal.WEEKLY_DAY),
-        (record.weekday_refused, weekday_date_wrong, DispatchRefusal.WEEKDAY_DATE),
+        (record.offset_refused, offset_date_wrong(call, query), DispatchRefusal.OFFSET_DATE),
+        (record.midnight_refused, midnight_unasked(call, query), DispatchRefusal.MIDNIGHT_TIME),
+        (record.weekly_refused, weekly_unasked(call, query), DispatchRefusal.WEEKLY_DAY),
+        (
+            record.weekday_refused,
+            weekday_date_wrong(call, query, _today(context)),
+            DispatchRefusal.WEEKDAY_DATE,
+        ),
     )
     # Each of these refuses once per turn, so the model's retry always runs.
     for refused, wrong, refusal in checks:
-        if not refused and wrong(call, context.query):
+        if not refused and wrong:
             refused.append(call)
             return refusal
     return None
+
+
+def _today(context: ToolLoopContext) -> date:
+    """Today's date in the person's zone."""
+    return context.clock.now().astimezone(context.zone.tz).date()
 
 
 def _refused_by(
@@ -157,7 +168,9 @@ def _told(
     if refusal is DispatchRefusal.WEEKLY_DAY:
         said = weekly_refusal(call, query, context.clock.now(), context.zone)
         return replace(result, content=said)
-    mismatch = weekday_mismatch(call, query) if refusal is DispatchRefusal.WEEKDAY_DATE else None
+    mismatch = None
+    if refusal is DispatchRefusal.WEEKDAY_DATE:
+        mismatch = weekday_mismatch(call, query, _today(context))
     return result if mismatch is None else replace(result, content=weekday_refusal(*mismatch))
 
 
