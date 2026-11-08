@@ -90,3 +90,17 @@ English picks under another language, six are English messages the model answere
 German or Romanian, and three are short messages that tie ("Was ist geplant?", "Ce am programat?")
 or match no list ("No guardes rencor, mi jefe se llama Luis."). No message got a language other
 than its reply's, so the pick **passes**.
+
+## Live turns on the shared stack, 2026-11-08
+
+The `cortexn16` stack brain rebuilt from the commit that adds the pick, one new chat per message,
+cards approved (`/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot12/draws.jsonl`).
+Each turn made one successful `schedule_task` call stored at 09:00; the SM clock read 0.56 to
+0.57 of its maximum.
+
+| Message | Reply names a time | Note shown |
+| --- | --- | --- |
+| `Rappelle-moi le 14 décembre d'envoyer le colis.` | no | French |
+| `Erinnere mich am 14. Dezember an das Paket.` | no | German |
+| `Recuérdame cada año el 12 de octubre el cumpleaños de Ana.` | `a las 09:00` | none |
+| `Amintește-mi pe 14 decembrie să trimit coletul.` | `la ora 09:00` | none |
