@@ -199,3 +199,19 @@ day off and none of the 3 on Thursday. Both N1 draws stored today for a follow u
 call, which is likely not the day the person meant; the old reader did not refuse a date that is
 today, and the note now names it. SM clock 0.51 to 0.57 of `clocks.max.sm`. Chats `s14-*`, log
 `draws.log` in the slot directory above; every item was cancelled and every row deleted.
+
+**Language rows, written before any draw.** Same build and condition, one draw each: L1
+`Rappelle-moi à 18h de sortir les poubelles pour la collecte de lundi.`, L2
+`Recuérdame a las 18 sacar la basura para la recogida del lunes.`, L3
+`Amintește-mi la ora 18 să scot gunoiul pentru colectarea de luni.` The rule is the N rule, with
+the note in French, Spanish and Romanian.
+
+| Row | Stored | Note |
+| --- | --- | --- |
+| L1 | Sunday 2026-11-08 18:00 | French, "au dimanche 2026-11-08" |
+| L2 | Sunday 2026-11-08 18:00 | Spanish, "para el domingo 2026-11-08" |
+| L3 | Sunday 2026-11-08 18:00 | Romanian, "pentru duminică, 2026-11-08" |
+
+**Result.** The rule passes: each reply closed with the note in its message's language. L3's own
+reply held a broken word ("unKy memore"), which is filed as a task. SM clock 0.52 to 0.57 of
+`clocks.max.sm`, log `draws2.log`; the items were cancelled and the rows deleted.
