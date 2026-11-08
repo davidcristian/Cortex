@@ -82,3 +82,19 @@ each reply ended with the note; none of the five weekly retries and none of the 
 showed it. Log `draws.log`, records `draws.jsonl`, items `items.tsv` and calls `calls.py` over
 `brain-draws.log` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot11/`;
 every item and row of the draws was deleted.
+
+## The follow-up the note asks for, written before the first draw
+
+Whether "Make it weekly." in the same chat, after a draw that shows the form and the note, leaves
+one weekly rule on Tuesday at 08:00 and no one-time item, so the person is not reminded twice on
+2026-11-10. Up to eight first turns with F2's message on the same build, chats `s11-u*`; each
+that shows the note gets the follow-up. Items are read from Redis with their status after the
+follow-up. This is a measurement of the shipped note and changes nothing; a follow-up that leaves
+both items, or no weekly rule, is filed as a task with its reproduction.
+
+**Result of the follow-up.** Draws from 06:31 to 06:36, SM clock 0.57 of `clocks.max.sm`. All
+eight first calls were refused; 6 of 8 retries stored a one-time `at` 2026-11-10T08:00 and showed
+the note, and 2 kept the weekly rule with no note. Each of the six follow-ups called
+`list_scheduled`, then `edit_scheduled` on the one-time item's id with `at_time` 08:00 and
+`on_days` `["tue"]`, and left one pending weekly rule on Tuesday at 08:00 and no other item. Log
+`follow.log`, records `follow.jsonl` and items `follow-items.tsv` in the slot directory above.
