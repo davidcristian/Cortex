@@ -8,6 +8,20 @@ NUMBERS_LEFT_NOTE = (
     "\n\n(Other remembered exchanges still hold a number the forgotten ones held, so that number "
     "can still be recalled in later chats. Ask to forget the number itself to remove it.)"
 )
+NUMBERS_LEFT_NOTES = {
+    "fr": "\n\n(D'autres échanges mémorisés contiennent encore un nombre que contenaient ceux qui "
+    "ont été oubliés, donc ce nombre peut encore revenir dans les conversations suivantes. "
+    "Demandez à oublier ce nombre lui-même pour le supprimer.)",
+    "de": "\n\n(Andere gespeicherte Unterhaltungen enthalten noch eine Zahl, die auch in den "
+    "vergessenen stand, daher kann diese Zahl in späteren Chats noch abgerufen werden. Bitten Sie "
+    "darum, die Zahl selbst zu vergessen, um sie zu entfernen.)",
+    "es": "\n\n(Otros intercambios guardados todavía contienen un número que tenían los olvidados, "
+    "así que ese número aún puede recuperarse en chats posteriores. Pide que se olvide el número "
+    "en sí para eliminarlo.)",
+    "ro": "\n\n(Alte schimburi memorate încă conțin un număr pe care îl conțineau cele uitate, așa "
+    "că acel număr poate fi încă regăsit în conversațiile următoare. Cere să fie uitat numărul "
+    "însuși pentru a-l elimina.)",
+}
 
 _REMOVED = re.compile(
     r"\b(?:oubli(?:é|ée|és|ées)|supprim(?:é|ée|és|ées)|effac(?:é|ée|és|ées)"

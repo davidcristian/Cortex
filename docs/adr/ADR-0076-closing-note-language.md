@@ -40,17 +40,17 @@ Three ways to write the note in the right language were compared.
    beside it (`STORED_TIME_NOTES` beside `STORED_TIME_NOTE`); `in_language(english, others,
    language)` returns the English text for a language the mapping does not have. The readers that
    decide whether a note is due are unchanged.
-4. **Built first for the two notes shown most under a reply in another language**:
-   `STORED_TIME_NOTE` and `DAILY_STORED_NOTE`. The other notes stay English until each gets its
-   mapping; that work is task R-999.
+4. **Built first for the three notes shown most under a reply in another language**:
+   `STORED_TIME_NOTE`, `DAILY_STORED_NOTE` and `NUMBERS_LEFT_NOTE`. The other notes stay English
+   until each gets its mapping; that work is task R-999.
 5. **A translated note states the same fact and the same next step as the English one**, in the
    form of address the model used in the recorded replies: `vous` in French, `Sie` in German, `tú`
    in Spanish and `tu` in Romanian.
 
 ## Consequences
 
-- A note in another language is product text the maintainer reviews like any other; the eight
-  sentences are listed in the commit that adds them.
+- A note in another language is product text the maintainer reviews like any other; each
+  translated note is listed in the commit that adds it.
 - A message that changes language mid-chat gets the note in the language of its own message,
   which may differ from the reply's when the model keeps the earlier language.
 - A note's text is not read back by any reader, so a translated note changes no later turn.

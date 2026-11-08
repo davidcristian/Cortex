@@ -41,5 +41,5 @@ another language and adds nothing.
 - 2026-11-08: step 1 done: every note `limit_notes` appends, its reader and what a missed form does
   are in the [readings](../../readings/closing-note-language.md); the readers that drop a note are
   task R-1049. Step 2 decided in [ADR-0076](../../adr/ADR-0076-closing-note-language.md), the
-  language of the person's message, and built for `STORED_TIME_NOTE` and `DAILY_STORED_NOTE`. Left
-  open for the other notes' mappings.
+  language of the person's message, and built for `STORED_TIME_NOTE`, `DAILY_STORED_NOTE` and
+  `NUMBERS_LEFT_NOTE`. Left open for the other notes' mappings.

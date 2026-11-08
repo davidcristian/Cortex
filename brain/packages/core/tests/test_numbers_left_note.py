@@ -32,7 +32,12 @@ from cortex_core import (
     TurnEngine,
 )
 from cortex_core.closing_notes import limit_notes
-from cortex_core.numbers_left_claim import NUMBERS_LEFT_NOTE, names_still_held, says_forgotten
+from cortex_core.numbers_left_claim import (
+    NUMBERS_LEFT_NOTE,
+    NUMBERS_LEFT_NOTES,
+    names_still_held,
+    says_forgotten,
+)
 from cortex_core.stops import StopLedger
 from cortex_core.tools import ConfirmAnswer, ConfirmationRequest
 
@@ -193,14 +198,30 @@ def test_a_reply_naming_no_row_left_does_not_name_it_still_held(reply: str) -> N
     assert not names_still_held(reply)
 
 
-def _closed(reply: str, *, left: bool) -> str:
+def _closed(reply: str, *, left: bool, query: str = "Forget it.") -> str:
     recaller = MemoryRecaller(InMemoryMemoryStore(), HashEmbedder(), SystemClock())
     parts = [reply]
     taint = TaintLedger(forget_asked=True, forget_calls=1, forget_numbers_left=left)
     runs = (ToolRun(name=FORGET_CHOSEN_TOOL_NAME, ok=True),)
     caps = TurnCapabilities(memory=recaller)
-    list(limit_notes(StopLedger(), runs, parts, caps=caps, taint=taint, query="Forget it."))
+    list(limit_notes(StopLedger(), runs, parts, caps=caps, taint=taint, query=query))
     return "".join(parts)
+
+
+@pytest.mark.parametrize(
+    ("query", "language"),
+    [
+        ("Oublie mon code de porte.", "fr"),
+        ("Vergiss meinen Türcode.", "de"),
+        ("Olvida mi código de la puerta, por favor.", "es"),
+        ("Uită codul meu de la ușă.", "ro"),
+    ],
+)
+def test_a_numbers_left_note_is_written_in_the_language_of_the_message(
+    query: str, language: str
+) -> None:
+    reply = "I've forgotten your door code."
+    assert _closed(reply, left=True, query=query) == reply + NUMBERS_LEFT_NOTES[language]
 
 
 @pytest.mark.parametrize("reply", FORGOTTEN)

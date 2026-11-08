@@ -49,7 +49,7 @@ languages by a word count over message and reply), counting the brain's English 
 
 The overall counts follow what each night's slots drew. The two notes shown most under a reply in
 another language, `DAILY_STORED_NOTE` and `STORED_TIME_NOTE`, are the two the decision is built
-for first.
+for first, and `NUMBERS_LEFT_NOTE`, the third, after them.
 
 ## A note the model restates
 

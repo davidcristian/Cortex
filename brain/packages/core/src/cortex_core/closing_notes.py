@@ -16,7 +16,11 @@ from cortex_core.memory_claim import (
     unkept_note_due,
 )
 from cortex_core.note_language import in_language, message_language
-from cortex_core.numbers_left_claim import NUMBERS_LEFT_NOTE, numbers_left_claim
+from cortex_core.numbers_left_claim import (
+    NUMBERS_LEFT_NOTE,
+    NUMBERS_LEFT_NOTES,
+    numbers_left_claim,
+)
 from cortex_core.schedule_claim import (
     MONTHLY_STORED_NOTE,
     STORED_TIME_NOTE,
@@ -85,7 +89,7 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
         (unkept, UNKEPT_CLAIM_NOTE),
         (stored, KEPT_BEYOND_CHAT_NOTE),
         (unforgotten, UNFORGOTTEN_CLAIM_NOTE),
-        (held, NUMBERS_LEFT_NOTE),
+        (held, in_language(NUMBERS_LEFT_NOTE, NUMBERS_LEFT_NOTES, language)),
         (unfound, DELETED_UNFOUND_NOTE),
         (unread, UNREAD_FOLDERS_NOTE),
         (unsearched, UNSEARCHED_FILES_NOTE),
