@@ -127,7 +127,8 @@ pool down to the hits one turn sees. The turn that calls it is in
   does any form after a request to remember in the same sentence; in French, German, Spanish and
   Romanian a negative imperative of a keep verb, or an imperative to forget or erase
   (`oublie`, `vergiss`, `olvida`, `uită`, not `vergiss es nicht`), at a clause start counts, and
-  English `keep it to yourself` and `keep me waiting` do not; an idiom word after the keep verb
+  English `keep me waiting` and a `keep it to yourself` that ends its clause or asks to share do not
+  (`or anyone` after it does); an idiom word after the keep verb
   (`rancune`, `rencor`, `răul`, `alles`, `contre`, `pour toi`, `für dich`, `para ti`), at most
   one word after it, keeps the turn, so `ne garde pas rancune` and `behalt das nicht
   für dich` do not count and `ne retiens pas cette information` and `n'enregistre pas ça` do.

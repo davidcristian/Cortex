@@ -2,10 +2,12 @@
 
 import re
 
-# "Keep it to yourself" and "keep me waiting" are idioms, and "don't note everything, but
-# remember" asks to keep what follows.
+# "Keep me waiting" is an idiom, and so is "keep it to yourself" when it ends its clause or asks
+# to share; "or anyone" after it asks not to keep. "Don't note everything, but remember" keeps.
 _IDIOM = (
     r"(?!(?:\s+(?:it|this|that|them))?\s+to\s+(?:yourself|yourselves)\b"
+    r"(?:\s*(?:[.!?]|$)|\s*[,;:](?!\s*(?:or|nor|and|but|not|never|neither|either|even)\b)"
+    r"|(?:\s*,)?\s+(?:and\s+)?(?:tell|share|show|pass|send|spread)\b)"
     r"|\s+(?:me|us|him|her|them|everyone|people)\s+\w+ing\b)"
 )
 _ALL_BUT = (

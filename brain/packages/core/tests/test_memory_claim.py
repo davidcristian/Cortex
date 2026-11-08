@@ -458,6 +458,10 @@ def test_a_request_to_remember_or_a_statement_about_oneself_is_not(query: str) -
     [
         "Don't keep it to yourself, my sister is getting married on 12 May.",
         "Don't keep this to yourself: I got the job.",
+        "Don't keep this to yourself!",
+        "Don't keep it to yourself, tell my sister.",
+        "Don't keep it to yourself and tell my sister, she is getting married.",
+        "Don't keep it to yourselves, share it with the team: we won.",
         "Don't keep me waiting, my train leaves at 6.",
         "Don't keep them waiting, the party starts at 8.",
         "Don't note everything, but remember that my code is 4512.",
@@ -482,6 +486,16 @@ def test_a_keep_idiom_or_a_keep_everything_before_a_request_to_remember_is_not(
         "Don't save everything I tell you.",
         "Don't keep everything, my PIN is 5521.",
         "Just don't keep it, my PIN is 5521.",
+        "Don't keep this to yourself or anyone, it's my PIN 4412",
+        "Don't keep it to yourself or anyone else, my PIN is 4412.",
+        "Don't keep it to yourself, or anyone, my PIN is 4412.",
+        "Don't keep it to yourselves nor anybody: PIN 4412.",
+        "Don't keep it to yourself and anyone else, my PIN is 4412.",
+        "Don't keep it to yourself or your notes, my PIN is 4412.",
+        "Don't keep this to yourself or with anyone, PIN 4412.",
+        "Don't keep it to yourself, not even in your notes: my PIN is 4412.",
+        "Don't keep it to yourself, but my PIN is 4412.",
+        "Don't keep it to yourself and don't save it, my PIN is 4412.",
     ],
 )
 def test_a_negated_keep_verb_without_its_idiom_still_asks_not_kept(query: str) -> None:

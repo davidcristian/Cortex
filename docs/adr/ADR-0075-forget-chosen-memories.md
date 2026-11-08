@@ -134,7 +134,7 @@ that removes exactly those rows and holds against a turn in flight. This record 
    ([readings](../readings/forget-request-wordings.md#a-check-of-the-no-call-case-the-candidate-2026-10-30)).
    `asks_not_kept` (`memory_request.py`) reads the message: a "don't", "never" or "no need to"
    before "save", "keep", "remember" or "write it down" at a clause start, except in "keep it to
-   yourself", "keep me waiting" or a "note everything, but remember" form, a "you don't need
+   yourself" ending its clause or asking to share, "keep me waiting" or a "note everything, but remember" form, a "you don't need
    to" before one, "not for your memory", "off the record", an imperative "forget", "erase" or
    "unlearn", a "you should", "must", "need to" or "have to" before one of those three and the
    message at a clause start or after "remember", and a "delete" or "remove" with "from your

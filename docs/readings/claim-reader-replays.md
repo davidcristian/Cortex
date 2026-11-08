@@ -223,3 +223,20 @@ stays in at least 2 of 8. Every draw called `forget_memories` and removed the ro
 of 8, so nothing is built. Driver `rep.sh`, records `rep.jsonl`; the SM clock read 0.58 to 0.71 of
 its maximum. With no row to match, the model searched the files in 1 of 1; with a row, it called
 the forget tool in 8 of 8.
+
+## The keep idiom before more people (2026-11-08)
+
+`asks_not_kept` now releases a negated `keep` before `to yourself` only when the phrase ends its
+sentence, ends its clause at a comma, semicolon or colon not followed by `or`, `nor`, `and`,
+`but`, a negation or `even`, or goes on to ask to share (`tell`, `share`, `show`, `pass`,
+`send`, `spread`). `Don't keep this to yourself or anyone, it's my PIN 4412` is withheld; `Don't
+keep it to yourself, tell my sister.` is stored. The corpus is the draw records of both nights'
+slot directories (163 person messages) and every quoted string in `docs/` and the brain's test
+files (38,068 others). Script `replay1.py` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot10/`.
+
+| Corpus | Strings | Read as not kept now | Changed |
+| --- | --- | --- | --- |
+| recorded messages | 163 | 27 | 0 |
+| docs and tests | 38,068 | 205 | 10, all false to true |
+
+The 10 are this change's own near misses and the task's example; nothing became stored.
