@@ -118,6 +118,7 @@ OTHER_HELD = [
     "I've forgotten it. One other memory holds 1987 too, so ask me to forget 1987 as well.",
     "He olvidado tu código, pero otro recuerdo todavía contiene 1987.",
     "Am uitat codul, dar o altă amintire încă conține 1987.",
+    "I've forgotten your door code. Another memory that I saved on Monday holds 1987.",
 ]
 
 OTHER_NOT_HELD = [
@@ -140,6 +141,22 @@ OTHER_NOT_HELD = [
     "Ich habe den Türcode vergessen und prüfe, ob eine andere Erinnerung 4512 enthält.",
     "Am uitat codul. Spune-mi dacă o altă amintire conține 1987.",
 ]
+
+OTHER_NAMED = [
+    "I forgot your PIN 4412. I checked the other memories that mention 4412, they are cleaned up.",
+    "I forgot your PIN 4412. The other exchanges which contain 4412 are taken care of too.",
+    "J'ai oublié votre code 4412, et les autres souvenirs qui contiennent 4412 ont disparu aussi.",
+    "Ich habe den Türcode vergessen. Andere Einträge die 4512 enthalten sind verschwunden.",
+    "He olvidado tu código. Los otros recuerdos que contienen 1987 desaparecieron.",
+    "Am uitat codul. Alte amintiri care conțin 1987 au dispărut și ele.",
+    "I've forgotten your door code. There is another memory that holds 1987.",
+]
+
+
+@pytest.mark.parametrize("reply", OTHER_NAMED)
+def test_a_reply_naming_other_memories_by_what_they_hold_keeps_the_note(reply: str) -> None:
+    assert not names_still_held(reply)
+    assert _closed(reply, left=True) == reply + NUMBERS_LEFT_NOTE
 
 
 @pytest.mark.parametrize("reply", OTHER_HELD)

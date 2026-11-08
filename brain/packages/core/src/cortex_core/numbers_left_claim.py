@@ -44,6 +44,10 @@ _HOLDING = re.compile(
     r"|steh(?:t|en)\s+(?:noch\s+)?in|contienen?|con[țt]ine|con[țt]in)\b",
     re.IGNORECASE,
 )
+# "The other memories that mention 4412 are gone" names those memories by what they hold.
+_RELATIVE = re.compile(
+    r"\b(?:that|which|qui|que|die|der|das|welche[nrs]?|care)\s+(?:\w+\s+)?$", re.IGNORECASE
+)
 _DIGIT = re.compile(r"\d")
 _ANY_HEDGE = re.compile(
     rf"{_ENGLISH_HEDGE.pattern}|{_NEGATION.pattern}|\b(?:si|wenn|falls|ob|dac[ăa]|ning[uú]n\w*)\b",
@@ -75,9 +79,11 @@ def says_forgotten(reply: str) -> bool:
 
 def _other_holds(clause: str) -> bool:
     """Whether ``clause`` says, with no condition, negation or removal, another memory holds it."""
+    holding = _HOLDING.search(clause)
     return (
         _OTHER_MEMORY.search(clause) is not None
-        and _HOLDING.search(clause) is not None
+        and holding is not None
+        and _RELATIVE.search(clause[: holding.start()]) is None
         and _DIGIT.search(clause) is not None
         and _ANY_HEDGE.search(clause) is None
         and not says_forgotten(clause)
