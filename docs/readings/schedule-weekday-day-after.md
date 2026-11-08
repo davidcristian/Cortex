@@ -104,3 +104,10 @@ neither refusal runs, for one-time requests holding `forever`, `always`, `move` 
 (4 of 6 probes), and `in advance` in `Remind me Friday at 9 to pay in advance.` keeps any date
 (2 of 2). Probes in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot13/`.
+
+The same audit found the reader took the hour and weekday of an `at` with an offset as written,
+while the schedule tool and `today` count the date in `CORTEX_SCHEDULE_TZ`. With the zone
+`America/Los_Angeles`, `Remind me Monday at 9pm to call mum.` with `at` `2026-11-10T05:00:00Z`
+(Monday 21:00 there) was refused as a Tuesday. An offset `at` is now read in the person's zone; a
+naive `at` is already local. In `Europe/Berlin` the two dates agree at every hour from 04:00 to
+21:59, so no recorded draw changes.

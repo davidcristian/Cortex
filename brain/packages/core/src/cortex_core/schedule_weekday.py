@@ -1,7 +1,7 @@
 """Read whether a one-time schedule call falls on another weekday than the one the person named."""
 
 import re
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, tzinfo
 
 from cortex_core.schedule_tools import SCHEDULE_TOOL_NAME
 from cortex_core.schedule_weekly import WEEKDAY_NAMES, named_weekday
@@ -35,8 +35,8 @@ _MOVES_DAY = re.compile(
 _CLEAR_HOURS = range(4, 22)
 
 
-def _written_at(call: ToolCall) -> datetime | None:
-    """The date-time ``call`` writes in a one-time ``at`` at a clear hour, or ``None``."""
+def _written_at(call: ToolCall, tz: tzinfo) -> datetime | None:
+    """The date-time of ``call``'s one-time ``at`` in ``tz``, at a clear hour, or ``None``."""
     at = call.arguments.get("at")
     if call.name != SCHEDULE_TOOL_NAME or not isinstance(at, str):
         return None
@@ -44,6 +44,8 @@ def _written_at(call: ToolCall) -> datetime | None:
         when = datetime.fromisoformat(at)
     except ValueError:
         return None
+    if when.tzinfo is not None:
+        when = when.astimezone(tz)
     return when if when.hour in _CLEAR_HOURS else None
 
 
@@ -52,12 +54,14 @@ def _named(query: str) -> int | None:
     return None if _MOVES_DAY.search(query) is not None else named_weekday(query)
 
 
-def weekday_mismatch(call: ToolCall, query: str, today: date) -> tuple[date, int] | None:
+def weekday_mismatch(
+    call: ToolCall, query: str, today: date, tz: tzinfo
+) -> tuple[date, int] | None:
     """The date ``call`` writes and the weekday ``query`` names, when it is the day after it.
 
-    ``today`` is the date in the person's zone; a date that is today is never read as wrong.
+    ``today`` is the date in the person's zone ``tz``; a date that is today is never read as wrong.
     """
-    when = _written_at(call)
+    when = _written_at(call, tz)
     named = _named(query)
     # A date before the named day, or today, may be for a reminder ahead of it, and a date further
     # off is more often another day the person meant.
@@ -66,9 +70,9 @@ def weekday_mismatch(call: ToolCall, query: str, today: date) -> tuple[date, int
     return when.date(), named
 
 
-def weekday_date_wrong(call: ToolCall, query: str, today: date) -> bool:
+def weekday_date_wrong(call: ToolCall, query: str, today: date, tz: tzinfo) -> bool:
     """Whether ``call`` stores a one-time date the day after the weekday ``query`` names."""
-    return weekday_mismatch(call, query, today) is not None
+    return weekday_mismatch(call, query, today, tz) is not None
 
 
 def weekday_refusal(day: date, named: int) -> str:

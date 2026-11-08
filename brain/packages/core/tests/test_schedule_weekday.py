@@ -42,6 +42,30 @@ _CHAIRS = "Remind me at 6pm to return the chairs from Saturday's party."
 _SUNDAY_6PM = {"text": "chairs", "at": "2026-11-08T18:00:00"}
 
 
+_LOS_ANGELES = DisplayZone(name="America/Los_Angeles", tz=ZoneInfo("America/Los_Angeles"))
+_MUM = "Remind me Monday at 9pm to call mum."
+_MONDAY_9PM_UTC = {"text": "mum", "at": "2026-11-10T05:00:00Z"}
+_FRIDAY_9PM_UTC = {"text": "Arzttermin", "at": "2026-11-14T05:00:00Z"}
+
+
+@pytest.mark.parametrize(
+    ("message", "at", "wrong"),
+    [
+        (_MUM, "2026-11-10T05:00:00Z", False),
+        (_MUM, "2026-11-10T05:00:00+00:00", False),
+        (_MUM, "2026-11-10T21:00:00", True),
+        (_MUM, "2026-11-10T07:00:00", True),
+        (_MUM, "2026-11-10T17:00:00Z", True),
+        (_DOCTOR, "2026-11-14T05:00:00Z", True),
+    ],
+)
+def test_a_date_with_an_offset_is_read_in_the_persons_zone(
+    message: str, at: str, *, wrong: bool
+) -> None:
+    call = _call({"text": "t", "at": at})
+    assert weekday_date_wrong(call, message, _TODAY, _LOS_ANGELES.tz) is wrong
+
+
 class _BerlinMidnight:
     def now(self) -> datetime:
         return datetime(2026, 11, 7, 23, 30, tzinfo=UTC)
@@ -71,14 +95,14 @@ def _call(arguments: Mapping[str, object], name: str = SCHEDULE_TOOL_NAME) -> To
     ],
 )
 def test_a_one_time_date_the_day_after_the_weekday_named_is_wrong(message: str, at: str) -> None:
-    assert weekday_date_wrong(_call({"text": "t", "at": at}), message, _TODAY)
+    assert weekday_date_wrong(_call({"text": "t", "at": at}), message, _TODAY, UTC)
 
 
 def test_a_date_the_day_after_the_weekday_named_is_wrong_unless_it_is_today() -> None:
     call = _call({"text": "t", "at": "2026-11-08T18:00:00"})
     message = "Remind me at 6pm to return the chairs from Saturday's party."
-    assert weekday_date_wrong(call, message, date(2026, 11, 7))
-    assert not weekday_date_wrong(call, message, _TODAY)
+    assert weekday_date_wrong(call, message, date(2026, 11, 7), UTC)
+    assert not weekday_date_wrong(call, message, _TODAY, UTC)
 
 
 @pytest.mark.parametrize(
@@ -143,7 +167,7 @@ def test_a_date_the_day_after_the_weekday_named_is_wrong_unless_it_is_today() ->
 def test_the_named_weekday_the_day_before_today_a_moving_word_or_an_unclear_hour_is_not_wrong(
     message: str, at: str
 ) -> None:
-    assert not weekday_date_wrong(_call({"text": "t", "at": at}), message, _TODAY)
+    assert not weekday_date_wrong(_call({"text": "t", "at": at}), message, _TODAY, UTC)
 
 
 @pytest.mark.parametrize(
@@ -159,7 +183,7 @@ def test_the_named_weekday_the_day_before_today_a_moving_word_or_an_unclear_hour
 def test_only_a_schedule_call_with_a_readable_at_is_read(
     name: str, arguments: Mapping[str, object]
 ) -> None:
-    assert not weekday_date_wrong(_call(arguments, name), _DOCTOR, _TODAY)
+    assert not weekday_date_wrong(_call(arguments, name), _DOCTOR, _TODAY, UTC)
 
 
 def test_the_refusal_names_both_weekdays_and_the_dates_of_the_named_one_around_it() -> None:
@@ -214,6 +238,16 @@ async def test_a_date_that_is_today_in_the_persons_zone_runs_at_once(
     call = ToolCall(id="c1", name=SCHEDULE_TOOL_NAME, arguments=_SUNDAY_6PM)
     ran, _ = await _loop(_CHAIRS, [call], _BerlinMidnight(), zone)
     assert ran == expected
+
+
+async def test_a_date_with_an_offset_is_refused_and_named_in_the_persons_zone() -> None:
+    right = ToolCall(id="c1", name=SCHEDULE_TOOL_NAME, arguments=_MONDAY_9PM_UTC)
+    ran, _ = await _loop(_MUM, [right], zone=_LOS_ANGELES)
+    assert ran == [_MONDAY_9PM_UTC]
+    late = ToolCall(id="c1", name=SCHEDULE_TOOL_NAME, arguments=_FRIDAY_9PM_UTC)
+    ran, results = await _loop(_DOCTOR, [late], zone=_LOS_ANGELES)
+    assert ran == []
+    assert "2026-11-13 is a Friday" in results[0].text
 
 
 async def test_a_retry_on_the_named_weekday_runs_after_the_refusal() -> None:

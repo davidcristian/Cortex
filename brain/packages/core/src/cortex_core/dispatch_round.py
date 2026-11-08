@@ -118,7 +118,7 @@ def _unasked_refusal(
         (record.weekly_refused, weekly_unasked(call, query), DispatchRefusal.WEEKLY_DAY),
         (
             record.weekday_refused,
-            weekday_date_wrong(call, query, _today(context)),
+            weekday_date_wrong(call, query, _today(context), context.zone.tz),
             DispatchRefusal.WEEKDAY_DATE,
         ),
     )
@@ -170,7 +170,7 @@ def _told(
         return replace(result, content=said)
     mismatch = None
     if refusal is DispatchRefusal.WEEKDAY_DATE:
-        mismatch = weekday_mismatch(call, query, _today(context))
+        mismatch = weekday_mismatch(call, query, _today(context), context.zone.tz)
     return result if mismatch is None else replace(result, content=weekday_refusal(*mismatch))
 
 
