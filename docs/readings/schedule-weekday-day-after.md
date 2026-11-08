@@ -123,15 +123,16 @@ tomorrow, which no reader checks. Their items were cancelled and their rows dele
 ## The refusal or a note, 2026-11-08
 
 `_MOVES_DAY` grew three times tonight, each time because the refusal moved a correct reminder for
-the day after an event onto the named day: the bins row, the audit's words above, and
-`follow up on Monday's call`. Three shapes are compared over every recorded call: (a) keep the
-refusal and add that task's words; (b) run every call and, after the turn, append a note naming
+the day after an event onto the named day: the bins row, the audit's words above, and the three
+event probes (`follow up on Monday's call`, `once Monday's payday has cleared` and `post Monday`).
+Three shapes are compared over every recorded call: (a) keep the refusal and add the event
+probes' words; (b) run every call and, after the turn, append a note naming
 the stored weekday and date when a one-time item falls one day before or after the one weekday the
 message names, with no word list; (c) remove the check.
 
 **Rows and the rule, written before the replay.** The replay reads every one-time item tonight's
 draws stored (the `items*.tsv` files of slots 4 to 13, joined to the message by chat) and the
-audit probes (that task's three messages and the bins message, each with `at` the day after, on
+audit probes (the three event probes and the bins message, each with `at` the day after, on
 Sunday 2026-11-08). It counts each item's date against the named weekday (on it, a day before, a
 day after, other) and what each shape does with it.
 
@@ -142,23 +143,23 @@ day after, other) and what each shape does with it.
 - (c) is chosen only when no stored item was a day late, first call or retry, once the weekly
   refusal named the date.
 
-**Results of the replay.** 78 stored one-time items, one per chat and date, and the four probes.
-Script `replay3.py` and log `replay3.log` in
+**Results of the replay.** 80 stored one-time items, one per chat and date, and the four probes.
+Script `replay4.py` and log `replay4.log` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot14/`.
 
 | Date against the named weekday | Items | Refused by (a) as it stands | Note by (b) |
 | --- | --- | --- | --- |
 | on it | 68 | 0 | 0 |
 | a day before | 5 | 0 | 5 |
-| a day after | 6 | 4 | 6 |
+| a day after | 8 | 6 | 8 |
 | no single weekday read | 3 | 0 | 0 |
 
-Of the 11 items a day off, 8 are the date the person wanted: the bins on Sunday evening for
+Of the 13 items a day off, 10 are the date the person wanted: the bins on Sunday evening for
 Monday's collection (4, in three languages), the chairs on Sunday after Saturday's party (2), the
-agenda in two hours (1) and `follow up on Monday's call` on Tuesday (1). 3 are wrong: W4a and D2c,
+agenda in two hours (1) and the three event probes on Tuesday (3). 3 are wrong: W4a and D2c,
 Friday for Thursday, and the bins probe on Tuesday. (a) as it stands refuses the 3 wrong ones and
-the follow up probe; with that task's words it would refuse only the 3, so (a) passes on this
-replay, as it passed each time before a new form appeared. (b) passes: the note on 11 of 11 items
+the three event probes; with their words it would refuse only the 3, so (a) passes on this
+replay, as it passed each time before a new form appeared. (b) passes: the note on 13 of 13 items
 a day off, on none of the 68 on the named weekday, and nothing refused or moved. For (c), no item
 stored after the weekly refusal named the date was a day late, but W4a's form is a first call,
 which that refusal does not reach, and (c) would show it nothing.
@@ -167,9 +168,7 @@ which that refusal does not reach, and (c) would show it nothing.
 correct reminder a day off in any words, while (a) holds only for the words its list has, and
 each of its three widenings tonight followed a correct reminder it moved. The cost is that a
 wrong date a day off is no longer moved onto the named day, as 8 of 8 P replays did; the note
-names it instead. That form came as a first call in 1 of the 62 draws of the W, D and L rows. The two other
-probes (`once Monday's payday has cleared`, `post Monday`) read no single weekday on this tree, so
-neither shape acts on them.
+names it instead. That form came as a first call in 1 of the 62 draws of the W, D and L rows.
 
 **Live rows for the note, written before any draw on it.** The stack brain rebuilt from the
 working tree with the note, one new chat per draw, every card approved, each chat's rows and items
