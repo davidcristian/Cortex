@@ -209,3 +209,18 @@ after a word for a point in time (SM clock 0.57 of `clocks.max.sm`), the French 
 `Rappelle-moi le 20 novembre que le trajet prend 1h30.` stored a reminder at 09:00 and replied
 `D'accord, je vous rappellerai le 20 novembre que le trajet prend 1h30.` with the note "at 09:00"
 appended. The reader before it read `prend 1h30` as a clock time and left that note out.
+
+## The h hour after réglé pour, 2026-11-08
+
+`names_time_of_day` read any h hour after `réglé pour`, `programmé pour`, `prévu pour`,
+`fixé pour`, `enregistré pour` or `noté pour` as a clock time. French also writes a duration that
+way (`le minuteur est réglé pour 2h`), so a reply naming only a duration left `STORED_TIME_NOTE`
+out. The reader now reads an h hour after those words only from 13 to 23, or before `du matin`,
+`du soir` or `de l'après-midi`; a reply naming only `pour 2h`, `pour 2 h 30` or `pour 12h` gets
+the note, which at worst repeats a time the reply wrote. The pass rule is about the fix: when the
+form occurs, the note shows, which the unit tests check. The form's frequency is a separate count:
+replayed through the old and new reader, 0 of 16,186 distinct texts changed (every reply recorded
+in the 2026-11-07 run's scratch directory and under `measurements/`, appended notes removed, and
+every quoted string in `docs/readings/`). One recorded reply writes a `pour` word,
+`prévu pour demain à 17h30`, read through `à`; none writes one directly before an h hour.
+Replay script: `/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot1/replay.py`.

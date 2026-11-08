@@ -59,6 +59,11 @@ _MOVED = "edited abc: now due 2026-11-20T10:00:00+00:00"
         "Je te le rappelle demain 17h30.",
         "C'est noté : rappel aujourd'hui, 17h30.",
         "Rappel programmé dès 17h30 demain.",
+        "Le rappel est réglé pour 13h.",
+        "Rappel noté pour 23h45.",
+        "Le rappel est réglé pour 2h du matin.",
+        "Rappel programmé pour 8h30 du soir.",
+        "Rappel prévu pour 3 h de l\u2019après-midi.",
     ],
 )
 def test_a_clock_figure_am_or_pm_noon_or_midnight_names_a_time_of_day(reply: str) -> None:
@@ -110,6 +115,14 @@ def test_a_clock_figure_am_or_pm_noon_or_midnight_names_a_time_of_day(reply: str
         "Il reste aujourd'hui 2h30 de travail.",
         "Demain, 2h30 de trajet.",
         "Le trajet prend 1h30 dès demain.",
+        "Le minuteur est réglé pour 2h.",
+        "C'est réglé pour 2h : je te préviens quand elles sont passées.",
+        "Le rappel est programmé pour 2h à partir de maintenant.",
+        "Le minuteur est réglé pour 2 h 30.",
+        "C'est noté pour 1h.",
+        "Le minuteur est réglé pour 12h.",
+        "Le four est réglé pour 2h de cuisson.",
+        "Rappel réglé pour 18h de route.",
     ],
 )
 def test_a_reply_with_no_clock_figure_names_no_time_of_day(reply: str) -> None:
@@ -158,6 +171,8 @@ def _closed(reply: str, time: str) -> str:
         ("I'll remind you at midnight on 14 December.", "00:00", False),
         ("C'est fait ! Je vous rappellerai demain à 17h30.", "17:30", False),
         ("Alles klar, ich erinnere dich morgen um 9 Uhr.", "09:00", False),
+        ("C'est réglé pour 2h : je te préviens quand elles sont passées.", "03:40", True),
+        ("C'est réglé pour 17h30, je te préviens.", "17:30", False),
         ("I've set a reminder for 14 December to post the parcel.", "", False),
     ],
 )

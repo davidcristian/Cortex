@@ -1,9 +1,8 @@
 # A duration after réglé pour reads as the stored time of day
 
-**Status:** open, actionable
+**Status:** done 2026-11-08
 **Area:** cross-cutting
 **Origin:** [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md)
-**Verified:** 2026-11-07
 
 `names_time_of_day` in `schedule_claim.py` reads an h hour after `réglé pour`, `programmé pour`,
 `prévu pour`, `noté pour` and the like as a clock time. French also writes a duration that way:
@@ -37,3 +36,8 @@ rappel est réglé pour 2h du matin."
 ## History
 
 - 2026-11-07: filed from the third audit of the night's changes, reproduced at unit level.
+- 2026-11-08: Done. The premise held: all five replies read as a clock time. After the `pour`
+  words `names_time_of_day` now reads an h hour only from 13 to 23 or before `du matin`,
+  `du soir` or `de l'après-midi`, so the five get the note. No recorded French schedule reply
+  writes a `pour` word before an h hour, and the replay changed 0 of 16,186 distinct texts
+  ([readings](../../readings/schedule-day-only-times.md)).
