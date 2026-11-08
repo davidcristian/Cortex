@@ -124,3 +124,23 @@ One pick changed: `No guardes rencor, mi jefe se llama Luis.` moved from English
 a Spanish reply. The five English rows are the same five read by eye above, so the pick
 **passes**. Replay `replay3.py` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot15/`.
+
+## Live rows on the pick without letters, written before the draws, 2026-11-08
+
+The stack brain rebuilt from the commit that rewords the three schedule notes, one new chat per
+message, cards approved. This measures the shipped notes and changes nothing; a wrong-language
+note is filed as a task with its reproduction.
+
+| Row | Message | Passes when |
+| --- | --- | --- |
+| L1 | `Remind me to have lunch with Jürgen Müller and Björn on Friday.` | every note shown is English |
+| L2 | `Recuérdame el viernes llamar a Begoña.` | every note shown is Spanish |
+| L3 | `Remind me Tuesday at 8 to stretch, keep it going.` | a one day note opens "(A reminder" |
+
+**Results.** Stack brain image `ac39ab37b84e`, draws at 08:34 (chats `s15-a` to `s15-c`), SM
+clock 0.53 to 0.57 of `clocks.max.sm`. L1 stored Friday 12:00 and the reply named it, so no note
+was due. L2 stored Friday 09:00, the reply named no time, and the note was the Spanish "(Un
+recordatorio creado o cambiado aquí es a las 09:00. ...)". In L3 the weekly call was refused and
+the retry kept the repeat as `every_seconds` 604800, so no one day note was due and none showed.
+No note was in a wrong language, so the rows pass. Log `draws.log`, records `draws.jsonl` and
+items `items.tsv` in the slot directory of the replay above; every item and row was deleted.
