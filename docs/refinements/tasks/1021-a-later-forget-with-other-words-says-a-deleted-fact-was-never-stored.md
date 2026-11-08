@@ -55,3 +55,9 @@ paraphrase.
   later text was the stored row's own words, which already gets the result naming the delete. The
   step reading a text as the same fact by its words is dropped: `combination` is no word of the
   row, so it would not reach the failing draw.
+- 2026-11-08: a candidate for step 1 is `SCRATCH/slot7/unfound-note.patch` (`forget_unfound_claim.py`,
+  wired in `limit_notes`, its tests at 100%), not in the tree since no form draw has run on it.
+  Replayed over the 135 distinct recorded replies of turns that ran `forget_memories`, its reader
+  reads 22, among them 4 saying a new phone number was not saved because the message asked to
+  forget, which `FORGET_NOT_KEPT_NOTE` requires: add them as near misses, or check that their
+  turns had no call that matched nothing, before drawing it.
