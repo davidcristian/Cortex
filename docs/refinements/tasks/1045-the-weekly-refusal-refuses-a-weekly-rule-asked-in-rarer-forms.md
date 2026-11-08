@@ -20,15 +20,28 @@ effect until `_MAY_REPEAT` read them. Live, on the stack brain built from `d82ce
 `Remind me Tuesday mornings at 8 to take the bins out.` had its first call, weekly on Tuesday at
 08:00, refused; the model called the same rule again and the once-per-turn retry stored it.
 
+Replayed, a refusal of a weekly rule asked in such words drops the repeat: 5 of 8 next calls were
+a one-time `at` on the named date, with nothing shown
+([readings](../../readings/schedule-weekly-false-refusal.md)). A longer word list fixes only the
+forms it names, and a refusal only beside a one-time marker would lose the catch of a correct
+refusal recorded tonight.
+
 ## What to do
 
-1. Write near misses first: "Remind me on Tuesday, time to go" and "le mardi 10" must stay
-   refused.
-2. Read the forms above as words that may ask for a repeat, `für` only between two weekdays. A
-   tool refusal keeps the tool when unsure.
-3. Replay every recorded draw message through the old and new reader before committing.
+1. Keep the refusal, which fixes a real weekly call for a one-time request, and add a note the
+   brain appends when a turn whose weekly call was refused then stores a one-time item: "(The
+   reminder set in this turn is for one day only. Ask to make it weekly if you meant every
+   week.)". A reply note shows when unsure, so it is not held back by any reading of the reply.
+2. Set the flag in `run_round` (`dispatch_round.py`) on a successful `schedule_task` call with
+   `at` after `LoopRecord.weekly_refused` holds a call, in the deep phase too, pass it across the
+   handoff record as `daily_stored` is (`handoff.py`, `handoff_codec.py`), and append the note in
+   `limit_notes` (`closing_notes.py`) beside the daily note.
+3. Write rows and a pass rule first: F1 and F2 drawn live, the note shown in every draw that
+   stores a one-time item after the refusal, and absent from W1 to W4 draws with no refusal.
 
 ## History
 
 - 2026-11-08: filed by the night's audit slot, from a unit probe and one live draw; the same
   slot made `_MAY_REPEAT` read the plural parts of the day, five English words and `sur deux`.
+- 2026-11-08: the next slot replayed two of the forms after the refusal and found the repeat
+  dropped in 5 of 8, so the remedy is a note beside the refusal rather than more repeat words.
