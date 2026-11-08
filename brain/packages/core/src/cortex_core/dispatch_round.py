@@ -20,7 +20,7 @@ from cortex_core.schedule_daily import daily_after
 from cortex_core.schedule_midnight import midnight_unasked
 from cortex_core.schedule_offset import offset_date_wrong, offset_refusal
 from cortex_core.schedule_time import UTC_DISPLAY, DisplayZone
-from cortex_core.schedule_weekday import weekday_off
+from cortex_core.schedule_weekday import weekday_off_after
 from cortex_core.schedule_weekly import stores_once, weekly_refusal, weekly_unasked
 from cortex_core.schedule_yearly import monthly_for_yearly, same_month_days, stores_monthly
 from cortex_core.stops import StopLedger
@@ -235,8 +235,9 @@ async def run_round(
         context.taint.stored_time = stored_time(call, result.content) or context.taint.stored_time
         context.taint.daily_stored = daily_after(call, result, context.taint.daily_stored)
         context.taint.once_after_weekly |= bool(record.weekly_refused) and stores_once(call, result)
-        off = weekday_off(call, result, context.query, context.zone.tz)
-        context.taint.weekday_off = off or context.taint.weekday_off
+        held = (context.taint.weekday_off_id, context.taint.weekday_off)
+        off = weekday_off_after(call, result, context.query, context.zone.tz, held)
+        context.taint.weekday_off_id, context.taint.weekday_off = off
         if call.name == FORGET_CHOSEN_TOOL_NAME:
             _note_forget(context.taint, result)
         context.taint.observe(

@@ -2,6 +2,12 @@
 
 from datetime import date, datetime, tzinfo
 
+from cortex_core.schedule_daily import STORED_ID
+from cortex_core.schedule_verbs import (
+    CANCEL_SCHEDULED_TOOL_NAME,
+    EDIT_SCHEDULED_TOOL_NAME,
+    SNOOZE_SCHEDULED_TOOL_NAME,
+)
 from cortex_core.schedule_weekly import WEEKDAY_NAMES, named_weekday, stores_once
 from cortex_core.tools import ToolCall, ToolResult
 
@@ -26,14 +32,18 @@ _DAY_NAMES = {
 }
 
 
-def weekday_off(call: ToolCall, result: ToolResult, query: str, tz: tzinfo) -> str:
-    """The ISO date a one-time ``call`` stored a day before or after the weekday ``query`` names.
+_KEPT_BY_EDIT = frozenset({"id", "text"})
 
-    Empty when the call stored nothing one time, or its date is on that weekday or further off.
+
+def weekday_off(call: ToolCall, result: ToolResult, query: str, tz: tzinfo) -> str:
+    """The ISO date a one-time ``call`` stored or moved to a day off the weekday ``query`` names.
+
+    Empty when no one-time item was left on an ``at``, or its date is on the weekday or further.
     """
     at = call.arguments.get("at")
     named = named_weekday(query)
-    if not stores_once(call, result) or not isinstance(at, str) or named is None:
+    moved = call.name == EDIT_SCHEDULED_TOOL_NAME and not result.is_error
+    if not (moved or stores_once(call, result)) or not isinstance(at, str) or named is None:
         return ""
     try:
         when = datetime.fromisoformat(at)
@@ -42,6 +52,41 @@ def weekday_off(call: ToolCall, result: ToolResult, query: str, tz: tzinfo) -> s
     if when.tzinfo is not None:
         when = when.astimezone(tz)
     return when.date().isoformat() if (when.weekday() - named) % 7 in {1, 6} else ""
+
+
+def _item_of(call: ToolCall, result: ToolResult) -> str:
+    """The id of the item ``call`` moved, or the id its result names as stored, else empty."""
+    item = call.arguments.get("id")
+    if call.name == EDIT_SCHEDULED_TOOL_NAME and isinstance(item, str):
+        return item
+    stored = STORED_ID.search(result.content)
+    return "" if stored is None else stored.group(1)
+
+
+def _changes_due(call: ToolCall, item_id: str) -> bool:
+    """Whether ``call`` cancels, snoozes or re-times ``item_id``, or any item when that is empty."""
+    if item_id and call.arguments.get("id") != item_id:
+        return False
+    if call.name in {CANCEL_SCHEDULED_TOOL_NAME, SNOOZE_SCHEDULED_TOOL_NAME}:
+        return True
+    return call.name == EDIT_SCHEDULED_TOOL_NAME and any(
+        value is not None for key, value in call.arguments.items() if key not in _KEPT_BY_EDIT
+    )
+
+
+def weekday_off_after(
+    call: ToolCall, result: ToolResult, query: str, tz: tzinfo, held: tuple[str, str]
+) -> tuple[str, str]:
+    """The item id and ISO date the note names after ``call`` ran, from the ``held`` pair.
+
+    A store or move a day off replaces the pair; a later change to its item's due time drops it.
+    """
+    if result.is_error:
+        return held
+    off = weekday_off(call, result, query, tz)
+    if off:
+        return _item_of(call, result), off
+    return ("", "") if _changes_due(call, held[0]) else held
 
 
 def weekday_off_note(stored: str, language: str) -> str:

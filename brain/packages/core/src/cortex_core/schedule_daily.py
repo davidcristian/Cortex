@@ -21,7 +21,7 @@ DAILY_STORED_NOTES = {
     "doar o dată.)",
 }
 
-_STORED_ID = re.compile(r"\bscheduled \w+ (\S+): due ")
+STORED_ID = re.compile(r"\bscheduled \w+ (\S+): due ")
 _REPEATS = re.compile(
     r"\b(?:every|each)\s+(?:single\s+)?(?:day|morning|afternoon|evening|night)\b"
     r"|\brepeat(?:s|ing)\b|\brecurring\b"
@@ -108,7 +108,7 @@ def daily_after(call: ToolCall, result: ToolResult, held: tuple[str, ...]) -> tu
     """The ids that repeat every day after ``call``: ``held``, plus a daily store, less an end."""
     if result.is_error:
         return held
-    stored = _STORED_ID.search(result.content)
+    stored = STORED_ID.search(result.content)
     if call.name == SCHEDULE_TOOL_NAME and DAILY_NOTE in result.content and stored is not None:
         return held if stored.group(1) in held else (*held, stored.group(1))
     item = call.arguments.get("id")

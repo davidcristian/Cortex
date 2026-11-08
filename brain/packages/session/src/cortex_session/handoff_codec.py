@@ -79,6 +79,7 @@ def encode_record(record: HandoffRecord) -> str:
             "daily_stored": list(record.daily_stored),
             "once_after_weekly": record.once_after_weekly,
             "weekday_off": record.weekday_off,
+            "weekday_off_id": record.weekday_off_id,
             "sources": [
                 {"kind": source.kind.value, "value": source.value} for source in record.sources
             ],
@@ -135,6 +136,7 @@ def decode_record(raw: bytes | str, handoff_id: str) -> HandoffRecord:
             daily_stored=tuple(fields.get("daily_stored", ())),
             once_after_weekly=fields.get("once_after_weekly", False),
             weekday_off=fields.get("weekday_off", ""),
+            weekday_off_id=fields.get("weekday_off_id", ""),
         )
     except (KeyError, TypeError, ValueError) as err:
         msg = f"corrupt handoff record at {record_key(handoff_id)!r}"

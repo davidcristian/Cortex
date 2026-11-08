@@ -26,11 +26,16 @@ from cortex_core import (
 )
 from cortex_core.closing_notes import limit_notes
 from cortex_core.schedule_time import UTC_DISPLAY, DisplayZone
-from cortex_core.schedule_verbs import EDIT_SCHEDULED_TOOL_NAME
+from cortex_core.schedule_verbs import (
+    CANCEL_SCHEDULED_TOOL_NAME,
+    EDIT_SCHEDULED_TOOL_NAME,
+    SNOOZE_SCHEDULED_TOOL_NAME,
+)
 from cortex_core.schedule_weekday import (
     WEEKDAY_OFF_NOTE,
     WEEKDAY_OFF_NOTES,
     weekday_off,
+    weekday_off_after,
     weekday_off_note,
 )
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
@@ -93,7 +98,9 @@ def test_a_one_time_date_a_day_off_the_named_weekday_is_read_in_the_persons_zone
         (SCHEDULE_TOOL_NAME, {"text": "t", "in_seconds": 3600}, False),
         (SCHEDULE_TOOL_NAME, {"text": "t", "at": 7}, False),
         (SCHEDULE_TOOL_NAME, {"text": "t", "at": "Friday at 7"}, False),
-        (EDIT_SCHEDULED_TOOL_NAME, {"id": "i", **_FRIDAY}, False),
+        (EDIT_SCHEDULED_TOOL_NAME, {"id": "i", **_FRIDAY}, True),
+        (EDIT_SCHEDULED_TOOL_NAME, {"id": "i", "at_time": "07:00"}, False),
+        (CANCEL_SCHEDULED_TOOL_NAME, {"id": "i", **_FRIDAY}, False),
     ],
 )
 def test_a_call_that_stored_no_dated_one_time_item_is_never_read(
@@ -101,6 +108,83 @@ def test_a_call_that_stored_no_dated_one_time_item_is_never_read(
 ) -> None:
     call = ToolCall(id="c", name=name, arguments=arguments)
     assert weekday_off(call, _ran(failed=failed), _DOCTOR, UTC) == ""
+
+
+@pytest.mark.parametrize(
+    ("at", "stored"), [("2026-11-13T07:00:00", "2026-11-13"), ("2026-11-12T07:00:00", "")]
+)
+def test_an_edit_that_moved_an_item_with_at_is_read_as_a_store(*, at: str, stored: str) -> None:
+    call = ToolCall(id="c", name=EDIT_SCHEDULED_TOOL_NAME, arguments={"id": "i", "at": at})
+    assert weekday_off(call, _ran("edited i: now due x"), _DOCTOR, UTC) == stored
+
+
+_HELD = ("abc", "2026-11-13")
+
+
+def _after(
+    name: str, arguments: Mapping[str, object], content: str = "ok", *, failed: bool = False
+) -> tuple[str, str]:
+    call = ToolCall(id="c", name=name, arguments=arguments)
+    return weekday_off_after(call, _ran(content, failed=failed), _DOCTOR, UTC, _HELD)
+
+
+@pytest.mark.parametrize(
+    ("content", "held"),
+    [
+        ("scheduled reminder xyz: due Fri 13 Nov 07:00 UTC", ("xyz", "2026-11-13")),
+        ("scheduled", ("", "2026-11-13")),
+    ],
+)
+def test_a_store_a_day_off_keeps_the_id_its_result_names(
+    *, content: str, held: tuple[str, str]
+) -> None:
+    call = ToolCall(id="c", name=SCHEDULE_TOOL_NAME, arguments=_FRIDAY)
+    assert weekday_off_after(call, _ran(content), _DOCTOR, UTC, ("", "")) == held
+
+
+def test_a_move_a_day_off_replaces_the_held_pair_with_the_moved_item() -> None:
+    moved = {"id": "def", "at": "2026-11-11T07:00:00"}
+    assert _after(EDIT_SCHEDULED_TOOL_NAME, moved) == ("def", "2026-11-11")
+
+
+@pytest.mark.parametrize(
+    ("name", "arguments"),
+    [
+        (EDIT_SCHEDULED_TOOL_NAME, {"id": "abc", "at": "2026-11-12T07:00:00"}),
+        (EDIT_SCHEDULED_TOOL_NAME, {"id": "abc", "at_time": "07:00"}),
+        (EDIT_SCHEDULED_TOOL_NAME, {"id": "abc", "on_days": ["thu"]}),
+        (EDIT_SCHEDULED_TOOL_NAME, {"id": "abc", "text": "t", "every_seconds": 0}),
+        (CANCEL_SCHEDULED_TOOL_NAME, {"id": "abc"}),
+        (SNOOZE_SCHEDULED_TOOL_NAME, {"id": "abc", "for_seconds": 600}),
+    ],
+)
+def test_a_later_change_to_the_held_items_due_time_drops_the_date(
+    *, name: str, arguments: Mapping[str, object]
+) -> None:
+    assert _after(name, arguments) == ("", "")
+
+
+@pytest.mark.parametrize(
+    ("name", "arguments", "failed"),
+    [
+        (EDIT_SCHEDULED_TOOL_NAME, {"id": "abc", "text": "t", "at_time": None}, False),
+        (EDIT_SCHEDULED_TOOL_NAME, {"id": "def", "at": "2026-11-12T07:00:00"}, False),
+        (CANCEL_SCHEDULED_TOOL_NAME, {"id": "def"}, False),
+        (SNOOZE_SCHEDULED_TOOL_NAME, {"id": "def", "for_seconds": 600}, False),
+        (CANCEL_SCHEDULED_TOOL_NAME, {"id": "abc"}, True),
+        (EDIT_SCHEDULED_TOOL_NAME, {"id": "abc", "at": "2026-11-12T07:00:00"}, True),
+        ("list_scheduled", {"id": "abc"}, False),
+    ],
+)
+def test_a_call_that_leaves_the_held_items_due_time_keeps_the_date(
+    *, name: str, arguments: Mapping[str, object], failed: bool
+) -> None:
+    assert _after(name, arguments, failed=failed) == _HELD
+
+
+def test_a_change_to_any_item_drops_a_date_held_with_no_id() -> None:
+    call = ToolCall(id="c", name=CANCEL_SCHEDULED_TOOL_NAME, arguments={"id": "def"})
+    assert weekday_off_after(call, _ran(), _DOCTOR, UTC, ("", "2026-11-13")) == ("", "")
 
 
 @pytest.mark.parametrize(
@@ -134,10 +218,14 @@ async def _loop(
 
     async def handler(arguments: Mapping[str, object]) -> str:
         ran.append(dict(arguments))
-        return "scheduled"
+        return "scheduled reminder abc: due later"
 
-    spec = ToolSpec(name=SCHEDULE_TOOL_NAME, description="s", parameters={})
-    registry = InMemoryToolRegistry({SCHEDULE_TOOL_NAME: (spec, handler)})
+    registry = InMemoryToolRegistry(
+        {
+            name: (ToolSpec(name=name, description="s", parameters={}), handler)
+            for name in (SCHEDULE_TOOL_NAME, EDIT_SCHEDULED_TOOL_NAME, CANCEL_SCHEDULED_TOOL_NAME)
+        }
+    )
     taint = TaintLedger()
     context = ToolLoopContext(
         dispatcher=ToolDispatcher(registry, RecordingAuditSink(), TickingClock()),
@@ -168,6 +256,37 @@ async def test_a_later_store_on_the_named_weekday_keeps_the_earlier_date_a_day_o
     ran, taint = await _loop(_DOCTOR, [late, right])
     assert ran == [_FRIDAY, {**_THURSDAY, "text": "b"}]
     assert taint.weekday_off == "2026-11-13"
+
+
+async def test_the_date_is_kept_beside_the_id_its_store_named() -> None:
+    late = ToolCall(id="c1", name=SCHEDULE_TOOL_NAME, arguments=_FRIDAY)
+    _, taint = await _loop(_DOCTOR, [late])
+    assert (taint.weekday_off_id, taint.weekday_off) == ("abc", "2026-11-13")
+
+
+@pytest.mark.parametrize(
+    ("name", "arguments"),
+    [
+        (EDIT_SCHEDULED_TOOL_NAME, {"id": "abc", "at": "2026-11-12T07:00:00"}),
+        (CANCEL_SCHEDULED_TOOL_NAME, {"id": "abc"}),
+    ],
+)
+async def test_a_later_move_or_cancel_in_the_turn_drops_the_date_the_store_no_longer_holds(
+    *, name: str, arguments: Mapping[str, object]
+) -> None:
+    late = ToolCall(id="c1", name=SCHEDULE_TOOL_NAME, arguments=_FRIDAY)
+    later = ToolCall(id="c2", name=name, arguments=arguments)
+    ran, taint = await _loop(_DOCTOR, [late, later])
+    assert ran == [_FRIDAY, arguments]
+    assert (taint.weekday_off_id, taint.weekday_off) == ("", "")
+
+
+async def test_a_move_a_day_off_in_the_turn_is_kept_for_the_note() -> None:
+    moved = {"id": "abc", "at": "2026-11-13T07:00:00"}
+    _, taint = await _loop(
+        _DOCTOR, [ToolCall(id="c1", name=EDIT_SCHEDULED_TOOL_NAME, arguments=moved)]
+    )
+    assert (taint.weekday_off_id, taint.weekday_off) == ("abc", "2026-11-13")
 
 
 async def test_a_date_on_the_named_weekday_runs_and_keeps_no_date() -> None:
@@ -208,7 +327,7 @@ def _shown(events: Sequence[TurnEvent]) -> str:
 
 
 async def test_the_date_survives_the_model_swap_through_the_handoff_store() -> None:
-    slot = harness.prepared_slot(taint=TaintLedger(weekday_off="2026-11-13"))
+    slot = harness.prepared_slot(taint=TaintLedger(weekday_off="2026-11-13", weekday_off_id="a"))
     store = InMemoryHandoffStore()
     await store.put(
         slot.snapshot(turn_id=harness.TURN, session_id=harness.SESSION, requested_at=_AT)
@@ -216,6 +335,7 @@ async def test_the_date_survives_the_model_swap_through_the_handoff_store() -> N
     loaded = await store.get(harness.TURN)
     assert loaded is not None
     assert loaded.taint_ledger().weekday_off == "2026-11-13"
+    assert loaded.taint_ledger().weekday_off_id == "a"
     live = harness.build_harness()
     await live.seed_session()
     shown = _shown(await harness.run_handoff(live, slot))
