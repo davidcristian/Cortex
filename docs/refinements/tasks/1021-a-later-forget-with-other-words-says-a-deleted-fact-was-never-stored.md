@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-07
+**Verified:** 2026-11-08
 
 When a `forget_memories` call matches nothing after an earlier call in the same turn deleted rows,
 `_about` in `memory_forget_chosen.py` returns `_ALREADY_DELETED` only when the new text is a
@@ -28,15 +28,18 @@ paraphrase.
 
 ## What to do
 
-1. Count the second texts the recorded forget flows passed after a delete in the same turn
-   (`docs/readings/` forget flow records) and how many are substrings of the deleted row.
-2. Read a text as the same fact when every word of four or more letters in it is a word of a
-   deleted row, and write the near misses first: a text about another stored fact must still get
-   `_NONE_FOUND`.
-3. A result that only states facts does not serve: one naming the earlier delete, and one also
-   naming which words of the later text the deleted rows held, made the reply say a fact never
-   stored was deleted. The next candidate keeps the start hash's results and appends a note when
-   the reply says a fact deleted in the same turn was not found, the start hash's own failure.
+1. Append a note after the reply, as `numbers_left_claim.py` does for its note, when a forget of
+   the turn deleted rows (`deleted_memory(made, taint.forget_unmatched)` in `forget_claim.py`), a
+   later call got the no-match result (`taint.forget_unmatched` above zero) and a typed reader says
+   the reply calls something not stored, not found or not saved. Both inputs already reach
+   `limit_notes` in `closing_notes.py`, so no ledger field is needed.
+2. The note must be true for both later texts: one about the deleted fact (`locker combination`
+   after `5819`) and one about a fact never stored (the passport after the phone). Write the
+   reader's near misses as tests first: a reply saying only that the code was removed, `nothing
+   else` with no claim about storage, a question back to the person.
+3. Ship by the rule in the [readings](../../readings/forget-later-call-other-words.md#the-flows-and-the-rule-2026-11-08):
+   the bk and lk flows drawn until four draws show the form. The form occurred in 2 of 10 draws,
+   so that is about 20 draws, more than one 10 minute cap.
 
 ## History
 
@@ -45,3 +48,10 @@ paraphrase.
   drawn on a flow whose second fact was never stored: two of three replies said it was deleted,
   against none of two on the start hash, where one reply said the deleted phone was not found
   ([readings](../../readings/forget-value-repeats.md#the-draws-of-both-results-2026-11-07)). Neither ships.
+- 2026-11-08: premise checked on `d7a1afe0a`: in 10 draws of two flows that delete a code by its
+  value and then name it in other words, the form occurred twice and one reply said the deleted
+  locker combination was never saved
+  ([readings](../../readings/forget-later-call-other-words.md#the-draws-2026-11-08)). In 6 draws the
+  later text was the stored row's own words, which already gets the result naming the delete. The
+  step reading a text as the same fact by its words is dropped: `combination` is no word of the
+  row, so it would not reach the failing draw.
