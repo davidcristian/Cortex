@@ -225,9 +225,12 @@ every quoted string in `docs/readings/`). One recorded reply writes a `pour` wor
 `prévu pour demain à 17h30`, read through `à`; none writes one directly before an h hour.
 Replay script: `/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot1/replay.py`.
 
-Four French requests for a reminder after a duration were then drawn on the stack brain rebuilt
-with the change, at 00:50 UTC (SM clock 0.57 of `clocks.max.sm`): `dans 2 heures`, `dans 2h`,
-`dans 1h30` and `pour dans 2 heures`. Each stored one reminder. Three calls gave `in_seconds`, so
-no stored time and no note; one gave `at`, and its reply named `à 03h50`, read through `à`. No
-reply wrote a `pour` word before an h hour. Rows `rows.tsv` and records `draws.jsonl` beside the
-replay script; the reminders and their `memories` rows were deleted after the read.
+Eight French requests for a reminder were then drawn on the stack brain rebuilt with the
+change, at 00:50 and 00:55 UTC (SM clock 0.57 of `clocks.max.sm`): six after a duration
+(`dans 2 heures`, `dans 2h`, `dans 1h30`, `pour dans 2 heures`, `règle un rappel dans 2 heures`,
+`pour dans 2h`), one `à 15h` and one `règle un rappel pour 2h du matin`. Each stored one reminder.
+Five calls gave `in_seconds`, so no stored time and no note. Three gave `at`, and each reply named
+the stored time after `à` (`à 03h50`, `à 15h00 aujourd'hui`, `à 02h00 du matin`), so no note. No
+reply wrote a `pour` word directly before an h hour. Rows `rows.tsv` and `rows2.tsv` and records
+`draws.jsonl` and `draws2.jsonl` beside the replay script; the reminders and their `memories` rows
+were deleted after the read.
