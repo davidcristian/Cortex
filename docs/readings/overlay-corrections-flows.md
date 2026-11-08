@@ -144,6 +144,15 @@ now ended with `DAILY_STORED_NOTE`, which is true of the item. `No, I meant Wedn
 cancelled and stored a one-time item on 11 Nov 09:00, with `ONCE_STORED_NOTE` after a refused
 weekly call. Both chats' items were cancelled and their rows deleted.
 
+## The chat-only form on the rebuilt stack
+
+At 09:07 the stack brain was rebuilt from the tree holding the `as we continue` form, and c1's
+first turn was drawn twice more (chats `s16-v3`, `s16-v4`, log `flows4.log`). Neither reply used
+`as we continue`: one said "I'll keep that in mind as we talk!", which names no conversation and
+got no note
+([R-1063](../refinements/tasks/1063-the-chat-only-reader-misses-a-limit-with-no-conversation-word.md)),
+and one named no limit. Both rows were deleted.
+
 ## Counts
 
 Of 11 note follow-ups, 9 passed and 2 failed (R-1058, both time changes). The note came in 6 of 11
