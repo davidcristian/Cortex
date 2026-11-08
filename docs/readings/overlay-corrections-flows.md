@@ -84,7 +84,9 @@ while the reply streamed, `No wait, I meant Wednesday.` was typed and Enter pres
 - During the turn Enter did not send: the composer kept the text and its button showed Stop. The
   first reply ended "OK. I've set a reminder to call the dentist on Tuesday, November 10th, at
   9:00 AM." and `ONCE_STORED_NOTE`, after a refused weekly call. The text was still in the
-  composer, and a second Enter sent it.
+  composer, and a second Enter sent it. This is the designed behaviour: the composer's `submit`
+  (`Composer.tsx`) sends nothing while a turn is busy and keeps the draft, as `Composer.test.tsx`
+  asserts ("a send the state refuses leaves the words in place").
 - The correction called `edit_scheduled` with `at_time` 09:00 and `on_days` `["wed"]`, with no
   card. The reply said "It's now set for Wednesday, November 11th, at 9:00 AM.", but the item
   became a weekly rule every Wednesday: the weekly form of R-1058.
@@ -159,3 +161,14 @@ Of 11 note follow-ups, 9 passed and 2 failed (R-1058, both time changes). The no
 first turns; the other 5 had a reason the result row names. Of 8 corrections plus the shell flow, 5
 passed and 4 failed (R-1058 twice, R-1061, R-1062). Every cancel, and every forget that matched a
 row, showed its card; an edit shows none.
+
+## The time corrections on `edit_scheduled` with `at`
+
+At 09:38 the stack brain was rebuilt from the commit that gives `edit_scheduled` an `at` for a
+one-time item, and t1, t2 and x1 were drawn once more (chats `s17-t1`, `s17-t2`, `s17-x1`, driver
+`flows.sh`, log `flows1.log` and `pass1-items.tsv` in the `slot17` directory beside `slot16`).
+All three items stayed one time: t1 on 14 Dec 15:00, t2 on 14 Dec 15:00, x1 on 11 Nov 09:00, each
+one item with no rule and no interval. The replies said "3:00 PM on 14 December", "le 14 décembre à
+15h00" and "Wednesday, November 11th, at 9:00 AM". The SM clock read 0.57 of its maximum. One draw
+each is not a rate.
+
