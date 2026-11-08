@@ -52,7 +52,7 @@ from the brain's `tool.invocation` log lines.
 | w1 | yes, Sunday 2026-11-08 | `cancel_scheduled` (card), `schedule_task` | one item, 9 Nov 18:00 | "6:00 PM tomorrow, Monday" | yes |
 | w2 | yes, Spanish | `cancel_scheduled` (card), `schedule_task` | one item, 9 Nov 18:00 | "lunes 9 de noviembre a las 18:00" | yes |
 | o1 | no: the retry stored `every_seconds` 604800 | `list_scheduled` | one item every 7 days from 10 Nov 08:00 | "déjà configuré" | yes |
-| n1 | no: the turn deleted the other holder itself | a forget that matched nothing | no row holds 5521 | "nothing for me to forget" | yes, R-1059 |
+| n1 | no: the turn deleted the other holder itself | a forget that matched nothing | no row holds 5521 | "nothing for me to forget" | yes, see n1 below |
 | u1 | yes | none, the exchange was stored | a row holds 0699000000 | "I've noted" | yes |
 | c1 | no, see below | `forget_memories` `14C` (card) | no row holds 14C | "I've forgotten" | yes |
 | c2 | yes, English (R-999) | `forget_memories` `14C` (card) | no row holds 14C | "j'ai oublié" | yes |
@@ -64,8 +64,8 @@ from the brain's `tool.invocation` log lines.
   daily store, so such a reply now ends with `DAILY_STORED_NOTE` unless it names the repeat.
 - **n1.** In the first turn the model forgot `gym locker number`, read the result saying another
   row still held 5521, and forgot `5521` too, unasked; the second card listed the shed padlock
-  exchange. Filed as
-  [R-1059](../refinements/tasks/1059-a-forget-deletes-another-fact-that-shares-its-number-unasked.md).
+  exchange. The same night such a later call is refused once and its rows are kept
+  ([the draws](forget-shared-number.md)).
 - **c1.** The reply "I'll keep that in mind as we continue our conversation!" got no note,
   because `claims_chat_only` did not read `as we continue`. The same slot added `as we continue`
   and `as we go on with` before the conversation word, with near-miss replies as tests first. Of

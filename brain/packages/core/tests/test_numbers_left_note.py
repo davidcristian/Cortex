@@ -291,6 +291,7 @@ async def _turn(
     rounds: Sequence[Sequence[ToolCall]],
     reply: str,
     answers: Sequence[bool] = (True, True),
+    query: str = "Forget it.",
 ) -> tuple[str, list[str]]:
     store, embedder = InMemoryMemoryStore(), HashEmbedder()
     for index, text in enumerate(texts):
@@ -309,7 +310,7 @@ async def _turn(
     )
     caps = TurnCapabilities(memory=MemoryRecaller(store, embedder, SystemClock()), tools=dispatcher)
     engine = TurnEngine(InMemorySessionStore(), _Rounds(rounds, reply), _Clock(), capabilities=caps)
-    events = [event async for event in engine.handle_turn("s", "Forget it.", turn_id="t-1")]
+    events = [event async for event in engine.handle_turn("s", query, turn_id="t-1")]
     left = sorted(hit.record.id for hit in await store.search(await embedder.embed("x"), k=100))
     return "".join(event.text for event in events if isinstance(event, TextDelta)), left
 
@@ -332,11 +333,19 @@ async def test_a_forget_leaving_a_number_closes_the_claim_with_the_note(
     assert left == ["m1"]
 
 
-async def test_a_later_forget_of_the_number_itself_clears_the_note() -> None:
+async def test_a_later_forget_of_the_number_the_message_names_clears_the_note() -> None:
     rounds = [[_forget("door code")], [_forget("1987", 1)]]
-    shown, left = await _turn((_DOOR, _ONLY_VALUE), rounds, "I've forgotten your door code.")
+    reply, query = "I've forgotten your door code.", "Forget my door code and 1987 too."
+    shown, left = await _turn((_DOOR, _ONLY_VALUE), rounds, reply, query=query)
     assert NUMBERS_LEFT_NOTE not in shown
     assert left == []
+
+
+async def test_a_later_forget_of_a_number_the_message_lacks_keeps_its_rows_and_the_note() -> None:
+    rounds = [[_forget("door code")], [_forget("1987", 1)]]
+    shown, left = await _turn((_DOOR, _ONLY_VALUE), rounds, "I've forgotten your door code.")
+    assert shown.endswith(NUMBERS_LEFT_NOTE)
+    assert left == ["m1"]
 
 
 @pytest.mark.parametrize(
@@ -377,8 +386,8 @@ async def test_a_turn_with_no_number_left_or_a_reply_that_says_so_gets_no_note(
 async def test_a_number_left_by_any_delete_of_the_turn_keeps_the_note(
     rounds: list[list[ToolCall]], answers: tuple[bool, ...]
 ) -> None:
-    reply = "I've forgotten your door code."
-    shown, left = await _turn((_DOOR, _ONLY_VALUE, _FIAT), rounds, reply, answers)
+    reply, query = "I've forgotten your door code.", "Forget my door code and 1987."
+    shown, left = await _turn((_DOOR, _ONLY_VALUE, _FIAT), rounds, reply, answers, query)
     assert shown.endswith(reply + NUMBERS_LEFT_NOTE)
     assert "m1" in left
 
@@ -386,6 +395,7 @@ async def test_a_number_left_by_any_delete_of_the_turn_keeps_the_note(
 async def test_a_later_delete_of_the_rows_left_clears_the_note_after_an_unrelated_one() -> None:
     rounds = [[_forget("door code")], [_forget("blue Fiat", 1)], [_forget("1987", 2)]]
     reply = "I've forgotten your door code."
-    shown, left = await _turn((_DOOR, _ONLY_VALUE, _FIAT), rounds, reply, (True, True, True))
+    query = "Forget my door code, the Fiat and 1987."
+    shown, left = await _turn((_DOOR, _ONLY_VALUE, _FIAT), rounds, reply, (True, True, True), query)
     assert NUMBERS_LEFT_NOTE not in shown
     assert left == []

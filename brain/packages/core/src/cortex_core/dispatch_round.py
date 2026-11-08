@@ -6,6 +6,7 @@ from dataclasses import dataclass, field, replace
 from cortex_core.cadence import CadenceWatch
 from cortex_core.conversation import Message
 from cortex_core.dispatch import DispatchRefusal, ToolDispatcher
+from cortex_core.forget_value_unasked import value_unasked
 from cortex_core.handoff import EscalationSlot
 from cortex_core.inference import GenerationBounds, JsonSchema
 from cortex_core.loop_events import StepOutcome, ToolStep, step_summary
@@ -94,6 +95,8 @@ class LoopRecord:
     offset_refused: list[ToolCall] = field(default_factory=list[ToolCall])
     # The weekly schedule calls refused once in this turn for one named weekday; a second one runs.
     weekly_refused: list[ToolCall] = field(default_factory=list[ToolCall])
+    # The forgets of a value the message lacks, refused once after a delete left that value held.
+    value_refused: list[ToolCall] = field(default_factory=list[ToolCall])
 
 
 def _unasked_refusal(
@@ -111,6 +114,11 @@ def _unasked_refusal(
         (record.offset_refused, offset_date_wrong(call, query), DispatchRefusal.OFFSET_DATE),
         (record.midnight_refused, midnight_unasked(call, query), DispatchRefusal.MIDNIGHT_TIME),
         (record.weekly_refused, weekly_unasked(call, query), DispatchRefusal.WEEKLY_DAY),
+        (
+            record.value_refused,
+            value_unasked(call, query, left=context.taint.forget_numbers_left),
+            DispatchRefusal.FORGET_VALUE,
+        ),
     )
     # Each of these refuses once per turn, so the model's retry always runs.
     for refused, wrong, refusal in checks:

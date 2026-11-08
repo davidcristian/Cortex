@@ -82,10 +82,10 @@ never a reading of what the tree does now.
 - **[R-1049](tasks/1049-a-false-claim-in-another-language-gets-no-closing-note.md)** A false claim in another language gets no closing note (cross-cutting). Its claim was checked against the code on 2026-11-08.
 - **[R-1057](tasks/1057-a-romanian-reminder-reply-holds-a-broken-word.md)** A Romanian reminder reply holds a broken word (inference). Its claim was checked against the code on 2026-11-08.
 - **[R-1058](tasks/1058-moving-a-one-time-reminder-makes-it-repeat.md)** Moving a one-time reminder makes it repeat (scheduling). Its claim was checked against the code on 2026-11-08.
-- **[R-1059](tasks/1059-a-forget-deletes-another-fact-that-shares-its-number-unasked.md)** A forget deletes another fact that shares its number, unasked (memory). Its claim was checked against the code on 2026-11-08.
 - **[R-1061](tasks/1061-a-forget-of-what-was-just-said-can-match-nothing-and-say-it-was-never-stored.md)** A forget of what was just said can match nothing and say it was never stored (memory). Its claim was checked against the code on 2026-11-08.
 - **[R-1062](tasks/1062-a-correction-of-a-stored-value-says-updated-and-keeps-the-old-row.md)** A correction of a stored value says "updated" and keeps the old row (memory). Its claim was checked against the code on 2026-11-08.
 - **[R-1063](tasks/1063-the-chat-only-reader-misses-a-limit-with-no-conversation-word.md)** The chat-only reader misses a limit with no conversation word (memory). Its claim was checked against the code on 2026-11-08.
+- **[R-1064](tasks/1064-a-forget-by-value-deletes-another-fact-the-message-does-not-name.md)** A forget by value deletes another fact the message does not name (memory). Its claim was checked against the code on 2026-11-08.
 
 ### Actionable, once a port changes (2)
 
@@ -619,10 +619,10 @@ never a reading of what the tree does now.
 - [R-1043](tasks/1043-the-not-stored-reader-misses-no-records-of-in-the-plural.md) The not stored reader misses no records of in the plural. open, actionable.
 - [R-1047](tasks/1047-a-fact-with-a-second-verb-phrase-keeps-the-reminder-and-sound-tools.md) A fact with a second verb phrase keeps the reminder and sound tools. open, waiting for its trigger.
 - [R-1048](tasks/1048-the-numbers-left-count-can-miss-a-holder-behind-a-common-group.md) The numbers left count can miss a holder behind a common group. open, waiting for its trigger.
-- [R-1059](tasks/1059-a-forget-deletes-another-fact-that-shares-its-number-unasked.md) A forget deletes another fact that shares its number, unasked. open, actionable.
 - [R-1061](tasks/1061-a-forget-of-what-was-just-said-can-match-nothing-and-say-it-was-never-stored.md) A forget of what was just said can match nothing and say it was never stored. open, actionable.
 - [R-1062](tasks/1062-a-correction-of-a-stored-value-says-updated-and-keeps-the-old-row.md) A correction of a stored value says "updated" and keeps the old row. open, actionable.
 - [R-1063](tasks/1063-the-chat-only-reader-misses-a-limit-with-no-conversation-word.md) The chat-only reader misses a limit with no conversation word. open, actionable.
+- [R-1064](tasks/1064-a-forget-by-value-deletes-another-fact-the-message-does-not-name.md) A forget by value deletes another fact the message does not name. open, actionable.
 
 ### orchestrator
 

@@ -85,6 +85,11 @@ that removes exactly those rows and holds against a turn in flight. This record 
    count ends with a note the brain appends after a typed check of the reply, because the model read the
    count and still made that claim in half the draws that left a row
    ([readings](../readings/forget-value-repeats.md)).
+   After such a delete, a later call in the turn whose text holds a value the person's message
+   does not hold is refused once (`value_unasked`, `forget_value_unasked.py`) and its rows are
+   kept, because the cortex read the count as a next step and deleted a second fact sharing the
+   number in 6 of 8 draws; a retry runs with its card
+   ([readings](../readings/forget-shared-number.md)).
    On a request to remember that can retract nothing, a call to it is refused by name and the
    turn is recorded: `unasked_forget` (`unasked_tools.py`) reads a message `asks_kept` reads and
    `asks_not_kept` does not, holding no word that can retract something, no negation, no question,

@@ -8,6 +8,7 @@ from types import MappingProxyType
 
 from cortex_core.composite import RecordCard, ResultNote, ToolOffer
 from cortex_core.errors import ToolError
+from cortex_core.forget_value_unasked import FORGET_VALUE_MSG
 from cortex_core.log_secrets import REDACTED
 from cortex_core.ports import Clock, Confirmer, ToolAuditSink, ToolRegistry
 from cortex_core.progress import hold_wait
@@ -85,6 +86,7 @@ class DispatchRefusal(Enum):
 
     BUDGET = BUDGET_EXHAUSTED_MSG
     DECLINED = ALREADY_DECLINED_MSG
+    FORGET_VALUE = FORGET_VALUE_MSG
     MIDNIGHT_TIME = MIDNIGHT_TIME_MSG
     OFFSET_DATE = OFFSET_DATE_MSG
     REDUNDANT = REDUNDANT_MSG

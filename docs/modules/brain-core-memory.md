@@ -196,7 +196,7 @@ pool down to the hits one turn sees. The turn that calls it is in
   `run_round` sets `TaintLedger.forget_numbers_left` from each `forget_memories` result that
   deleted rows with no match left (`numbers_left` is `None` on every other result, a denied card
   included), and the count covers every row the turn deleted, so only a later delete of the rows
-  left clears it. The handoff record keeps it. `limit_notes` then appends `NUMBERS_LEFT_NOTE` when `says_forgotten` (`numbers_left_claim.py`:
+  left clears it. The handoff record keeps it, and while it is set a later call naming a value the message lacks is refused once ([brain-core-tools.md](brain-core-tools.md)). `limit_notes` then appends `NUMBERS_LEFT_NOTE` when `says_forgotten` (`numbers_left_claim.py`:
   `claims_forgotten`, `names_removal`, or a past participle of forgetting or deleting in French,
   German, Spanish or Romanian with no negation in its clause) reads the reply and `names_still_held`
   (English `still` before a verb such as `holds`, `stored`, `mentions` or `appears in`, in a
