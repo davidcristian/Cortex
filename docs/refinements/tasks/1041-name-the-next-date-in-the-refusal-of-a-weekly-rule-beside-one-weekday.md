@@ -20,8 +20,12 @@ day, at the cost of one more round. With one sentence naming the date added to t
 1. Rows B3 and B4 measured the text and passed. Build the date sentence into the refusal, then
    draw B1 and B2's messages live on the build under the B rule.
 2. The weekly refusal has no `at` to count from, so naming the date needs today's date in the
-   person's zone in the dispatch round, which `ToolLoopContext` does not hold today. Read how
-   `schedule_args.py` gets its `DisplayZone` before adding a field.
+   person's zone in the dispatch round. `ToolLoopContext` holds no zone today: the zone is
+   `config.display_zone()`, given only to the schedule tools in
+   `brain/packages/orchestrator/src/cortex_orchestrator/schedule_builders.py`. One shape is a
+   `DisplayZone` field on `ToolLoopContext` (default `UTC_DISPLAY`), set where `engine.py`,
+   `brain_phase.py` and `subagent_attempt.py` build it, so `_told` in `dispatch_round.py` can
+   name the next date from `context.clock.now()`.
 
 ## History
 
