@@ -224,3 +224,10 @@ in the 2026-11-07 run's scratch directory and under `measurements/`, appended no
 every quoted string in `docs/readings/`). One recorded reply writes a `pour` word,
 `prévu pour demain à 17h30`, read through `à`; none writes one directly before an h hour.
 Replay script: `/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot1/replay.py`.
+
+Four French requests for a reminder after a duration were then drawn on the stack brain rebuilt
+with the change, at 00:50 UTC (SM clock 0.57 of `clocks.max.sm`): `dans 2 heures`, `dans 2h`,
+`dans 1h30` and `pour dans 2 heures`. Each stored one reminder. Three calls gave `in_seconds`, so
+no stored time and no note; one gave `at`, and its reply named `à 03h50`, read through `à`. No
+reply wrote a `pour` word before an h hour. Rows `rows.tsv` and records `draws.jsonl` beside the
+replay script; the reminders and their `memories` rows were deleted after the read.
