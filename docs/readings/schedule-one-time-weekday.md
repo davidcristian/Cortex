@@ -207,3 +207,20 @@ weekly item. All sixteen draws stored a one-shot on the wanted date and hour. SM
 of `clocks.max.sm`. Logs `draws.log`, `items.tsv` and `calls-live.txt` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot6/`;
 every row and item of the draws was deleted.
+
+## Audit draws on the refusal, 2026-11-08
+
+On the stack brain built from `d82ce5a12`, at 05:32 on a Sunday, one draw per message in a new
+chat, every card approved, SM clock 0.57 of `clocks.max.sm`. The rows were written first in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot9/expect.txt`;
+calls are read from the brain's `tool.invocation` log lines.
+
+| Message | Calls | Stored | Row |
+| --- | --- | --- | --- |
+| `Remind me at 6pm to put the bins out for Monday's collection.` | `at` 2026-11-08T18:00 refused by the weekday reader, then `at` 2026-11-09T18:00 | 2026-11-09 18:00 | fails: a day late |
+| `Remind me in 2 hours to email the agenda for Monday's meeting.` | one call with no `at` | 2026-11-08 07:32 | passes |
+| `Remind me Tuesday mornings at 8 to take the bins out.` | `on_days` `["tue"]` refused by the weekly reader, then the same call | weekly, Tuesday 08:00 | passes after a refusal |
+| `Remind me at 6pm the evening ahead of Tuesday's dentist appointment.` | `on_days` `["mon"]` refused by the weekly reader, then `at` 2026-11-09T18:00 refused by the weekday reader | nothing: the turn ended at the round cap | fails |
+
+Both failures follow a refusal of a correct call. [Task 1044](../refinements/tasks/1044-the-weekday-refusal-moves-a-reminder-meant-for-today-or-the-day-ahead.md) has the forms the weekday reader misses, and
+[task 1045](../refinements/tasks/1045-the-weekly-refusal-refuses-tuesday-mornings-and-other-repeat-forms.md) those the weekly reader misses.
