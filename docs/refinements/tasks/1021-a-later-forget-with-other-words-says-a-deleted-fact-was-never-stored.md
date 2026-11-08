@@ -66,3 +66,6 @@ paraphrase.
   question and a clause naming something `new` do not count. On 20 replay draws of the recorded
   lk3 and bk3 requests, 6 failed with no note and all 20 passed on the build
   ([readings](../../readings/forget-later-call-other-words.md#the-replay-draws-2026-11-08)).
+- 2026-11-08: eight live lk draws on the build: four replies saying the locker combination was
+  not found end with the note; the plural `no records of` is not read, filed as
+  [1043](1043-the-not-stored-reader-misses-no-records-of-in-the-plural.md).

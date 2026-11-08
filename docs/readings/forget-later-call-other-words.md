@@ -116,3 +116,14 @@ deleted exchanges, which is true of all three. Over the 143 distinct recorded fo
 7's candidate reader reads 22 and the build's reads 18; the 4 it releases say a new phone number
 the forget message gave was not saved, which `FORGET_NOT_KEPT_NOTE` requires. The rule passes, so
 the note ships.
+
+## Live draws on the build, 2026-11-08
+
+Eight lk draws on the stack brain rebuilt from the build, from 05:17:55 to 05:21:29, cards
+approved, through no proxy, so the calls are not recorded. Every row was deleted. Four replies
+say the locker combination was not found and end with the note (lk2, lk3, lk6, lk8). lk7 says
+"there were no other records of that found to remove", which the reader does not read; it says
+no other record was found, which is true, but the plural `no records of` is missed in any reply,
+filed as [a task](../refinements/tasks/1043-the-not-stored-reader-misses-no-records-of-in-the-plural.md).
+The other three name only the removal and get no note. The run record is
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot8/live.jsonl`.
