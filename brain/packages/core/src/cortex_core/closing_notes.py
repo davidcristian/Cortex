@@ -23,11 +23,10 @@ from cortex_core.numbers_left_claim import (
 )
 from cortex_core.schedule_claim import (
     MONTHLY_STORED_NOTE,
-    STORED_TIME_NOTE,
-    STORED_TIME_NOTES,
     UNSCHEDULED_CLAIM_NOTE,
     claims_yearly,
     names_time_of_day,
+    stored_time_note,
     unscheduled_claim,
 )
 from cortex_core.schedule_daily import DAILY_STORED_NOTE, DAILY_STORED_NOTES, names_repeat
@@ -80,8 +79,7 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
         yield from append_note(parts, MONTHLY_STORED_NOTE)
     language = message_language(query)
     if taint.stored_time and not names_time_of_day(reply):
-        timed = in_language(STORED_TIME_NOTE, STORED_TIME_NOTES, language)
-        yield from append_note(parts, timed.format(time=taint.stored_time))
+        yield from append_note(parts, stored_time_note(taint.stored_time, language))
     if taint.daily_stored and not names_repeat(reply):
         yield from append_note(parts, in_language(DAILY_STORED_NOTE, DAILY_STORED_NOTES, language))
     if taint.once_after_weekly:

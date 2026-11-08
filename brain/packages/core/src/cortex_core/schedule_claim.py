@@ -4,6 +4,7 @@ import re
 from collections.abc import Sequence
 
 from cortex_core.conversation import Message, Role, ToolRun
+from cortex_core.note_language import in_language
 from cortex_core.schedule_tools import SCHEDULE_TOOL_NAME
 from cortex_core.schedule_verbs import EDIT_SCHEDULED_TOOL_NAME, SNOOZE_SCHEDULED_TOOL_NAME
 from cortex_core.tools import ToolCall
@@ -27,11 +28,18 @@ STORED_TIME_NOTES = {
     "pensiez à une autre heure.)",
     "de": "\n\n(Die hier erstellte oder geänderte Erinnerung ist auf {time} gestellt. Bitten Sie "
     "um eine Änderung, wenn Sie eine andere Uhrzeit meinten.)",
-    "es": "\n\n(El recordatorio creado o cambiado aquí es a las {time}. Pide cambiarlo si te "
+    "es": "\n\n(El recordatorio creado o cambiado aquí es a {las} {time}. Pide cambiarlo si te "
     "referías a otra hora del día.)",
     "ro": "\n\n(Mementoul creat sau modificat aici este la ora {time}. Cere să fie schimbat dacă "
     "te gândeai la altă oră.)",
 }
+
+
+def stored_time_note(time: str, language: str) -> str:
+    """The stored time note naming ``time`` (``HH:MM``), with the Spanish ``la`` for one o'clock."""
+    note = in_language(STORED_TIME_NOTE, STORED_TIME_NOTES, language)
+    return note.format(time=time, las="la" if time.startswith("01:") else "las")
+
 
 SCHEDULING_TOOLS = frozenset(
     {SCHEDULE_TOOL_NAME, EDIT_SCHEDULED_TOOL_NAME, SNOOZE_SCHEDULED_TOOL_NAME}

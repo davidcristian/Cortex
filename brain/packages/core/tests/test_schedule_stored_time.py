@@ -202,8 +202,28 @@ def test_a_stored_time_note_is_written_in_the_language_of_the_message(
     query: str, language: str
 ) -> None:
     reply = "OK, 14.12."
-    expected = reply + STORED_TIME_NOTES[language].format(time="09:00")
+    expected = reply + STORED_TIME_NOTES[language].format(time="09:00", las="las")
     assert _closed(reply, "09:00", query) == expected
+
+
+@pytest.mark.parametrize(
+    ("query", "time", "phrase"),
+    [
+        ("Recuérdame el 14 de diciembre enviar el paquete.", "01:30", "es a la 01:30."),
+        ("Recuérdame el 14 de diciembre enviar el paquete.", "01:00", "es a la 01:00."),
+        ("Recuérdame el 14 de diciembre enviar el paquete.", "11:30", "es a las 11:30."),
+        ("Recuérdame el 14 de diciembre enviar el paquete.", "21:00", "es a las 21:00."),
+        ("Recuérdame el 14 de diciembre enviar el paquete.", "00:30", "es a las 00:30."),
+        ("Recuérdame el 14 de diciembre enviar el paquete.", "10:01", "es a las 10:01."),
+        ("Rappelle-moi le 14 décembre d'envoyer le colis.", "01:30", "fixé à 01:30."),
+        ("Erinnere mich am 14. Dezember an das Paket.", "01:30", "ist auf 01:30 gestellt."),
+        ("Amintește-mi pe 14 decembrie să trimit coletul.", "01:30", "la ora 01:30."),
+    ],
+)
+def test_the_spanish_note_writes_a_la_only_for_one_oclock(
+    query: str, time: str, phrase: str
+) -> None:
+    assert phrase in _closed("OK, 14.12.", time, query)
 
 
 async def _loop(calls: list[ToolCall]) -> TaintLedger:
