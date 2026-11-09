@@ -86,7 +86,11 @@ every row when that clause holds a word for all or the rest (`everything`, `rest
 verb, the reader reads a keep in 21: 8 are prose a backtick pair split, 11 are real keep requests,
 and 2 are the forms the keep reader is recorded as declining
 ([forget-keep-clause.md](forget-keep-clause.md)), `Forget 7319, no need to keep the shed one.` and
-`Vergiss 7319 und behalte den vom Schuppen auch nicht.`, whose card lists the kept row. Script
+`Vergiss 7319 und behalte den vom Schuppen auch nicht.`, whose card lists the kept row. One live
+turn on the rebuilt stack brain at 06:40 (SM clock 0.57 of its maximum), over a bike row and a shed
+row stored by two seed turns, `Forget my bike lock code 7319, keep the shed one.` with the card
+approved: the card listed the bike row and kept the shed row, the bike row was deleted, and the
+reply `I've forgotten your bike lock code.` ended with no note (`live.jsonl`). Script
 `replay1091.py` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot15/`.
 
