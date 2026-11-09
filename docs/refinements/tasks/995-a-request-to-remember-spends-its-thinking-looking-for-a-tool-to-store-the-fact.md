@@ -67,3 +67,7 @@ The same sentence at the end of the first system message searched in 14 of 15 dr
   German, Spanish and Romanian ended the search with a `spawn_subagents` call that ran, since
   `asks_kept` reads only English; the brain refused the same call on two English requests
   ([readings](../../readings/overlay-language-and-locale-flows.md#1-the-tools-in-four-languages)).
+- 2026-11-09: four of twelve English first turns `My locker code at the pool is 7319.`, a statement
+  with no request word, called `spawn_subagents` to store the fact, and each call ran; one French
+  first turn asked for a subagent role that does not exist
+  ([readings](../../readings/forget-what-was-just-said.md#the-draws-of-the-start-hash-and-the-candidate-2026-11-09)).
