@@ -65,6 +65,16 @@ save it`, `let me decide later whether to store it`, `I will decide tomorrow if 
 remember it`) as a request not to keep, while `Keep it in mind for now` alone, `I'll tell you
 later what to do`, `I'll tell you later whether I remember the address` and `Did you decide
 whether to save it?` still store. A replay of every string in `docs/readings/` (28,810) through
-the reader before and after that change moved none. The same message in French, German, Spanish
-or Romanian is still stored
-([task 1100](../refinements/tasks/1100-a-save-decision-put-off-in-another-language-is-stored.md)).
+the reader before and after that change moved none.
+
+The same decision put off in French, German, Spanish or Romanian now asks not to keep too: a first
+person tell, let know or decide verb (`je te dirai`, `ich sage dir`, `te diré`, `îți spun`,
+`je déciderai`, `ich entscheide`, `decidiré`, `o să decid`), then `si`, `ob` or `dacă` and a
+keep verb in the same clause, as in `Merk es dir erst mal, ich sage dir später, ob du es speichern sollst.`. Each
+language's bare `keep it in mind for now` form, a question whether it was saved, a later word on
+something else (`je te dirai plus tard quoi faire`, `ich sage dir später, ob ich mich erinnere`,
+`wo du es speichern sollst`) still store (tests in `test_memory_claim.py`). A replay of 40,188
+strings (every distinct string of `docs/readings/` and every quoted string of the brain's tests)
+through the reader before and after moved only the eight new test messages. Script
+`replay1100.py` and log `replay1100b.log` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot17/`.

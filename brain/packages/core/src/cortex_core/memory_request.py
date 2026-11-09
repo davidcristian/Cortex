@@ -59,6 +59,21 @@ _LATER_DECISION = re.compile(
     rf"{_KEEP}\b",
     re.IGNORECASE,
 )
+# The same put off decision in French, German, Spanish and Romanian: a first person tell, let
+# know or decide verb, then "si", "ob" or "dacă" and a keep verb in the same clause.
+_LATER_DECISION_OTHER = re.compile(
+    r"\b(?:je\s+(?:te\s+|vous\s+)?(?:dirai|dis|déciderai|décide|confirmerai|ferai\s+savoir)"
+    r"|ich\s+(?:sage|sag|werde\s+(?:\w+\s+){0,2}?sagen|entscheide|bestätige|melde\s+mich"
+    r"|gebe?\s+(?:dir\s+)?bescheid)"
+    r"|(?:(?:te|le|os|les)\s+(?:diré|digo|avisaré|aviso|confirmaré)|decidiré|te\s+haré\s+saber)"
+    r"|(?:[îi][țţt]i|v[ăa])\s+(?:spun|voi\s+spune|zic|confirm)|(?:o\s+s[ăa]\s+)?decid|voi\s+decide)"
+    r"\b(?:\s+[\w-]+){0,3}?\s*,?\s+(?:si|s['\u2019]|ob|dac[ăa])\s*(?:[\w'\u2019-]+\s+){0,4}?"
+    r"(?:l['\u2019])?(?:enregistr\w*|gard(?:er|e|es)\b|reten(?:ir)?\b|retien\w*|not(?:er|e)\b"
+    r"|mémoris\w*|conserv\w*|sauvegard\w*|speicher\w*|merk\w*|behalt\w*|behält|notier\w*"
+    r"|aufschreib\w*|aufzuschreiben|aufbewahr\w*|guard\w*|recordar\w*|anot\w*|apunt\w*"
+    r"|memoriz\w*|salv\w*|re[țţt]in\w*|noteaz\w*|memor\w*|p[ăa]str\w*)",
+    re.IGNORECASE,
+)
 # A negative imperative in French, German, Spanish or Romanian that opens a clause, so a statement
 # such as "je ne retiens pas" or "el nu reține" does not match.
 _OTHER_OPENS = rf"(?:^\W*|{_BREAK}|\b(?:mais|et|aber|und|doch|pero|y|dar|și|însă|bitte)\s+)"
@@ -184,6 +199,8 @@ def _asks_not_kept(sentence: str) -> bool:
     if _NOT_FOR_MEMORY.search(sentence) or _REMOVE.search(sentence):
         return True
     if _KEEP_NOWHERE.search(sentence) or _LATER_DECISION.search(sentence):
+        return True
+    if _LATER_DECISION_OTHER.search(sentence):
         return True
     if _DONT_KEEP_OTHER.search(sentence) or _FORGET_OTHER.search(sentence):
         return True
