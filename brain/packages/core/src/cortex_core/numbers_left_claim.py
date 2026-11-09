@@ -26,7 +26,7 @@ NUMBERS_LEFT_NOTES = {
 _REMOVED = re.compile(
     r"\b(?:oubli(?:é|ée|és|ées)|supprim(?:é|ée|és|ées)|effac(?:é|ée|és|ées)"
     r"|vergessen|gelöscht|entfernt|olvid(?:é|ado|ada|ados|adas)|borrad[oa]s?|eliminad[oa]s?"
-    r"|uitat|șters|sters|eliminat)\b",
+    r"|uitat[ăe]?|[șşs]terse?|[șşs]tears[ăa]|eliminată?)\b",
     re.IGNORECASE,
 )
 _NEGATION = re.compile(

@@ -142,3 +142,36 @@ async def test_a_store_failing_after_the_delete_still_counts_the_rows_it_removed
     assert (result.is_error, result.forgot, result.numbers_left) == (True, 1, None)
     assert result.content.startswith("forgot 1 remembered exchanges, but the memory store then")
     assert "forget" not in result.content.split(",", 1)[1]
+
+
+@pytest.mark.parametrize(
+    "reply",
+    [
+        "Amintirea a fost ștearsă.",
+        "Amintirile au fost șterse.",
+        "Codul a fost şters.",
+        "Am uitat codul, informația a fost uitată.",
+        "Informațiile au fost uitate.",
+        "Amintirea a fost eliminată.",
+    ],
+)
+def test_a_romanian_removal_in_any_gender_number_or_cedilla_form_gets_no_count(
+    reply: str,
+) -> None:
+    assert _closed(reply, 1, "Uită numărul meu de dulap.") == reply
+
+
+@pytest.mark.parametrize(
+    "reply",
+    [
+        "Amintirea nu a fost ștearsă.",
+        "Amintirile nu au fost șterse.",
+        "A fost ștearsă amintirea?",
+        "I can eliminate it if you want.",
+        "Should the old entries be eliminated?",
+    ],
+)
+def test_a_negated_or_asked_romanian_removal_or_an_english_verb_gets_the_count(
+    reply: str,
+) -> None:
+    assert _closed(reply, 1).endswith(FORGOT_COUNT_NOTE.format(count=1))

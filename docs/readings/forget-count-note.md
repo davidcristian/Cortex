@@ -72,8 +72,8 @@ tested in `test_forget_just_said.py`). The kept rows note and the count never co
 `NUMBERS_LEFT_NOTE` and `UNKEPT_CLAIM_NOTE` did, over a row the message asked to keep; both are
 fixed below. A store failure after the delete counted nothing; its result now says how many
 rows were deleted and sets `ToolResult.forgot` (`failed_during`, `forget_results.py`, tested in
-`test_forget_count_note.py`). `Amintirea a fost ștearsă.` names the removal in a form the reader
-lacks, so a second, Romanian count note follows it ([task 1095](../refinements/tasks/1095-a-romanian-removal-in-a-feminine-plural-or-cedilla-form-gets-a-second-count.md)). A forget turn stores no exchange
+`test_forget_count_note.py`). `Amintirea a fost ștearsă.` named the removal in a form the reader
+lacked, so a second, Romanian count note followed it (below). A forget turn stores no exchange
 row, so none of these notes reaches memory; they stay in the chat's transcript.
 
 ## A row the message asked to keep, 2026-11-09
@@ -100,3 +100,15 @@ claim of the reply is `kept` or `keep` and names a word of such a row (`names_sp
 `test_forget_spared_claim.py`). Of 9 backticked strings in `docs/readings/` that `claims_kept`
 reads, replayed with the shed, padlock and gym rows as kept rows, `names_spared` reads only that
 reply. Script `replay1090.py` in the slot directory above.
+
+## Romanian removal forms, 2026-11-09
+
+`_REMOVED` now reads the feminine and plural forms `ștearsă`, `șterse`, `uitată`, `uitate` and
+`eliminată`, and the cedilla `ş`, so `Amintirea a fost ștearsă.` names the removal. It leaves out
+`eliminate`, which is also an English verb. A negated form (`Amintirea nu a fost ștearsă.`), a
+question and `I can eliminate it if you want.` still get the count (tests in
+`test_forget_count_note.py`). Of 5591 backticked strings in `docs/readings/`, `says_forgotten`
+reads 187 as a removal, and the only one the change moves is `Amintirea a fost ștearsă.`. A
+removal offered under a condition still reads as one done
+([task 1099](../refinements/tasks/1099-a-removal-offered-under-a-condition-reads-as-a-removal-done.md)).
+Script `replay1095.py` in the slot directory above.
