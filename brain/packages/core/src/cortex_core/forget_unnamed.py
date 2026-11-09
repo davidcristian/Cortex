@@ -23,14 +23,16 @@ _EVERY = frozenset(
 _TOPIC = frozenset({"about", "else", "sur", "über", "sobre"})
 _TOKEN = re.compile(r"[^\W_]+|[,;.!?:]")
 _MARKS = frozenset(",;.!?:")
+# Only a keep verb's own forms, since "guardian", "keepsake" or "mantenimiento" can name a fact.
 _KEEP = re.compile(
-    r"keep\w*|kept|behalt\w*|behält|bleib\w*|garde[rz]?|conserv\w*|guard\w*|mant[eé]n\w*"
-    r"|p[ăa]str\w*"
+    r"keep(?:s|ing)?|kept|behalt\w*|behält|bleib\w*|garde[rz]?|conserv(?:e[rsz]?|ons|a[rs]?|en)"
+    r"|guard(?:a[rs]?|e[ns]?)|mant[eé]n(?:er|ga[ns]?|l[oa]s?)?|p[ăa]str\w*"
 )
 _NOT = frozenset({"not", "t", "never", "nicht", "nie", "pas", "ne", "jamais", "no", "nunca", "nu"})
 _LEAD = frozenset(
     {"but", "and", "yet", "do", "don", "is", "isn", "s", "aber", "und", "mais", "et", "pero", "dar"}
 )
+_NAMING = frozenset({"the", "a", "an", "my", "your", "our", "his", "her", "their", "its"})
 _FORGET = re.compile(
     r"forg[eo]t\w*|delet\w*|remov\w*|eras\w*|oubli\w*|effac\w*|vergiss\w*|vergess\w*"
     r"|l[oö]sch\w*|olvid\w*|borr[ae]\w*|uit\w*|[șş]terg\w*"
@@ -115,6 +117,9 @@ def _opens_keep(clause: list[str], at: int) -> bool:
     if _KEEP.fullmatch(token):
         return _NOT.isdisjoint(clause[max(0, at - 2) : at])
     if token not in _NOT or (at and clause[at - 1] not in _LEAD):
+        return False
+    # "my do not disturb code" names a fact rather than asking to keep one.
+    if at > 1 and clause[at - 2] in _NAMING:
         return False
     return at + 1 == len(clause) or not _KEEP.fullmatch(clause[at + 1])
 

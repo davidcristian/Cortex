@@ -104,8 +104,9 @@ that removes exactly those rows and holds against a turn in flight. This record 
    one), outside a clause asking to keep and not before `about` or `else`, so a closing `that's
    all` keeps the rows. A message naming the value beside a label deleted the second
    fact in 6 of 8 draws; a message whose words name no stored fact asks for every row. A word of a
-   clause asking to keep (a keep verb not negated, or a negation that opens the clause or follows
-   `but`) names a fact to keep unless the message also names it outside one, and a matched row it
+   clause asking to keep (a keep verb form not negated, or a negation that opens the clause or
+   follows `but` with no naming word such as `my` before that) names a fact to keep unless the
+   message also names it outside one, and a matched row it
    names is kept in every case
    ([readings](../readings/forget-keep-clause.md)). The result
    of that delete says the rows were kept and the value is still remembered, and never that a

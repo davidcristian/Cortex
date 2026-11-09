@@ -100,3 +100,34 @@ def test_a_keep_verb_alone_names_no_fact() -> None:
     keeper = _record("keeper", "User: Keep the gate code 7319 handy.\nAssistant: Noted.", 2)
     assert _kept("Forget my bike lock code 7319, keep it.", _TWO[0], keeper) == ["keeper"]
     assert _kept("Forget 7319, keep it.", _TWO[0], keeper) == []
+
+
+@pytest.mark.parametrize(
+    ("query", "row"),
+    [
+        ("Forget my do not disturb PIN 7319.", "the do not disturb PIN is 7319"),
+        ("Forget 7319, the do not disturb PIN.", "the do not disturb PIN is 7319"),
+        ("Forget the don't disturb PIN 7319.", "the don't disturb PIN is 7319"),
+        ("Forget the guardian PIN 7319.", "the guardian PIN is 7319"),
+        ("Forget the keepsake box PIN 7319.", "the keepsake box PIN is 7319"),
+        ("Forget the conservatory alarm 7319.", "the conservatory alarm is 7319"),
+        ("Olvida el pin de mantenimiento del ascensor 7319.", "el pin del ascensor es 7319"),
+    ],
+)
+def test_a_negation_or_keep_word_inside_the_asked_facts_name_names_it(query: str, row: str) -> None:
+    asked = _record("asked", f"User: Remember that {row}.\nAssistant: Noted.", 1)
+    assert _kept(query, _TWO[0], asked) == ["bike"]
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Forget my bike lock code 7319, but do not forget the shed one.",
+        "Forget my bike lock code 7319, and keeping the shed one.",
+        "Olvida el código del bike lock 7319, guarda el del shed.",
+        "Olvida el código del bike lock 7319, mantenlo el del shed.",
+        "Oublie le code du bike lock 7319, conserve celui du shed.",
+    ],
+)
+def test_a_keep_verb_form_or_a_lead_after_no_naming_word_still_asks_to_keep(query: str) -> None:
+    assert _kept(query) == ["shed"]

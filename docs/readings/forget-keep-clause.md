@@ -19,9 +19,11 @@ row and listed the shed row, the reverse of the request.
 ## The reader now
 
 A clause asks to keep from a keep verb that no negation precedes within two words (`keep`,
-`garde`, `behalte`, `guarda`, `păstrează` and their forms), or from a negation such as `not`,
-`n't`, `pas`, `nicht`, `no` or `nu` that opens the clause or follows `but`, `and`, `is`, `mais`, `aber`,
-`pero` or `dar`, unless a keep verb follows it. The clause ends at its mark or at a forget verb
+`garde`, `behalte`, `guarda`, `păstrează` and their verb forms, never a noun such as `guardian`,
+`keepsake`, `conservatory` or `mantenimiento`), or from a negation such as `not`, `n't`, `pas`,
+`nicht`, `no` or `nu` that opens the clause or follows `but`, `and`, `do`, `is`, `mais`, `aber`,
+`pero` or `dar`, unless a keep verb follows it or a naming word (`the`, `a`, `my`, `your` and the
+other possessives) comes before that word, as in `my do not disturb PIN`. The clause ends at its mark or at a forget verb
 that no negation precedes, so `don't forget the shed one` keeps the shed row. A word of such a
 clause, other than the keep verb, names a fact to keep unless the message also names it outside
 one. A matched row naming a fact to keep is listed under `KEPT_LINE` and kept, even beside a word
@@ -45,3 +47,21 @@ chat stored is read as just said, as `Forget it, but keep the shed padlock code.
 `replay.py` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot9/`,
 log `replay.log` in the `slot12/` directory beside it. No turn was drawn.
+
+## Second audit probes, 2026-11-09
+
+Unit calls (`probe1.py`, log `probe1.log` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot13/`)
+over a bike row and a second row sharing 7319. A keep verb read in all five languages
+(`garde`, `behalte`, `mantén`, `păstrează`), and `don't keep the shed one either` names the
+shed row to forget. Two forms read a fact's own name as a request to keep, so the asked row was
+kept and the bike row, which the message does not name, was listed: a negation after `do` inside
+the name (`Forget my do not disturb PIN 7319.`) and a noun the keep verb list matched (`guardian`,
+`keepsake`, `conservatory`, `mantenimiento`). Both now name the fact (tests in
+`test_forget_keep_clause.py`). The replay above, run again with the reader before this change
+(`replay.log` in the same directory), changed none of 1,766 strings in either condition.
+
+Still open, each filed with its reproduction: `no need to keep the shed one` reads as a keep
+(task 1086); function words such as `den`, `del` or `celui` name rows in the other four languages
+(task 1087); a German negation after the keep verb is not read (task 1088); and `Forget 7319 and
+do not keep the shed one` keeps the bike row, which `Forget 7319.` alone deletes (task 1096).
