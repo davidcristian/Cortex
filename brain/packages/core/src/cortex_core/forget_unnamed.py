@@ -127,15 +127,21 @@ def _words(text: str, function: frozenset[str] = frozenset()) -> set[str]:
     return {word for word in words - _COMMON - function - _EVERY if not code_word(word)}
 
 
+def _stems(text: str) -> set[str]:
+    """The stems of the compound code words of ``text``, such as ``fahrrad`` of ``Fahrradcode``."""
+    return {stem for word in _WORD.findall(text) if (stem := code_stem(word)) is not None}
+
+
 def _started(text: str, held: set[str]) -> set[str]:
     """The words of ``held`` that the stem of a compound code word of ``text`` starts."""
-    stems = {stem for word in _WORD.findall(text) if (stem := code_stem(word)) is not None}
+    stems = _stems(text)
     return {word for word in held if any(word.startswith(stem) for stem in stems)}
 
 
 def row_words(text: str) -> set[str]:
-    """The words of a stored exchange that can name a fact, read without its speaker labels."""
-    return _words(_PREFIX.sub("\n", text))
+    """The words of a stored exchange that can name a fact, with the stems of its compounds."""
+    plain = _PREFIX.sub("\n", text)
+    return _words(plain) | _stems(plain)
 
 
 def _named(rows: list[MemoryRecord], words: set[str], deleted: Iterable[str]) -> bool:

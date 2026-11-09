@@ -127,3 +127,23 @@ twelve rows above, with the texts `7319`, `code`, `lock code` and `number`, with
 calling chat's row. 174 cases from 29 strings changed, none with the value as the text, and each
 keeps more rows. Script `replay1098.py` and log `replay1098.log` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot17/`.
+
+## The third audit's probes, 2026-11-09
+
+Unit calls of `unnamed` and `asks_to_keep` over rows that each hold 7319. A row that writes its
+fact only as a compound code word gave no row word: `Forget 7319 but keep the Postleitzahl.` and
+`Vergiss meinen Türcode, aber behalte die Postleitzahl.` kept nothing, so the kept row also
+counted as holding the number and the result and `NUMBERS_LEFT_NOTE` asked to forget the number
+itself. A row's own compound now gives its part (`postleit`, `fahrrad`) as a row word, and both
+messages keep the row, while `keep my passport` still keeps no `passcode` row and `keep the pin`
+no `pincode` row (tests in `test_forget_compound_code.py`). Replay: the 1,874 recorded forget
+strings went through the reader before and after over the twelve rows above with the same four
+texts, and no case changed.
+
+Still open: a short stem names unrelated words (`passcode` lists a `passport` row, task 1102);
+a fact named only by a code word such as `PIN` names no row (task 1103); a message in capitals
+reads as English, so German `DEN` names a row (task 1071); and in a mixed German and English
+message `den` and `hat` name nothing (task 1104). No moved forget result text changed in the
+split into `forget_results.py`, and no exemption names either module. Scripts `probe2.py`,
+`probe4.py`, `probe6.py` and log `replay.log` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot18/`.

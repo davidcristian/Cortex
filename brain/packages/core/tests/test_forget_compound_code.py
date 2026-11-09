@@ -84,3 +84,43 @@ def test_a_compound_naming_a_row_deleted_earlier_keeps_the_rows_it_does_not_name
     query = "Forget the doorcode 7319, keep everything else."
     kept = unnamed(others, "7319", query, deleted=[door.text])
     assert sorted(record.id for record in kept) == ["rad", "shed"]
+
+
+_COMPOUND_ROWS = (
+    ("rad", "User: Merke dir, mein Fahrradcode ist 7319.\nAssistant: Notiert."),
+    ("plz", "User: Merke dir, meine Postleitzahl ist 7319.\nAssistant: Notiert."),
+    ("haus", "User: Merke dir, mein Haustürcode ist 7319.\nAssistant: Notiert."),
+    ("pass", "User: Remember that my passcode is 7319.\nAssistant: Noted."),
+    ("pin", "User: Remember that my pincode is 7319.\nAssistant: Noted."),
+)
+
+
+def _kept_of_compounds(query: str) -> list[str]:
+    rows = [
+        MemoryRecord(id=name, text=text, embedding=(1.0, 0.0), at=_AT + timedelta(minutes=i))
+        for i, (name, text) in enumerate(_COMPOUND_ROWS)
+    ]
+    return sorted(record.id for record in unnamed(rows, "7319", query))
+
+
+@pytest.mark.parametrize(
+    ("query", "kept"),
+    [
+        ("Forget 7319 but keep the Postleitzahl.", ["plz"]),
+        ("Vergiss 7319, behalte den Fahrradcode.", ["rad"]),
+        ("Vergiss den Fahrradcode 7319, alles andere bleibt.", ["haus", "pass", "pin", "plz"]),
+        ("Vergiss meine Postleitzahl 7319, alles andere bleibt.", ["haus", "pass", "pin", "rad"]),
+        ("Forget 7319 but keep my passport.", []),
+        ("Forget 7319 but keep the pin.", []),
+    ],
+)
+def test_the_stem_of_a_compound_code_word_in_a_row_names_that_row(
+    query: str, kept: list[str]
+) -> None:
+    assert _kept_of_compounds(query) == kept
+
+
+def test_a_keep_clause_naming_the_compound_a_row_holds_asks_to_keep_that_row() -> None:
+    query = "Vergiss meinen Türcode, aber behalte die Postleitzahl."
+    assert asks_to_keep(_COMPOUND_ROWS[1][1], query)
+    assert not asks_to_keep(_COMPOUND_ROWS[0][1], query)

@@ -99,7 +99,8 @@ that removes exactly those rows and holds against a turn in flight. This record 
    or an article, preposition or pronoun of the language `message_language` reads, and a row is
    read without its `User:` and `Assistant:` labels, so `user` can name a fact. The part of a
    compound code word before its code word (`door` of `doorcode`, `fahrrad` of `Fahrradcode`)
-   names each row word it starts, since German writes most such names as one word. A recall row
+   names each row word it starts, and a row's own compound gives that part as a row word, since
+   German writes most such names as one word. A recall row
    holds the value only in its reply, so a restatement is still deleted; a call with no message
    reads no row apart; and a card whose rows are all kept is `None`, with the result `KEPT_ALL`.
    When the message holds the value too, the same rows are kept only once a word of the message
