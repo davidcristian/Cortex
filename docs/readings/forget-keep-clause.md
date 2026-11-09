@@ -100,3 +100,10 @@ the code word `Fahrradcode`, as `Forget the doorcode 7319, keep everything else.
 ([task 1097](../refinements/tasks/1097-a-compound-code-word-names-no-fact-in-a-forget.md)). No case
 deletes a row outside those two rules. Script `replay2.py` and log `replay2.log` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot14/`.
+
+One live draw on the stack brain rebuilt with this reader, after two chats stored
+`Merke dir bitte: Mein Fahrradschloss hat den Code 7319.` and `Merke dir bitte: Der Schuppen hat
+auch den Code 7319.`: `Vergiss 7319, behalte aber den vom Schuppen.` drew a `forget_memories`
+call with the text `7319`, and the card listed the bike row to delete and the shed row under
+`KEPT_LINE`. The card was refused and both rows stayed. The SM clock read 0.57 to 0.63 of
+`clocks.max.sm`. Script `live.sh`, records `live.jsonl` and `live.log` in the same directory.
