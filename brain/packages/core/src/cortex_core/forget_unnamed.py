@@ -5,7 +5,7 @@ from collections.abc import Iterable, Mapping
 
 from cortex_core.memory import MemoryRecord
 from cortex_core.memory_values import code_word, digit_runs, whole_values
-from cortex_core.note_language import message_language
+from cortex_core.note_language import ENGLISH, in_language, message_language
 
 _WORD = re.compile(r"[^\W\d_]{3,}")
 _REPLY = "\nAssistant: "
@@ -74,12 +74,23 @@ KEPT_ALL = (
 KEPT_NOTE = (
     "\n\n(Still in memory, since your message names none of their words or asks to keep them:"
 )
+KEPT_NOTES = {
+    "fr": "\n\n(Toujours en mémoire, car votre message demande de les garder ou ne nomme aucun "
+    "de leurs mots :",
+    "de": "\n\n(Noch gespeichert, weil Ihre Nachricht darum bittet, sie zu behalten, oder keines "
+    "ihrer Wörter nennt:",
+    "es": "\n\n(Todavía en memoria, porque tu mensaje pide guardarlos o no nombra ninguna de sus "
+    "palabras:",
+    "ro": "\n\n(Încă în memorie, pentru că mesajul tău cere să fie păstrate sau nu numește niciun "
+    "cuvânt al lor:",
+}
 _TURNS = 32
 
 
-def kept_note(kept: Iterable[str]) -> str:
-    """The note closing a reply that names the excerpts of the rows a forget kept."""
-    return "\n".join([KEPT_NOTE, *(f"- {line}" for line in kept)]) + ")"
+def kept_note(kept: Iterable[str], language: str = ENGLISH) -> str:
+    """The note closing a reply that names the rows a forget kept, in the note ``language``."""
+    head = in_language(KEPT_NOTE, KEPT_NOTES, language)
+    return "\n".join([head, *(f"- {line}" for line in kept)]) + ")"
 
 
 class KeptRows:

@@ -66,9 +66,9 @@ them in
 A delete whose rows outlast it, because rows written since the card still hold the text or more
 than the card's limit hold the value, deleted its listed row and reported a count of 0, so a reply
 saying nothing was forgotten got no note. Those results now count their rows (tests in
-`test_forget_count_note.py`). A count of 0 shows no note. Over a reply naming no removal, the count
-and numbers left notes agree and take the message's language, while the kept rows note stays
-English beside them ([task 1089](../refinements/tasks/1089-the-kept-rows-note-is-english-beside-notes-in-the-message-language.md)). The kept rows note and the count never contradict each other,
+`test_forget_count_note.py`). A count of 0 shows no note. Over a reply naming no removal, the
+count, numbers left and kept rows notes agree and take the message's language (`KEPT_NOTES`,
+tested in `test_forget_just_said.py`). The kept rows note and the count never contradict each other,
 but two other notes do. Over `Done, I've forgotten your bike lock code and kept the shed one.`,
 `UNKEPT_CLAIM_NOTE` says nothing was kept ([task 1090](../refinements/tasks/1090-the-unkept-note-follows-a-forget-reply-that-kept-the-fact-asked-to-keep.md)), and `NUMBERS_LEFT_NOTE` asks the person
 to forget the number the message asked to keep ([task 1091](../refinements/tasks/1091-the-numbers-left-note-asks-to-forget-a-number-the-message-asked-to-keep.md)). A store failure after the delete still

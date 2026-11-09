@@ -17,7 +17,15 @@ from cortex_core import (
     TurnCapabilities,
 )
 from cortex_core.closing_notes import limit_notes
-from cortex_core.forget_unnamed import KEPT_ALL, KEPT_LINE, KEPT_NOTE, KeptRows, kept_note, unnamed
+from cortex_core.forget_unnamed import (
+    KEPT_ALL,
+    KEPT_LINE,
+    KEPT_NOTE,
+    KEPT_NOTES,
+    KeptRows,
+    kept_note,
+    unnamed,
+)
 from cortex_core.stops import StopLedger
 from cortex_core.tools import TurnStamp
 
@@ -162,3 +170,25 @@ def test_a_reply_after_a_kept_row_closes_with_the_kept_note(
     caps = TurnCapabilities(memory=recaller)
     list(limit_notes(StopLedger(), runs, parts, caps=caps, taint=taint, query=_JUST))
     assert "".join(parts) == closed
+
+
+@pytest.mark.parametrize(
+    ("query", "language"),
+    [
+        ("Oublie 7319, mais garde celui du cabanon, merci.", "fr"),
+        ("Vergiss 7319, behalte den vom Schuppen.", "de"),
+        ("Olvida 7319, guarda el del cobertizo, por favor.", "es"),
+        ("Uită 7319, păstrează-l pe cel de la magazie.", "ro"),
+        ("Forget 7319, keep the shed one.", "en"),
+    ],
+)
+def test_the_kept_note_is_written_in_the_language_of_the_message(query: str, language: str) -> None:
+    recaller = MemoryRecaller(InMemoryMemoryStore(), HashEmbedder(), SystemClock())
+    parts = ["OK."]
+    taint = TaintLedger(forget_asked=True, forget_calls=1, forget_kept=("a row",))
+    runs = (ToolRun(name=FORGET_CHOSEN_TOOL_NAME, ok=False),)
+    caps = TurnCapabilities(memory=recaller)
+    list(limit_notes(StopLedger(), runs, parts, caps=caps, taint=taint, query=query))
+    head = KEPT_NOTE if language == "en" else KEPT_NOTES[language]
+    assert "".join(parts) == f"OK.{head}\n- a row)"
+    assert kept_note(("a row",), language) == f"{head}\n- a row)"
