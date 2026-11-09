@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-07
+**Verified:** 2026-11-09
 
 `Note that my phone number is now 0699000000, and delete the old one.`, with a row holding
 `0612345678`, called `forget_memories` with a text that matched nothing in 3 of 22 draws of it and its
@@ -69,3 +69,8 @@ row holds; each reply said it could not find the old number. Over 60 draws of M0
   60 N01 and N02 draws counted (every first call named the old number, which recall showed),
   and every V01 draw said nothing was stored, so the rule gave no result and the candidate is
   [recorded as a patch](../../readings/forget-new-value-patch.md) rather than committed.
+- 2026-11-09: the premise still holds in the code: an unmatched first call still reads
+  `_NONE_FOUND`. The note recorded for
+  [R-1061](1061-a-forget-of-what-was-just-said-can-match-nothing-and-say-it-was-never-stored.md)
+  does not reach this form, since no row holds the new value its call names, so one fix for both is
+  not supported. Step 1's row was not drawn inside the slot's time box.
