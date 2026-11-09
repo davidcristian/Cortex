@@ -95,7 +95,7 @@ async def test_a_one_time_reminder_given_a_first_day_without_at_time_is_correcte
 
 async def test_a_one_time_reminder_given_at_time_and_a_first_day_repeats_from_it() -> None:
     store = await _stored(at="2026-11-20T09:00:00")
-    content, is_error = await _edit(store, at_time="09:00", starting="2027-06-15")
+    content, is_error = await _edit(store, at_time="09:00", starting="2027-06-15", repeat=True)
     assert not is_error, content
     assert await _due(store) == datetime(2027, 6, 15, 9, 0, tzinfo=UTC)
 

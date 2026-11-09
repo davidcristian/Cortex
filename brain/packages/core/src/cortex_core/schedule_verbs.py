@@ -14,7 +14,7 @@ from cortex_core.schedule_day_args import (
     has_day_selector,
     in_zone_property,
 )
-from cortex_core.schedule_edit_at import at_repeats, parse_move, raced
+from cortex_core.schedule_edit_at import REPEAT_PROPERTY, at_repeats, once_kept, parse_move, raced
 from cortex_core.schedule_render import describe_item, effective_zone
 from cortex_core.schedule_time import UTC_DISPLAY, UTC_ZONE_CONTEXT, DisplayZone, ZoneContext
 from cortex_core.schedule_transitions import ScheduleEdit
@@ -157,9 +157,7 @@ class SnoozeScheduledTool:
         if item.status is ScheduleStatus.FIRING:
             return f"{item_id} is firing right now; try again in a moment"
         if not await self._store.snooze(item_id, until=until):
-            return (
-                f"{item_id} changed underneath (fired or cancelled); use list_scheduled to re-check"
-            )
+            return raced(item_id)
         return None
 
 
@@ -218,6 +216,7 @@ class EditScheduledTool:
                     **day_selector_properties(),
                     **in_zone_property(),
                     **starting_property(),
+                    **REPEAT_PROPERTY,
                 },
                 "required": ["id"],
             },
@@ -231,8 +230,9 @@ class EditScheduledTool:
         if call.arguments.get("at") is not None:
             return await self._move(call, item_id)
         try:
+            refusal = once_kept(await self._store.get(item_id), call.arguments)
             arguments = await self._with_kept_time(item_id, call.arguments)
-            parsed = parse_edit(
+            parsed = refusal or parse_edit(
                 arguments, now=self._clock.now(), zone=self._zone, resolve_zone=self._resolve_zone
             )
             if isinstance(parsed, str):
@@ -294,7 +294,5 @@ class EditScheduledTool:
         if item.kind is ScheduleKind.TASK and live_taint:
             return _EDIT_TAINTED_TASK
         if not await self._store.edit(item_id, edit):
-            return (
-                f"{item_id} changed underneath (fired or cancelled); use list_scheduled to re-check"
-            )
+            return raced(item_id)
         return None

@@ -11,7 +11,7 @@ from cortex_core import (
     ToolCall,
     TurnStamp,
 )
-from cortex_core.schedule_edit_at import AT_ALONE, at_repeats
+from cortex_core.schedule_edit_at import AT_ALONE, REPEAT_PROPERTY, at_repeats, once_kept
 
 _NOW = datetime(2026, 11, 8, 8, 0, tzinfo=UTC)
 
@@ -133,3 +133,73 @@ async def test_a_move_raced_by_a_fire_is_reported() -> None:
         "item-1 changed underneath (fired or cancelled); use list_scheduled to re-check",
         True,
     )
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"at_time": "15:00"},
+        {"at_time": "09:00", "on_days": ["wed"]},
+        {"at_time": "15:00", "repeat": False},
+        {"at_time": "15:00", "repeat": "true"},
+        {"text": "post it", "at_time": "15:00"},
+    ],
+)
+async def test_at_time_on_a_one_time_item_is_refused_and_names_at(
+    changes: dict[str, object],
+) -> None:
+    store = InMemoryScheduleStore()
+    await _stored(store, at="2026-12-14T09:00:00")
+    content, is_error = await _edit(store, **changes)
+    assert is_error
+    assert content == once_kept(await store.get("item-1"), changes)
+    assert content.startswith("REFUSED: item-1 is a one-time item")
+    assert "call again with 'at' set to" in content
+    assert "'repeat' set to true" in content
+    (item,) = await store.list_active()
+    assert (item.due_at, item.rule, item.every, item.text) == (
+        datetime(2026, 12, 14, 9, 0, tzinfo=UTC),
+        None,
+        None,
+        "send the parcel",
+    )
+
+
+async def test_at_time_with_repeat_makes_a_one_time_item_repeat() -> None:
+    store = InMemoryScheduleStore()
+    await _stored(store, at="2026-12-14T09:00:00")
+    content, is_error = await _edit(store, at_time="15:00", repeat=True)
+    assert (content, is_error) == ("edited item-1: now due 2026-11-08T15:00:00+00:00", False)
+    (item,) = await store.list_active()
+    assert item.rule is not None
+
+
+async def test_at_time_on_a_repeating_item_needs_no_repeat() -> None:
+    store = InMemoryScheduleStore()
+    await _stored(store, at_time="09:00")
+    content, is_error = await _edit(store, at_time="15:00")
+    assert (content, is_error) == ("edited item-1: now due 2026-11-08T15:00:00+00:00", False)
+
+
+@pytest.mark.parametrize(
+    "timing", [{"at": "2026-12-14T09:00:00"}, {"in_seconds": 60, "every_seconds": 3600}]
+)
+async def test_an_edit_without_at_time_is_never_refused_for_a_repeat(
+    timing: dict[str, object],
+) -> None:
+    store = InMemoryScheduleStore()
+    await _stored(store, **timing)
+    content, is_error = await _edit(store, text="post it")
+    assert (content, is_error) == ("edited item-1", False)
+
+
+async def test_a_missing_item_is_never_refused_for_a_repeat() -> None:
+    assert once_kept(None, {"at_time": "15:00"}) is None
+    content, is_error = await _edit(InMemoryScheduleStore(), at_time="15:00")
+    assert (content, is_error) == ("no scheduled item item-1", True)
+
+
+def test_the_spec_offers_repeat_as_a_boolean() -> None:
+    spec = EditScheduledTool(InMemoryScheduleStore(), _FixedClock()).spec
+    assert spec.parameters["properties"]["repeat"] == REPEAT_PROPERTY["repeat"]
+    assert REPEAT_PROPERTY["repeat"]["type"] == "boolean"

@@ -4,6 +4,7 @@ from collections.abc import Mapping
 from datetime import datetime
 from typing import Any
 
+from cortex_core.schedule import ScheduledItem
 from cortex_core.schedule_args import BAD_TEXT, parse_at
 from cortex_core.schedule_day_args import has_day_selector
 from cortex_core.schedule_time import DisplayZone
@@ -14,6 +15,30 @@ AT_ALONE = (
     "offset in 'at'"
 )
 _RULE_ARGUMENTS = ("at_time", "every_seconds", "starting", "in_zone")
+REPEAT_PROPERTY: dict[str, dict[str, Any]] = {
+    "repeat": {
+        "type": "boolean",
+        "description": (
+            "True only when the person asked for a one-time item to repeat; a one-time item "
+            "takes 'at_time' only with it (optional)."
+        ),
+    }
+}
+
+
+def once_kept(item: ScheduledItem | None, arguments: Mapping[str, Any]) -> str | None:
+    """The refusal of an ``at_time`` that would make a one-time ``item`` repeat, else ``None``."""
+    if item is None or item.rule is not None or item.every is not None:
+        return None
+    if arguments.get("at_time") is None or arguments.get("repeat") is True:
+        return None
+    return (
+        f"REFUSED: {item.id} is a one-time item, and 'at_time' would make it repeat, every day "
+        "or on the days given, so this call was not run. To move it and keep it one time, call "
+        "again with 'at' set to the ISO-8601 date-time of its new due time and no 'at_time' or "
+        "day selector. Only if the person asked for it to repeat, call again with these "
+        "arguments and 'repeat' set to true."
+    )
 
 
 def at_repeats(item_id: str) -> str:

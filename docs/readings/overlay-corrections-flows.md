@@ -45,8 +45,8 @@ from the brain's `tool.invocation` log lines.
 
 | Flow | Note shown | Follow-up calls | Store after | Reply | Pass |
 | --- | --- | --- | --- | --- | --- |
-| t1 | yes, 09:00 | `edit_scheduled` `at_time` 15:00 | a daily rule from 8 Nov 15:00 | "3:00 PM on 14 December" | no, R-1058 |
-| t2 | no, the reply named `9h00` | `edit_scheduled` `at_time` 15:00 | a daily rule from 8 Nov 15:00 | "le 14 décembre à 15h00" | no, R-1058 |
+| t1 | yes, 09:00 | `edit_scheduled` `at_time` 15:00 | a daily rule from 8 Nov 15:00 | "3:00 PM on 14 December" | no, `at_time` made it daily |
+| t2 | no, the reply named `9h00` | `edit_scheduled` `at_time` 15:00 | a daily rule from 8 Nov 15:00 | "le 14 décembre à 15h00" | no, `at_time` made it daily |
 | d1 | no, a one-time `at` was stored | `schedule_task` again, same `at` | one one-time item, no copy added | "set as a one-time event" | yes |
 | d2 | yes, German | `edit_scheduled` `every_seconds` 0 | one one-time item, 8 Nov 17:30 | "nur einmalig" | yes |
 | w1 | yes, Sunday 2026-11-08 | `cancel_scheduled` (card), `schedule_task` | one item, 9 Nov 18:00 | "6:00 PM tomorrow, Monday" | yes |
@@ -58,8 +58,8 @@ from the brain's `tool.invocation` log lines.
 | c2 | yes, English (R-999) | `forget_memories` `14C` (card) | no row holds 14C | "j'ai oublié" | yes |
 
 - **t1 and t2.** `edit_scheduled` has no argument for a one-time date and time, so `at_time` made
-  each item a daily rule from today and dropped 14 December. Filed as
-  [R-1058](../refinements/tasks/1058-moving-a-one-time-reminder-makes-it-repeat.md). The same slot
+  each item a daily rule from today and dropped 14 December; the last section below fixes it.
+  The same slot
   made `daily_after` (`schedule_daily.py`) read an edit with `at_time` and no day selector as a
   daily store, so such a reply now ends with `DAILY_STORED_NOTE` unless it names the repeat.
 - **n1.** In the first turn the model forgot `gym locker number`, read the result saying another
@@ -89,7 +89,7 @@ while the reply streamed, `No wait, I meant Wednesday.` was typed and Enter pres
   asserts ("a send the state refuses leaves the words in place").
 - The correction called `edit_scheduled` with `at_time` 09:00 and `on_days` `["wed"]`, with no
   card. The reply said "It's now set for Wednesday, November 11th, at 9:00 AM.", but the item
-  became a weekly rule every Wednesday: the weekly form of R-1058.
+  became a weekly rule every Wednesday: the weekly form of the same defect.
 
 ## 2. Plain corrections
 
@@ -112,7 +112,7 @@ flow above.
 
 | Flow | Correction calls | Store after | Reply | Pass |
 | --- | --- | --- | --- | --- |
-| x1 | `edit_scheduled` `at_time` 09:00, `on_days` `["wed"]` | a weekly rule, Wednesdays 09:00 | "set for Wednesday at 9:00 AM" | no, R-1058 |
+| x1 | `edit_scheduled` `at_time` 09:00, `on_days` `["wed"]` | a weekly rule, Wednesdays 09:00 | "set for Wednesday at 9:00 AM" | no, `at_time` made it weekly |
 | x2 | `cancel_scheduled` (card), `schedule_task` after a refused weekly call | one item, 11 Nov 09:00 | "prévu pour mercredi à 9 h" and `ONCE_STORED_NOTE` in English | yes |
 | x3 | `cancel_scheduled` (card) | no item | "I've cancelled that reminder" | yes |
 | x4 | `list_scheduled`, `cancel_scheduled` (card) | no item | "he cancelado el recordatorio" | yes |
@@ -157,9 +157,9 @@ and one named no limit. Both rows were deleted.
 
 ## Counts
 
-Of 11 note follow-ups, 9 passed and 2 failed (R-1058, both time changes). The note came in 6 of 11
+Of 11 note follow-ups, 9 passed and 2 failed (both time changes, through `at_time`). The note came in 6 of 11
 first turns; the other 5 had a reason the result row names. Of 8 corrections plus the shell flow, 5
-passed and 4 failed (R-1058 twice, R-1061, R-1062). Every cancel, and every forget that matched a
+passed and 4 failed (two through `at_time`, R-1061, R-1062). Every cancel, and every forget that matched a
 row, showed its card; an edit shows none.
 
 ## The time corrections on `edit_scheduled` with `at`
@@ -175,3 +175,44 @@ x1 item stayed one time on 11 Nov 09:00, and two of three t1 items on 14 Dec 15:
 edit passed `at_time` 15:00, so the item became a daily rule due today, and the reply said "3:00 PM
 on 14 December" and closed with `DAILY_STORED_NOTE`. Over both passes 7 of 8 items stayed one time.
 
+
+## A one-time item given `at_time`
+
+**2026-11-09**, the `cortexn17` stack: the same cortex, context, memory, Redis zone and approved
+cards as the rig above, the brain's clock on Monday 9 November after midnight. The base is the
+stack brain, built from `99764d69a`; the fixed build is a candidate container built from the tree
+that refuses `at_time` on a one-time item unless the call sets `repeat`, through the recording
+proxy. Each chat is named `s19-<build>-<flow>-<draw>`. Rows and the rule were written before the
+first draw. Two draws of t1, t2 and x1 go on the base, and two of each of t1, t2, x1 and r1 on the
+fixed build, which the slot's time box sets.
+
+| Flow | First turn | Follow-up | Pass when |
+| --- | --- | --- | --- |
+| t1 | `Remind me on 14 December to send the parcel.` | `Change it to 3 in the afternoon.` | one item, one time, 14 Dec 15:00 |
+| t2 | `Rappelle-moi le 14 décembre d'envoyer le colis.` | `Mets-le plutôt à 15 h.` | one item, one time, 14 Dec 15:00 |
+| x1 | `Remind me on Tuesday at 9 to call mom.` | `No, I meant Wednesday.` | one item, one time, 11 Nov 09:00 |
+| r1 | `Remind me on 14 December to send the parcel.` | `Make it every day at 3 in the afternoon.` | one item, a daily rule at 15:00 |
+
+**Rule.** The refusal ships when, on the fixed build: every follow-up whose edit it refused ends
+with one item at the pass time, one time for t1, t2 and x1 and daily for r1; every r1 draw ends
+with a daily rule at 15:00; and no t1, t2 or x1 draw ends with a rule or with no item. How many
+follow-ups the refusal reached is a separate count, so a fix it reached in few draws can still
+ship. Any fixed draw that breaks one of these leaves the behaviour unshipped and the task open.
+
+**Results.** A first base pass with no cleanup between flows was void: the schedule store is
+global, so `list_scheduled` showed the earlier flows' items and the model edited them. The counted
+passes deleted each flow's items and memory rows after its last turn, in chats named
+`s19b-<build>-<flow>-<draw>` (driver `flows.sh`, records `rows-base.jsonl` and `rows-fix.jsonl` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot2/`).
+The SM clock read 0.57 of its maximum throughout.
+
+| Flow | Base | Fixed | Refused on the fixed build, then |
+| --- | --- | --- | --- |
+| t1 | 0 of 2: a daily rule from 9 Nov 15:00, with the daily note | 2 of 2 | 2 of 2, retried with `at` |
+| t2 | 2 of 2 | 2 of 2 | 2 of 2, retried with `at` |
+| x1 | 2 of 2 | 2 of 2 | 0 of 2: each first call used `at` |
+| r1 | not drawn | 2 of 2: a daily rule at 15:00 | 2 of 2, retried with `repeat` |
+
+The refusal was reached in 6 of 8 fixed follow-ups, and each of the 6 ended with one item at the
+pass time. No t1, t2 or x1 draw ended with a rule or with no item, and both r1 draws kept their
+daily rule, so the rule holds and the refusal ships.

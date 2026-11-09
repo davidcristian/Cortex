@@ -896,7 +896,7 @@ async def test_edit_renders_the_new_due_time_in_the_configured_zone() -> None:
     await tool.invoke(_call({"kind": "reminder", "text": "standup", "in_seconds": 60}))
     zone = DisplayZone(name="Europe/Bucharest", tz=ZoneInfo("Europe/Bucharest"))
     result = await EditScheduledTool(store, FixedClock(), zones=ZoneContext(default=zone)).invoke(
-        _edit_call({"id": "item-1", "at_time": "09:00"})
+        _edit_call({"id": "item-1", "at_time": "09:00", "repeat": True})
     )
     assert not result.is_error
     assert result.content == "edited item-1: now due 2026-07-13T09:00:00+03:00"
@@ -906,7 +906,7 @@ async def test_edit_retexts_and_reschedules_in_one_call() -> None:
     tool, store = _tool()
     await tool.invoke(_call({"kind": "reminder", "text": "old", "in_seconds": 60}))
     result = await EditScheduledTool(store, FixedClock()).invoke(
-        _edit_call({"id": "item-1", "text": "new", "at_time": "09:00"})
+        _edit_call({"id": "item-1", "text": "new", "at_time": "09:00", "repeat": True})
     )
     assert not result.is_error
     loaded = await store.get("item-1")
@@ -919,7 +919,7 @@ async def test_edit_refuses_a_task_rule_change_on_a_tainted_turn() -> None:
     tool, store = _tool()
     await tool.invoke(_call({"kind": "task", "text": "sweep", "in_seconds": 60}))
     result = await EditScheduledTool(store, FixedClock()).invoke(
-        _edit_call({"id": "item-1", "at_time": "03:00"}, tainted=True)
+        _edit_call({"id": "item-1", "at_time": "03:00", "repeat": True}, tainted=True)
     )
     assert result.is_error
     assert "cannot edit an autonomous task" in result.content
@@ -967,7 +967,7 @@ async def test_edit_to_a_rule_with_no_schedulable_occurrence_is_a_correction() -
     )
     await tool.invoke(_call({"kind": "reminder", "text": "x", "in_seconds": 60}))
     result = await EditScheduledTool(store, EndOfTimeClock()).invoke(
-        _edit_call({"id": "item-1", "at_time": "23:30"})
+        _edit_call({"id": "item-1", "at_time": "23:30", "repeat": True})
     )
     assert result.is_error
     assert "no next occurrence" in result.content
@@ -1307,7 +1307,9 @@ async def test_edit_sets_a_per_rule_zone_and_renders_it() -> None:
     await tool.invoke(_call({"kind": "reminder", "text": "standup", "in_seconds": 60}))
     edit = EditScheduledTool(store, FixedClock(), zones=ZoneContext(resolver=_RESOLVER))
     result = await edit.invoke(
-        _edit_call({"id": "item-1", "at_time": "09:00", "in_zone": "America/New_York"})
+        _edit_call(
+            {"id": "item-1", "at_time": "09:00", "in_zone": "America/New_York", "repeat": True}
+        )
     )
     assert not result.is_error
     assert result.content == "edited item-1: now due 2026-07-12T09:00:00-04:00"
@@ -1321,7 +1323,7 @@ async def test_edit_rejects_an_unknown_in_zone() -> None:
     await tool.invoke(_call({"kind": "reminder", "text": "standup", "in_seconds": 60}))
     edit = EditScheduledTool(store, FixedClock(), zones=ZoneContext(resolver=_RESOLVER))
     result = await edit.invoke(
-        _edit_call({"id": "item-1", "at_time": "09:00", "in_zone": "Mars/Olympus"})
+        _edit_call({"id": "item-1", "at_time": "09:00", "in_zone": "Mars/Olympus", "repeat": True})
     )
     assert result.is_error
     assert "no known timezone" in result.content
