@@ -106,5 +106,8 @@ one fewer in none. No turn was drawn. Scripts `replay.py` and `replay1037.py` in
 and keep the reminder tool. `Remember that the shop opens at 9, and closes at 5.` is read as an
 action too and refuses nothing, which is the tool reader's safe direction. `Remember I arrive at
 9 on Mondays.` and `then leave in 2026` still refuse both tools. `Remember my code is 5521 and at
-9 ring me.` was read as no action before and after, so both tools are refused, filed as
-[task 1082](../refinements/tasks/1082-a-time-before-the-verb-of-a-second-clause-loses-the-reminder-tool.md).
+9 ring me.` was read as no action before and after, so both tools were refused. The reader now also
+reads a time before the verb (`at`, `around`, `by` or `before` and a digit, or `in` and a number of
+minutes or hours), after at most two day words, so that message keeps both tools, while `and at 9
+I leave` and `by 2019 paid it off` still refuse both. A replay of every string in `docs/readings/`
+(28,434) through `actions_asked` before and after that change moved none.

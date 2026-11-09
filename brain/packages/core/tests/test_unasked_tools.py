@@ -97,6 +97,15 @@ _SPAWN = ToolSpec(name=SPAWN_TOOL_NAME, description="", parameters={}, calls_sid
         "Remember my dentist appointment, tomorrow at 10.",
         "Remember the call with Ana, Friday at 3.",
         "Remember that the bins go out weekly, every Monday at 7.",
+        "Remember I arrive at 9 on Mondays.",
+        "Remember the shop opens at 9.",
+        "Remember my code is 5521 and at 9 I leave.",
+        "Remember my code is 5521 and at 9 the shop opens.",
+        "Remember my code is 5521 and at 9 on Mondays I swim.",
+        "Remember my code is 5521 and at 10 Bob arrives.",
+        "Remember my code is 5521 and tomorrow at 9 I leave.",
+        "Remember my code is 5521 and in 2 hours the shop closes.",
+        "Remember that I bought the flat in 2015, by 2019 paid it off.",
     ],
 )
 def test_a_request_to_remember_a_fact_asks_for_neither_tool(query: str) -> None:
@@ -124,6 +133,15 @@ def test_a_request_to_remember_a_fact_asks_for_neither_tool(query: str) -> None:
         "Remember that I start at 9 and finish at 5.",
         "Note my train on Friday, and call by 6.",
         "Remember the parcel comes today; knock before 10.",
+        "Remember my code is 5521 and at 9 ring me.",
+        "Remember my code is 5521, at 9:30 call me.",
+        "Remember my code is 5521 and around 7 give me a shout.",
+        "Remember the bus, and at 6pm ring me.",
+        "Remember the bus, and before 6 am call me.",
+        "Remember my code is 5521 and tomorrow at 9 ring me.",
+        "Remember my locker is 42, and every day at 7 call me.",
+        "Note my tea is steeping, and in 5 minutes call me.",
+        "Remember my train, and by 6 call me.",
     ],
 )
 def test_a_request_to_remember_with_a_second_clause_no_reader_names_keeps_both_tools(

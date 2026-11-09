@@ -143,8 +143,15 @@ _DAY = (
     r"(?:today|tonight|tomorrow|yesterday|daily|weekly|monthly|yearly|once|twice|every|each|next"
     r"|last|(?:mon|tues|wednes|thurs|fri|satur|sun)days?)"
 )
+# A time can also come first, after at most two day words: "and tomorrow at 9 ring me".
+_TIME_FIRST = (
+    rf"(?:(?:(?:{_DAY}|day|morning|afternoon|evening|night)\s+){{0,2}}"
+    r"(?:in\s+\d+\s+(?:minutes?|mins?|hours?)"
+    r"|(?:at|around|by|before)\s+(?!(?:19|20)\d\d\b)\d[\d:.]*(?:\s*[ap]m)?)\s+)?"
+)
 _ACTION = re.compile(
     r"(?:^\W*|[,;:]\s*|\b(?:and|so|then|but|plus)\s+)(?:(?:please|also|just|then|now)\s+)*"
+    rf"{_TIME_FIRST}"
     r"(?!(?:i|we|you|he|she|it|they|my|our|your|his|her|their|its|the|a|an|this|that|these|those"
     r"|there|here|and|or|but|so|then|plus|yet|because|since|while|if|when|where|which|who|whose"
     r"|in|on|at|for|with|from|to|of|by|about|after|before|during|near|under|over|into|like|as"
