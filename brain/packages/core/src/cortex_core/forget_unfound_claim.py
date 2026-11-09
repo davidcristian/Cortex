@@ -12,9 +12,15 @@ DELETED_UNFOUND_NOTE = (
     "be among the deleted exchanges, rather than never stored.)"
 )
 
+# "No other records of it remain" says the delete held, unless the clause names finding or storing.
+_HELD = (
+    r"(?:(?=[^,;:.!?]*\b(?:found|stored|saved|had)\b)|(?![^,;:.!?]*\b(?:remain(?:s|ing)?|left"
+    r"|exists?|(?:is|are)\s+kept|any\s*more|any\s+longer|no\s+longer)\b))"
+)
 _NOT_STORED = re.compile(
     r"\b(?:didn['\u2019]t|did\s+not|couldn['\u2019]t|could\s+not|can['\u2019]t|cannot)\s+"
-    r"(?:find|locate|have(?!\s+to\b))\b|\bno\s+(?:record|memory|entry|entries)\s+of\b"
+    r"(?:find|locate|have(?!\s+to\b))\b"
+    rf"|\bno\s+(?:other\s+)?(?:records?|memory|entry|entries)\s+of\b{_HELD}"
     r"|\b(?:wasn['\u2019]t|weren['\u2019]t|was\s+not|were\s+not|never\s+(?:been\s+)?)"
     r"\s*(?:stored|saved|remembered|kept|found)\b"
     r"|\bnot\s+(?:stored|saved|found)\b(?!(?:\s+\w+){0,4}\s+(?:any\s*more|any\s+longer)\b)",

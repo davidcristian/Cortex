@@ -122,8 +122,21 @@ the note ships.
 Eight lk draws on the stack brain rebuilt from the build, from 05:17:55 to 05:21:29, cards
 approved, through no proxy, so the calls are not recorded. Every row was deleted. Four replies
 say the locker combination was not found and end with the note (lk2, lk3, lk6, lk8). lk7 says
-"there were no other records of that found to remove", which the reader does not read; it says
-no other record was found, which is true, but the plural `no records of` is missed in any reply,
-filed as [a task](../refinements/tasks/1043-the-not-stored-reader-misses-no-records-of-in-the-plural.md).
-The other three name only the removal and get no note. The run record is
+"there were no other records of that found to remove", which says no other record was found,
+which is true. The build that drew it did not read the plural; the reader now does (below). The
+other three name only the removal and get no note. The run record is
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot8/live.jsonl`.
+
+## The plural and `other` forms, 2026-11-09
+
+`says_not_stored` now reads `no records of` and `no other record of` as well as `no record of`,
+unless the rest of the clause says the records remain, are left, exist, are kept, or are gone
+`any more`, `any longer` or `no longer`. A clause that also names finding or storing (`found`,
+`stored`, `saved`, `had`) is read either way, since the note shows when the reading is unsure.
+Near misses written first: "no other records of it remain", "no records of it are kept now", "no
+record of it is left in my memory". The last was read before the change.
+
+Replay over the 28,039 distinct strings of `docs/readings/` (every line, table cell, quoted and
+backticked text): 4 change, all from not read to read. One is lk7's reply above; the other three
+are prose lines of this file quoting it or the form. No recorded reply moves from read to not
+read. The script is `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot7/replay.py`.

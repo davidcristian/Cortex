@@ -55,6 +55,11 @@ NOT_STORED = [
     "That was not found in my memory.",
     "I couldn\u2019t find your passport number.",
     "I've deleted the code; the locker combination is not stored in my memory.",
+    "I've removed the code, but there were no records of the locker combination.",
+    "There were no other records of that found to remove.",
+    "I have no other record of your passport number stored.",
+    "There are no records of it, so nothing else was removed.",
+    "No records of the locker combination were found left in my memory.",
 ]
 
 NEW_NOT_KEPT = [
@@ -82,6 +87,10 @@ NEAR_MISSES = [
     "I've cleared that from my memory, so it is no longer stored.",
     "I've removed the code, so it is not stored in my memory anymore.",
     "I found and deleted it, so you didn't have to wait.",
+    "I've deleted the code, and no other records of it remain.",
+    "I've forgotten it, and no records of it are kept now.",
+    "I've removed it, so no record of it is left in my memory.",
+    "I've deleted the code; no other records of it exist any more.",
 ]
 
 
