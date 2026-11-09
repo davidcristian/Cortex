@@ -81,15 +81,16 @@ _FORGET_OTHER = re.compile(
     re.IGNORECASE,
 )
 # An imperative to remember in the same four languages, at a clause start: "je me souviens",
-# "rappelle-moi" (a reminder) and "merk dir das nicht" do not match.
+# "rappelle-moi" and "recuérdale" (a reminder) and "merk dir das nicht" do not match.
 _REMEMBER_OTHER = re.compile(
     rf"{_OTHER_OPENS}(?:souviens[-\s]toi|souvenez[-\s]vous|rappelle[-\s]toi|rappelez[-\s]vous"
     r"|ret(?:enez|iens)\s+(?:que|qu['\u2019]|bien|ceci|cela|ça|mon|ma|mes)\b|retiens\s*:"
+    r"|(?:ret(?:enez|iens)|not(?:e|ez)|mémoris(?:e|ez))-(?:le|la|les)\b"
     r"|n['\u2019]oubli(?:e|ez)\s+pas\s+(?:que|qu['\u2019])"
-    r"|merke?\s+(?:es\s+|das\s+|dies\s+)?dir\b(?!\s+(?:\w+\s+){0,2}?nicht\b)"
+    r"|merke?\s+(?:es\s+|das\s+|dies\s+|ihn\s+|sie\s+)?dir\b(?!\s+(?:\w+\s+){0,2}?nicht\b)"
     r"|merken\s+sie\s+sich|erinnere?\s+dich|vergiss\s+nicht\W+dass"
     r"|recuerd[ae]\s+(?:que|esto|eso|lo\s+siguiente)\b|recuerd[ae]\s*:|acu[eé]rdate\b"
-    r"|no\s+olvides\s+que|ten\s+en\s+cuenta"
+    r"|no\s+olvides\s+que|ten\s+en\s+cuenta|(?:recu[eé]rd|ap[uú]nt|an[oó]t)a(?:lo|la|los|las)\b"
     r"|[țţt]ine\s+minte|aminte[șşs]te-[țţt]i|re[țţt]ine\s+(?:c[ăa]|asta|acest)\b"
     r"|nu\s+uita\s+c[ăa])",
     re.IGNORECASE,

@@ -133,7 +133,7 @@ pool down to the hits one turn sees. The turn that calls it is in
   one word after it, keeps the turn, so `ne garde pas rancune` and `behalt das nicht
   für dich` do not count and `ne retiens pas cette information` and `n'enregistre pas ça` do.
   `asks_kept` reads English and, in those four languages, an imperative to remember at a
-  clause start (`souviens-toi`, `merk dir`, `recuerda que`, `ține minte`), and not a statement, a question, a
+  clause start (`souviens-toi`, `retiens-le`, `merk dir`, `merk ihn dir`, `recuerda que`, `recuérdalo`, `ține minte`), and not a statement, a question, a
   reminder (`rappelle-moi`) or a request not to keep. `asks_files`
   (`file_request.py`) reads a sentence naming files, folders, directories or a file name such as
   `notes.txt` beside a question mark or a request word ("list", "show", "tell", "read", "which",

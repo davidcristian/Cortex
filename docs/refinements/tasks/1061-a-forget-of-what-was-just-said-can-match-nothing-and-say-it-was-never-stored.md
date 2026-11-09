@@ -35,8 +35,8 @@ from the previous turn. One draw is not a rate.
   written first, and 24 draws of x6, x7 and a French form on the base and the candidate gave the
   form in none, so the rule gave no result and the candidate is
   [recorded as a patch](../../readings/forget-value-held-patch.md). The draws found a forget by value that
-  kept the row the chat had just stored in 8 of 24, and a lost French request to remember, filed as
-  [R-1075](1075-a-french-request-to-remember-that-raises-a-forget-call-keeps-nothing.md).
+  kept the row the chat had just stored in 8 of 24, and a lost French request to remember
+  ([readings](../../readings/forget-what-was-just-said.md#a-request-to-remember-with-a-pronoun-2026-11-09)).
 - 2026-11-09: in 12 draws of the change that lists the row the calling chat just stored, f1 came
   to this form once, in French: the call `code de cadenas de vélo` matched nothing against `code
   de mon cadenas de vélo`, and the reply said nothing about the lock was stored

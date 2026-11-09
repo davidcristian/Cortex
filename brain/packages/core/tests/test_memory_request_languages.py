@@ -73,6 +73,14 @@ def test_a_request_not_to_keep_in_another_language_is_not_read_as_a_request_to_k
         "Tine minte ca numarul meu este 42.",
         "Amintește-ți că sora mea se numește Ana.",
         "Nu uita că zborul meu e marți.",
+        "Le code de mon cadenas de vélo est 5937, retiens-le.",
+        "Mon code est 4512, retenez-le bien.",
+        "Ma place est la 14C, note-la.",
+        "Mein Code ist 4512, merk ihn dir.",
+        "Meine Nummer ist 42, merk sie dir.",
+        "Mi código es 4512, recuérdalo.",
+        "Mi vuelo es el martes, apúntalo.",
+        "Mi asiento es el 14C, anótalo.",
     ],
 )
 def test_a_request_to_remember_in_french_german_spanish_or_romanian_asks_kept(
@@ -112,6 +120,17 @@ def test_a_request_to_remember_in_french_german_spanish_or_romanian_asks_kept(
         "Amintește-mi mâine să sun la bancă.",
         "Nu ține minte asta.",
         "Nu uita să cumperi pâine.",
+        "Tu le retiens ?",
+        "Retiens-tu ça ?",
+        "Ne le retiens pas.",
+        "Il le retient toujours.",
+        "Merkst du ihn dir?",
+        "Merk ihn dir nicht.",
+        "Er merkt sie sich nie.",
+        "¿Lo recuerdas?",
+        "No lo recuerdes.",
+        "Ella lo recuerda.",
+        "Recuérdale a Ana que llame.",
     ],
 )
 def test_a_statement_question_or_reminder_with_a_remember_verb_does_not_ask_kept(

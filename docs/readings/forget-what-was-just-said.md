@@ -66,8 +66,8 @@ the calls in the stack's proxy log, lines 249 to 312 for the base and 313 to 378
 - Every call text of x7 was `2468` or `Fahrradschloss`, each of which the row holds, so the form of
   flow x7 on 2026-11-08 did not come again. In one base f1 draw the first turn called
   `forget_memories` with `5937`, which matched nothing; no row was stored, so the second turn's
-  `_NONE_FOUND` was correct. Filed as
-  [R-1075](../refinements/tasks/1075-a-french-request-to-remember-that-raises-a-forget-call-keeps-nothing.md).
+  `_NONE_FOUND` was correct. `asks_kept` did not read `retiens-le` then
+  ([below](#a-request-to-remember-with-a-pronoun-2026-11-09)).
 - The rows stayed through `KEPT_ALL`: the message "forget what I just told you" names no word of
   the row, so `unnamed` kept it. Three of the seven replies that said the fact was forgotten ended
   with `UNFORGOTTEN_CLAIM_NOTE`; four ("I've disregarded that information.", "C'est fait, j'ai
@@ -152,3 +152,26 @@ candidate draw read `KEPT_ALL`, so **the candidate ships**. Replayed through the
 same rows, and so does the near miss; the x6 and f1 rows stored by the calling chat are kept by the
 old reader and listed by the candidate. The note is decided by the unit tests, since no draw read
 `KEPT_ALL`.
+
+## A request to remember with a pronoun, 2026-11-09
+
+A stray `forget_memories` call that matches nothing leaves a turn kept only when `asks_kept` reads
+the message as a request to remember (`_unmatched_keep` in `memory_claim.py`). `asks_kept` now
+also reads an imperative with an object pronoun at a clause start: `retiens-le`, `retenez-la`,
+`note-les`, `mémorise-le`, `merk ihn dir`, `merk sie dir`, `recuérdalo`, `apúntalo`, `anótalo`.
+`asks_not_kept` is still checked after `_unmatched_keep`, so a message that also asks not to keep
+is withheld (`retiens-le. Non, ne le retiens pas.` and `merk ihn dir nicht`, both tests). A
+brain-appended note was the other choice; the widened reader keeps the fact, as the English
+requests did, and on a turn that still stores nothing `unkept_note_due` now shows the note.
+
+Near misses written first, all still not read: `Tu le retiens ?`, `Retiens-tu ça ?`, `Ne le
+retiens pas.`, `Il le retient toujours.`, `Merkst du ihn dir?`, `Merk ihn dir nicht.`, `Er merkt
+sie sich nie.`, `¿Lo recuerdas?`, `No lo recuerdes.`, `Ella lo recuerda.`, and `Recuérdale a Ana
+que llame.`, a reminder for another person.
+
+Replay over the 28,128 distinct strings of `docs/readings/` (every line, table cell, quoted and
+backticked text): `asks_kept` and `asks_kept_alone` change for 4, every one the f1 message `Le
+code de mon cadenas de vélo est 5937, retiens-le.` alone or in a table row; `asks_not_kept`
+changes for none. The rule written before the change asked for no draw, since the path from the
+reader to `_unmatched_keep` is typed code its tests cover. Script `replay.py` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot7/`.
