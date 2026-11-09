@@ -86,6 +86,20 @@ decision about something else, such as `Remember that my gym code is 4417. I'll 
 whether to save the dentist's address.` and its German form. The whole message is withheld, so
 the gym code is not stored either. Replies that claim a keep (`Noted.`, `I'll keep that in mind.`)
 get `UNKEPT_CLAIM_NOTE`; `Got it.`, `Okay, let me know about the address.` and German `Notiert.`
-get none (task 1105 for the first two, task 1049 for a claim in another language). Script
+got none before the change below (task 1049 for a claim in another language). Script
 `probe5.py` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot18/`.
+
+## A request to remember beside a request not to keep, 2026-11-09
+
+`unkept_note_due` now also shows `UNKEPT_CLAIM_NOTE` when a statement of the message, not a
+question, asks to remember and does not itself ask not to keep, so `Got it.` after the gym code
+message above gets the note. A message asking to remember nothing, a question beside a request not
+to keep, and one sentence asking both (`Remember: don't save this.`) keep today's result. Every
+distinct readings string (29,050) was replayed as the message through the old and new rule: 24 ask
+both ways, 6 changed, all from no note to the note, and 0 changed as a reply. The 6 are three messages
+written two ways each: two forget requests beside a request to remember in another sentence (the locker code and the new phone
+number, neither stored) and `retiens-le. Non, ne le retiens pas.`, where the note is true and
+unasked. A request to remember in the same sentence as a forget or a put off decision still gets
+none (task 1107). Script `replay1105.py` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot21/`.

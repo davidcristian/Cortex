@@ -99,6 +99,37 @@ def test_a_turn_without_memory_shows_no_note_on_a_request_to_remember() -> None:
     assert _shown(TaintLedger(tainted=True), (_READ,), _PLAIN, memory=False) == _REPLY
 
 
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Remember that my gym code is 4417. I'll tell you later whether to save the address.",
+        "Merke dir, mein Code ist 4417. Ich sage dir später, ob du die Adresse speichern sollst.",
+        "Never note my PIN. Note that my gym code is 4417.",
+    ],
+    ids=["later", "later-de", "not-kept"],
+)
+@pytest.mark.parametrize("reply", ["Got it.", "Okay, let me know about the address."])
+def test_a_request_to_remember_beside_a_request_not_to_keep_shows_the_note(
+    *, query: str, reply: str
+) -> None:
+    assert _shown(TaintLedger(), (), query, reply=reply) == reply + UNKEPT_CLAIM_NOTE
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Don't save this.",
+        "Don't save this. My PIN is 5521.",
+        "I'll tell you later whether to save it.",
+        "Don't save this: my PIN is 5521. Remember when we met?",
+        "Remember: don't save this.",
+    ],
+    ids=["not-kept", "statement", "later", "question", "same-sentence"],
+)
+def test_a_request_not_to_keep_with_no_other_request_to_remember_shows_no_note(query: str) -> None:
+    assert _shown(TaintLedger(), (), query, reply="Got it.") == "Got it."
+
+
 def test_a_reply_saying_the_value_was_not_kept_still_shows_the_note() -> None:
     reply = "I could not save that, so please send it again."
     shown = _shown(_forget(), (_DELETED,), _NEW_VALUE, reply=reply)

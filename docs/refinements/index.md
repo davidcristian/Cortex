@@ -82,7 +82,7 @@ never a reading of what the tree does now.
 - **[R-1061](tasks/1061-a-forget-of-what-was-just-said-can-match-nothing-and-say-it-was-never-stored.md)** A forget of what was just said can match nothing and say it was never stored (memory). Its claim was checked against the code on 2026-11-09.
 - **[R-1062](tasks/1062-a-correction-of-a-stored-value-says-updated-and-keeps-the-old-row.md)** A correction of a stored value says "updated" and keeps the old row (memory). Its claim was checked against the code on 2026-11-08.
 - **[R-1071](tasks/1071-a-message-in-capitals-gets-the-english-note.md)** A message in capitals gets the English note (memory). Its claim was checked against the code on 2026-11-09.
-- **[R-1105](tasks/1105-a-request-to-remember-beside-a-put-off-decision-gets-no-note.md)** A request to remember beside a put off decision gets no note (memory). Its claim was checked against the code on 2026-11-09.
+- **[R-1107](tasks/1107-a-request-to-remember-in-a-sentence-asking-not-to-keep-gets-no-note.md)** A request to remember in a sentence asking not to keep gets no note (memory). Its claim was checked against the code on 2026-11-09.
 
 ### Actionable, once a port changes (2)
 
@@ -619,7 +619,7 @@ never a reading of what the tree does now.
 - [R-1062](tasks/1062-a-correction-of-a-stored-value-says-updated-and-keeps-the-old-row.md) A correction of a stored value says "updated" and keeps the old row. open, actionable.
 - [R-1067](tasks/1067-a-later-forget-with-the-asked-value-and-another-still-runs.md) A later forget with the asked value and another still runs. open, waiting for its trigger.
 - [R-1071](tasks/1071-a-message-in-capitals-gets-the-english-note.md) A message in capitals gets the English note. open, actionable.
-- [R-1105](tasks/1105-a-request-to-remember-beside-a-put-off-decision-gets-no-note.md) A request to remember beside a put off decision gets no note. open, actionable.
+- [R-1107](tasks/1107-a-request-to-remember-in-a-sentence-asking-not-to-keep-gets-no-note.md) A request to remember in a sentence asking not to keep gets no note. open, actionable.
 
 ### orchestrator
 

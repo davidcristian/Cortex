@@ -117,9 +117,17 @@ def names_spared(reply: str, spared: Sequence[str]) -> bool:
 def unkept_note_due(query: str, reply: str, spared: Sequence[str] = ()) -> bool:
     """Whether a turn that stores nothing shows the note, given what was asked and what it said."""
     # A reply can say the value was updated in words a file edit shares, so a request to keep is
-    # enough. A message that also asks not to keep expects nothing kept.
+    # enough. A sentence that also asks not to keep expects nothing kept, and a question asks none.
     claimed = claims_kept(reply) and not names_spared(reply, spared)
-    return claimed or (asks_kept(query) and not asks_not_kept(query))
+    return claimed or (asks_kept(query) and not asks_not_kept(query)) or _asks_kept_beside(query)
+
+
+def _asks_kept_beside(query: str) -> bool:
+    """Whether a statement of ``query`` asks to remember and does not also ask not to keep."""
+    return any(
+        asks_kept(sentence) and not asks_not_kept(sentence) and not sentence.rstrip().endswith("?")
+        for sentence in _SENTENCE_END.split(query)
+    )
 
 
 def _unmatched_keep(taint: TaintLedger, forgets: int, query: str) -> bool:
