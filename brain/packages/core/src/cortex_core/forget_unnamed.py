@@ -25,16 +25,27 @@ _TOKEN = re.compile(r"[^\W_]+|[,;.!?:]")
 _MARKS = frozenset(",;.!?:")
 _KEEP = re.compile(
     r"keep\w*|kept|behalt\w*|behält|bleib\w*|garde[rz]?|conserv\w*|guard\w*|mant[eé]n\w*"
+    r"|p[ăa]str\w*"
+)
+_NOT = frozenset({"not", "t", "never", "nicht", "nie", "pas", "ne", "jamais", "no", "nunca", "nu"})
+_LEAD = frozenset(
+    {"but", "and", "yet", "do", "don", "is", "isn", "s", "aber", "und", "mais", "et", "pero", "dar"}
+)
+_FORGET = re.compile(
+    r"forg[eo]t\w*|delet\w*|remov\w*|eras\w*|oubli\w*|effac\w*|vergiss\w*|vergess\w*"
+    r"|l[oö]sch\w*|olvid\w*|borr[ae]\w*|uit\w*|[șş]terg\w*"
 )
 
-KEPT_LINE = "Kept, since your message names none of their words:"
+KEPT_LINE = "Kept, since your message names none of their words or asks to keep them:"
 KEPT_ALL = (
     "nothing was forgotten: each remembered exchange holding that value is about something the "
-    "user's message does not name, so each was kept"
+    "user's message does not name or asks to keep, so each was kept"
 )
 
 
-KEPT_NOTE = "\n\n(Still in memory, since your message names none of their words:"
+KEPT_NOTE = (
+    "\n\n(Still in memory, since your message names none of their words or asks to keep them:"
+)
 _TURNS = 32
 
 
@@ -98,6 +109,33 @@ def _clauses(query: str) -> list[list[str]]:
     return [clause for clause in clauses if clause]
 
 
+def _opens_keep(clause: list[str], at: int) -> bool:
+    """Whether ``clause`` asks to keep from ``at``: a keep verb or a leading negation."""
+    token = clause[at]
+    if _KEEP.fullmatch(token):
+        return _NOT.isdisjoint(clause[max(0, at - 2) : at])
+    if token not in _NOT or (at and clause[at - 1] not in _LEAD):
+        return False
+    return at + 1 == len(clause) or not _KEEP.fullmatch(clause[at + 1])
+
+
+def _split(query: str) -> tuple[set[str], set[str]]:
+    """The words of ``query`` naming a fact to forget, and those only of a clause asking to keep."""
+    forget: list[str] = []
+    keep: list[str] = []
+    for clause in _clauses(query):
+        keeping = False
+        for at, token in enumerate(clause):
+            if _FORGET.fullmatch(token) and _NOT.isdisjoint(clause[max(0, at - 2) : at]):
+                keeping = False
+            elif not keeping:
+                keeping = _opens_keep(clause, at)
+            (keep if keeping else forget).append(token)
+    named = _words(" ".join(forget))
+    kept = {word for word in _words(" ".join(keep)) if not _KEEP.fullmatch(word)}
+    return named, kept - named
+
+
 def _quantifies(query: str) -> bool:
     """Whether a word for all in ``query`` asks for every row: within two words of a value."""
     clauses = _clauses(query)
@@ -128,23 +166,27 @@ def unnamed(
     deleted: Iterable[str] = (),
     session_id: str | None = None,
 ) -> list[MemoryRecord]:
-    """The ``records`` whose request holds a value of ``text`` and no word of ``query``; none when
-    ``query`` is empty or asks for every row. The newest row ``session_id`` stored is kept only
-    when ``query`` names a fact of the rows or of ``deleted``.
+    """The ``records`` a clause of ``query`` asks to keep, or whose request holds a value of
+    ``text`` and no other word of ``query``, unless it asks for every row. The newest row
+    ``session_id`` stored is kept only when ``query`` names a fact of the rows or of ``deleted``.
     """
-    rows, asked, words = list(records), _keys(query), _words(query)
+    rows, asked, (words, keep) = list(records), _keys(query), _split(query)
     values = _keys(text) - asked or _keys(text)
+    if not values or not query.strip():
+        return []
     named = _named(rows, words, deleted)
     every = values <= asked and (not named or _quantifies(query))
-    if not values or not query.strip() or every:
-        return []
     said = None if named else _just_said(rows, session_id)
     return [
         record
         for record in rows
-        if record.id != said
-        and not values.isdisjoint(_keys(record.text.split(_REPLY, 1)[0]))
-        and words.isdisjoint(_row_words(record.text))
+        if not keep.isdisjoint(_row_words(record.text))
+        or (
+            not every
+            and record.id != said
+            and not values.isdisjoint(_keys(record.text.split(_REPLY, 1)[0]))
+            and words.isdisjoint(_row_words(record.text))
+        )
     ]
 
 

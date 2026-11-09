@@ -243,5 +243,4 @@ id 7319.` lists the user id row), the probes `Forget that.` and `Forget it, plea
 and prose that holds `user`. No message keeps fewer rows except through `user` naming a row.
 Script `replay.py` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot9/`.
-A word in a clause asking to keep still names a fact to forget, filed as
-[task 1084](../refinements/tasks/1084-a-forget-naming-the-fact-to-keep-lists-it.md).
+A word in a clause asking to keep is read in [forget-keep-clause.md](forget-keep-clause.md).
