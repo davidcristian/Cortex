@@ -236,3 +236,12 @@ was refused, and retried with an `at` holding the `-05:00` offset; the other wro
 once. On the fixed build both follow-ups first passed `at_time` with `in_zone`, were refused, and
 retried with an `at` with no offset beside `in_zone`, so 2 of 2 passed `in_zone` beside `at`. The
 rule holds and the change ships: it moves the zone's offset from the model to the zone database.
+
+## Audit probes of the move and the refusal, 2026-11-09
+
+`parse_move` unit calls (`probe3.py` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot8/`): an `at` with an offset or `Z` beside `in_zone`
+returns `AT_OFFSET_AND_ZONE`; an unknown zone, `utc` or an empty one returns the zone correction;
+`10:00` in Asia/Tokyo when it is 21:00 there returns the past correction in that zone; New York
+`09:00` across the March change reads as 13:00 UTC. An edit with `at_time`, a day selector and
+`repeat: true` leaves `daily_after` empty, so no note says a one-time item now repeats weekly,
+filed as [task 1080](../refinements/tasks/1080-a-one-time-reminder-made-weekly-by-repeat-gets-no-note.md).

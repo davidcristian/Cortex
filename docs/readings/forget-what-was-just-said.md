@@ -175,3 +175,28 @@ code de mon cadenas de vélo est 5937, retiens-le.` alone or in a table row; `as
 changes for none. The rule written before the change asked for no draw, since the path from the
 reader to `_unmatched_keep` is typed code its tests cover. Script `replay.py` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot7/`.
+
+## Audit probes, 2026-11-09
+
+Unit calls of the readers after the pronoun change, no turn drawn (`probe45.py` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot8/`):
+
+| Message | `asks_kept` | `asks_not_kept` |
+| --- | --- | --- |
+| `Retiens-le pas.`, `Note-le pas.` | true | false |
+| `Merk ihn dir nicht.`, `Merk sie dir nicht.`, `Merk ihn dir lieber nicht.` | false | false |
+| `Merken Sie sich das nicht.` | true | false |
+| `No te lo apuntes.`, `No me lo anotes.` | false | false |
+| `Ne le retiens pas.`, `No lo recuerdes.`, `Merk es dir nicht.` | false | true |
+
+Each request in the first four rows asks not to keep and was not withheld; the colloquial French
+and the formal German forms were also read as requests to keep, so `unasked_forget` refused the
+forget tool. The fix reads all of them with `asks_not_kept` and none with `asks_kept`, with near
+misses as tests (`Il le note pas.`, `Er merkt sich das nicht.`, `Retiens-le, pas l'autre.`).
+Replay over the 28,161 distinct strings of `docs/readings/`: `asks_kept` and `asks_kept_alone`
+change for none, `asks_not_kept` for one (`merk ihn dir nicht`, false to true).
+
+`unnamed` with the calling chat's bike row and another chat's shed row, both holding 7319:
+`Actually forget it` keeps the shed row, while `Forget that.` and `Forget it, please.` keep
+nothing, since a message with no word left returns before `_just_said` is read. Filed as
+[task 1079](../refinements/tasks/1079-a-forget-naming-no-word-deletes-another-chats-fact.md).

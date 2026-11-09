@@ -140,3 +140,19 @@ Replay over the 28,039 distinct strings of `docs/readings/` (every line, table c
 backticked text): 4 change, all from not read to read. One is lk7's reply above; the other three
 are prose lines of this file quoting it or the form. No recorded reply moves from read to not
 read. The script is `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot7/replay.py`.
+
+## Audit replay of the plural reader, 2026-11-09
+
+`says_not_stored` before and after the plural change, over written near misses (`probe6.py` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot8/`):
+
+| Reply | Before | After |
+| --- | --- | --- |
+| `No record of it remains, since you never told me that.` | true | false |
+| `There is no record of it left, because you never gave it to me.` | true | false |
+| `No record of it exists because you never mentioned it.` | true | false |
+| `No records of that remained.` | false | true |
+| `I have no record of that; you never told me.` | true | true |
+
+The first three are never stored claims the note no longer follows, filed as
+[task 1081](../refinements/tasks/1081-no-record-of-it-remains-since-you-never-told-me-gets-no-note.md).

@@ -98,3 +98,13 @@ backticked text), of which `asks_kept_alone` reads 355: `unasked_tools` changes 
 `actions_asked` reads one more clause in 61 strings, all prose outside a request to remember, and
 one fewer in none. No turn was drawn. Scripts `replay.py` and `replay1037.py` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot7/`.
+
+## Audit replay of the time clause, 2026-11-09
+
+`actions_asked` before and after the time branch, and `unasked_tools` after it (`probe6.py` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot8/`). `and buzz at 9`, `and ping in 10 minutes` and `and weekdays at 9 ping me` are now read
+and keep the reminder tool. `Remember that the shop opens at 9, and closes at 5.` is read as an
+action too and refuses nothing, which is the tool reader's safe direction. `Remember I arrive at
+9 on Mondays.` and `then leave in 2026` still refuse both tools. `Remember my code is 5521 and at
+9 ring me.` was read as no action before and after, so both tools are refused, filed as
+[task 1082](../refinements/tasks/1082-a-time-before-the-verb-of-a-second-clause-loses-the-reminder-tool.md).

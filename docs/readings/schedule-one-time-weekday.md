@@ -225,3 +225,13 @@ calls are read from the brain's `tool.invocation` log lines.
 Both failures follow a refusal of a correct call. [schedule-weekday-day-after.md](schedule-weekday-day-after.md) narrows the weekday reader to the day after, and
 [schedule-weekly-false-refusal.md](schedule-weekly-false-refusal.md) records what follows a
 weekly refusal the reader should not have made.
+
+## Audit probes of the held item, 2026-11-09
+
+`weekday_off_after` unit calls (`probe2.py` and `probe_more.py` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot8/`), with the note held for
+item `a1`: a text edit, an edit of another item and a snooze of another item keep it; a text edit
+with `repeat: false` dropped it, although `repeat` alone never changes a due time. The fix adds
+`repeat` to the arguments an edit keeps the note across, with both forms as tests. Two stores a
+day off name the later item, and a cancel of that one drops the note while the earlier is still a
+day off, filed as
+[task 1083](../refinements/tasks/1083-the-weekday-note-holds-one-item-of-several-a-day-off.md).

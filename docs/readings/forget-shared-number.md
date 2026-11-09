@@ -191,3 +191,31 @@ they forget, only `n1v` stored two facts sharing it, and the new reader keeps a 
 another matched row, or one the turn deleted, holds a word of the message. The run record is
 `fixed.jsonl` in the slot directory above, with the proxy lines `proxy-fixed.jsonl` and the replay
 `replay.py` beside it.
+
+## Audit probes of the keep reader, 2026-11-09
+
+Unit calls of `unnamed` over two rows holding 7319, a bike lock row and a shed padlock row, with
+the call text 7319. No turn was drawn. Kept rows per message:
+
+| Message | Kept |
+| --- | --- |
+| `Forget my bike lock code 7319.` | shed |
+| `Forget the bike lock code 7319 and nothing else.` | shed |
+| `Forget my bike lock code 7319, keep everything else.` | none |
+| `Forget my bike lock code 7319, that's all.` | none |
+| `Forget all about my bike lock code 7319.` | none |
+| `Oublie le code de mon vélo 7319, c'est tout.` / `... partout.` | none |
+| `Vergiss 7319, mein Hund ist tot.` / `Vergiss den Fahrradcode 7319 überall.` | none |
+| `Vergiss den Fahrradcode 7319, alles andere bleibt.` | none |
+| `Olvida el código de la bici 7319, eso es todo.` / `... en todos lados.` | none |
+| `Forget my user id 7319.` (a user id row and the shed row) | none |
+
+A word of `_EVERY` anywhere in the message keeps nothing, filed as
+[task 1077](../refinements/tasks/1077-a-word-for-all-anywhere-in-a-forget-deletes-the-other-fact.md);
+the German and Spanish rows name no word of either English row, so they keep nothing by that
+rule as well. A label word in `_COMMON` names no fact, filed as
+[task 1078](../refinements/tasks/1078-a-fact-labelled-with-a-common-word-cannot-be-named-by-a-forget.md).
+A forget turn is never recorded unless every forget call matched nothing, and a call that kept
+rows returns `KEPT_ALL` with `matched_nothing` false, so the kept-rows note is not written into a
+stored exchange (read from `memory_claim.py` and `memory_forget_chosen.py`, not run). Script
+`probe45.py` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot8/`.
