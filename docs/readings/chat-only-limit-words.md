@@ -43,3 +43,9 @@ before `for him`, `for her` or `for them`, so this message refuses `spawn_subage
 `schedule_task` and `set_volume` by name. A replay of every string in `docs/readings/` (28,438)
 through the reader before and after that change moved only this message; the recorded `Please
 remember this: I am vegetarian, so keep that in mind for any recipes.` reads the same.
+
+On the stack brain rebuilt from that change, from 05:19:13 to 05:19:52, four draws of the message
+(chats `s11k-1` to `s11k-4`, each capped at 120 s, cards approved, SM clock 0.57 of
+`clocks.max.sm`) called no tool and stored one row each, every one deleted after. This shows the
+change runs; it is no rule row. The record is
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot11/live.jsonl`.
