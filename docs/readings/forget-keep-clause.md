@@ -185,4 +185,10 @@ Passnummer X4821937.`, which listed the passport row by its start and now keep e
 message of the n1, n1v, x6, x7 or f1 flows changed, and neither did `Forget 7319.`. Script
 `replay.py` and log `replay.log` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot19/`.
-No turn was drawn.
+
+One live turn on the stack brain rebuilt with this reader, after two chats stored `Remember that
+my card PIN is 7319.` and `Remember that my door code is also 7319.`: `Forget my PIN 7319, keep
+everything else.` drew a call with the text `7319`, and the card listed the card row alone, with
+the door row under `KEPT_LINE`. The card was refused and both rows stayed. The SM clock read 0.57
+to 0.59 of its maximum. Script `live.sh`, records `live.jsonl` and `live.log` in the same
+directory.
