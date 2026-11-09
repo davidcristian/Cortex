@@ -104,6 +104,12 @@ that removes exactly those rows and holds against a turn in flight. This record 
    of that delete says the rows were kept and the value is still remembered, and never that a
    forget of the value would remove them
    ([readings](../readings/forget-shared-number.md#a-first-call-by-value-that-lists-another-fact-rows-and-rule-2026-11-09)).
+   When no word of the message names a matched row or a row the turn deleted, the newest matched
+   row the calling chat stored is not kept, because a request such as "forget what I just told
+   you" names no word of the row the chat stored one turn before, and that keep left the row in 8
+   of 24 draws. The rows a `KEPT_ALL` call kept and no later call of the turn deleted are named in
+   a note after the reply (`kept_note`), which asks for nothing
+   ([readings](../readings/forget-what-was-just-said.md#a-forget-of-what-was-just-said-by-its-value-rows-and-rule-2026-11-09)).
    On a request to remember that can retract nothing, a call to it is refused by name and the
    turn is recorded: `unasked_forget` (`unasked_tools.py`) reads a message `asks_kept` reads and
    `asks_not_kept` does not, holding no word that can retract something, no negation, no question,

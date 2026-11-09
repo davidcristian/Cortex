@@ -187,6 +187,8 @@ def _note_forget(taint: TaintLedger, result: ToolResult) -> None:
     taint.forget_unmatched += int(result.matched_nothing)
     if result.numbers_left is not None:
         taint.forget_numbers_left = result.numbers_left
+    if result.kept is not None:
+        taint.forget_kept = result.kept
 
 
 async def run_round(

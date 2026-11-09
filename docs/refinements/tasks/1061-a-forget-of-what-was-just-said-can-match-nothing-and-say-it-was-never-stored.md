@@ -23,8 +23,8 @@ from the previous turn. One draw is not a rate.
 ## What to do
 
 1. Draw x7 again under [the rule](../../readings/forget-what-was-just-said.md#rows-and-the-rule-2026-11-09)
-   on a build of [the recorded patch](../../readings/forget-value-held-patch.md), after R-1074
-   changes how the same rows end, with a Spanish form beside it.
+   on a build of [the recorded patch](../../readings/forget-value-held-patch.md) over the tree
+   that lists the row the calling chat just stored, with a Spanish form beside it.
 
 ## History
 
@@ -34,7 +34,11 @@ from the previous turn. One draw is not a rate.
   reply needs no reader, and the result text the model reads is unchanged. Its rows and rule were
   written first, and 24 draws of x6, x7 and a French form on the base and the candidate gave the
   form in none, so the rule gave no result and the candidate is
-  [recorded as a patch](../../readings/forget-value-held-patch.md). The draws found the keep filed
-  as [R-1074](1074-a-forget-of-what-was-just-said-by-its-value-keeps-the-row-as-unnamed.md) in 8 of
-  24, and a lost French request to remember, filed as
+  [recorded as a patch](../../readings/forget-value-held-patch.md). The draws found a forget by value that
+  kept the row the chat had just stored in 8 of 24, and a lost French request to remember, filed as
   [R-1075](1075-a-french-request-to-remember-that-raises-a-forget-call-keeps-nothing.md).
+- 2026-11-09: in 12 draws of the change that lists the row the calling chat just stored, f1 came
+  to this form once, in French: the call `code de cadenas de vélo` matched nothing against `code
+  de mon cadenas de vélo`, and the reply said nothing about the lock was stored
+  ([readings](../../readings/forget-what-was-just-said.md#the-draws-of-the-start-hash-and-the-candidate-2026-11-09)).
+  Its call names no number, so the held value note does not reach it.

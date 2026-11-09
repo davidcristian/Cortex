@@ -280,3 +280,21 @@ async def test_a_record_keeps_the_date_a_day_off_the_named_weekday_and_its_item(
     loaded = await store.get("t1")
     assert loaded is not None
     assert (loaded.weekday_off, loaded.weekday_off_id) == (stored, item)
+
+
+async def test_a_record_keeps_the_rows_its_forgets_kept() -> None:
+    store = RedisHandoffStore(FakeAsyncRedis(server=FakeServer()))
+    await store.put(replace(handoff_contract.make_record("t1"), forget_kept=("a row", "b row")))
+    loaded = await store.get("t1")
+    assert loaded is not None
+    assert loaded.forget_kept == ("a row", "b row")
+
+
+async def test_a_record_written_before_the_kept_rows_reads_as_none_kept() -> None:
+    client = FakeAsyncRedis(server=FakeServer())
+    fields = cast("dict[str, Any]", json.loads(encode_record(handoff_contract.make_record("t1"))))
+    del fields["forget_kept"]
+    await client.set("cortex:handoff:t1", json.dumps(fields))
+    loaded = await RedisHandoffStore(client).get("t1")
+    assert loaded is not None
+    assert loaded.forget_kept == ()

@@ -101,6 +101,8 @@ class ToolResult:
     # Set by a forget that deleted rows: whether rows still hold a number a row it or an earlier
     # call of the turn deleted held. ``None`` leaves the turn's earlier answer as it is.
     numbers_left: bool | None = None
+    # Set by a forget: excerpts of the rows the turn's forget calls kept that still exist.
+    kept: tuple[str, ...] | None = None
 
 
 @dataclass(frozen=True, slots=True)

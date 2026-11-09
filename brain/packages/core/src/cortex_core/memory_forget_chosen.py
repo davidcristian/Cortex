@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from cortex_core.errors import MemoryStoreError
-from cortex_core.forget_unnamed import KEPT_ALL, KEPT_LINE, forgot, unnamed
+from cortex_core.forget_unnamed import KEPT_ALL, KEPT_LINE, KeptRows, forgot, unnamed
 from cortex_core.memory import MemoryRecord
 from cortex_core.memory_values import code_runs, digit_runs, value_searches, whole_values
 from cortex_core.ports import MemoryStore
@@ -105,6 +105,7 @@ class ForgetChosenTool:
         self._shown: dict[str, _Chosen | str] = {}
         self._deleted_turns: dict[str, tuple[str, ...]] = {}
         self._deleted_rows: dict[str, tuple[str, ...]] = {}
+        self._kept = KeptRows()
 
     @property
     def result_note(self) -> str:
@@ -211,11 +212,13 @@ class ForgetChosenTool:
         left_out = len(found) + len(extra) > FORGET_CHOSEN_LIMIT
         rows = [*found, *(row for row, _, _ in extra)]
         deleted = self._deleted_rows.get(call.stamp.turn_id, ())
-        kept = unnamed(rows, _text(call), call.stamp.query, deleted)
+        kept = unnamed(rows, _text(call), call.stamp.query, deleted, call.stamp.session_id)
         held = {record.id for record in kept}
         found = [record for record in found if record.id not in held]
         repeats = [] if left_out else [row for row in extra if row[0].id not in held]
         if not found and not repeats:
+            excerpts = {record.id: _excerpt(record, _text(call)) for record in kept}
+            self._kept.keep(call.stamp.turn_id, excerpts)
             return KEPT_ALL, None
         listed = [*found, *(record for record, _, _ in repeats)]
         lines = [f"- {_excerpt(record, _text(call))}" for record in found]
@@ -253,6 +256,7 @@ class ForgetChosenTool:
             trust=Trust.TRUSTED,
             matched_nothing=content == _NONE_FOUND,
             numbers_left=None if holding is None else holding > 0,
+            kept=self._kept.held(call.stamp.turn_id),
         )
 
     async def invoke(self, call: ToolCall) -> ToolResult:
@@ -265,6 +269,7 @@ class ForgetChosenTool:
         try:
             removed = await self._store.delete_ids(shown.ids)
             turn = call.stamp.turn_id
+            self._kept.drop(turn, shown.ids)
             for ledger, texts in (
                 (self._deleted_turns, (*shown.texts, _text(call))),
                 (self._deleted_rows, shown.texts),
