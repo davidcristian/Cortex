@@ -282,17 +282,18 @@ class ForgetChosenTool:
         except MemoryStoreError as err:
             return self._result(call, f"the memory store failed during the forget: {err}")
         if left:
-            return self._result(
-                call,
+            said = (
                 f"forgot {removed} remembered exchanges, but {len(left)} written since the "
-                "card was shown still contain that text, so it is not forgotten",
+                "card was shown still contain that text, so it is not forgotten"
             )
-        if shown.left_out:
-            return self._result(
-                call,
+        elif shown.left_out:
+            said = (
                 f"forgot {removed} remembered exchanges that contain that text, but more exchanges "
                 "also hold its value and were not listed, since a card lists at most "
-                f"{FORGET_CHOSEN_LIMIT}, so the value is not forgotten",
+                f"{FORGET_CHOSEN_LIMIT}, so the value is not forgotten"
             )
-        said = forgot(removed, holding, len(shown.kept))
-        return replace(self._result(call, said, error=False, holding=holding), forgot=removed)
+        else:
+            said = forgot(removed, holding, len(shown.kept))
+        error = bool(left) or shown.left_out
+        result = self._result(call, said, error=error, holding=None if error else holding)
+        return replace(result, forgot=removed)

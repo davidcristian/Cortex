@@ -57,3 +57,21 @@ number.`, is read as naming it by the word `forget`. Each value first card liste
 delete and the padlock row under `KEPT_LINE`. The rule passes on its second item and the unit
 tests, so the note ships. Driver and records: `seed.sh`, `draw.sh`, `fixed.log`, `fixed.jsonl`
 and `tally.py` in the slot directory above.
+
+## Second audit probes, 2026-11-09
+
+Unit calls through `ForgetChosenTool` and `limit_notes` (`probe2.py` and `probe3.py`, logs beside
+them in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot13/`).
+A delete whose rows outlast it, because rows written since the card still hold the text or more
+than the card's limit hold the value, deleted its listed row and reported a count of 0, so a reply
+saying nothing was forgotten got no note. Those results now count their rows (tests in
+`test_forget_count_note.py`). A count of 0 shows no note. Over a reply naming no removal, the count
+and numbers left notes agree and take the message's language, while the kept rows note stays
+English beside them (task 1089). The kept rows note and the count never contradict each other,
+but two other notes do. Over `Done, I've forgotten your bike lock code and kept the shed one.`,
+`UNKEPT_CLAIM_NOTE` says nothing was kept (task 1090), and `NUMBERS_LEFT_NOTE` asks the person
+to forget the number the message asked to keep (task 1091). A store failure after the delete still
+counts nothing (task 1092). `Amintirea a fost ștearsă.` names the removal in a form the reader
+lacks, so a second, Romanian count note follows it (task 1095). A forget turn stores no exchange
+row, so none of these notes reaches memory; they stay in the chat's transcript.
