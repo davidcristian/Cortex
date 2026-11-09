@@ -13,7 +13,9 @@ bike lock code 7319.`, `Oublie le code de mon vélo 7319, c'est tout.` and `Verg
 ist tot.` keep nothing. `Vergiss den Fahrradcode 7319, alles andere bleibt.` and `Olvida el código
 de la bici 7319, eso es todo.` keep nothing too, through the message naming no word of either row
 ([readings](../../readings/forget-shared-number.md#audit-probes-of-the-keep-reader-2026-11-09)).
-The destructive card's safe direction is to keep rows.
+The destructive card's safe direction is to keep rows. In one live draw of the `keep everything
+else` message the cortex called with the text `bike lock`, which reaches no value, so the card
+listed only the bike row; how often a call names the value on such a message is not measured.
 
 ## What to do
 

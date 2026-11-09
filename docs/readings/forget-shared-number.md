@@ -217,5 +217,10 @@ rule as well. A label word in `_COMMON` names no fact, filed as
 [task 1078](../refinements/tasks/1078-a-fact-labelled-with-a-common-word-cannot-be-named-by-a-forget.md).
 A forget turn is never recorded unless every forget call matched nothing, and a call that kept
 rows returns `KEPT_ALL` with `matched_nothing` false, so the kept-rows note is not written into a
-stored exchange (read from `memory_claim.py` and `memory_forget_chosen.py`, not run). Script
+stored exchange (read from `memory_claim.py` and `memory_forget_chosen.py`, not run).
+
+One live draw on the stack brain, with the two rows stored by two chats and the card refused:
+`Forget my bike lock code 7319, keep everything else.` drew a `forget_memories` call with the
+text `bike lock`, so the value path was not reached, the card listed only the bike row and both
+rows stayed. The SM clock read 0.58 of `clocks.max.sm`. Scripts `live1077.sh` and
 `probe45.py` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot8/`.
