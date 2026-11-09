@@ -238,9 +238,9 @@ async def run_round(
         context.taint.stored_time = stored_time(call, result.content) or context.taint.stored_time
         context.taint.daily_stored = daily_after(call, result, context.taint.daily_stored)
         context.taint.once_after_weekly |= bool(record.weekly_refused) and stores_once(call, result)
-        held = (context.taint.weekday_off_id, context.taint.weekday_off)
-        off = weekday_off_after(call, result, context.query, context.zone.tz, held)
-        context.taint.weekday_off_id, context.taint.weekday_off = off
+        context.taint.weekday_off = weekday_off_after(
+            call, result, context.query, context.zone.tz, context.taint.weekday_off
+        )
         if call.name == FORGET_CHOSEN_TOOL_NAME:
             _note_forget(context.taint, result)
         context.taint.observe(

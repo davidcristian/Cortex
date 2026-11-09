@@ -31,7 +31,7 @@ from cortex_core.schedule_claim import (
     unscheduled_claim,
 )
 from cortex_core.schedule_daily import DAILY_STORED_NOTE, DAILY_STORED_NOTES, names_repeat
-from cortex_core.schedule_weekday import weekday_off_note
+from cortex_core.schedule_weekday import weekday_off_dates, weekday_off_note
 from cortex_core.schedule_weekly import ONCE_STORED_NOTE
 from cortex_core.stops import StopLedger
 from cortex_core.turn_context import TurnCapabilities
@@ -85,8 +85,8 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
         yield from append_note(parts, in_language(DAILY_STORED_NOTE, DAILY_STORED_NOTES, language))
     if taint.once_after_weekly:
         yield from append_note(parts, ONCE_STORED_NOTE)
-    if taint.weekday_off:
-        yield from append_note(parts, weekday_off_note(taint.weekday_off, language))
+    for day in weekday_off_dates(taint.weekday_off):
+        yield from append_note(parts, weekday_off_note(day, language))
     for due, note in (
         (unkept, UNKEPT_CLAIM_NOTE),
         (stored, KEPT_BEYOND_CHAT_NOTE),

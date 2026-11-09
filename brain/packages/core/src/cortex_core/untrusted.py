@@ -156,10 +156,8 @@ class TaintLedger:
     daily_stored: tuple[str, ...] = ()
     # Whether a ``schedule_task`` call stored a one-time item after a weekly call was refused.
     once_after_weekly: bool = False
-    # The ISO date of a one-time item stored a day off the one weekday the message names.
-    weekday_off: str = ""
-    # The id of the item ``weekday_off`` names, so a later change to that item drops the date.
-    weekday_off_id: str = ""
+    # The item id and ISO date of each one-time item stored a day off the weekday the message names.
+    weekday_off: tuple[tuple[str, str], ...] = ()
     untrusted_urls: set[str] = field(default_factory=set[str])
     sources: tuple[Provenance, ...] = ()
     # The tainted memories this turn recalled: its record is stored only while they all exist.

@@ -75,18 +75,22 @@ def _changes_due(call: ToolCall, item_id: str) -> bool:
 
 
 def weekday_off_after(
-    call: ToolCall, result: ToolResult, query: str, tz: tzinfo, held: tuple[str, str]
-) -> tuple[str, str]:
-    """The item id and ISO date the note names after ``call`` ran, from the ``held`` pair.
+    call: ToolCall, result: ToolResult, query: str, tz: tzinfo, held: tuple[tuple[str, str], ...]
+) -> tuple[tuple[str, str], ...]:
+    """The item id and ISO date pairs the notes name after ``call`` ran, from ``held``.
 
-    A store or move a day off replaces the pair; a later change to its item's due time drops it.
+    A store or move a day off adds its item; a change to an item's due time drops only its pair.
     """
     if result.is_error:
         return held
+    kept = tuple(pair for pair in held if not _changes_due(call, pair[0]))
     off = weekday_off(call, result, query, tz)
-    if off:
-        return _item_of(call, result), off
-    return ("", "") if _changes_due(call, held[0]) else held
+    return (*kept, (_item_of(call, result), off)) if off else kept
+
+
+def weekday_off_dates(held: tuple[tuple[str, str], ...]) -> tuple[str, ...]:
+    """The distinct ISO dates of the ``held`` pairs, in the order they were stored."""
+    return tuple(dict.fromkeys(stored for _, stored in held))
 
 
 def weekday_off_note(stored: str, language: str) -> str:

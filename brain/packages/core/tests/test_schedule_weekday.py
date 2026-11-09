@@ -118,12 +118,12 @@ def test_an_edit_that_moved_an_item_with_at_is_read_as_a_store(*, at: str, store
     assert weekday_off(call, _ran("edited i: now due x"), _DOCTOR, UTC) == stored
 
 
-_HELD = ("abc", "2026-11-13")
+_HELD = (("abc", "2026-11-13"),)
 
 
 def _after(
     name: str, arguments: Mapping[str, object], content: str = "ok", *, failed: bool = False
-) -> tuple[str, str]:
+) -> tuple[tuple[str, str], ...]:
     call = ToolCall(id="c", name=name, arguments=arguments)
     return weekday_off_after(call, _ran(content, failed=failed), _DOCTOR, UTC, _HELD)
 
@@ -139,12 +139,32 @@ def test_a_store_a_day_off_keeps_the_id_its_result_names(
     *, content: str, held: tuple[str, str]
 ) -> None:
     call = ToolCall(id="c", name=SCHEDULE_TOOL_NAME, arguments=_FRIDAY)
-    assert weekday_off_after(call, _ran(content), _DOCTOR, UTC, ("", "")) == held
+    assert weekday_off_after(call, _ran(content), _DOCTOR, UTC, ()) == (held,)
 
 
-def test_a_move_a_day_off_replaces_the_held_pair_with_the_moved_item() -> None:
+def test_a_second_store_a_day_off_keeps_the_first_beside_it() -> None:
+    content = "scheduled reminder xyz: due Fri 13 Nov 07:00 UTC"
+    assert _after(SCHEDULE_TOOL_NAME, _FRIDAY, content) == (*_HELD, ("xyz", "2026-11-13"))
+
+
+def test_a_move_of_the_held_item_a_day_off_replaces_its_date() -> None:
+    moved = {"id": "abc", "at": "2026-11-11T07:00:00"}
+    assert _after(EDIT_SCHEDULED_TOOL_NAME, moved) == (("abc", "2026-11-11"),)
+
+
+def test_a_move_of_another_item_a_day_off_is_held_beside_the_first() -> None:
     moved = {"id": "def", "at": "2026-11-11T07:00:00"}
-    assert _after(EDIT_SCHEDULED_TOOL_NAME, moved) == ("def", "2026-11-11")
+    assert _after(EDIT_SCHEDULED_TOOL_NAME, moved) == (*_HELD, ("def", "2026-11-11"))
+
+
+def test_a_cancel_of_the_later_of_two_items_keeps_the_earlier_date() -> None:
+    first = ToolCall(id="c1", name=SCHEDULE_TOOL_NAME, arguments=_FRIDAY)
+    second = ToolCall(id="c2", name=SCHEDULE_TOOL_NAME, arguments={**_FRIDAY, "text": "b"})
+    cancel = ToolCall(id="c3", name=CANCEL_SCHEDULED_TOOL_NAME, arguments={"id": "b2"})
+    held = weekday_off_after(first, _ran("scheduled reminder b1: due x"), _DOCTOR, UTC, ())
+    held = weekday_off_after(second, _ran("scheduled reminder b2: due x"), _DOCTOR, UTC, held)
+    assert held == (("b1", "2026-11-13"), ("b2", "2026-11-13"))
+    assert weekday_off_after(cancel, _ran(), _DOCTOR, UTC, held) == (("b1", "2026-11-13"),)
 
 
 @pytest.mark.parametrize(
@@ -161,7 +181,7 @@ def test_a_move_a_day_off_replaces_the_held_pair_with_the_moved_item() -> None:
 def test_a_later_change_to_the_held_items_due_time_drops_the_date(
     *, name: str, arguments: Mapping[str, object]
 ) -> None:
-    assert _after(name, arguments) == ("", "")
+    assert _after(name, arguments) == ()
 
 
 @pytest.mark.parametrize(
@@ -186,7 +206,8 @@ def test_a_call_that_leaves_the_held_items_due_time_keeps_the_date(
 
 def test_a_change_to_any_item_drops_a_date_held_with_no_id() -> None:
     call = ToolCall(id="c", name=CANCEL_SCHEDULED_TOOL_NAME, arguments={"id": "def"})
-    assert weekday_off_after(call, _ran(), _DOCTOR, UTC, ("", "2026-11-13")) == ("", "")
+    held = (("", "2026-11-13"), ("abc", "2026-11-11"))
+    assert weekday_off_after(call, _ran(), _DOCTOR, UTC, held) == (("abc", "2026-11-11"),)
 
 
 @pytest.mark.parametrize(
@@ -249,7 +270,7 @@ async def test_a_date_a_day_off_the_named_weekday_runs_and_is_kept_for_the_note(
     late = ToolCall(id="c1", name=SCHEDULE_TOOL_NAME, arguments=_FRIDAY)
     ran, taint = await _loop(_DOCTOR, [late])
     assert ran == [_FRIDAY]
-    assert taint.weekday_off == "2026-11-13"
+    assert taint.weekday_off == (("abc", "2026-11-13"),)
 
 
 async def test_a_later_store_on_the_named_weekday_keeps_the_earlier_date_a_day_off() -> None:
@@ -257,13 +278,13 @@ async def test_a_later_store_on_the_named_weekday_keeps_the_earlier_date_a_day_o
     right = ToolCall(id="c2", name=SCHEDULE_TOOL_NAME, arguments={**_THURSDAY, "text": "b"})
     ran, taint = await _loop(_DOCTOR, [late, right])
     assert ran == [_FRIDAY, {**_THURSDAY, "text": "b"}]
-    assert taint.weekday_off == "2026-11-13"
+    assert taint.weekday_off == (("abc", "2026-11-13"),)
 
 
 async def test_the_date_is_kept_beside_the_id_its_store_named() -> None:
     late = ToolCall(id="c1", name=SCHEDULE_TOOL_NAME, arguments=_FRIDAY)
     _, taint = await _loop(_DOCTOR, [late])
-    assert (taint.weekday_off_id, taint.weekday_off) == ("abc", "2026-11-13")
+    assert taint.weekday_off == (("abc", "2026-11-13"),)
 
 
 @pytest.mark.parametrize(
@@ -280,7 +301,7 @@ async def test_a_later_move_or_cancel_in_the_turn_drops_the_date_the_store_no_lo
     later = ToolCall(id="c2", name=name, arguments=arguments)
     ran, taint = await _loop(_DOCTOR, [late, later])
     assert ran == [_FRIDAY, arguments]
-    assert (taint.weekday_off_id, taint.weekday_off) == ("", "")
+    assert taint.weekday_off == ()
 
 
 async def test_a_move_a_day_off_in_the_turn_is_kept_for_the_note() -> None:
@@ -288,14 +309,14 @@ async def test_a_move_a_day_off_in_the_turn_is_kept_for_the_note() -> None:
     _, taint = await _loop(
         _DOCTOR, [ToolCall(id="c1", name=EDIT_SCHEDULED_TOOL_NAME, arguments=moved)]
     )
-    assert (taint.weekday_off_id, taint.weekday_off) == ("abc", "2026-11-13")
+    assert taint.weekday_off == (("abc", "2026-11-13"),)
 
 
 async def test_a_date_on_the_named_weekday_runs_and_keeps_no_date() -> None:
     right = ToolCall(id="c1", name=SCHEDULE_TOOL_NAME, arguments=_THURSDAY)
     ran, taint = await _loop(_DOCTOR, [right])
     assert ran == [_THURSDAY]
-    assert taint.weekday_off == ""
+    assert taint.weekday_off == ()
 
 
 @pytest.mark.parametrize(
@@ -309,9 +330,17 @@ def test_a_turn_that_kept_a_date_closes_with_the_note_in_the_language_of_the_mes
     *, query: str, ending: str
 ) -> None:
     parts = ["Done."]
-    taint = TaintLedger(weekday_off="2026-11-13")
+    taint = TaintLedger(weekday_off=(("a", "2026-11-13"),))
     list(limit_notes(StopLedger(), (), parts, caps=TurnCapabilities(), taint=taint, query=query))
     assert ending in "".join(parts)
+
+
+def test_each_date_held_closes_with_its_own_note_and_a_repeated_date_with_one() -> None:
+    parts = ["Done."]
+    held = (("a", "2026-11-13"), ("b", "2026-11-11"), ("c", "2026-11-13"))
+    taint = TaintLedger(weekday_off=held)
+    list(limit_notes(StopLedger(), (), parts, caps=TurnCapabilities(), taint=taint, query=_BINS))
+    assert parts[1:] == [weekday_off_note("2026-11-13", "en"), weekday_off_note("2026-11-11", "en")]
 
 
 def test_a_turn_that_kept_no_date_has_no_note() -> None:
@@ -329,15 +358,15 @@ def _shown(events: Sequence[TurnEvent]) -> str:
 
 
 async def test_the_date_survives_the_model_swap_through_the_handoff_store() -> None:
-    slot = harness.prepared_slot(taint=TaintLedger(weekday_off="2026-11-13", weekday_off_id="a"))
+    held = (("a", "2026-11-13"), ("b", "2026-11-13"))
+    slot = harness.prepared_slot(taint=TaintLedger(weekday_off=held))
     store = InMemoryHandoffStore()
     await store.put(
         slot.snapshot(turn_id=harness.TURN, session_id=harness.SESSION, requested_at=_AT)
     )
     loaded = await store.get(harness.TURN)
     assert loaded is not None
-    assert loaded.taint_ledger().weekday_off == "2026-11-13"
-    assert loaded.taint_ledger().weekday_off_id == "a"
+    assert loaded.taint_ledger().weekday_off == held
     live = harness.build_harness()
     await live.seed_session()
     shown = _shown(await harness.run_handoff(live, slot))

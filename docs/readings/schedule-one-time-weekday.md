@@ -232,6 +232,6 @@ weekly refusal the reader should not have made.
 item `a1`: a text edit, an edit of another item and a snooze of another item keep it; a text edit
 with `repeat: false` dropped it, although `repeat` alone never changes a due time. The fix adds
 `repeat` to the arguments an edit keeps the note across, with both forms as tests. Two stores a
-day off name the later item, and a cancel of that one drops the note while the earlier is still a
-day off, filed as
-[task 1083](../refinements/tasks/1083-the-weekday-note-holds-one-item-of-several-a-day-off.md).
+day off named only the later item, and a cancel of that one dropped the note while the earlier was
+still a day off. The note now holds every item a day off by id, drops only the pair of the item a
+later call changes, and shows one note for each distinct date; that sequence is a test.
