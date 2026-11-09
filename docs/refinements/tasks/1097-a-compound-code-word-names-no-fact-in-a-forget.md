@@ -27,4 +27,5 @@ although the card lists every row before anything is deleted.
 ## History
 
 - 2026-11-09: filed from the replay of the function word change to the forget reader, from unit
-  probes (`probe1.py` in the night's scratchpad `slot14/`).
+  probes (`probe1.py` in
+  `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot14/`).

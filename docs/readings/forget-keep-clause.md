@@ -61,9 +61,19 @@ the name (`Forget my do not disturb PIN 7319.`) and a noun the keep verb list ma
 `test_forget_keep_clause.py`). The replay above, run again with the reader before this change
 (`replay.log` in the same directory), changed none of 1,766 strings in either condition.
 
-Still open, each filed with its reproduction: `no need to keep the shed one` reads as a keep
-([task 1086](../refinements/tasks/1086-a-forget-reads-no-need-to-keep-as-a-request-to-keep.md)); a German negation after the keep verb is not read ([task 1088](../refinements/tasks/1088-a-german-negation-after-the-keep-verb-reads-as-a-keep.md)); and `Forget 7319 and
-do not keep the shed one` keeps the bike row, which `Forget 7319.` alone deletes ([task 1096](../refinements/tasks/1096-a-forget-of-a-value-beside-do-not-keep-the-other-one-keeps-the-unnamed-rows.md)).
+Three forms keep a row the person asked to forget, each declined 2026-11-09 (unit calls in
+`probe2.py`, log beside it in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot14/`). `Forget 7319, no need to keep
+the shed one.` keeps the shed row, since a negation that opens a clause asks to keep unless a keep
+verb follows it at once. `Vergiss 7319 und behalte den vom Schuppen auch nicht.`, with German
+`nicht` after the keep verb, keeps the shed row. `Forget 7319 and do not keep the shed one.` keeps
+the bike row, which `Forget 7319.` deletes, because the negated keep names the shed row as the
+one to forget; `ne garde pas celui du cabanon non plus`, `no guardes el del shed tampoco` and
+`nu păstra nici pe cel de la shed` do the same. Each fails toward keeping, the destructive card's
+safe direction: the card lists each kept row under `KEPT_LINE` before the person approves, and a
+call that keeps every row closes the reply with the kept rows note. Reading them needs another
+widening of the keep and negation parsing in each language, and the build of this reader and its
+first widening were each followed by an audit that found more forms it misread.
 
 ## Function words of the other languages, 2026-11-09
 
