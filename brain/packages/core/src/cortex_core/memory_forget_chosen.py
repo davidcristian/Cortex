@@ -5,6 +5,17 @@ from collections.abc import Sequence
 from dataclasses import dataclass, replace
 
 from cortex_core.errors import MemoryStoreError
+from cortex_core.forget_results import (
+    ALREADY_DELETED,
+    FORGET_CHOSEN_LIMIT,
+    FORGET_NOT_KEPT_NOTE,
+    LEFT_OUT_LINE,
+    NONE_FOUND,
+    TOO_MANY,
+    outlasted,
+    unavailable,
+    unlisted,
+)
 from cortex_core.forget_unnamed import KEPT_ALL, KEPT_LINE, KeptRows, forgot, unnamed
 from cortex_core.memory import MemoryRecord
 from cortex_core.memory_values import code_runs, digit_runs, value_searches, whole_values
@@ -14,28 +25,10 @@ from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
 
 FORGET_CHOSEN_TOOL_NAME = "forget_memories"
 
-FORGET_CHOSEN_LIMIT = 20
 _EXCERPT_CHARS = 60
 _PENDING_CALLS = 32
 _TOKEN = re.compile(r"[^\W_]+")
 _WORD = re.compile(r"[^\W\d_]{4,}")
-
-_NONE_FOUND = (
-    "nothing was forgotten: no remembered exchange contains that text, so tell the user that "
-    "nothing about it was stored, and do not ask the user for the value"
-)
-_ALREADY_DELETED = (
-    "nothing more was forgotten: no remembered exchange contains that text, and an earlier call "
-    "in this turn already deleted what the user asked to forget, so tell the user it was deleted "
-    "and do not say that it was not stored or could not be found"
-)
-
-FORGET_NOT_KEPT_NOTE = (
-    "Nothing in this message is kept in memory, because it asked to forget something, so do not "
-    "say that anything in it was noted, saved or remembered. If it also asked you to remember "
-    "anything else, say that it was not kept and ask the user to send it again in a message of "
-    "its own."
-)
 
 
 def _text(call: ToolCall) -> str:
@@ -200,15 +193,12 @@ class ForgetChosenTool:
             found = await self._found(call)
             extra = await self._repeating(call, found) if len(found) <= FORGET_CHOSEN_LIMIT else []
         except MemoryStoreError as err:
-            return f"the memory store is unavailable, so nothing was forgotten: {err}", None
+            return unavailable(err), None
         if len(found) > FORGET_CHOSEN_LIMIT:
-            return (
-                f"nothing was forgotten: more than {FORGET_CHOSEN_LIMIT} remembered exchanges "
-                "contain that text, so ask the user for a longer, more exact text"
-            ), None
+            return TOO_MANY, None
         if not found:
             deleted = self._deleted_turns.get(call.stamp.turn_id, ())
-            return (_ALREADY_DELETED if _about(_text(call), deleted) else _NONE_FOUND), None
+            return (ALREADY_DELETED if _about(_text(call), deleted) else NONE_FOUND), None
         left_out = len(found) + len(extra) > FORGET_CHOSEN_LIMIT
         rows = [*found, *(row for row, _, _ in extra)]
         deleted = self._deleted_rows.get(call.stamp.turn_id, ())
@@ -228,10 +218,7 @@ class ForgetChosenTool:
                 f"- {_excerpt(record, own)}" for record, held, own in repeats if held == form
             )
         if left_out:
-            lines.append(
-                f"More than {FORGET_CHOSEN_LIMIT} exchanges also hold a value of these, "
-                "so they stay."
-            )
+            lines.append(LEFT_OUT_LINE)
         if kept:
             lines.extend([KEPT_LINE, *(f"- {_excerpt(record, _text(call))}" for record in kept)])
         card = "\n".join(
@@ -254,7 +241,7 @@ class ForgetChosenTool:
             content=f"{content}.",
             is_error=error,
             trust=Trust.TRUSTED,
-            matched_nothing=content == _NONE_FOUND,
+            matched_nothing=content == NONE_FOUND,
             numbers_left=None if holding is None else holding > 0,
             kept=self._kept.held(call.stamp.turn_id),
         )
@@ -265,7 +252,7 @@ class ForgetChosenTool:
         if shown is None:
             return self._result(call, "nothing was forgotten: no card listed what to delete")
         if isinstance(shown, str):
-            return self._result(call, shown, error=shown not in (_NONE_FOUND, _ALREADY_DELETED))
+            return self._result(call, shown, error=shown not in (NONE_FOUND, ALREADY_DELETED))
         try:
             removed = await self._store.delete_ids(shown.ids)
             turn = call.stamp.turn_id
@@ -282,16 +269,9 @@ class ForgetChosenTool:
         except MemoryStoreError as err:
             return self._result(call, f"the memory store failed during the forget: {err}")
         if left:
-            said = (
-                f"forgot {removed} remembered exchanges, but {len(left)} written since the "
-                "card was shown still contain that text, so it is not forgotten"
-            )
+            said = outlasted(removed, len(left))
         elif shown.left_out:
-            said = (
-                f"forgot {removed} remembered exchanges that contain that text, but more exchanges "
-                "also hold its value and were not listed, since a card lists at most "
-                f"{FORGET_CHOSEN_LIMIT}, so the value is not forgotten"
-            )
+            said = unlisted(removed)
         else:
             said = forgot(removed, holding, len(shown.kept))
         error = bool(left) or shown.left_out

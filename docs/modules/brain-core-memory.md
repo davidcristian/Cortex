@@ -73,7 +73,7 @@ pool down to the hits one turn sees. The turn that calls it is in
   It is a `ToolOffer`: `offered(session_id)` is `any_to_forget(session_id)`, a `count_tainted` over
   the same read scopes, so a chat with nothing to forget is not offered it; a failed count offers it.
   `record_exchange` (`turn_output.py`) stores nothing for a tainted turn in which it ran `ok`.
-- `ForgetChosenTool(store, scope)` (`memory_forget_chosen.py`, ADR-0075) is `forget_memories`: one
+- `ForgetChosenTool(store, scope)` (`memory_forget_chosen.py`, its result texts in `forget_results.py`, ADR-0075) is `forget_memories`: one
   `text` argument, `confirm_required`, and a `RecordCard`. `card` runs `find_text` over the
   session's read scopes and lists an excerpt of each match, so the card holds stored text and never
   the model's. It also lists, under a line naming the value, each other row holding a whole value
