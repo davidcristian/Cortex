@@ -209,7 +209,9 @@ class ForgetChosenTool:
             deleted = self._deleted_turns.get(call.stamp.turn_id, ())
             return (_ALREADY_DELETED if _about(_text(call), deleted) else _NONE_FOUND), None
         left_out = len(found) + len(extra) > FORGET_CHOSEN_LIMIT
-        kept = unnamed([*found, *(row for row, _, _ in extra)], _text(call), call.stamp.query)
+        rows = [*found, *(row for row, _, _ in extra)]
+        deleted = self._deleted_rows.get(call.stamp.turn_id, ())
+        kept = unnamed(rows, _text(call), call.stamp.query, deleted)
         held = {record.id for record in kept}
         found = [record for record in found if record.id not in held]
         repeats = [] if left_out else [row for row in extra if row[0].id not in held]

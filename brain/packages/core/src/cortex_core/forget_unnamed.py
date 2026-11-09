@@ -16,6 +16,10 @@ _COMMON = frozenset(
     )
 )
 
+_EVERY = frozenset(
+    _WORD.findall("all every everywhere everything partout tout tous toutes überall alle todas tot")
+)
+
 KEPT_LINE = "Kept, since your message names none of their words:"
 KEPT_ALL = (
     "nothing was forgotten: each remembered exchange holding that value is about something the "
@@ -34,16 +38,26 @@ def _words(text: str) -> set[str]:
     return {word for word in words - _COMMON if not code_word(word)}
 
 
-def unnamed(records: Iterable[MemoryRecord], text: str, query: str) -> list[MemoryRecord]:
-    """The ``records`` whose request holds a value of ``text`` that ``query`` lacks, and no word
-    of ``query``; none when ``query`` names no word, since then it names no fact apart.
+def _apart(rows: list[MemoryRecord], query: str, words: set[str], deleted: Iterable[str]) -> bool:
+    """Whether ``query``, which holds the value, names one fact of ``rows`` or ``deleted`` apart."""
+    if not _EVERY.isdisjoint(word.lower() for word in _WORD.findall(query)):
+        return False
+    return any(not words.isdisjoint(_words(held)) for held in (*(r.text for r in rows), *deleted))
+
+
+def unnamed(
+    records: Iterable[MemoryRecord], text: str, query: str, deleted: Iterable[str] = ()
+) -> list[MemoryRecord]:
+    """The ``records`` whose request holds a value of ``text`` and no word of ``query``; none when
+    ``query`` holds that value and names no fact of them or of ``deleted`` apart.
     """
-    values, words = _keys(text) - _keys(query), _words(query)
-    if not values or not words:
+    rows, asked, words = list(records), _keys(query), _words(query)
+    values = _keys(text) - asked or _keys(text)
+    if not values or not words or (values <= asked and not _apart(rows, query, words, deleted)):
         return []
     return [
         record
-        for record in records
+        for record in rows
         if not values.isdisjoint(_keys(record.text.split(_REPLY, 1)[0]))
         and words.isdisjoint(_words(record.text))
     ]

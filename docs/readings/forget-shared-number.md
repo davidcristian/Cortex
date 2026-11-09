@@ -132,6 +132,62 @@ No later call held the value beside a phrase or another value, and none named th
 alone. Every reply said the gym locker number was forgotten, and both draws that left the padlock
 row ended with `NUMBERS_LEFT_NOTE`; one of them first said `I have also cleared that specific
 number`, which no call did, and the note then said the number is still held. The 6 draws that
-deleted the padlock row, on a message naming the value only to identify the gym locker, are
-[task 1072](../refinements/tasks/1072-a-forget-naming-the-value-beside-a-label-deletes-another-fact.md).
-The run record is `n1v.jsonl` in the slot directory above.
+deleted the padlock row, on a message naming the value only to identify the gym locker, are drawn
+[below](#a-value-named-beside-a-label-rows-and-rule-2026-11-09). The run record is `n1v.jsonl` in
+the slot directory above.
+
+## A value named beside a label: rows and rule, 2026-11-09
+
+The `n1v` rig above, with the two seed rows stored again from new seed turns on the stack brain
+built from `e19b9df09`, and put back under new ids before each draw. The draws above are the base:
+6 of 8 deleted the padlock row. Driver and records: `draw.sh`, `seed.log`, `fixed.log` and
+`fixed.jsonl` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot4/`.
+
+Written before the draws.
+
+| Build | Draws | What it is |
+| --- | --- | --- |
+| fixed | 8 | a second brain through the recording proxy, built from the working tree: when the person's message holds the call's value, a matched row whose request holds the value and that holds no word of the message is listed apart and kept, once a word of the message names another matched row or a row deleted earlier in the turn, and only when the message has no word such as `everywhere` or `all` |
+
+Counted per draw: the **form** (a call whose text is `5521`, first or later), whether the padlock
+and gym rows remain, the cards, and the reply.
+
+**Rule.** The change ships when every fixed draw deletes the gym row and keeps the padlock row,
+every card showing the padlock row lists it under `KEPT_LINE`, and no reply says nothing was
+forgotten or that the padlock code was. The form's count is recorded and does not decide; if no
+draw shows it in 8, fixed is drawn until two do, within a 12 minute cap, and with none the change
+does not ship. Unit tests decide the other side: a message naming only the value, the value with
+`everywhere` or `all`, both labels, or a label no stored row holds still deletes every row, and
+each recorded value first draw of [forget-value-repeats.md](forget-value-repeats.md) and of this
+file gets the same card through the old and the new reader, except the `n1v` draws.
+
+## The fixed draws, 2026-11-09
+
+Eight draws, every card approved, the SM clock at 0.57 to 0.58 of its maximum before each. The seed
+replies were `I've noted that your gym locker number is 5521.` and `OK. I've remembered that the
+shed padlock code is 5521.`.
+
+| First call | Draws | Later call | Padlock row left | Gym row left |
+| --- | --- | --- | --- | --- |
+| `5521` (form) | 2 | none | 2 | 0 |
+| `gym locker number` | 5 | `5521` (form) in 1, result `KEPT_ALL` | 5 | 0 |
+| `gym locker number is 5521` | 1 | none | 1 | 0 |
+
+Both cards of a first call of `5521` listed the gym row to delete and the padlock row under
+`KEPT_LINE`. The later call read the gym row the turn had deleted as the fact the message names,
+so its rows were kept and no card was shown. No card listed the padlock row for deletion, no reply
+said nothing was forgotten, and none named the padlock. Seven replies said the gym locker number
+was forgotten and ended with `NUMBERS_LEFT_NOTE`. The eighth, a label first draw whose requests
+match the base build's, said `I've updated your gym locker number to 5521.` and ended with the note
+that nothing in the message was kept
+([task 1073](../refinements/tasks/1073-a-forget-naming-the-value-can-be-answered-as-an-update.md)).
+The rule passes, so the change ships.
+
+Replayed through the old and new reader, the value first draws of
+[forget-value-repeats.md](forget-value-repeats.md) and the n1 draws above keep the same rows; only
+the two `n1v` forms differ. Of the eleven recorded messages in these readings that hold the value
+they forget, only `n1v` stored two facts sharing it, and the new reader keeps a row only when
+another matched row, or one the turn deleted, holds a word of the message. The run record is
+`fixed.jsonl` in the slot directory above, with the proxy lines `proxy-fixed.jsonl` and the replay
+`replay.py` beside it.

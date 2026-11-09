@@ -36,5 +36,4 @@ value alone, and neither unrefused form occurred
 
 - 2026-11-08: filed by the audit of tonight's reader changes, from unit probes.
 - 2026-11-09: drew the n1 setup 16 times and the `n1v` setup 8 times. All 8 later calls were the
-  value alone, so the check is unchanged and the task waits for a form. Filed task 1072 from the
-  `n1v` draws.
+  value alone, so the check is unchanged and the task waits for a form.

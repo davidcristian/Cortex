@@ -95,10 +95,14 @@ that removes exactly those rows and holds against a turn in flight. This record 
    the card under `KEPT_LINE` and kept (`unnamed`, `forget_unnamed.py`), because a first call of
    the value deleted a second fact sharing the number in every such draw. A word here has three or
    more letters and is no common word and no code word such as `number` or `code`. A recall row
-   holds the value only in its reply, so a restatement is still deleted; a message naming the
-   value or no word reads no row apart; and a card whose rows are all kept is `None`, with the
-   result `KEPT_ALL`. The result of that delete says the rows were kept and the value is still
-   remembered, and never that a forget of the value would remove them
+   holds the value only in its reply, so a restatement is still deleted; a message with no word
+   reads no row apart; and a card whose rows are all kept is `None`, with the result `KEPT_ALL`.
+   When the message holds the value too, the same rows are kept only once a word of the message
+   names another matched row or a row the turn deleted, and the message has no word such as
+   `everywhere` or `all`, because a message naming the value beside a label deleted the second
+   fact in 6 of 8 draws; a message whose words name no stored fact asks for every row. The result
+   of that delete says the rows were kept and the value is still remembered, and never that a
+   forget of the value would remove them
    ([readings](../readings/forget-shared-number.md#a-first-call-by-value-that-lists-another-fact-rows-and-rule-2026-11-09)).
    On a request to remember that can retract nothing, a call to it is refused by name and the
    turn is recorded: `unasked_forget` (`unasked_tools.py`) reads a message `asks_kept` reads and

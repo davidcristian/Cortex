@@ -153,3 +153,82 @@ async def test_each_recorded_value_first_draw_still_deletes_every_row(
     _, said, _, left = await _forget(text, query, *named)
     assert left == []
     assert said == f"{forgot(len(rows), 0, 0)}."
+
+
+_LABELLED = "Forget my gym locker number, it is 5521."
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        _LABELLED,
+        "Forget my gym locker number. It is 5521.",
+        "Forget 5521, the gym one.",
+        "Forget my gym locker number 5521 that I gave you.",
+    ],
+)
+async def test_a_message_naming_the_value_beside_a_label_keeps_the_fact_it_does_not_name(
+    query: str,
+) -> None:
+    card, said, numbers_left, left = await _forget("5521", query, ("gym", _GYM), ("shed", _SHED))
+    assert card is not None
+    lines = card.splitlines()
+    assert (len(lines), lines[2]) == (4, KEPT_LINE)
+    assert "gym locker" in lines[1]
+    assert "shed padlock" in lines[3]
+    assert (said, numbers_left, left) == (f"{forgot(1, 1, 1)}.", True, ["shed"])
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Forget 5521.",
+        "Forget 5521 everywhere.",
+        "Forget all of 5521.",
+        "Forget 5521 from your records.",
+        "Forget my gym locker number and 5521 everywhere.",
+        "Forget my gym locker number, it is 5521, and every other 5521 too.",
+        "Forget my gym locker and shed padlock numbers, both are 5521.",
+        "Forget my bike code, it is 5521.",
+        "Vergiss die Nummer 5521 überall.",
+        "Oublie le code du casier de la gym, c'est 5521, partout.",
+    ],
+)
+async def test_a_message_naming_the_value_and_no_fact_apart_deletes_every_row(query: str) -> None:
+    _, said, _, left = await _forget("5521", query, ("gym", _GYM), ("shed", _SHED))
+    assert (said, left) == (f"{forgot(2, 0, 0)}.", [])
+
+
+async def test_recalls_restating_the_labelled_value_are_deleted_and_the_other_fact_kept() -> None:
+    reply_only = "User: Which number did I ask you to keep? Reply with only it.\nAssistant: 5521"
+    asked = "User: What is 5521 for?\nAssistant: It opens your gym locker."
+    rows = [("gym", _GYM), ("recall", reply_only), ("asked", asked), ("shed", _SHED)]
+    _, said, _, left = await _forget("5521", _LABELLED, *rows)
+    assert (said, left) == (f"{forgot(3, 1, 1)}.", ["shed"])
+
+
+async def _two_calls(rows: list[tuple[str, str]], turns: tuple[str, str]) -> tuple[str, list[str]]:
+    store = InMemoryMemoryStore()
+    for minutes, (record_id, row) in enumerate(rows):
+        await store.add(_record(record_id, row, minutes))
+    tool = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
+    content = ""
+    for index, (text, turn) in enumerate(zip(("gym locker number", "5521"), turns, strict=True)):
+        stamp = TurnStamp(session_id="chat-a", turn_id=turn, query=_LABELLED)
+        call = ToolCall(
+            id=f"c{index}", name=FORGET_CHOSEN_TOOL_NAME, arguments={"text": text}, stamp=stamp
+        )
+        await tool.card(call)
+        content = (await tool.invoke(call)).content
+    left = sorted(hit.record.id for hit in await store.search((1.0, 0.0), k=100))
+    return content, left
+
+
+async def test_a_later_value_call_keeps_the_fact_once_the_labelled_one_was_deleted() -> None:
+    said, left = await _two_calls([("gym", _GYM), ("shed", _SHED)], ("t1", "t1"))
+    assert (said, left) == (f"{KEPT_ALL}.", ["shed"])
+
+
+async def test_a_row_deleted_in_another_turn_names_no_fact_for_this_one() -> None:
+    said, left = await _two_calls([("gym", _GYM), ("shed", _SHED)], ("t1", "t2"))
+    assert (said, left) == (f"{forgot(1, 0, 0)}.", [])

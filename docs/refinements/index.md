@@ -85,7 +85,7 @@ never a reading of what the tree does now.
 - **[R-1062](tasks/1062-a-correction-of-a-stored-value-says-updated-and-keeps-the-old-row.md)** A correction of a stored value says "updated" and keeps the old row (memory). Its claim was checked against the code on 2026-11-08.
 - **[R-1063](tasks/1063-the-chat-only-reader-misses-a-limit-with-no-conversation-word.md)** The chat-only reader misses a limit with no conversation word (memory). Its claim was checked against the code on 2026-11-08.
 - **[R-1071](tasks/1071-a-message-in-capitals-gets-the-english-note.md)** A message in capitals gets the English note (memory). Its claim was checked against the code on 2026-11-08.
-- **[R-1072](tasks/1072-a-forget-naming-the-value-beside-a-label-deletes-another-fact.md)** A forget naming the value beside a label deletes another fact (memory). Its claim was checked against the code on 2026-11-09.
+- **[R-1073](tasks/1073-a-forget-naming-the-value-can-be-answered-as-an-update.md)** A forget naming the value can be answered as an update (memory). Its claim was checked against the code on 2026-11-09.
 
 ### Actionable, once a port changes (2)
 
@@ -625,7 +625,7 @@ never a reading of what the tree does now.
 - [R-1063](tasks/1063-the-chat-only-reader-misses-a-limit-with-no-conversation-word.md) The chat-only reader misses a limit with no conversation word. open, actionable.
 - [R-1067](tasks/1067-a-later-forget-with-the-asked-value-and-another-still-runs.md) A later forget with the asked value and another still runs. open, waiting for its trigger.
 - [R-1071](tasks/1071-a-message-in-capitals-gets-the-english-note.md) A message in capitals gets the English note. open, actionable.
-- [R-1072](tasks/1072-a-forget-naming-the-value-beside-a-label-deletes-another-fact.md) A forget naming the value beside a label deletes another fact. open, actionable.
+- [R-1073](tasks/1073-a-forget-naming-the-value-can-be-answered-as-an-update.md) A forget naming the value can be answered as an update. open, actionable.
 
 ### orchestrator
 
