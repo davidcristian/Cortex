@@ -131,7 +131,7 @@ pool down to the hits one turn sees. The turn that calls it is in
   (`or anyone` after it does); an idiom word after the keep verb
   (`rancune`, `rencor`, `răul`, `alles`, `contre`, `pour toi`, `für dich`, `para ti`), at most
   one word after it, keeps the turn, so `ne garde pas rancune` and `behalt das nicht
-  für dich` do not count and `ne retiens pas cette information` and `n'enregistre pas ça` do.
+  für dich` do not count and `ne retiens pas cette information` and `n'enregistre pas ça` do. A save decision put off in the first person (`I'll tell you later whether to save it`, `let me decide if you should keep it`) asks not to keep too, in English only, and `I'll tell you later what to do` does not.
   `asks_kept` reads English (`keep in mind` also with `it`, `this`, `that` or `these` between, not before `for him`, `for her` or `for them`) and, in those four languages, an imperative to remember at a
   clause start (`souviens-toi`, `retiens-le`, `merk dir`, `merk ihn dir`, `recuerda que`, `recuérdalo`, `ține minte`), and not a statement, a question, a
   reminder (`rappelle-moi`) or a request not to keep. `asks_files`

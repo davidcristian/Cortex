@@ -652,6 +652,37 @@ def test_a_request_not_to_keep_it_in_mind_is_never_stored(query: str) -> None:
     assert memory_withheld(_caps(), TaintLedger(), (), query=query)
 
 
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Keep it in mind for now.",
+        "Keep it in mind for now, my seat is 14C.",
+        "I'll tell you later what to do.",
+        "Keep it in mind, I'll tell you if I need it.",
+        "I'll tell you later whether I remember the address.",
+        "Did you decide whether to save it?",
+        "Tell me later whether you saved it.",
+    ],
+)
+def test_keep_it_in_mind_for_now_or_a_later_word_on_no_saving_is_stored(query: str) -> None:
+    assert not asks_not_kept(query)
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Keep it in mind for now, I'll tell you later whether to save it.",
+        "My PIN is 4410. I'll let you know if you should keep it.",
+        "Keep this in mind; let me decide later whether to store it.",
+        "I will decide tomorrow if I want you to remember it.",
+        "My seat is 14C, I'm going to tell you afterwards if you can note it down.",
+    ],
+)
+def test_a_save_decision_put_off_until_later_is_never_stored(query: str) -> None:
+    assert asks_not_kept(query)
+    assert memory_withheld(_caps(), TaintLedger(), (), query=query)
+
+
 @pytest.mark.parametrize("query", [*NOT_KEPT, *DISCARD, *REMEMBER_AND_NOT_KEPT])
 def test_every_recorded_request_not_to_keep_or_to_forget_keeps_the_forget_tool(query: str) -> None:
     assert unasked_forget(query) == frozenset()

@@ -51,6 +51,14 @@ _NOT_FOR_MEMORY = re.compile(
     r"\bnot\s+(?:for|in|into|to)\s+your\s+(?:memory|memories|notes)\b|\boff\s+the\s+record\b",
     re.IGNORECASE,
 )
+# "I'll tell you later whether to save it" puts off the decision, so nothing is kept until then.
+_LATER_DECISION = re.compile(
+    r"\b(?:I(?:['\u2019]ll|\s+will|['\u2019]m\s+going\s+to|\s+am\s+going\s+to)?|let\s+me)\s+"
+    r"(?:\w+\s+)?(?:tell\s+you|let\s+you\s+know|decide|confirm)\b(?:\s+\w+){0,2}?\s+"
+    r"(?:whether|if)\s+(?:(?:you\s+(?:should|can|may)|to|I\s+want(?:\s+you)?\s+to)\s+)?"
+    rf"{_KEEP}\b",
+    re.IGNORECASE,
+)
 # A negative imperative in French, German, Spanish or Romanian that opens a clause, so a statement
 # such as "je ne retiens pas" or "el nu reține" does not match.
 _OTHER_OPENS = rf"(?:^\W*|{_BREAK}|\b(?:mais|et|aber|und|doch|pero|y|dar|și|însă|bitte)\s+)"
@@ -175,7 +183,7 @@ def _asks_not_kept(sentence: str) -> bool:
     """Whether ``sentence`` asks not to keep, forget or remove something it does not ask kept."""
     if _NOT_FOR_MEMORY.search(sentence) or _REMOVE.search(sentence):
         return True
-    if _KEEP_NOWHERE.search(sentence):
+    if _KEEP_NOWHERE.search(sentence) or _LATER_DECISION.search(sentence):
         return True
     if _DONT_KEEP_OTHER.search(sentence) or _FORGET_OTHER.search(sentence):
         return True

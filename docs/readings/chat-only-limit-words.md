@@ -58,4 +58,13 @@ Unit calls (`probe3.py`, log `probe3.log` in
 it`, `no need to remember it`, `for this chat only, don't store it`, `but do not keep it in memory`,
 `Don't write it down anywhere`, `but forget it after this chat` and `don't remember it in other
 chats`, so `memory_withheld` stores none of them. `Keep it in mind for now, I'll tell you later
-whether to save it.` asks for no keep and no withhold, and is stored ([task 1094](../refinements/tasks/1094-keep-it-in-mind-for-now-beside-a-later-save-decision-is-stored.md)).
+whether to save it.` asked for no keep and no withhold, and was stored.
+
+`asks_not_kept` now reads a save decision the person puts off (`I'll tell you later whether to
+save it`, `let me decide later whether to store it`, `I will decide tomorrow if I want you to
+remember it`) as a request not to keep, while `Keep it in mind for now` alone, `I'll tell you
+later what to do`, `I'll tell you later whether I remember the address` and `Did you decide
+whether to save it?` still store. A replay of every string in `docs/readings/` (28,810) through
+the reader before and after that change moved none. The same message in French, German, Spanish
+or Romanian is still stored
+([task 1100](../refinements/tasks/1100-a-save-decision-put-off-in-another-language-is-stored.md)).

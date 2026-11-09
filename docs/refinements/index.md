@@ -82,10 +82,10 @@ never a reading of what the tree does now.
 - **[R-1061](tasks/1061-a-forget-of-what-was-just-said-can-match-nothing-and-say-it-was-never-stored.md)** A forget of what was just said can match nothing and say it was never stored (memory). Its claim was checked against the code on 2026-11-09.
 - **[R-1062](tasks/1062-a-correction-of-a-stored-value-says-updated-and-keeps-the-old-row.md)** A correction of a stored value says "updated" and keeps the old row (memory). Its claim was checked against the code on 2026-11-08.
 - **[R-1071](tasks/1071-a-message-in-capitals-gets-the-english-note.md)** A message in capitals gets the English note (memory). Its claim was checked against the code on 2026-11-08.
-- **[R-1094](tasks/1094-keep-it-in-mind-for-now-beside-a-later-save-decision-is-stored.md)** Keep it in mind for now beside a later save decision is stored (memory). Its claim was checked against the code on 2026-11-09.
 - **[R-1097](tasks/1097-a-compound-code-word-names-no-fact-in-a-forget.md)** A compound code word names no fact in a forget (memory). Its claim was checked against the code on 2026-11-09.
 - **[R-1098](tasks/1098-a-forget-by-words-lists-a-row-the-message-asked-to-keep.md)** A forget by words lists a row the message asked to keep (memory). Its claim was checked against the code on 2026-11-09.
 - **[R-1099](tasks/1099-a-removal-offered-under-a-condition-reads-as-a-removal-done.md)** A removal offered under a condition reads as a removal done (memory). Its claim was checked against the code on 2026-11-09.
+- **[R-1100](tasks/1100-a-save-decision-put-off-in-another-language-is-stored.md)** A save decision put off in another language is stored (memory). Its claim was checked against the code on 2026-11-09.
 
 ### Actionable, once a port changes (2)
 
@@ -622,10 +622,10 @@ never a reading of what the tree does now.
 - [R-1062](tasks/1062-a-correction-of-a-stored-value-says-updated-and-keeps-the-old-row.md) A correction of a stored value says "updated" and keeps the old row. open, actionable.
 - [R-1067](tasks/1067-a-later-forget-with-the-asked-value-and-another-still-runs.md) A later forget with the asked value and another still runs. open, waiting for its trigger.
 - [R-1071](tasks/1071-a-message-in-capitals-gets-the-english-note.md) A message in capitals gets the English note. open, actionable.
-- [R-1094](tasks/1094-keep-it-in-mind-for-now-beside-a-later-save-decision-is-stored.md) Keep it in mind for now beside a later save decision is stored. open, actionable.
 - [R-1097](tasks/1097-a-compound-code-word-names-no-fact-in-a-forget.md) A compound code word names no fact in a forget. open, actionable.
 - [R-1098](tasks/1098-a-forget-by-words-lists-a-row-the-message-asked-to-keep.md) A forget by words lists a row the message asked to keep. open, actionable.
 - [R-1099](tasks/1099-a-removal-offered-under-a-condition-reads-as-a-removal-done.md) A removal offered under a condition reads as a removal done. open, actionable.
+- [R-1100](tasks/1100-a-save-decision-put-off-in-another-language-is-stored.md) A save decision put off in another language is stored. open, actionable.
 
 ### orchestrator
 
