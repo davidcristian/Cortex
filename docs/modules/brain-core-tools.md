@@ -18,9 +18,9 @@ spawned subtask or a model swap is in [brain-core-residency.md](brain-core-resid
   outcome fed back to the model. `source` is what the result declared for its own content, and
   `images` (ADR-0029) travel beside `content`, which alone is audited, scanned and fenced. `matched_nothing` says the call ran and found nothing its arguments name.
 - `TurnStamp(session_id, turn_id, task_id, item_id, tainted, recalled_only, forgotten, sources,
-  budget, progress, escalation)` is what the dispatching turn gives the call (ADR-0027); `live_taint` is
+  query, budget, progress, escalation)` is what the dispatching turn gives the call (ADR-0027); `live_taint` is
   `tainted and not recalled_only` (ADR-0019 decision 8). The four ids are the work the call was
-  made for, `""` when none (ADR-0009 decision 16). Equality skips the three live handles.
+  made for, `""` when none (ADR-0009 decision 16). `query` is the person's message, `""` outside a turn loop. Equality skips the three live handles.
 - `ToolInvocation(name, arguments, ok, detail, at, trust, call_id, session_id, turn_id, task_id,
   item_id)` is one audit record, keeping the stamp's four ids and never the stamp itself, since a
   record that outlives its process must contain no live handle.

@@ -5,6 +5,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from cortex_core.errors import MemoryStoreError
+from cortex_core.forget_unnamed import KEPT_ALL, KEPT_LINE, forgot, unnamed
 from cortex_core.memory import MemoryRecord
 from cortex_core.memory_values import code_runs, digit_runs, value_searches, whole_values
 from cortex_core.ports import MemoryStore
@@ -85,26 +86,14 @@ def _about(text: str, deleted: tuple[str, ...]) -> bool:
     )
 
 
-def _forgot(removed: int, holding: int) -> str:
-    """The result of a delete that left no match, ``holding`` other rows holding its numbers."""
-    if not holding:
-        return (
-            f"forgot {removed} remembered exchanges; no remembered exchange contains that text now"
-        )
-    return (
-        f"forgot {removed} remembered exchanges that contain that text, but {holding} other "
-        "remembered exchanges still hold a number a deleted one held, so that number is still "
-        "remembered; a forget of the number itself would remove them"
-    )
-
-
 @dataclass(frozen=True)
 class _Chosen:
-    """The rows a card listed: their ids, their texts, and whether rows holding a value stayed."""
+    """The rows a card listed by id and text, whether rows holding a value stayed, the rows kept."""
 
     ids: tuple[str, ...]
     texts: tuple[str, ...]
     left_out: bool
+    kept: frozenset[str] = frozenset()
 
 
 class ForgetChosenTool:
@@ -220,7 +209,12 @@ class ForgetChosenTool:
             deleted = self._deleted_turns.get(call.stamp.turn_id, ())
             return (_ALREADY_DELETED if _about(_text(call), deleted) else _NONE_FOUND), None
         left_out = len(found) + len(extra) > FORGET_CHOSEN_LIMIT
-        repeats = [] if left_out else extra
+        kept = unnamed([*found, *(row for row, _, _ in extra)], _text(call), call.stamp.query)
+        held = {record.id for record in kept}
+        found = [record for record in found if record.id not in held]
+        repeats = [] if left_out else [row for row in extra if row[0].id not in held]
+        if not found and not repeats:
+            return KEPT_ALL, None
         listed = [*found, *(record for record, _, _ in repeats)]
         lines = [f"- {_excerpt(record, _text(call))}" for record in found]
         for form in dict.fromkeys(form for _, form, _ in repeats):
@@ -233,11 +227,16 @@ class ForgetChosenTool:
                 f"More than {FORGET_CHOSEN_LIMIT} exchanges also hold a value of these, "
                 "so they stay."
             )
+        if kept:
+            lines.extend([KEPT_LINE, *(f"- {_excerpt(record, _text(call))}" for record in kept)])
         card = "\n".join(
             [f"Deletes for good, with no undo, these {len(listed)} remembered exchanges:", *lines]
         )
         chosen = _Chosen(
-            tuple(record.id for record in listed), tuple(record.text for record in listed), left_out
+            tuple(record.id for record in listed),
+            tuple(record.text for record in listed),
+            left_out,
+            frozenset(held),
         )
         return chosen, card
 
@@ -271,7 +270,7 @@ class ForgetChosenTool:
                 ledger[turn] = (*ledger.get(turn, ()), *texts)
                 while len(ledger) > _PENDING_CALLS:
                     del ledger[next(iter(ledger))]
-            left = await self._found(call)
+            left = [record for record in await self._found(call) if record.id not in shown.kept]
             holding = 0 if left or shown.left_out else await self._holding(call)
         except MemoryStoreError as err:
             return self._result(call, f"the memory store failed during the forget: {err}")
@@ -288,4 +287,5 @@ class ForgetChosenTool:
                 "also hold its value and were not listed, since a card lists at most "
                 f"{FORGET_CHOSEN_LIMIT}, so the value is not forgotten",
             )
-        return self._result(call, _forgot(removed, holding), error=False, holding=holding)
+        said = forgot(removed, holding, len(shown.kept))
+        return self._result(call, said, error=False, holding=holding)

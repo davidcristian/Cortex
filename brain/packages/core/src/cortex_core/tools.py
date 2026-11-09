@@ -58,6 +58,7 @@ class TurnStamp:
     recalled_only: bool = False
     forgotten: bool = False
     sources: tuple[Provenance, ...] = ()
+    query: str = ""
     budget: DispatchBudget | None = field(default=None, compare=False)
     progress: ProgressSink | None = field(default=None, compare=False)
     escalation: "EscalationSlot | None" = field(default=None, compare=False)

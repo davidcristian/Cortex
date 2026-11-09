@@ -24,6 +24,7 @@ from cortex_core import (
     ToolDispatcher,
     ToolSpec,
 )
+from cortex_core.forget_unnamed import KEPT_ALL
 from cortex_core.forget_value_unasked import FORGET_VALUE_MSG, value_unasked
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 
@@ -150,11 +151,12 @@ async def test_an_unasked_value_forget_after_the_delete_keeps_the_other_fact() -
     assert [(record.ok, record.detail) for record in audit.records][1] == (False, FORGET_VALUE_MSG)
 
 
-async def test_a_retry_of_the_value_runs_its_card_once_refused() -> None:
+async def test_a_retry_of_the_value_runs_once_refused_and_keeps_the_unnamed_fact() -> None:
     rounds = [[_forget("gym locker number")], [_forget("5521", 1)], [_forget("5521", 2)]]
-    left, _, confirmer = await _loop(_ASKED, rounds)
-    assert left == []
-    assert len(confirmer.requests) == 2
+    left, audit, confirmer = await _loop(_ASKED, rounds)
+    assert left == ["shed"]
+    assert len(confirmer.requests) == 1
+    assert [record.detail for record in audit.records][2] == f"{KEPT_ALL}."
 
 
 @pytest.mark.parametrize(

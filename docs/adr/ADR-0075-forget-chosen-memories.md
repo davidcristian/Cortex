@@ -90,6 +90,16 @@ that removes exactly those rows and holds against a turn in flight. This record 
    kept, because the cortex read the count as a next step and deleted a second fact sharing the
    number in 6 of 8 draws; a retry runs with its card
    ([readings](../readings/forget-shared-number.md)).
+   When the text holds a value the person's message lacks (`TurnStamp.query`), each matched row
+   whose own request holds that value and that holds no word of the message is listed apart on
+   the card under `KEPT_LINE` and kept (`unnamed`, `forget_unnamed.py`), because a first call of
+   the value deleted a second fact sharing the number in every such draw. A word here has three or
+   more letters and is no common word and no code word such as `number` or `code`. A recall row
+   holds the value only in its reply, so a restatement is still deleted; a message naming the
+   value or no word reads no row apart; and a card whose rows are all kept is `None`, with the
+   result `KEPT_ALL`. The result of that delete says the rows were kept and the value is still
+   remembered, and never that a forget of the value would remove them
+   ([readings](../readings/forget-shared-number.md#a-first-call-by-value-that-lists-another-fact-rows-and-rule-2026-11-09)).
    On a request to remember that can retract nothing, a call to it is refused by name and the
    turn is recorded: `unasked_forget` (`unasked_tools.py`) reads a message `asks_kept` reads and
    `asks_not_kept` does not, holding no word that can retract something, no negation, no question,

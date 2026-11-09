@@ -1,0 +1,155 @@
+from datetime import UTC, datetime, timedelta
+
+import pytest
+
+from cortex_core import (
+    FORGET_CHOSEN_TOOL_NAME,
+    GLOBAL_MEMORY_SCOPE,
+    ForgetChosenTool,
+    InMemoryMemoryStore,
+    MemoryRecord,
+    ToolCall,
+)
+from cortex_core.forget_unnamed import KEPT_ALL, KEPT_LINE, forgot
+from cortex_core.tools import TurnStamp
+
+_AT = datetime(2026, 11, 9, 1, 0, 0, tzinfo=UTC)
+_GYM = "User: Remember that my gym locker number is 5521.\nAssistant: I've noted that."
+_SHED = "User: Remember that the shed padlock code is also 5521.\nAssistant: Noted."
+_ASKED = "Forget my gym locker number."
+
+
+def _record(record_id: str, text: str, minutes: int = 0) -> MemoryRecord:
+    return MemoryRecord(
+        id=record_id,
+        text=text,
+        embedding=(1.0, 0.0),
+        at=_AT + timedelta(minutes=minutes),
+        scope="global",
+    )
+
+
+async def _forget(
+    text: str, query: str, *rows: tuple[str, str]
+) -> tuple[str | None, str, bool | None, list[str]]:
+    store = InMemoryMemoryStore()
+    for minutes, (record_id, row) in enumerate(rows):
+        await store.add(_record(record_id, row, minutes))
+    tool = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
+    stamp = TurnStamp(session_id="chat-a", turn_id="t1", query=query)
+    call = ToolCall(id="c1", name=FORGET_CHOSEN_TOOL_NAME, arguments={"text": text}, stamp=stamp)
+    card = await tool.card(call)
+    result = await tool.invoke(call)
+    left = sorted(hit.record.id for hit in await store.search((1.0, 0.0), k=100))
+    return card, result.content, result.numbers_left, left
+
+
+async def test_a_value_first_forget_keeps_the_fact_the_message_does_not_name() -> None:
+    card, said, numbers_left, left = await _forget("5521", _ASKED, ("gym", _GYM), ("shed", _SHED))
+    assert card is not None
+    lines = card.splitlines()
+    assert lines[0] == "Deletes for good, with no undo, these 1 remembered exchanges:"
+    assert lines[2] == KEPT_LINE
+    assert "gym locker" in lines[1]
+    assert "shed padlock" in lines[3]
+    assert said == f"{forgot(1, 1, 1)}."
+    assert "forget of" not in said
+    assert numbers_left is True
+    assert left == ["shed"]
+
+
+async def test_a_value_reaching_only_unnamed_facts_shows_no_card_and_keeps_them() -> None:
+    card, said, numbers_left, left = await _forget("5521", "Forget my bike code.", ("shed", _SHED))
+    assert (card, said, numbers_left, left) == (None, f"{KEPT_ALL}.", None, ["shed"])
+
+
+@pytest.mark.parametrize(
+    "query",
+    ["Forget 5521.", "Forget it.", "Forget that number.", "", "Oublie le 5521 partout."],
+)
+async def test_a_message_naming_the_value_or_no_fact_deletes_every_row(query: str) -> None:
+    _, _, _, left = await _forget("5521", query, ("gym", _GYM), ("shed", _SHED))
+    assert left == []
+
+
+async def test_a_label_text_is_not_read_against_the_message() -> None:
+    _, _, _, left = await _forget("padlock", _ASKED, ("gym", _GYM), ("shed", _SHED))
+    assert left == ["gym"]
+
+
+@pytest.mark.parametrize(
+    ("query", "kept"),
+    [
+        ("Forget that the gym number is mine.", ["shed"]),
+        ("Forget my gym code.", ["shed"]),
+        ("Please forget the code of my shed.", ["gym"]),
+        ("Forget my gym and shed numbers.", []),
+    ],
+)
+async def test_common_and_code_words_name_no_fact(query: str, kept: list[str]) -> None:
+    _, _, _, left = await _forget("5521", query, ("gym", _GYM), ("shed", _SHED))
+    assert left == kept
+
+
+async def test_a_recall_holding_the_value_only_in_its_reply_is_deleted() -> None:
+    recall = "User: Which number did I ask you to keep? Reply with only it.\nAssistant: 5521"
+    _, _, _, left = await _forget("5521", _ASKED, ("gym", _GYM), ("recall", recall))
+    assert left == []
+
+
+async def test_a_row_with_no_reply_is_read_whole_and_kept_when_unnamed() -> None:
+    bare = "the shed padlock code is 5521"
+    _, said, _, left = await _forget("5521", _ASKED, ("gym", _GYM), ("bare", bare))
+    assert left == ["bare"]
+    assert said == f"{forgot(1, 1, 1)}."
+
+
+@pytest.mark.parametrize(
+    ("text", "query", "rows"),
+    [
+        (
+            "7731",
+            "Oublie le code de mon casier à la piscine.",
+            [
+                "User: Souviens-toi que le code de mon casier à la piscine est 7731.\n"
+                "Assistant: C'est noté.",
+                "User: Which number did I give you for the pool locker? Reply with only the "
+                "number.\nAssistant: 7731",
+                "User: Quel est le code de mon casier à la piscine ?\nAssistant: 7731.",
+                "User: What is my swimming pool locker code?\nAssistant: Your swimming pool "
+                "locker code is 7731.",
+            ],
+        ),
+        (
+            "1987",
+            "Forget my door code.",
+            [
+                "User: Remember that my door code is 1987.\nAssistant: Noted.",
+                "User: What number opens my front door?\nAssistant: 1987 opens it.",
+                "User: Which number did I give you for the front door? Reply with only the "
+                "number.\nAssistant: 1987",
+            ],
+        ),
+        (
+            "5819",
+            "Forget the code of my gym locker.",
+            [
+                "User: Remember that my gym locker code is 5819.\nAssistant: Noted.",
+                'User: In one sentence that starts with "The code for", what opens my gym '
+                "locker?\nAssistant: The code for your gym locker is 5819.",
+            ],
+        ),
+        (
+            "0612345678",
+            "Forget my phone number and my passport number.",
+            ["User: Remember that my phone number is 0612345678.\nAssistant: Noted."],
+        ),
+    ],
+)
+async def test_each_recorded_value_first_draw_still_deletes_every_row(
+    text: str, query: str, rows: list[str]
+) -> None:
+    named = [(f"r{index}", row) for index, row in enumerate(rows)]
+    _, said, _, left = await _forget(text, query, *named)
+    assert left == []
+    assert said == f"{forgot(len(rows), 0, 0)}."

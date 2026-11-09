@@ -63,6 +63,11 @@ def digit_runs(text: str) -> dict[str, str]:
     return runs
 
 
+def code_word(word: str) -> bool:
+    """Whether ``word`` names a kind of value, such as a code, a number or a password."""
+    return _CODE_WORD.fullmatch(word) is not None
+
+
 def code_runs(text: str) -> dict[str, str]:
     """The digit runs of ``text``, a year or a date only when ``text`` names a code or a number."""
     named = _CODE_WORD.search(text) is not None

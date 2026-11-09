@@ -80,7 +80,7 @@ pool down to the hits one turn sees. The turn that calls it is in
   of a match (`whole_values` in `memory_values.py`: a phone number or code in full, never a part,
   a year, a date, a time or an amount) and a word of four or more letters from the text, since a
   recall reply restates the value in other words; a text that is itself a value lists each row
-  holding that value. Those rows are found by the value as written, by its letters and digits
+  holding that value. When the text holds a value the person's message lacks (`TurnStamp.query`), a match whose request holds that value and which holds no word of the message (three or more letters, no common word, no code word) is listed apart under `KEPT_LINE` and kept (`unnamed` in `forget_unnamed.py`); a message naming the value or no word reads no row apart, and a card whose rows are all kept is `None` with the result `KEPT_ALL`. Those rows are found by the value as written, by its letters and digits
   alone and by each four consecutive characters of them (`value_searches`), since `find_text` is literal, so a
   row writing the value only in groups under four characters stays. When those rows would pass
   `FORGET_CHOSEN_LIMIT` (20), the card lists the text matches alone and says the others stay, and
@@ -90,7 +90,7 @@ pool down to the hits one turn sees. The turn that calls it is in
   rows, by the same searches, for each run of four or more digits a row deleted in the turn held (`code_runs` in
   `memory_values.py`, compared by digits alone: a year or a date only from a row naming a code or
   a number, such as `code`, `PIN`, `Nummer`, `código` or `codul`), and when a row holds one the result says how
-  many do and that a forget of the number itself would remove them, without naming it, and sets
+  many do and that a forget of the number itself would remove them, without naming it (after rows kept apart, only that they were kept and the value is still remembered), and sets
   `ToolResult.numbers_left`. No text, no match, more than 20 rows
   containing the text or a failed store deletes nothing: `card` returns `None`, so the dispatcher shows no card and runs the call,
   whose result says why. The description asks for the value or one word from the request that names

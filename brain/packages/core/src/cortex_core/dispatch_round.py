@@ -175,6 +175,7 @@ def _stamp(context: ToolLoopContext) -> TurnStamp:
         recalled_only=context.taint.recalled_only,
         forgotten=context.taint.forgotten,
         sources=context.taint.sources,
+        query=context.query,
         budget=context.budget,
         progress=context.progress,
         escalation=context.escalation,
