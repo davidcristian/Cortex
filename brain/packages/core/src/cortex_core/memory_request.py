@@ -63,10 +63,13 @@ _OTHER_END = (
 _DONT_KEEP_OTHER = re.compile(
     rf"{_OTHER_OPENS}(?:(?:ne\s+(?:l['\u2019]|le\s+|la\s+|les\s+)?|n['\u2019])"
     r"(?:retiens|retenez|note|notez|garde|gardez|enregistre|enregistrez|mémorise|mémorisez)\s+pas"
-    r"|merke?\s+(?:es\s+|das\s+|dies\s+)?dir\s+(?:das\s+|es\s+|dies\s+)?nicht"
+    r"|(?:ret(?:enez|iens)|not(?:e|ez)|mémoris(?:e|ez))-(?:le|la|les)\s+(?:pas|jamais)"
+    r"|(?:merke?\s+(?:es\s+|das\s+|dies\s+|ihn\s+|sie\s+)?dir|merken\s+sie\s+sich)\s+"
+    r"(?:\w+\s+){0,2}?nicht"
     r"|(?:speicher|speichere|notier|notiere|behalt|behalte)\s+(?:das|es|dies)\s+nicht"
     r"|nicht\s+(?:merken|speichern|notieren|behalten)"
-    r"|no\s+(?:lo\s+|la\s+|los\s+|las\s+)?(?:recuerdes|guardes|anotes|apuntes|memorices)"
+    r"|no\s+(?:(?:me|te)\s+)?(?:lo\s+|la\s+|los\s+|las\s+)?"
+    r"(?:recuerdes|guardes|anotes|apuntes|memorices)"
     rf"|nu(?:-l|-o)?\s+(?:reține|reţine|salva|nota|memora|ține\s+minte))\b{_OTHER_END}",
     re.IGNORECASE,
 )
@@ -85,10 +88,10 @@ _FORGET_OTHER = re.compile(
 _REMEMBER_OTHER = re.compile(
     rf"{_OTHER_OPENS}(?:souviens[-\s]toi|souvenez[-\s]vous|rappelle[-\s]toi|rappelez[-\s]vous"
     r"|ret(?:enez|iens)\s+(?:que|qu['\u2019]|bien|ceci|cela|ça|mon|ma|mes)\b|retiens\s*:"
-    r"|(?:ret(?:enez|iens)|not(?:e|ez)|mémoris(?:e|ez))-(?:le|la|les)\b"
+    r"|(?:ret(?:enez|iens)|not(?:e|ez)|mémoris(?:e|ez))-(?:le|la|les)\b(?!\s+(?:pas|jamais)\b)"
     r"|n['\u2019]oubli(?:e|ez)\s+pas\s+(?:que|qu['\u2019])"
-    r"|merke?\s+(?:es\s+|das\s+|dies\s+|ihn\s+|sie\s+)?dir\b(?!\s+(?:\w+\s+){0,2}?nicht\b)"
-    r"|merken\s+sie\s+sich|erinnere?\s+dich|vergiss\s+nicht\W+dass"
+    r"|(?:merke?\s+(?:es\s+|das\s+|dies\s+|ihn\s+|sie\s+)?dir|merken\s+sie\s+sich)\b"
+    r"(?!\s+(?:\w+\s+){0,2}?nicht\b)|erinnere?\s+dich|vergiss\s+nicht\W+dass"
     r"|recuerd[ae]\s+(?:que|esto|eso|lo\s+siguiente)\b|recuerd[ae]\s*:|acu[eé]rdate\b"
     r"|no\s+olvides\s+que|ten\s+en\s+cuenta|(?:recu[eé]rd|ap[uú]nt|an[oó]t)a(?:lo|la|los|las)\b"
     r"|[țţt]ine\s+minte|aminte[șşs]te-[țţt]i|re[țţt]ine\s+(?:c[ăa]|asta|acest)\b"

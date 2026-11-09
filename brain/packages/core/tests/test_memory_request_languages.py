@@ -176,10 +176,38 @@ def test_an_idiom_with_a_keep_verb_in_another_language_does_not_ask_not_kept(que
         "No guardes esto nunca.",
         "Nu salva numărul ăsta.",
         "Nu reține asta niciodată.",
+        "Mon code est 5937, retiens-le pas.",
+        "Note-la jamais, stp.",
+        "Mein Code ist 5937, merk ihn dir nicht.",
+        "Merk sie dir lieber nicht.",
+        "Merken Sie sich das nicht.",
+        "No te lo apuntes.",
+        "Mi código es 4512, no me lo anotes.",
     ],
 )
 def test_a_request_not_to_keep_in_another_language_asks_not_kept(query: str) -> None:
     assert asks_not_kept(query)
+    assert not asks_kept(query)
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Il le note pas.",
+        "Er merkt sich das nicht.",
+        "Sie merken sich das nicht.",
+        "Mi hermano no me lo apunta.",
+    ],
+)
+def test_a_statement_with_a_negated_keep_verb_does_not_ask_not_kept(query: str) -> None:
+    assert not asks_not_kept(query)
+
+
+@pytest.mark.parametrize(
+    "query", ["Retiens-le, pas l'autre.", "Merken Sie sich das, nicht die alte Nummer."]
+)
+def test_a_request_to_keep_one_thing_and_not_another_asks_kept(query: str) -> None:
+    assert asks_kept(query)
 
 
 @pytest.mark.parametrize(
