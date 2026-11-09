@@ -99,6 +99,11 @@ _EDITED = "edited abc: now due 2026-11-08T15:00:00+01:00 (today)"
         "Te lo recordaré a las 8. (Ten en cuenta que esto se repetirá todos los días).",
         "Note que ce rappel se répète chaque jour.",
         "Am setat un memento care se repetă în fiecare zi.",
+        "It will now repeat every Tuesday at 15:00.",
+        "Done. It'll repeat every Tuesday at 15:00.",
+        "The reminder will also repeat on Fridays.",
+        "Done, it will now repeat.",
+        "It\u2019ll repeat daily from now on.",
     ],
 )
 def test_a_reply_that_says_it_repeats_names_a_repeat(reply: str) -> None:
@@ -177,6 +182,13 @@ def test_a_reply_that_says_it_repeats_names_a_repeat(reply: str) -> None:
         "Je te rappellerai à 8h de prendre le cachet que tu prends chaque matin.",
         "Te recordaré a las 8 tomar la pastilla que tomas cada mañana.",
         "Îți voi aminti la 8 să iei pastila pe care o iei în fiecare dimineață.",
+        "It will not repeat.",
+        "It won't repeat after Tuesday.",
+        "Should it repeat?",
+        "If you want it to repeat, say so.",
+        "I'll remind you to repeat the exercise at 5.",
+        "I'll repeat the details: your dentist is on Tuesday at 15:00.",
+        "It will remind you at 5 that the exercise will repeat.",
     ],
 )
 def test_a_reply_for_one_time_or_saying_no_repeat_names_none(reply: str) -> None:

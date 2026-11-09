@@ -22,9 +22,13 @@ DAILY_STORED_NOTES = {
 }
 
 STORED_ID = re.compile(r"\bscheduled \w+ (\S+): due ")
+# "It will now repeat every Tuesday" names the reminder's repeat, while "it will repeat the
+# question" names its text and "I'll repeat the details" names the reply.
 _REPEATS = re.compile(
     r"\b(?:every|each)\s+(?:single\s+)?(?:day|morning|afternoon|evening|night)\b"
     r"|\brepeat(?:s|ing)\b|\brecurring\b"
+    r"|\b(?:it|this|that|which|reminder|alarm)(?:\s+will|['\u2019]ll)\s+(?:now\s+|also\s+)?repeat"
+    r"(?=\s*(?:[.,;!]|$)|\s+(?:every|each|on|daily|weekly|monthly|at|from|until)\b)"
     r"|\bjeden\s+(?:Tag|Morgen|Nachmittag|Abend)\b|\bwiederholt\b|\bwiederkehrend\w*"
     r"|\btous\s+les\s+(?:jours|matins|après-midi|soirs)\b|\bchaque\s+(?:jour|matin|soir)\b"
     r"|\bse\s+répète\b|\brécurrent\w*"

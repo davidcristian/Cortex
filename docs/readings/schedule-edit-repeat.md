@@ -63,6 +63,9 @@ On the stack brain rebuilt from the tree with the note, at 04:55 (chat `s10v-1`,
 in the same directory, SM clock 0.57 of `clocks.max.sm`): `Make that dentist reminder repeat every
 Tuesday at 15:00 instead.` over the Friday item first passed `at_time` and `on_days` alone, was
 refused, and retried with `repeat` true. The item became a rule on Tuesdays at 15:00, and the reply
-`It will now repeat every Tuesday at 15:00.` closed with `MADE_REPEATING_NOTE`. `names_repeat` does
-not read a bare `repeat`, so the note repeats what the reply says, filed as
-[task 1085](../refinements/tasks/1085-a-reply-saying-it-will-repeat-still-gets-the-repeat-note.md).
+`It will now repeat every Tuesday at 15:00.` closed with `MADE_REPEATING_NOTE`, since `names_repeat`
+did not read a bare `repeat`, so the note repeated what the reply says. It now reads `will repeat`
+and `'ll repeat` after `it`, `this`, `that`, `which`, `reminder` or `alarm`, before a clause end or
+a day or time word, so that reply gets no note, while `It will repeat the question at 8.`, `Should it
+repeat?` and `It will not repeat.` still read as no repeat. A replay of every string in
+`docs/readings/` (28,449) through the reader before and after that change moved only this reply.
