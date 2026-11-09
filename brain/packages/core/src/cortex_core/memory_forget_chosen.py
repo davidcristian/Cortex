@@ -99,6 +99,7 @@ class ForgetChosenTool:
         self._deleted_turns: dict[str, tuple[str, ...]] = {}
         self._deleted_rows: dict[str, tuple[str, ...]] = {}
         self._kept = KeptRows()
+        self._spared = KeptRows()
 
     @property
     def result_note(self) -> str:
@@ -205,6 +206,7 @@ class ForgetChosenTool:
         deleted = self._deleted_rows.get(call.stamp.turn_id, ())
         kept = unnamed(rows, _text(call), call.stamp.query, deleted, call.stamp.session_id)
         held = {record.id for record in kept}
+        self._spared.keep(call.stamp.turn_id, {row.id: _excerpt(row, _text(call)) for row in kept})
         found = [record for record in found if record.id not in held]
         repeats = [] if left_out else [row for row in extra if row[0].id not in held]
         if not found and not repeats:
@@ -245,6 +247,7 @@ class ForgetChosenTool:
             matched_nothing=content == NONE_FOUND,
             numbers_left=None if holding is None else holding > 0,
             kept=self._kept.held(call.stamp.turn_id),
+            spared=self._spared.held(call.stamp.turn_id),
         )
 
     async def invoke(self, call: ToolCall) -> ToolResult:
@@ -258,6 +261,7 @@ class ForgetChosenTool:
             removed = await self._store.delete_ids(shown.ids)
             turn = call.stamp.turn_id
             self._kept.drop(turn, shown.ids)
+            self._spared.drop(turn, shown.ids)
             for ledger, texts in (
                 (self._deleted_turns, (*shown.texts, _text(call))),
                 (self._deleted_rows, shown.texts),

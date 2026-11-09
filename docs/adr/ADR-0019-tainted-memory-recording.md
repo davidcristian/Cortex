@@ -159,7 +159,8 @@ across turns (a recalled memory).
    that says it reaches such a folder ends with `UNREAD_FOLDERS_NOTE` (`file_claim.py`).
    `record_exchange` returns on it, and `limit_notes` reads it over the same runs and appends
    `UNKEPT_CLAIM_NOTE` when `claims_kept` also finds a statement that something was noted or will
-   be remembered, as `UNSCHEDULED_CLAIM_NOTE` closes a schedule claim no call made
+   be remembered, unless each such statement only says it kept a row the turn's forget kept
+   (`names_spared`, over `TaintLedger.forget_spared`), since that row is in memory, as `UNSCHEDULED_CLAIM_NOTE` closes a schedule claim no call made
    ([ADR-0025](ADR-0025-scheduling-reminders.md)), or when the message asks to remember and does
    not also ask not to keep, whatever the reply says
    ([readings](../readings/claim-reader-replays.md#the-note-on-every-withheld-request-to-remember-rows-and-the-rule-2026-10-31)). The two cannot disagree,

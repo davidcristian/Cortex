@@ -404,3 +404,12 @@ async def test_a_later_delete_of_the_rows_left_clears_the_note_after_an_unrelate
     shown, left = await _turn((_DOOR, _ONLY_VALUE, _FIAT), rounds, reply, (True, True, True), query)
     assert NUMBERS_LEFT_NOTE not in shown
     assert left == []
+
+
+async def test_a_forget_reply_keeping_the_row_the_message_asked_to_keep_gets_no_note() -> None:
+    bike = "User: Remember that my bike lock code is 7319.\nAssistant: Noted."
+    shed = "User: Remember that the shed padlock code is also 7319.\nAssistant: Noted."
+    reply = "Done, I've forgotten your bike lock code and kept the shed one."
+    query = "Forget my bike lock code 7319, keep the shed one."
+    shown, left = await _turn((bike, shed), [[_forget("7319")]], reply, query=query)
+    assert (shown, left) == (reply, ["m1"])

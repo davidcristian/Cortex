@@ -5,6 +5,7 @@ from collections.abc import Sequence
 
 from cortex_core.conversation import ToolRun
 from cortex_core.file_request import asks_files
+from cortex_core.forget_unnamed import row_words
 from cortex_core.memory_forget import FORGET_UNTRUSTED_TOOL_NAME
 from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
 from cortex_core.memory_request import asks_kept, asks_not_kept
@@ -65,6 +66,14 @@ _UPDATED = re.compile(
     re.IGNORECASE,
 )
 _OPENING = re.compile(r"^\W*(?:got\s+it\W+)?noted\b", re.IGNORECASE)
+_VERB = re.compile(
+    r"\b(?:not(?:e|ed)|remember(?:ed)?|memori[sz]ed?|sav(?:e|ed)|stor(?:e|ed)|keep|kept"
+    r"|record(?:ed)?|add(?:ed)?|updated?)\b",
+    re.IGNORECASE,
+)
+_LABELS = frozenset({"user", "assistant"})
+_KEEPING = frozenset({"keep", "kept"})
+_OBJECT_END = re.compile(r"[,;:]|\b(?:and|but)\b", re.IGNORECASE)
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
 
 
@@ -86,11 +95,31 @@ def claims_kept(reply: str) -> bool:
     )
 
 
-def unkept_note_due(query: str, reply: str) -> bool:
+def _named(text: str) -> set[str]:
+    """The words of ``text`` that can name a fact, without a verb of keeping or a speaker label."""
+    return {word for word in row_words(text) - _LABELS if not _VERB.fullmatch(word)}
+
+
+def names_spared(reply: str, spared: Sequence[str]) -> bool:
+    """Whether each sentence of ``reply`` claiming a keep says only that a kept row was kept."""
+    held = {word for text in spared for word in _named(text)}
+    claims = [sentence for sentence in _SENTENCE_END.split(reply) if claims_kept(sentence)]
+    objects = [
+        (verb.group().lower(), _named(_OBJECT_END.split(sentence[verb.end() :])[0]))
+        for sentence in claims
+        for verb in _VERB.finditer(sentence)
+    ]
+    return bool(objects) and all(
+        verb in _KEEPING and not held.isdisjoint(words) for verb, words in objects
+    )
+
+
+def unkept_note_due(query: str, reply: str, spared: Sequence[str] = ()) -> bool:
     """Whether a turn that stores nothing shows the note, given what was asked and what it said."""
     # A reply can say the value was updated in words a file edit shares, so a request to keep is
     # enough. A message that also asks not to keep expects nothing kept.
-    return claims_kept(reply) or (asks_kept(query) and not asks_not_kept(query))
+    claimed = claims_kept(reply) and not names_spared(reply, spared)
+    return claimed or (asks_kept(query) and not asks_not_kept(query))
 
 
 def _unmatched_keep(taint: TaintLedger, forgets: int, query: str) -> bool:

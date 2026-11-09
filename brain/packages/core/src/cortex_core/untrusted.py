@@ -146,6 +146,8 @@ class TaintLedger:
     forget_numbers_left: bool = False
     # Excerpts of the rows ``forget_memories`` kept as unnamed this turn that still exist.
     forget_kept: tuple[str, ...] = ()
+    # Excerpts of every row ``forget_memories`` kept this turn, listed on a card or not.
+    forget_spared: tuple[str, ...] = ()
     # How many rows the successful ``forget_memories`` deletes of this turn removed.
     forget_deleted: int = 0
     # Whether a sidecar call, or a call that runs sidecar tools, was refused as unasked.

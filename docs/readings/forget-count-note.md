@@ -68,10 +68,9 @@ than the card's limit hold the value, deleted its listed row and reported a coun
 saying nothing was forgotten got no note. Those results now count their rows (tests in
 `test_forget_count_note.py`). A count of 0 shows no note. Over a reply naming no removal, the
 count, numbers left and kept rows notes agree and take the message's language (`KEPT_NOTES`,
-tested in `test_forget_just_said.py`). The kept rows note and the count never contradict each other,
-but another note does. Over `Done, I've forgotten your bike lock code and kept the shed one.`,
-`UNKEPT_CLAIM_NOTE` says nothing was kept ([task 1090](../refinements/tasks/1090-the-unkept-note-follows-a-forget-reply-that-kept-the-fact-asked-to-keep.md)). A store failure after the delete still
-counts nothing ([task 1092](../refinements/tasks/1092-a-store-failure-after-a-forget-deleted-rows-counts-nothing.md)). `Amintirea a fost ștearsă.` names the removal in a form the reader
+tested in `test_forget_just_said.py`). The kept rows note and the count never contradict each other.
+`NUMBERS_LEFT_NOTE` and `UNKEPT_CLAIM_NOTE` did, over a row the message asked to keep; both are
+fixed below. A store failure after the delete still counts nothing ([task 1092](../refinements/tasks/1092-a-store-failure-after-a-forget-deleted-rows-counts-nothing.md)). `Amintirea a fost ștearsă.` names the removal in a form the reader
 lacks, so a second, Romanian count note follows it ([task 1095](../refinements/tasks/1095-a-romanian-removal-in-a-feminine-plural-or-cedilla-form-gets-a-second-count.md)). A forget turn stores no exchange
 row, so none of these notes reaches memory; they stay in the chat's transcript.
 
@@ -88,3 +87,14 @@ and 2 are the forms the keep reader is recorded as declining
 `Vergiss 7319 und behalte den vom Schuppen auch nicht.`, whose card lists the kept row. Script
 `replay1091.py` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot15/`.
+
+## A reply that kept the row the forget kept, 2026-11-09
+
+`UNKEPT_CLAIM_NOTE` said nothing was kept after `Done, I've forgotten your bike lock code and kept
+the shed one.`, a correct reply. The forget tool now reports every row a call kept, on a card or
+not (`ToolResult.spared`, kept in the handoff record), and the note is skipped when every keep
+claim of the reply is `kept` or `keep` and names a word of such a row (`names_spared`,
+`memory_claim.py`). A claim with any other verb, or naming anything else, keeps the note (tests in
+`test_forget_spared_claim.py`). Of 9 backticked strings in `docs/readings/` that `claims_kept`
+reads, replayed with the shed, padlock and gym rows as kept rows, `names_spared` reads only that
+reply. Script `replay1090.py` in the slot directory above.

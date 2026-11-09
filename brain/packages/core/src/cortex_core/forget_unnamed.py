@@ -127,7 +127,7 @@ def _words(text: str, function: frozenset[str] = frozenset()) -> set[str]:
     return {word for word in words - _COMMON - function - _EVERY if not code_word(word)}
 
 
-def _row_words(text: str) -> set[str]:
+def row_words(text: str) -> set[str]:
     """The words of a stored exchange that can name a fact, read without its speaker labels."""
     return _words(_PREFIX.sub("\n", text))
 
@@ -135,7 +135,7 @@ def _row_words(text: str) -> set[str]:
 def _named(rows: list[MemoryRecord], words: set[str], deleted: Iterable[str]) -> bool:
     """Whether a word of ``words`` names a fact of ``rows`` or ``deleted``."""
     held = (*(record.text for record in rows), *deleted)
-    return any(not words.isdisjoint(_row_words(text)) for text in held)
+    return any(not words.isdisjoint(row_words(text)) for text in held)
 
 
 def _clauses(query: str) -> list[list[str]]:
@@ -189,7 +189,7 @@ def _split(query: str) -> tuple[set[str], set[str]]:
 def asks_to_keep(text: str, query: str) -> bool:
     """Whether a clause of ``query`` asking to keep names a fact of the row ``text``, or all."""
     return not _REST.isdisjoint(_parts(query)[1]) or not _split(query)[1].isdisjoint(
-        _row_words(text)
+        row_words(text)
     )
 
 
@@ -237,12 +237,12 @@ def unnamed(
     return [
         record
         for record in rows
-        if not keep.isdisjoint(_row_words(record.text))
+        if not keep.isdisjoint(row_words(record.text))
         or (
             not every
             and record.id != said
             and not values.isdisjoint(_keys(record.text.split(_REPLY, 1)[0]))
-            and words.isdisjoint(_row_words(record.text))
+            and words.isdisjoint(row_words(record.text))
         )
     ]
 
