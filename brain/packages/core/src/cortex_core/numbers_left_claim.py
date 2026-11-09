@@ -63,8 +63,15 @@ _RELATIVE = re.compile(
     r"\b(?:that|which|qui|que|die|der|das|welche[nrs]?|care)\s+(?:\w+\s+)?$", re.IGNORECASE
 )
 _DIGIT = re.compile(r"\d")
+# A condition or an ability before a removal offers it rather than saying it was done.
+_OFFER = re.compile(
+    r"\b(?:if|whether|unless|in\s+case|can|could|may|might|would|should|si|peu[tx]|pourr\w+"
+    r"|pouv\w+|wenn|falls|ob|kann|kannst|k[oö]nn\w+|pued[eoa]\w*|podr\w+|dac[ăa]|poate|pot|po[țt]i"
+    r"|put(?:ea|em|e[țt]i))\b",
+    re.IGNORECASE,
+)
 _ANY_HEDGE = re.compile(
-    rf"{_ENGLISH_HEDGE.pattern}|{_NEGATION.pattern}|\b(?:si|wenn|falls|ob|dac[ăa]|ning[uú]n\w*)\b",
+    rf"{_ENGLISH_HEDGE.pattern}|{_NEGATION.pattern}|{_OFFER.pattern}|\bning[uú]n\w*\b",
     re.IGNORECASE,
 )
 
@@ -74,13 +81,15 @@ def _stated(
     before: re.Pattern[str],
     reply: str,
     after: re.Pattern[str] | None = None,
+    offer: re.Pattern[str] | None = None,
 ) -> bool:
     """Whether a sentence of ``reply`` asking nothing holds ``pattern`` in a clause that has
-    ``before`` nowhere before it and ``after`` nowhere after it."""
+    ``before`` nowhere before it and ``after`` nowhere after it, and ``offer`` before it nowhere."""
     return any(
         not sentence.rstrip().endswith("?")
         and before.search(_CLAUSE_BREAK.split(sentence[: found.start()])[-1]) is None
         and (after is None or after.search(_CLAUSE_BREAK.split(sentence[found.end() :])[0]) is None)
+        and (offer is None or offer.search(sentence[: found.start()]) is None)
         for sentence in _SENTENCE_END.split(reply)
         for found in pattern.finditer(sentence)
     )
@@ -88,7 +97,11 @@ def _stated(
 
 def says_forgotten(reply: str) -> bool:
     """Whether ``reply`` says something was forgotten or removed, in any of the five languages."""
-    return claims_forgotten(reply) or names_removal(reply) or _stated(_REMOVED, _NEGATION, reply)
+    return (
+        claims_forgotten(reply)
+        or names_removal(reply, _OFFER)
+        or _stated(_REMOVED, _NEGATION, reply, offer=_OFFER)
+    )
 
 
 def _other_holds(clause: str) -> bool:

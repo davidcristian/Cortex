@@ -112,7 +112,22 @@ reply. Script `replay1090.py` in the slot directory above.
 `eliminate`, which is also an English verb. A negated form (`Amintirea nu a fost ștearsă.`), a
 question and `I can eliminate it if you want.` still get the count (tests in
 `test_forget_count_note.py`). Of 5591 backticked strings in `docs/readings/`, `says_forgotten`
-reads 187 as a removal, and the only one the change moves is `Amintirea a fost ștearsă.`. A
-removal offered under a condition still reads as one done
-([task 1099](../refinements/tasks/1099-a-removal-offered-under-a-condition-reads-as-a-removal-done.md)).
+reads 187 as a removal, and the only one the change moves is `Amintirea a fost ștearsă.`.
 Script `replay1095.py` in the slot directory above.
+
+## A removal offered under a condition, 2026-11-09
+
+`says_forgotten` read a removal offered under a condition or as an ability as one done, so
+`Poate fi șters dacă vrei.`, `Peut être supprimé si tu veux.`, `Kann gelöscht werden, wenn du
+willst.` and `I can delete it if you want.` got no count note after a forget that deleted rows. A
+removal word now names a removal only when no condition or ability word (`if`, `can`, `could`,
+`si`, `peut`, `wenn`, `kann`, `puede`, `podría`, `dacă`, `poate`, `ar putea` and their forms)
+comes before it in its sentence; the same words count as a hedge for another memory holding the
+number. `Il a été supprimé.`, `Sie wurde gelöscht.` and `Am șters codul, dacă vrei să știi.`, with
+the condition after the removal, still name it (tests in `test_numbers_left_note.py`). Replay of
+40,146 strings (every distinct string of `docs/readings/` and every quoted string of the brain's
+tests) through the reader before and after: `says_forgotten` moved 68, each from a removal to no
+removal, so each now gets the note, among them the recorded replies `I can remove it from my memory
+if you like.` and `If you previously provided it and would like me to ensure it's removed, please
+let me know`. `names_still_held` moved none. Script `replay1099.py` and log `replay1099.log` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot17/`.

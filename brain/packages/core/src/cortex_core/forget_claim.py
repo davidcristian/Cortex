@@ -76,10 +76,13 @@ def claims_forgotten(reply: str) -> bool:
     return any(_claim(sentence) for sentence in _SENTENCE_END.split(reply))
 
 
-def names_removal(reply: str) -> bool:
-    """Whether a statement in ``reply`` names a removal in any words and does not negate it."""
+def names_removal(reply: str, offer: re.Pattern[str] | None = None) -> bool:
+    """Whether a statement in ``reply`` names a removal in any words and does not negate it,
+    with ``offer`` nowhere before it in its sentence."""
     return any(
-        not sentence.rstrip().endswith("?") and not _denied(sentence, found.start())
+        not sentence.rstrip().endswith("?")
+        and not _denied(sentence, found.start())
+        and (offer is None or offer.search(sentence[: found.start()]) is None)
         for sentence in _SENTENCE_END.split(reply)
         for found in _REMOVAL.finditer(sentence)
     )

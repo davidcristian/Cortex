@@ -67,6 +67,12 @@ FORGOTTEN = [
     "Listo, he olvidado tu código.",
     "Gata, am uitat codul ușii.",
     "Done, I removed your door code from my memory.",
+    "Amintirea a fost ștearsă.",
+    "Il a été supprimé.",
+    "Sie wurde gelöscht.",
+    "Am șters codul, dacă vrei să știi.",
+    "Ich habe ihn gelöscht, wenn du willst, sag es mir.",
+    "I deleted it, if you want to know.",
 ]
 
 NOT_FORGOTTEN = [
@@ -79,6 +85,17 @@ NOT_FORGOTTEN = [
     "Ich habe nichts gelöscht.",
     "No he olvidado nada.",
     "Nu am uitat nimic.",
+    "Poate fi șters dacă vrei.",
+    "Dacă vrei, poate fi șters.",
+    "Peut être supprimé si tu veux.",
+    "Si tu veux, il sera supprimé.",
+    "Kann gelöscht werden, wenn du willst.",
+    "Wenn du willst, wird es gelöscht.",
+    "Puede ser borrado si quieres.",
+    "Si quieres, puede ser eliminado.",
+    "Ar putea fi șters.",
+    "I can delete it if you want.",
+    "If you like, it could be removed.",
 ]
 
 STILL_HELD = [
@@ -146,6 +163,8 @@ OTHER_NOT_HELD = [
     "Ich habe den Türcode vergessen. Falls eine andere Erinnerung 4512 enthält, sag es mir.",
     "Ich habe den Türcode vergessen und prüfe, ob eine andere Erinnerung 4512 enthält.",
     "Am uitat codul. Spune-mi dacă o altă amintire conține 1987.",
+    "I've forgotten your door code. Another memory may hold 1987.",
+    "Ich habe den Türcode vergessen. Eine andere Erinnerung kann 4512 enthalten.",
 ]
 
 OTHER_NAMED = [
