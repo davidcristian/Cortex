@@ -210,11 +210,9 @@ the call text 7319. No turn was drawn. Kept rows per message:
 | `Olvida el código de la bici 7319, eso es todo.` / `... en todos lados.` | none |
 | `Forget my user id 7319.` (a user id row and the shed row) | none |
 
-A word of `_EVERY` anywhere in the message keeps nothing, filed as
-[task 1077](../refinements/tasks/1077-a-word-for-all-anywhere-in-a-forget-deletes-the-other-fact.md);
-the German and Spanish rows name no word of either English row, so they keep nothing by that
-rule as well. A label word in `_COMMON` names no fact, filed as
-[task 1078](../refinements/tasks/1078-a-fact-labelled-with-a-common-word-cannot-be-named-by-a-forget.md).
+A word of `_EVERY` anywhere in the message kept nothing; the German and Spanish rows name no
+word of either English row, so they keep nothing by that rule as well. A label word in `_COMMON`
+named no fact. Both are changed in the reader below.
 A forget turn is never recorded unless every forget call matched nothing, and a call that kept
 rows returns `KEPT_ALL` with `matched_nothing` false, so the kept-rows note is not written into a
 stored exchange (read from `memory_claim.py` and `memory_forget_chosen.py`, not run).
@@ -224,3 +222,26 @@ One live draw on the stack brain, with the two rows stored by two chats and the 
 text `bike lock`, so the value path was not reached, the card listed only the bike row and both
 rows stayed. The SM clock read 0.58 of `clocks.max.sm`. Scripts `live1077.sh` and
 `probe45.py` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot8/`.
+
+## The keep reader reshaped, 2026-11-09
+
+`unnamed` now fails toward keeping rows in three places. A word for all asks for every row only
+within two words of a value (or alone in the clause after one), outside a clause asking to keep
+and not before `about` or `else`; `tot` is no longer read. A word for all after the verb is not
+read: it decides only when a word of the message names a fact, as in `Forget it all, my bike lock
+code 7319.`, where the named fact is the one asked for. A row's `User:` and `Assistant:`
+labels are removed before its words are read, so `user` and `assistant` can name a fact. A message
+with no word and no value reads the newest row the calling chat stored as just said and keeps
+every other row, as `Actually forget it` does; a call with no message still keeps no row.
+
+Replay of every distinct string of `docs/readings/` holding a forget verb (1,706) through the old
+and new reader, over seven rows holding the string's value (six other chats' rows and one of the
+calling chat), with and without the calling chat's row: 96 cases changed. Each recorded draw
+message of the n1, n1v, x6, f1 and `forget-value-repeats.md` flows is unchanged. The changed
+messages are the audit probes above (each now keeps the rows it does not name, and `Forget my user
+id 7319.` lists the user id row), the probes `Forget that.` and `Forget it, please.`, bare verbs,
+and prose that holds `user`. No message keeps fewer rows except through `user` naming a row.
+Script `replay.py` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot9/`.
+A word in a clause asking to keep still names a fact to forget, filed as
+[task 1084](../refinements/tasks/1084-a-forget-naming-the-fact-to-keep-lists-it.md).

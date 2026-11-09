@@ -64,12 +64,17 @@ async def test_a_value_reaching_only_unnamed_facts_shows_no_card_and_keeps_them(
 
 
 @pytest.mark.parametrize(
-    "query",
-    ["Forget 5521.", "Forget it.", "Forget that number.", "", "Oublie le 5521 partout."],
+    "query", ["Forget 5521.", "Forget that one, 5521.", "", "Oublie le 5521 partout."]
 )
-async def test_a_message_naming_the_value_or_no_fact_deletes_every_row(query: str) -> None:
+async def test_a_message_naming_the_value_and_no_fact_deletes_every_row(query: str) -> None:
     _, _, _, left = await _forget("5521", query, ("gym", _GYM), ("shed", _SHED))
     assert left == []
+
+
+@pytest.mark.parametrize("query", ["Forget it.", "Forget that number."])
+async def test_a_message_naming_no_word_keeps_the_rows_other_chats_stored(query: str) -> None:
+    card, said, _, left = await _forget("5521", query, ("gym", _GYM), ("shed", _SHED))
+    assert (card, said, left) == (None, f"{KEPT_ALL}.", ["gym", "shed"])
 
 
 async def test_a_label_text_is_not_read_against_the_message() -> None:

@@ -38,6 +38,7 @@ from cortex_core.tools import ConfirmAnswer, ConfirmationRequest
 _AT = datetime(2026, 11, 8, 4, 0, 0, tzinfo=UTC)
 _LOCKER = "User: Remember that my gym locker code is 5819.\nAssistant: Noted."
 _PHONE = "User: Remember that my phone number is 0612345678.\nAssistant: Noted."
+_ASKED = "Forget my gym locker code and my phone number."
 _PPH2 = "I couldn't find a phone number or passport number in my memory to remove."
 
 _LK3 = (
@@ -194,7 +195,7 @@ async def _turn(row: str, texts: Sequence[str], reply: str) -> str:
     caps = TurnCapabilities(memory=MemoryRecaller(store, embedder, SystemClock()), tools=dispatcher)
     rounds = [_forget(text, index) for index, text in enumerate(texts)]
     engine = TurnEngine(InMemorySessionStore(), _Rounds(rounds, reply), _Clock(), capabilities=caps)
-    events = [event async for event in engine.handle_turn("s", "Forget it.", turn_id="t-1")]
+    events = [event async for event in engine.handle_turn("s", _ASKED, turn_id="t-1")]
     return "".join(event.text for event in events if isinstance(event, TextDelta))
 
 

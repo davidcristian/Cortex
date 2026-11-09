@@ -8,16 +8,23 @@ from cortex_core.memory_values import code_word, digit_runs, whole_values
 
 _WORD = re.compile(r"[^\W\d_]{3,}")
 _REPLY = "\nAssistant: "
+_PREFIX = re.compile(r"\AUser: |\nAssistant: ")
 _COMMON = frozenset(
     _WORD.findall(
         "the and you your are for but not that this these those with from have has had was were "
-        "all any can its our also what about please now just too out one user assistant forget "
-        "delete remove erase memory"
+        "all any can its our also what about please now just too out one forget delete remove "
+        "erase memory"
     )
 )
 
 _EVERY = frozenset(
-    _WORD.findall("all every everywhere everything partout tout tous toutes überall alle todas tot")
+    _WORD.findall("all every everywhere everything partout tout tous toutes überall alle todas")
+)
+_TOPIC = frozenset({"about", "else", "sur", "über", "sobre"})
+_TOKEN = re.compile(r"[^\W_]+|[,;.!?:]")
+_MARKS = frozenset(",;.!?:")
+_KEEP = re.compile(
+    r"keep\w*|kept|behalt\w*|behält|bleib\w*|garde[rz]?|conserv\w*|guard\w*|mant[eé]n\w*"
 )
 
 KEPT_LINE = "Kept, since your message names none of their words:"
@@ -66,19 +73,46 @@ def _keys(text: str) -> set[str]:
 def _words(text: str) -> set[str]:
     """The words of ``text`` that can name a fact: three or more letters, no common or code word."""
     words = {word.lower() for word in _WORD.findall(text)}
-    return {word for word in words - _COMMON if not code_word(word)}
+    return {word for word in words - _COMMON - _EVERY if not code_word(word)}
+
+
+def _row_words(text: str) -> set[str]:
+    """The words of a stored exchange that can name a fact, read without its speaker labels."""
+    return _words(_PREFIX.sub("\n", text))
 
 
 def _named(rows: list[MemoryRecord], words: set[str], deleted: Iterable[str]) -> bool:
     """Whether a word of ``words`` names a fact of ``rows`` or ``deleted``."""
-    return any(not words.isdisjoint(_words(held)) for held in (*(r.text for r in rows), *deleted))
+    held = (*(record.text for record in rows), *deleted)
+    return any(not words.isdisjoint(_row_words(text)) for text in held)
 
 
-def _apart(rows: list[MemoryRecord], query: str, words: set[str], deleted: Iterable[str]) -> bool:
-    """Whether ``query``, which holds the value, names one fact of ``rows`` or ``deleted`` apart."""
-    if not _EVERY.isdisjoint(word.lower() for word in _WORD.findall(query)):
-        return False
-    return _named(rows, words, deleted)
+def _clauses(query: str) -> list[list[str]]:
+    """The lowercase words and values of ``query``, split at each clause mark."""
+    clauses: list[list[str]] = [[]]
+    for token in _TOKEN.findall(query.lower()):
+        if token in _MARKS:
+            clauses.append([])
+        else:
+            clauses[-1].append(token)
+    return [clause for clause in clauses if clause]
+
+
+def _quantifies(query: str) -> bool:
+    """Whether a word for all in ``query`` asks for every row: within two words of a value."""
+    clauses = _clauses(query)
+    for index, clause in enumerate(clauses):
+        if any(_KEEP.fullmatch(token) for token in clause):
+            continue
+        for at, token in enumerate(clause):
+            if token not in _EVERY or (at + 1 < len(clause) and clause[at + 1] in _TOPIC):
+                continue
+            beside = [*clause[max(0, at - 2) : at], *clause[at + 1 : at + 3]]
+            if len(clause) == 1 and index:
+                beside = clauses[index - 1][-1:]
+            if any(char.isdigit() for char in "".join(beside)):
+                return True
+    return False
 
 
 def _just_said(rows: list[MemoryRecord], session_id: str | None) -> str | None:
@@ -95,20 +129,22 @@ def unnamed(
     session_id: str | None = None,
 ) -> list[MemoryRecord]:
     """The ``records`` whose request holds a value of ``text`` and no word of ``query``; none when
-    ``query`` holds that value and names no fact apart. The newest row ``session_id`` stored is
-    kept only when ``query`` names a fact of the rows or of ``deleted``.
+    ``query`` is empty or asks for every row. The newest row ``session_id`` stored is kept only
+    when ``query`` names a fact of the rows or of ``deleted``.
     """
     rows, asked, words = list(records), _keys(query), _words(query)
     values = _keys(text) - asked or _keys(text)
-    if not values or not words or (values <= asked and not _apart(rows, query, words, deleted)):
+    named = _named(rows, words, deleted)
+    every = values <= asked and (not named or _quantifies(query))
+    if not values or not query.strip() or every:
         return []
-    said = None if _named(rows, words, deleted) else _just_said(rows, session_id)
+    said = None if named else _just_said(rows, session_id)
     return [
         record
         for record in rows
         if record.id != said
         and not values.isdisjoint(_keys(record.text.split(_REPLY, 1)[0]))
-        and words.isdisjoint(_words(record.text))
+        and words.isdisjoint(_row_words(record.text))
     ]
 
 

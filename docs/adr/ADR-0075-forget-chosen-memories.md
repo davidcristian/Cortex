@@ -94,20 +94,23 @@ that removes exactly those rows and holds against a turn in flight. This record 
    whose own request holds that value and that holds no word of the message is listed apart on
    the card under `KEPT_LINE` and kept (`unnamed`, `forget_unnamed.py`), because a first call of
    the value deleted a second fact sharing the number in every such draw. A word here has three or
-   more letters and is no common word and no code word such as `number` or `code`. A recall row
-   holds the value only in its reply, so a restatement is still deleted; a message with no word
+   more letters and is no common word and no code word such as `number` or `code`, and a row is
+   read without its `User:` and `Assistant:` labels, so `user` can name a fact. A recall row
+   holds the value only in its reply, so a restatement is still deleted; a call with no message
    reads no row apart; and a card whose rows are all kept is `None`, with the result `KEPT_ALL`.
    When the message holds the value too, the same rows are kept only once a word of the message
-   names another matched row or a row the turn deleted, and the message has no word such as
-   `everywhere` or `all`, because a message naming the value beside a label deleted the second
+   names another matched row or a row the turn deleted, and no word such as `everywhere` or
+   `all` asks for every row: one within two words of a value (or alone in the clause after
+   one), outside a clause asking to keep and not before `about` or `else`, so a closing `that's
+   all` keeps the rows. A message naming the value beside a label deleted the second
    fact in 6 of 8 draws; a message whose words name no stored fact asks for every row. The result
    of that delete says the rows were kept and the value is still remembered, and never that a
    forget of the value would remove them
    ([readings](../readings/forget-shared-number.md#a-first-call-by-value-that-lists-another-fact-rows-and-rule-2026-11-09)).
-   When no word of the message names a matched row or a row the turn deleted, the newest matched
-   row the calling chat stored is not kept, because a request such as "forget what I just told
-   you" names no word of the row the chat stored one turn before, and that keep left the row in 8
-   of 24 draws. The rows a `KEPT_ALL` call kept and no later call of the turn deleted are named in
+   When no word of the message names a matched row or a row the turn deleted, including a message
+   with no word such as `Forget that.`, the newest matched row the calling chat stored is not
+   kept, because a request such as "forget what I just told you" names no word of the row the
+   chat stored one turn before, and that keep left the row in 8 of 24 draws. The rows a `KEPT_ALL` call kept and no later call of the turn deleted are named in
    a note after the reply (`kept_note`), which asks for nothing
    ([readings](../readings/forget-what-was-just-said.md#a-forget-of-what-was-just-said-by-its-value-rows-and-rule-2026-11-09)).
    On a request to remember that can retract nothing, a call to it is refused by name and the

@@ -198,5 +198,6 @@ change for none, `asks_not_kept` for one (`merk ihn dir nicht`, false to true).
 
 `unnamed` with the calling chat's bike row and another chat's shed row, both holding 7319:
 `Actually forget it` keeps the shed row, while `Forget that.` and `Forget it, please.` keep
-nothing, since a message with no word left returns before `_just_said` is read. Filed as
-[task 1079](../refinements/tasks/1079-a-forget-naming-no-word-deletes-another-chats-fact.md).
+nothing, since a message with no word left returned before `_just_said` was read. The reader
+now reads such a message as it reads `Actually forget it`
+([replay](forget-shared-number.md#the-keep-reader-reshaped-2026-11-09)).
