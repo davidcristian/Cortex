@@ -23,6 +23,10 @@ _CODE_WORD = re.compile(
     re.IGNORECASE,
 )
 
+_COMPOUND = re.compile(
+    r"([^\W\d_]{3,}?)(?:codes?|nummer\w*|zahl|passwor[dt]s?|kennwort|kombination)", re.IGNORECASE
+)
+
 
 def _is_year(group: str) -> bool:
     """Whether ``group`` reads as a year from 1900 to 2099."""
@@ -66,6 +70,14 @@ def digit_runs(text: str) -> dict[str, str]:
 def code_word(word: str) -> bool:
     """Whether ``word`` names a kind of value, such as a code, a number or a password."""
     return _CODE_WORD.fullmatch(word) is not None
+
+
+def code_stem(word: str) -> str | None:
+    """The part of a compound code word such as ``doorcode`` before its code word, if any."""
+    found = _COMPOUND.fullmatch(word)
+    if found is None or code_word(found.group(1)):
+        return None
+    return found.group(1).lower()
 
 
 def code_runs(text: str) -> dict[str, str]:

@@ -97,7 +97,9 @@ that removes exactly those rows and holds against a turn in flight. This record 
    the value deleted a second fact sharing the number in every such draw. A word here has three or
    more letters and is no code word such as `number` or `code` and no common word: an English one,
    or an article, preposition or pronoun of the language `message_language` reads, and a row is
-   read without its `User:` and `Assistant:` labels, so `user` can name a fact. A recall row
+   read without its `User:` and `Assistant:` labels, so `user` can name a fact. The part of a
+   compound code word before its code word (`door` of `doorcode`, `fahrrad` of `Fahrradcode`)
+   names each row word it starts, since German writes most such names as one word. A recall row
    holds the value only in its reply, so a restatement is still deleted; a call with no message
    reads no row apart; and a card whose rows are all kept is `None`, with the result `KEPT_ALL`.
    When the message holds the value too, the same rows are kept only once a word of the message

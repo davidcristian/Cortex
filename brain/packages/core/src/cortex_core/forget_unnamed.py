@@ -4,7 +4,7 @@ import re
 from collections.abc import Iterable, Mapping
 
 from cortex_core.memory import MemoryRecord
-from cortex_core.memory_values import code_word, digit_runs, whole_values
+from cortex_core.memory_values import code_stem, code_word, digit_runs, whole_values
 from cortex_core.note_language import ENGLISH, in_language, message_language
 
 _WORD = re.compile(r"[^\W\d_]{3,}")
@@ -127,6 +127,12 @@ def _words(text: str, function: frozenset[str] = frozenset()) -> set[str]:
     return {word for word in words - _COMMON - function - _EVERY if not code_word(word)}
 
 
+def _started(text: str, held: set[str]) -> set[str]:
+    """The words of ``held`` that the stem of a compound code word of ``text`` starts."""
+    stems = {stem for word in _WORD.findall(text) if (stem := code_stem(word)) is not None}
+    return {word for word in held if any(word.startswith(stem) for stem in stems)}
+
+
 def row_words(text: str) -> set[str]:
     """The words of a stored exchange that can name a fact, read without its speaker labels."""
     return _words(_PREFIX.sub("\n", text))
@@ -177,18 +183,22 @@ def _parts(query: str) -> tuple[list[str], list[str]]:
     return forget, keep
 
 
-def _split(query: str) -> tuple[set[str], set[str]]:
-    """The words of ``query`` naming a fact to forget, and those only of a clause asking to keep."""
-    forget, keep = _parts(query)
+def _split(query: str, texts: Iterable[str] = ()) -> tuple[set[str], set[str]]:
+    """The words of ``query`` naming a fact to forget, and those only of a clause asking to keep.
+
+    A compound code word such as ``doorcode`` also names each word of ``texts`` its stem starts.
+    """
+    forget, keep = (" ".join(tokens) for tokens in _parts(query))
     function = _FUNCTION.get(message_language(query), frozenset())
-    named = _words(" ".join(forget), function)
-    kept = {word for word in _words(" ".join(keep), function) if not _KEEP.fullmatch(word)}
-    return named, kept - named
+    held = {word for text in texts for word in row_words(text)}
+    named = _words(forget, function) | _started(forget, held)
+    kept = _words(keep, function) | _started(keep, held)
+    return named, {word for word in kept - named if not _KEEP.fullmatch(word)}
 
 
 def asks_to_keep(text: str, query: str) -> bool:
     """Whether a clause of ``query`` asking to keep names a fact of the row ``text``, or all."""
-    return not _REST.isdisjoint(_parts(query)[1]) or not _split(query)[1].isdisjoint(
+    return not _REST.isdisjoint(_parts(query)[1]) or not _split(query, (text,))[1].isdisjoint(
         row_words(text)
     )
 
@@ -227,7 +237,8 @@ def unnamed(
     ``text`` and no other word of ``query``, unless it asks for every row. The newest row
     ``session_id`` stored is kept only when ``query`` names a fact of the rows or of ``deleted``.
     """
-    rows, asked, (words, keep) = list(records), _keys(query), _split(query)
+    rows, deleted = list(records), list(deleted)
+    asked, (words, keep) = _keys(query), _split(query, [*(row.text for row in rows), *deleted])
     values = _keys(text) - asked or _keys(text)
     if not values or not query.strip():
         return []

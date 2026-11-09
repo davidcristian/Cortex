@@ -96,10 +96,17 @@ dire.` or `Vergiss bitte, was ich dir gerade gesagt habe.`, which ask to forget 
 16, from `Uită codul meu 7788.` and `Vergiss den Fahrradcode 7319, alles andere bleibt.`, name no
 row by another word and now ask for every row holding the value, as the same message in English
 does; before, `meu` or `den` named the one row of that language. The second names its fact only by
-the code word `Fahrradcode`, as `Forget the doorcode 7319, keep everything else.` does in English
-([task 1097](../refinements/tasks/1097-a-compound-code-word-names-no-fact-in-a-forget.md)). No case
-deletes a row outside those two rules. Script `replay2.py` and log `replay2.log` in
+the code word `Fahrradcode`, as `Forget the doorcode 7319, keep everything else.` did in English.
+No case deletes a row outside those two rules. Script `replay2.py` and log `replay2.log` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot14/`.
+
+The part of a compound code word before its code word (`door` of `doorcode`, `fahrrad` of
+`Fahrradcode`, from `code_stem`) now names each row word it starts, so both messages keep every
+row they do not name, while `Forget 7319.`, `Forget the code 7319.`, `Forget my passcode 7319.`
+and `Forget my pincode 7319.` still ask for every row. A replay of the 1,854 recorded forget
+strings through the reader before and after that change moved 9 cases, each holding one of those
+two messages and each toward keeping rows. Script `replay2.py` and log `replay-compound.log` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot16/`.
 
 One live draw on the stack brain rebuilt with this reader, after two chats stored
 `Merke dir bitte: Mein Fahrradschloss hat den Code 7319.` and `Merke dir bitte: Der Schuppen hat
