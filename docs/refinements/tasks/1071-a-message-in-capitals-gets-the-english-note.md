@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** memory
 **Origin:** [ADR-0076](../../adr/ADR-0076-closing-note-language.md)
-**Verified:** 2026-11-08
+**Verified:** 2026-11-09
 
 `message_language` in `note_language.py` skips every word written in capitals, so that `EU` and
 `EST` name no language. A message written wholly in capitals then has no word left to count. Unit
@@ -25,3 +25,8 @@ ADR-0076, and no recorded draw message is written in capitals
 
 - 2026-11-08: filed when German nouns beside a capitalized word were made to count again, from unit
   probes of messages written in capitals.
+- 2026-11-09: the forget reader now drops the function words of the language `message_language`
+  picks, so a forget in capitals keeps German `DEN` as a fact word. A unit call of `unnamed` on
+  `VERGISS DEN TÜRCODE 7319, ALLES ANDERE BLEIBT.` lists the row `the den alarm code is 7319`
+  beside the door row, a row the person asked to keep (`probe2.py` in
+  `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot18/`).

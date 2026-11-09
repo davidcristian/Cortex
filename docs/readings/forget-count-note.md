@@ -131,3 +131,13 @@ removal, so each now gets the note, among them the recorded replies `I can remov
 if you like.` and `If you previously provided it and would like me to ensure it's removed, please
 let me know`. `names_still_held` moved none. Script `replay1099.py` and log `replay1099.log` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot17/`.
+
+## Third audit probe of the handoff record, 2026-11-09
+
+Every field of `TaintLedger` but `forgotten` is a field of `HandoffRecord`, written by
+`EscalationSlot`, restored by `taint_ledger()` and named by both `encode_record` and
+`decode_record`, so `forget_spared` crosses a model swap, and a record without it reads as none
+kept. `forgotten` stays off the record because a recall-tainted turn cannot escalate (ADR-0019
+decision 9). The edit result's `was_once` is read in the same round into `made_repeating`, which
+the record keeps. Script `probe1.py` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot18/`.

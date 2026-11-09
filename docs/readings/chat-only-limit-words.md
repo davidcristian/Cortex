@@ -78,3 +78,14 @@ strings (every distinct string of `docs/readings/` and every quoted string of th
 through the reader before and after moved only the eight new test messages. Script
 `replay1100.py` and log `replay1100b.log` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot17/`.
+
+## Third audit probes, 2026-11-09
+
+Unit calls of `unkept_note_due` on messages holding a real request to remember beside a put off
+decision about something else, such as `Remember that my gym code is 4417. I'll tell you later
+whether to save the dentist's address.` and its German form. The whole message is withheld, so
+the gym code is not stored either. Replies that claim a keep (`Noted.`, `I'll keep that in mind.`)
+get `UNKEPT_CLAIM_NOTE`; `Got it.`, `Okay, let me know about the address.` and German `Notiert.`
+get none (task 1105 for the first two, task 1049 for a claim in another language). Script
+`probe5.py` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot18/`.
