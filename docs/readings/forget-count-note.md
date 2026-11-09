@@ -132,6 +132,19 @@ if you like.` and `If you previously provided it and would like me to ensure it'
 let me know`. `names_still_held` moved none. Script `replay1099.py` and log `replay1099.log` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot17/`.
 
+## A removal promised for later, 2026-11-09
+
+`says_forgotten` read a removal the reply promises for later as one done, so `I will delete it.`,
+`Il sera supprimé.`, `Es wird gelöscht.`, `Será borrado.` and `Va fi șters.` got no count note
+after a forget that deleted rows. A future marker (`will`, `'ll`, `shall`, `going to`, `sera`,
+`seront`, `wird`, `werde`, `werden`, `será`, `serán`, `va fi`, `vor fi`, `voi`) before a removal
+word in its clause now reads as an offer. `I deleted it and it will not come back.`, `I'll confirm:
+I deleted it.` and `Es wurde gelöscht.` still name the removal (tests in
+`test_numbers_left_note.py`). Replay of 40,383 strings, built as in the section above, through the
+reader before and after: `says_forgotten` moved 9, all of them the new test strings, and
+`names_still_held` moved none. Log `replay1101.log` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot20/`.
+
 ## Third audit probe of the handoff record, 2026-11-09
 
 Every field of `TaintLedger` but `forgotten` is a field of `HandoffRecord`, written by

@@ -74,6 +74,11 @@ FORGOTTEN = [
     "Am șters codul, dacă vrei să știi.",
     "Ich habe ihn gelöscht, wenn du willst, sag es mir.",
     "I deleted it, if you want to know.",
+    "I deleted it and it will not come back.",
+    "I'll confirm: I deleted it.",
+    "It will not appear again, since I've deleted it.",
+    "Es wurde gelöscht.",
+    "Il a été supprimé, il ne sera plus rappelé.",
 ]
 
 NOT_FORGOTTEN = [
@@ -97,6 +102,15 @@ NOT_FORGOTTEN = [
     "Ar putea fi șters.",
     "I can delete it if you want.",
     "If you like, it could be removed.",
+    "I will delete it.",
+    "I'll remove it from my memory.",
+    "It will be deleted.",
+    "I\u2019m going to delete it now.",
+    "Il sera supprimé.",
+    "Es wird gelöscht.",
+    "Ich werde es löschen, es wird gelöscht.",
+    "Será borrado.",
+    "Va fi șters.",
 ]
 
 STILL_HELD = [

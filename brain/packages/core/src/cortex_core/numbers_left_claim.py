@@ -70,6 +70,12 @@ _OFFER = re.compile(
     r"|put(?:ea|em|e[țt]i))\b",
     re.IGNORECASE,
 )
+# "I will delete it" promises a removal; a clause break after the marker ends the promise.
+_PROMISED = re.compile(
+    rf"{_OFFER.pattern}|(?:\b(?:will|shall|going\s+to|sera|seront|wird|werden?|será|serán|va\s+fi"
+    r"|vor\s+fi|voi)\b|['\u2019]ll\b)[^,;:]*$",
+    re.IGNORECASE,
+)
 _ANY_HEDGE = re.compile(
     rf"{_ENGLISH_HEDGE.pattern}|{_NEGATION.pattern}|{_OFFER.pattern}|\bning[uú]n\w*\b",
     re.IGNORECASE,
@@ -99,8 +105,8 @@ def says_forgotten(reply: str) -> bool:
     """Whether ``reply`` says something was forgotten or removed, in any of the five languages."""
     return (
         claims_forgotten(reply)
-        or names_removal(reply, _OFFER)
-        or _stated(_REMOVED, _NEGATION, reply, offer=_OFFER)
+        or names_removal(reply, _PROMISED)
+        or _stated(_REMOVED, _NEGATION, reply, offer=_PROMISED)
     )
 
 
