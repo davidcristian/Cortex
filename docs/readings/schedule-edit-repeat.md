@@ -75,10 +75,12 @@ repeat?` and `It will not repeat.` still read as no repeat. A replay of every st
 Unit calls (`probe4.py`, log `probe4.log` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot13/`).
 `made_repeating_after` drops its item on a cancel, a daily `at_time` edit and an interval, and keeps it on a
-snooze or a text edit, so no note names a rule the store no longer holds. It adds any edit with
+snooze or a text edit, so no note names a rule the store no longer holds. It added any edit with
 `repeat`, `at_time` and a day selector, whether or not the item repeated before, so an edit of a
-daily rule that sets `repeat` gets a note saying it now repeats and asking to make it one time
-again ([task 1093](../refinements/tasks/1093-an-edit-that-sets-repeat-on-a-repeating-rule-says-it-now-repeats.md)). Live draws on the stack brain at `e33ba4c8f` (`live1.sh`, SM clock 0.57 of
+daily rule that set `repeat` got a note saying it now repeats. The edit's result now says whether
+the item was one time before it ran (`ToolResult.was_once`), and only such an item is recorded:
+unit turns over a fake store holding a one-time item keep the note, and a daily rule, a weekday
+rule and an interval get none. Live draws on the stack brain at `e33ba4c8f` (`live1.sh`, SM clock 0.57 of
 `clocks.max.sm`): a daily rule changed to weekdays, and another changed to Mondays and Thursdays,
 each answered with the right rule and no note, so the form set `repeat` in 0 of 2. Near misses of
 `names_repeat`: `I've set it to repeat every Tuesday`, `It is now set to repeat weekly` and `will now

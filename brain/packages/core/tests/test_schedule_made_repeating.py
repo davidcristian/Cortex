@@ -5,16 +5,18 @@ import pytest
 from swap_harness import ScriptedBrainBackend, TickingClock
 
 from cortex_core import (
+    EditScheduledTool,
+    InMemoryScheduleStore,
     InMemoryToolRegistry,
     Message,
     RecordingAuditSink,
     Role,
+    ScheduleTaskTool,
     StopLedger,
     TaintLedger,
     ToolCall,
     ToolDispatcher,
     ToolResult,
-    ToolSpec,
     Trust,
     TurnCapabilities,
 )
@@ -37,10 +39,17 @@ _WEEKLY = {"id": "abc", "at_time": "15:00", "on_days": ["tue"], "repeat": True}
 
 
 def _after(
-    name: str, arguments: Mapping[str, object], held: tuple[str, ...] = (), *, failed: bool = False
+    name: str,
+    arguments: Mapping[str, object],
+    held: tuple[str, ...] = (),
+    *,
+    failed: bool = False,
+    once: bool = True,
 ) -> tuple[str, ...]:
     call = ToolCall(id="c", name=name, arguments=arguments)
-    result = ToolResult(call_id="c", content="edited", trust=Trust.TRUSTED, is_error=failed)
+    result = ToolResult(
+        call_id="c", content="edited", trust=Trust.TRUSTED, is_error=failed, was_once=once
+    )
     return made_repeating_after(call, result, held)
 
 
@@ -76,6 +85,11 @@ def test_a_call_that_made_nothing_repeat_on_days_holds_nothing(
     assert _after(name, arguments, failed=failed) == ()
 
 
+def test_an_edit_with_repeat_on_an_item_that_already_repeated_holds_nothing() -> None:
+    assert _after(EDIT_SCHEDULED_TOOL_NAME, _WEEKLY, once=False) == ()
+    assert _after(EDIT_SCHEDULED_TOOL_NAME, _WEEKLY, ("abc",), once=False) == ("abc",)
+
+
 @pytest.mark.parametrize(
     ("name", "arguments"),
     [
@@ -105,18 +119,38 @@ def test_a_call_that_leaves_the_rule_on_days_keeps_the_item(
     assert _after(name, arguments, ("abc",)) == ("abc",)
 
 
-async def test_a_turn_whose_edit_made_a_reminder_repeat_holds_its_id() -> None:
-    ran: list[object] = []
+@pytest.mark.parametrize(
+    ("timing", "made", "note"),
+    [
+        ({"at": "2026-11-10T09:00:00"}, ("abc",), MADE_REPEATING_NOTE),
+        ({"at_time": "09:00"}, (), ""),
+        ({"at_time": "09:00", "on_days": ["mon"]}, (), ""),
+        ({"at": "2026-11-10T09:00:00", "every_seconds": 3600}, (), ""),
+    ],
+)
+async def test_a_turn_holds_an_edit_that_made_a_one_time_reminder_repeat_and_no_rule(
+    *, timing: Mapping[str, object], made: tuple[str, ...], note: str
+) -> None:
+    store = InMemoryScheduleStore()
+    clock = TickingClock()
+    maker = ScheduleTaskTool(
+        store, clock, tasks_enabled=False, max_active=8, item_id_factory=lambda: "abc"
+    )
+    stored = {"kind": "reminder", "text": "dentist", **timing}
+    assert not (
+        await maker.invoke(ToolCall(id="s", name="schedule_task", arguments=stored))
+    ).is_error
+    edit = EditScheduledTool(store, clock)
 
-    async def handler(arguments: Mapping[str, object]) -> str:
-        ran.append(dict(arguments))
-        return "edited abc: now due Tue 10 Nov 15:00 UTC"
+    async def handler(arguments: Mapping[str, object]) -> ToolResult:
+        return await edit.invoke(
+            ToolCall(id="c1", name=EDIT_SCHEDULED_TOOL_NAME, arguments=arguments)
+        )
 
-    spec = ToolSpec(name=EDIT_SCHEDULED_TOOL_NAME, description="e", parameters={})
     taint = TaintLedger()
     context = ToolLoopContext(
         dispatcher=ToolDispatcher(
-            InMemoryToolRegistry({EDIT_SCHEDULED_TOOL_NAME: (spec, handler)}),
+            InMemoryToolRegistry({EDIT_SCHEDULED_TOOL_NAME: (edit.spec, handler)}),
             RecordingAuditSink(),
             TickingClock(),
         ),
@@ -131,8 +165,12 @@ async def test_a_turn_whose_edit_made_a_reminder_repeat_holds_its_id() -> None:
     working = [Message(role=Role.USER, text=_MOVE, at=_AT, turn_id="t")]
     backend = ScriptedBrainBackend(chunks=("done",), tool_calls=(call,))
     _ = [event async for event in stream_tool_loop(backend, "m", working, context)]
-    assert ran == [_WEEKLY]
-    assert taint.made_repeating == ("abc",)
+    (item,) = await store.list_active()
+    assert item.rule is not None
+    assert taint.made_repeating == made
+    assert _closed("I moved it to Tuesday at 15:00.", taint.made_repeating) == (
+        "I moved it to Tuesday at 15:00." + note
+    )
 
 
 def _closed(reply: str, made: tuple[str, ...], query: str = _MOVE) -> str:

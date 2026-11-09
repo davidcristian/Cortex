@@ -7,7 +7,7 @@ from typing import Any
 
 from cortex_core.errors import ScheduleStoreError
 from cortex_core.ports import Clock, ScheduleStore
-from cortex_core.schedule import ScheduleKind, ScheduleStatus
+from cortex_core.schedule import ScheduledItem, ScheduleKind, ScheduleStatus
 from cortex_core.schedule_args import MIN_EVERY_SECONDS, starting_property
 from cortex_core.schedule_day_args import (
     day_selector_properties,
@@ -45,6 +45,18 @@ def store_down_result(call_id: str, err: ScheduleStoreError) -> ToolResult:
 def error_result(call_id: str, message: str) -> ToolResult:
     """A trusted correction the model can act on (shared with ``schedule_tools``)."""
     return ToolResult(call_id=call_id, content=message, is_error=True, trust=Trust.TRUSTED)
+
+
+def _with_kept_time(item: ScheduledItem | None, arguments: Mapping[str, Any]) -> Mapping[str, Any]:
+    """The call's arguments, with the item's own wall clock when a day selector names none."""
+    if arguments.get("at_time") is not None or not has_day_selector(arguments):
+        return arguments
+    if item is None or item.rule is None:
+        return arguments
+    kept: dict[str, Any] = {**arguments, "at_time": item.rule.wall_time}
+    if item.rule.zone is not None and arguments.get("in_zone") is None:
+        kept["in_zone"] = item.rule.zone.name
+    return kept
 
 
 class CancelScheduledTool:
@@ -230,8 +242,9 @@ class EditScheduledTool:
         if call.arguments.get("at") is not None:
             return await self._move(call, item_id)
         try:
-            refusal = once_kept(await self._store.get(item_id), call.arguments)
-            arguments = await self._with_kept_time(item_id, call.arguments)
+            before = await self._store.get(item_id)
+            refusal = once_kept(before, call.arguments)
+            arguments = _with_kept_time(before, call.arguments)
             parsed = refusal or parse_edit(
                 arguments, now=self._clock.now(), zone=self._zone, resolve_zone=self._resolve_zone
             )
@@ -247,7 +260,8 @@ class EditScheduledTool:
         if edit.rule is not None:
             zone = effective_zone(edit.rule.rule, self._zone)
             content = f"{content}: now due {zone.render(edit.rule.due_at)}"
-        return ToolResult(call_id=call.id, content=content, trust=Trust.TRUSTED)
+        once = before is not None and before.rule is None and before.every is None
+        return ToolResult(call_id=call.id, content=content, trust=Trust.TRUSTED, was_once=once)
 
     async def _move(self, call: ToolCall, item_id: str) -> ToolResult:
         """Move a one-time item to the call's ``at``, keeping it one time."""
@@ -271,20 +285,6 @@ class EditScheduledTool:
             return error_result(call.id, correction)
         content = f"edited {item_id}: now due {self._zone.render(due)}"
         return ToolResult(call_id=call.id, content=content, trust=Trust.TRUSTED)
-
-    async def _with_kept_time(
-        self, item_id: str, arguments: Mapping[str, Any]
-    ) -> Mapping[str, Any]:
-        """The call's arguments, with the item's own wall clock when a day selector names none."""
-        if arguments.get("at_time") is not None or not has_day_selector(arguments):
-            return arguments
-        item = await self._store.get(item_id)
-        if item is None or item.rule is None:
-            return arguments
-        kept: dict[str, Any] = {**arguments, "at_time": item.rule.wall_time}
-        if item.rule.zone is not None and arguments.get("in_zone") is None:
-            kept["in_zone"] = item.rule.zone.name
-        return kept
 
     async def _edit(self, item_id: str, edit: ScheduleEdit, *, live_taint: bool) -> str | None:
         """Advisory guards (unknown / firing / tainted-task), then the fenced edit."""

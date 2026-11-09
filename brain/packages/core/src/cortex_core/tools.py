@@ -107,6 +107,8 @@ class ToolResult:
     spared: tuple[str, ...] | None = None
     # Set by a forget whose delete fully succeeded: how many rows it deleted.
     forgot: int = 0
+    # Set by an edit that ran: whether the item was one time before the edit.
+    was_once: bool = False
 
 
 @dataclass(frozen=True, slots=True)

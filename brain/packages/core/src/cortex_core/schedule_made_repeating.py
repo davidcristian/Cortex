@@ -22,14 +22,14 @@ MADE_REPEATING_NOTES = {
 def made_repeating_after(
     call: ToolCall, result: ToolResult, held: tuple[str, ...]
 ) -> tuple[str, ...]:
-    """The ids an edit with ``repeat`` made repeat on chosen days: ``held``, plus one, less ends."""
+    """The ids an edit made repeat on chosen days from one time: ``held``, plus one, less ends."""
     item = call.arguments.get("id")
     if result.is_error or not isinstance(item, str):
         return held
     arguments = call.arguments
     timed = arguments.get("at_time") is not None
     asked = arguments.get("repeat") is True and timed and has_day_selector(arguments)
-    if call.name == EDIT_SCHEDULED_TOOL_NAME and asked:
+    if call.name == EDIT_SCHEDULED_TOOL_NAME and asked and result.was_once:
         return held if item in held else (*held, item)
     # A daily rule has its own note, and an interval or a cancel ends the rule on chosen days.
     ended = call.name == CANCEL_SCHEDULED_TOOL_NAME or (
