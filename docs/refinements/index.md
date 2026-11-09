@@ -84,10 +84,10 @@ never a reading of what the tree does now.
 - **[R-1071](tasks/1071-a-message-in-capitals-gets-the-english-note.md)** A message in capitals gets the English note (memory). Its claim was checked against the code on 2026-11-08.
 - **[R-1073](tasks/1073-a-forget-naming-the-value-can-be-answered-as-an-update.md)** A forget naming the value can be answered as an update (memory). Its claim was checked against the code on 2026-11-09.
 - **[R-1076](tasks/1076-keep-it-in-mind-is-not-read-as-a-request-to-remember.md)** Keep it in mind is not read as a request to remember (memory). Its claim was checked against the code on 2026-11-09.
-- **[R-1080](tasks/1080-a-one-time-reminder-made-weekly-by-repeat-gets-no-note.md)** A one-time reminder made weekly by repeat gets no note (scheduling). Its claim was checked against the code on 2026-11-09.
 - **[R-1081](tasks/1081-no-record-of-it-remains-since-you-never-told-me-gets-no-note.md)** No record of it remains since you never told me gets no note (memory). Its claim was checked against the code on 2026-11-09.
 - **[R-1082](tasks/1082-a-time-before-the-verb-of-a-second-clause-loses-the-reminder-tool.md)** A time before the verb of a second clause loses the reminder tool (tools). Its claim was checked against the code on 2026-11-09.
 - **[R-1084](tasks/1084-a-forget-naming-the-fact-to-keep-lists-it.md)** A forget naming the fact to keep lists it (memory). Its claim was checked against the code on 2026-11-09.
+- **[R-1085](tasks/1085-a-reply-saying-it-will-repeat-still-gets-the-repeat-note.md)** A reply saying it will repeat still gets the repeat note (scheduling). Its claim was checked against the code on 2026-11-09.
 
 ### Actionable, once a port changes (2)
 
@@ -936,7 +936,7 @@ never a reading of what the tree does now.
 - [R-989](tasks/989-an-ordinal-word-that-is-not-a-day-lets-a-monthly-birthday-run.md) An ordinal word that is not a day lets a monthly birthday run. done 2026-11-06.
 - [R-1018](tasks/1018-a-repeat-word-in-the-reminder-text-hides-the-daily-note.md) A repeat word in the reminder text hides the daily note. done 2026-11-08.
 - [R-1029](tasks/1029-a-purpose-clause-holding-the-repeat-word-gives-a-daily-reply-the-daily-note.md) A purpose clause holding the repeat word gives a daily reply the daily note. declined 2026-11-08.
-- [R-1080](tasks/1080-a-one-time-reminder-made-weekly-by-repeat-gets-no-note.md) A one-time reminder made weekly by repeat gets no note. open, actionable.
+- [R-1085](tasks/1085-a-reply-saying-it-will-repeat-still-gets-the-repeat-note.md) A reply saying it will repeat still gets the repeat note. open, actionable.
 
 ### session-history
 

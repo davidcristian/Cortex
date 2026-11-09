@@ -243,5 +243,5 @@ rule holds and the change ships: it moves the zone's offset from the model to th
 returns `AT_OFFSET_AND_ZONE`; an unknown zone, `utc` or an empty one returns the zone correction;
 `10:00` in Asia/Tokyo when it is 21:00 there returns the past correction in that zone; New York
 `09:00` across the March change reads as 13:00 UTC. An edit with `at_time`, a day selector and
-`repeat: true` leaves `daily_after` empty, so no note says a one-time item now repeats weekly,
-filed as [task 1080](../refinements/tasks/1080-a-one-time-reminder-made-weekly-by-repeat-gets-no-note.md).
+`repeat: true` leaves `daily_after` empty, so no note said a one-time item now repeats weekly;
+[schedule-edit-repeat.md](schedule-edit-repeat.md) records the draws and the note that closes it.

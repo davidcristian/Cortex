@@ -154,6 +154,8 @@ class TaintLedger:
     stored_time: str = ""
     # The ids of the items a ``schedule_task`` call this turn stored to repeat every day.
     daily_stored: tuple[str, ...] = ()
+    # The ids of the one-time items an ``edit_scheduled`` call with ``repeat`` made repeat on days.
+    made_repeating: tuple[str, ...] = ()
     # Whether a ``schedule_task`` call stored a one-time item after a weekly call was refused.
     once_after_weekly: bool = False
     # The item id and ISO date of each one-time item stored a day off the weekday the message names.

@@ -61,6 +61,7 @@ class HandoffRecord:
     monthly_stored: bool = False
     stored_time: str = ""
     daily_stored: tuple[str, ...] = ()
+    made_repeating: tuple[str, ...] = ()
     once_after_weekly: bool = False
     weekday_off: tuple[tuple[str, str], ...] = ()
 
@@ -91,6 +92,7 @@ class HandoffRecord:
             monthly_stored=self.monthly_stored,
             stored_time=self.stored_time,
             daily_stored=self.daily_stored,
+            made_repeating=self.made_repeating,
             once_after_weekly=self.once_after_weekly,
             weekday_off=self.weekday_off,
         )
@@ -168,6 +170,7 @@ class EscalationSlot:
             monthly_stored=self.refs.taint.monthly_stored,
             stored_time=self.refs.taint.stored_time,
             daily_stored=self.refs.taint.daily_stored,
+            made_repeating=self.refs.taint.made_repeating,
             once_after_weekly=self.refs.taint.once_after_weekly,
             weekday_off=self.refs.taint.weekday_off,
         )

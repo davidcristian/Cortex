@@ -218,6 +218,7 @@ async def test_a_record_written_before_the_file_and_monthly_marks_reads_as_neith
     del fields["monthly_stored"]
     del fields["stored_time"]
     del fields["daily_stored"]
+    del fields["made_repeating"]
     del fields["once_after_weekly"]
     del fields["weekday_off"]
     await client.set("cortex:handoff:t1", json.dumps(fields))
@@ -225,17 +226,21 @@ async def test_a_record_written_before_the_file_and_monthly_marks_reads_as_neith
     assert loaded is not None
     assert (loaded.sidecar_refused, loaded.monthly_stored, loaded.stored_time) == (False, False, "")
     assert loaded.daily_stored == ()
+    assert loaded.made_repeating == ()
     assert not loaded.once_after_weekly
     assert loaded.weekday_off == ()
 
 
 async def test_a_record_keeps_the_ids_its_turn_stored_to_repeat_daily() -> None:
     store = RedisHandoffStore(FakeAsyncRedis(server=FakeServer()))
-    record = replace(handoff_contract.make_record("t1"), daily_stored=("abc", "def"))
+    record = replace(
+        handoff_contract.make_record("t1"), daily_stored=("abc", "def"), made_repeating=("ghi",)
+    )
     await store.put(record)
     loaded = await store.get("t1")
     assert loaded is not None
     assert loaded.daily_stored == ("abc", "def")
+    assert loaded.made_repeating == ("ghi",)
 
 
 @pytest.mark.parametrize("once", [True, False])

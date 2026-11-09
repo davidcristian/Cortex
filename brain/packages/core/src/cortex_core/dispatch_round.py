@@ -17,6 +17,7 @@ from cortex_core.progress import ProgressSink, hold_wait
 from cortex_core.provenance import SourceKind, as_source
 from cortex_core.schedule_claim import stored_time
 from cortex_core.schedule_daily import daily_after
+from cortex_core.schedule_made_repeating import made_repeating_after
 from cortex_core.schedule_midnight import midnight_unasked
 from cortex_core.schedule_offset import offset_date_wrong, offset_refusal
 from cortex_core.schedule_time import UTC_DISPLAY, DisplayZone
@@ -237,6 +238,9 @@ async def run_round(
         context.taint.monthly_stored |= not result.is_error and stores_monthly(call)
         context.taint.stored_time = stored_time(call, result.content) or context.taint.stored_time
         context.taint.daily_stored = daily_after(call, result, context.taint.daily_stored)
+        context.taint.made_repeating = made_repeating_after(
+            call, result, context.taint.made_repeating
+        )
         context.taint.once_after_weekly |= bool(record.weekly_refused) and stores_once(call, result)
         context.taint.weekday_off = weekday_off_after(
             call, result, context.query, context.zone.tz, context.taint.weekday_off

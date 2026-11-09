@@ -25,7 +25,9 @@ from cortex_core.brain_phase import BrainPhase
 from cortex_core.numbers_left_claim import NUMBERS_LEFT_NOTE
 from cortex_core.schedule_claim import MONTHLY_STORED_NOTE, UNSCHEDULED_CLAIM_NOTE
 from cortex_core.schedule_daily import DAILY_STORED_NOTE, DAILY_STORED_NOTES
+from cortex_core.schedule_made_repeating import MADE_REPEATING_NOTE
 from cortex_core.schedule_tools import SCHEDULE_TOOL_NAME
+from cortex_core.schedule_verbs import EDIT_SCHEDULED_TOOL_NAME
 
 _AT = datetime(2026, 11, 5, 5, 0, 0, tzinfo=UTC)
 
@@ -90,6 +92,17 @@ async def test_a_deep_reply_reads_a_daily_reminder_the_cortex_stored(
     )
     assert (DAILY_STORED_NOTES["de"] in shown) is bool(daily)
     assert DAILY_STORED_NOTE not in shown
+
+
+@pytest.mark.parametrize("made", [("abc",), ()])
+async def test_a_deep_reply_reads_a_reminder_the_cortex_made_repeat(made: tuple[str, ...]) -> None:
+    shown = await _deep_reply(
+        "Move my dentist reminder to Tuesday at 15:00.",
+        "I've moved your dentist reminder to Tuesday at 3:00 PM.",
+        TaintLedger(made_repeating=made),
+        (ToolRun(EDIT_SCHEDULED_TOOL_NAME, ok=True),),
+    )
+    assert (MADE_REPEATING_NOTE in shown) is bool(made)
 
 
 @pytest.mark.parametrize("refused", [True, False])

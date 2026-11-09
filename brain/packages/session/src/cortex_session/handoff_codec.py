@@ -78,6 +78,7 @@ def encode_record(record: HandoffRecord) -> str:
             "monthly_stored": record.monthly_stored,
             "stored_time": record.stored_time,
             "daily_stored": list(record.daily_stored),
+            "made_repeating": list(record.made_repeating),
             "once_after_weekly": record.once_after_weekly,
             "weekday_off": [list(pair) for pair in record.weekday_off],
             "sources": [
@@ -135,6 +136,7 @@ def decode_record(raw: bytes | str, handoff_id: str) -> HandoffRecord:
             monthly_stored=fields.get("monthly_stored", False),
             stored_time=fields.get("stored_time", ""),
             daily_stored=tuple(fields.get("daily_stored", ())),
+            made_repeating=tuple(fields.get("made_repeating", ())),
             once_after_weekly=fields.get("once_after_weekly", False),
             weekday_off=tuple((item, day) for item, day in fields.get("weekday_off", ())),
         )

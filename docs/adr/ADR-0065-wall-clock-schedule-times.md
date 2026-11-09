@@ -93,7 +93,11 @@ decision 2).
   A question, a condition, an offer or a negation states none, so a doubtful reply gets the note
   ([readings](../readings/schedule-one-time-in-other-languages.md)). A purpose clause
   (`so you don't forget`, `pour que`, `damit`) and `like you asked` are read past, since they say
-  why a repeat was set and do not make it a choice.
+  why a repeat was set and do not make it a choice. An edit with `repeat` true, `at_time` and a
+  day selector turns a one-time item into a rule on those days, so the brain records that item
+  too (`TaintLedger.made_repeating`, `schedule_made_repeating.py`) and appends
+  `MADE_REPEATING_NOTE` under the same reply check
+  ([readings](../readings/schedule-edit-repeat.md)).
 - The record gains an added `rule` object, decoded with `.get` so an older record reads as having
   none; a rule that is present is decoded strictly, so a malformed one fails loudly rather than
   becoming a one-shot.
