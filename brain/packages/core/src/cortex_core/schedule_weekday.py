@@ -32,7 +32,7 @@ _DAY_NAMES = {
 }
 
 
-_KEPT_BY_EDIT = frozenset({"id", "text"})
+_KEPT_BY_EDIT = frozenset({"id", "text", "repeat"})
 
 
 def weekday_off(call: ToolCall, result: ToolResult, query: str, tz: tzinfo) -> str:

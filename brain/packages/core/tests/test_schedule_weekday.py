@@ -168,6 +168,8 @@ def test_a_later_change_to_the_held_items_due_time_drops_the_date(
     ("name", "arguments", "failed"),
     [
         (EDIT_SCHEDULED_TOOL_NAME, {"id": "abc", "text": "t", "at_time": None}, False),
+        (EDIT_SCHEDULED_TOOL_NAME, {"id": "abc", "text": "t", "repeat": False}, False),
+        (EDIT_SCHEDULED_TOOL_NAME, {"id": "abc", "repeat": True}, False),
         (EDIT_SCHEDULED_TOOL_NAME, {"id": "def", "at": "2026-11-12T07:00:00"}, False),
         (CANCEL_SCHEDULED_TOOL_NAME, {"id": "def"}, False),
         (SNOOZE_SCHEDULED_TOOL_NAME, {"id": "def", "for_seconds": 600}, False),
