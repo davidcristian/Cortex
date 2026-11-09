@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -11,6 +12,7 @@ from cortex_core import (
     InMemoryMemoryStore,
     MemoryRecaller,
     MemoryRecord,
+    MemoryStoreError,
     SystemClock,
     TaintLedger,
     ToolCall,
@@ -121,3 +123,22 @@ async def test_a_delete_that_rows_written_since_the_card_outlast_still_counts_it
     assert result.is_error
     assert result.numbers_left is None
     assert result.forgot == 1
+
+
+class _FailingAfterDelete(InMemoryMemoryStore):
+    async def delete_ids(self, ids: Sequence[str]) -> int:
+        removed = await super().delete_ids(ids)
+        self.fail_with(MemoryStoreError("pgvector is down"))
+        return removed
+
+
+async def test_a_store_failing_after_the_delete_still_counts_the_rows_it_removed() -> None:
+    store = _FailingAfterDelete()
+    await store.add(_row("gym", "User: Remember my gym locker number 5521.\nAssistant: Noted.", 0))
+    tool = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
+    call = _call("gym locker", "Forget my gym locker number.")
+    await tool.card(call)
+    result = await tool.invoke(call)
+    assert (result.is_error, result.forgot, result.numbers_left) == (True, 1, None)
+    assert result.content.startswith("forgot 1 remembered exchanges, but the memory store then")
+    assert "forget" not in result.content.split(",", 1)[1]

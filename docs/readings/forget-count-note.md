@@ -70,7 +70,9 @@ saying nothing was forgotten got no note. Those results now count their rows (te
 count, numbers left and kept rows notes agree and take the message's language (`KEPT_NOTES`,
 tested in `test_forget_just_said.py`). The kept rows note and the count never contradict each other.
 `NUMBERS_LEFT_NOTE` and `UNKEPT_CLAIM_NOTE` did, over a row the message asked to keep; both are
-fixed below. A store failure after the delete still counts nothing ([task 1092](../refinements/tasks/1092-a-store-failure-after-a-forget-deleted-rows-counts-nothing.md)). `Amintirea a fost ștearsă.` names the removal in a form the reader
+fixed below. A store failure after the delete counted nothing; its result now says how many
+rows were deleted and sets `ToolResult.forgot` (`failed_during`, `forget_results.py`, tested in
+`test_forget_count_note.py`). `Amintirea a fost ștearsă.` names the removal in a form the reader
 lacks, so a second, Romanian count note follows it ([task 1095](../refinements/tasks/1095-a-romanian-removal-in-a-feminine-plural-or-cedilla-form-gets-a-second-count.md)). A forget turn stores no exchange
 row, so none of these notes reaches memory; they stay in the chat's transcript.
 

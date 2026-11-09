@@ -160,7 +160,10 @@ async def test_a_store_failure_while_counting_the_numbers_left_is_reported() -> 
     _, said, error, _ = await _forget(
         "locker code", _record("asked", asked), store=_FailingAfterDelete()
     )
-    assert said == "the memory store failed during the forget: pgvector is down."
+    assert said == (
+        "forgot 1 remembered exchanges, but the memory store then failed, so it is not known "
+        "whether other remembered exchanges still contain that text or its value: pgvector is down."
+    )
     assert error is True
 
 

@@ -12,6 +12,7 @@ from cortex_core.forget_results import (
     LEFT_OUT_LINE,
     NONE_FOUND,
     TOO_MANY,
+    failed_during,
     outlasted,
     unavailable,
     unlisted,
@@ -257,6 +258,7 @@ class ForgetChosenTool:
             return self._result(call, "nothing was forgotten: no card listed what to delete")
         if isinstance(shown, str):
             return self._result(call, shown, error=shown not in (NONE_FOUND, ALREADY_DELETED))
+        removed = 0
         try:
             removed = await self._store.delete_ids(shown.ids)
             turn = call.stamp.turn_id
@@ -272,7 +274,7 @@ class ForgetChosenTool:
             left = [record for record in await self._found(call) if record.id not in shown.kept]
             holding = 0 if left or shown.left_out else await self._holding(call)
         except MemoryStoreError as err:
-            return self._result(call, f"the memory store failed during the forget: {err}")
+            return replace(self._result(call, failed_during(removed, err)), forgot=removed)
         if left:
             said = outlasted(removed, len(left))
         elif shown.left_out:

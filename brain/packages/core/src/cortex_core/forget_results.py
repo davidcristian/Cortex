@@ -34,6 +34,16 @@ def unavailable(err: MemoryStoreError) -> str:
     return f"the memory store is unavailable, so nothing was forgotten: {err}"
 
 
+def failed_during(removed: int, err: MemoryStoreError) -> str:
+    """The result of a delete the store failed during, after ``removed`` rows were deleted."""
+    if not removed:
+        return f"the memory store failed during the forget: {err}"
+    return (
+        f"forgot {removed} remembered exchanges, but the memory store then failed, so it is not "
+        f"known whether other remembered exchanges still contain that text or its value: {err}"
+    )
+
+
 def outlasted(removed: int, left: int) -> str:
     """The result of a delete that ``left`` rows written since its card still match."""
     return (

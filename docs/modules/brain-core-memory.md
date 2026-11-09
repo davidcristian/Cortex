@@ -92,7 +92,7 @@ pool down to the hits one turn sees. The turn that calls it is in
   a number, such as `code`, `PIN`, `Nummer`, `código` or `codul`), leaving out a row that `asks_to_keep` (`forget_unnamed.py`) reads a keep clause of the message naming, or every row when that clause holds a word for all or the rest, and when a row holds one the result says how
   many do and that a forget of the number itself would remove them, without naming it (after rows kept apart, only that they were kept and the value is still remembered), and sets
   `ToolResult.numbers_left`. No text, no match, more than 20 rows
-  containing the text or a failed store deletes nothing: `card` returns `None`, so the dispatcher shows no card and runs the call,
+  containing the text or a failed store deletes nothing (a store that fails after `delete_ids` returns an error result saying how many rows were deleted, with `ToolResult.forgot` set): `card` returns `None`, so the dispatcher shows no card and runs the call,
   whose result says why. The description asks for the value or one word from the request that names
   it, and the no-match result tells the model to say that nothing about it was stored and not to
   ask the user for the value. After a delete earlier in the same turn (the latest 32 turn ids that
