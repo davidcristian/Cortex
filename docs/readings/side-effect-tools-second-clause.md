@@ -44,9 +44,8 @@ other words lost it (`and give me a shout at 9`, `and crank up the music`). `act
 (`memory_request.py`) now reads each clause beside an English request that opens with a verb and
 its object: after a comma, semicolon, colon, `and`, `so`, `then`, `but` or a sentence start, a
 first word that is no pronoun, determiner, preposition or auxiliary, then `me` or `us` (also after
-`at`, `to`, `for` or `with`), a pronoun or a determiner. A verb with no object (`and ring at 9`)
-is not read and still refuses both tools
-([R-1037](../refinements/tasks/1037-an-english-second-clause-with-a-verb-and-no-object-can-refuse-the-tool-it-asks-for.md)).
+`at`, `to`, `for` or `with`), a pronoun or a determiner. A verb with no object and a time is
+read too ([below](#a-verb-and-a-time-2026-11-09)).
 When `_REMINDER` and `_SOUND` read none of such a clause, `unasked_tools` keeps both tools; a
 clause they read (`and remind me the day before`) keeps the old refusal of the other one.
 `Remember that the remote is under the couch, and turn the heating down.` now keeps both tools: it
@@ -82,3 +81,20 @@ The barber call stored a reminder for every Tuesday, which the message did not a
 Every `memories` row and schedule item of the draws was deleted afterwards. Run logs `draws.log`,
 `replay.log` and `mut.log` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot3/`.
+
+## A verb and a time, 2026-11-09
+
+`actions_asked` also reads a clause whose verb has no object and is followed by `at`, `around`,
+`by`, `before` or `in` and a digit (`and ring at 9`, `then call in 5 minutes`), unless the first
+word is a day or frequency word (`tomorrow at 10`, `Friday at 3`) or the number is a year from
+1900 to 2099 (`married in 2015`). A tool refusal keeps the tool when unsure, so a fact of that
+shape (`Remember that I start at 9 and finish at 5.`) keeps both tools, a cost on the safe side.
+Near misses written first: `Remember that I swim and run on Mondays.`, `Remember that my sister
+sings and dances at weddings.`, `Remember that I was born in 1990 and married in 2015.` and
+`Remember my dentist appointment, tomorrow at 10.` keep both tools refused.
+
+Replay over the 28,058 distinct strings of `docs/readings/` (every line, table cell, quoted and
+backticked text), of which `asks_kept_alone` reads 355: `unasked_tools` changes for none of them.
+`actions_asked` reads one more clause in 61 strings, all prose outside a request to remember, and
+one fewer in none. No turn was drawn. Scripts `replay.py` and `replay1037.py` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot7/`.

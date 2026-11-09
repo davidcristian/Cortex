@@ -6,8 +6,8 @@
 **Area:** memory
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)
 
-`actions_asked` in `memory_request.py` reads a clause opening with a verb and its object as an
-asked action, and `unasked_tools` then keeps `schedule_task` and `set_volume` offered. A fact whose
+`actions_asked` in `memory_request.py` reads a clause opening with a verb and its object, or a
+verb and a time (`and ring at 9`), as an asked action, and `unasked_tools` then keeps `schedule_task` and `set_volume` offered. A fact whose
 subject is left out of its second verb phrase looks the same. Unit level, both tools stay offered
 for each of these, where the shipped reader before the change left both out:
 
@@ -15,6 +15,7 @@ for each of these, where the shipped reader before the change left both out:
 - "Remember my sister likes jazz and hates the cold"
 - "Remember I always lock the door and check the windows"
 - "Remember: I drink my coffee black and skip the sugar"
+- "Remember that I start at 9 and finish at 5"
 
 Of 104 requests to remember alone in the backticked text of `docs/readings/`, the action reader
 keeps both tools for 12; 11 ask for an action and one is a fact ("Remember that I feed the cat and

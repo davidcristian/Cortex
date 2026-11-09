@@ -132,17 +132,24 @@ _THANKS = re.compile(
     r"|(?:muchas\s+)?gracias|mul[țţt]umesc(?:\s+frumos)?|mersi)\W*$",
     re.IGNORECASE,
 )
-# A clause opening with a verb and its object asks for an action ("and give me a shout at 9"),
-# which no list of reminder or sound words can name. The first word is no subject or linking word.
+# A clause opening with a verb and its object or a time asks for an action ("and give me a shout
+# at 9", "and ring at 9"), which no list of reminder or sound words can name. The first word is
+# no subject or linking word, a time follows no day word, and a year is no time.
+_DAY = (
+    r"(?:today|tonight|tomorrow|yesterday|daily|weekly|monthly|yearly|once|twice|every|each|next"
+    r"|last|(?:mon|tues|wednes|thurs|fri|satur|sun)days?)"
+)
 _ACTION = re.compile(
     r"(?:^\W*|[,;:]\s*|\b(?:and|so|then|but|plus)\s+)(?:(?:please|also|just|then|now)\s+)*"
     r"(?!(?:i|we|you|he|she|it|they|my|our|your|his|her|their|its|the|a|an|this|that|these|those"
     r"|there|here|and|or|but|so|then|plus|yet|because|since|while|if|when|where|which|who|whose"
     r"|in|on|at|for|with|from|to|of|by|about|after|before|during|near|under|over|into|like|as"
     r"|than|until|not|only|even|all|both|half|is|are|was|were|be|been|has|have|had|do|does|did"
-    r"|will|would|can|could|should|may|might|must|up|down|off|out|back)\b)[a-z]+\s+"
+    r"|will|would|can|could|should|may|might|must|up|down|off|out|back)\b)"
+    rf"(?!{_DAY}\s+(?:at|around|by|before|in)\s)[a-z]+\s+"
     r"(?:(?:up|down|on|off|out|over|back)\s+)?"
-    r"(?:(?:at|to|for|with)\s+(?:me|us)|me|us|it|this|that|them|the|my|our|a|an|some)\b"
+    r"(?:(?:(?:at|to|for|with)\s+(?:me|us)|me|us|it|this|that|them|the|my|our|a|an|some)\b"
+    r"|(?:at|around|by|before|in)\s+(?!(?:19|20)\d\d\b)\d)"
     r"(?:(?!\b(?:and|so|then|but|plus)\b)[^,;:])*",
     re.IGNORECASE,
 )

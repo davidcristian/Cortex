@@ -39,5 +39,3 @@ under the couch, and turn the heating down.`
   [the second clause readings](../../readings/side-effect-tools-second-clause.md). The draw of a
   weekday reminder led to the refusal of a weekly rule beside one named weekday
   ([readings](../../readings/schedule-one-time-weekday.md)).
-  A clause of a verb with no object is left open in
-  [R-1037](1037-an-english-second-clause-with-a-verb-and-no-object-can-refuse-the-tool-it-asks-for.md).
