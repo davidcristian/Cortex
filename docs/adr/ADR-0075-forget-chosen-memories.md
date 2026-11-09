@@ -94,7 +94,8 @@ that removes exactly those rows and holds against a turn in flight. This record 
    whose own request holds that value and that holds no word of the message is listed apart on
    the card under `KEPT_LINE` and kept (`unnamed`, `forget_unnamed.py`), because a first call of
    the value deleted a second fact sharing the number in every such draw. A word here has three or
-   more letters and is no common word and no code word such as `number` or `code`, and a row is
+   more letters and is no code word such as `number` or `code` and no common word: an English one,
+   or an article, preposition or pronoun of the language `message_language` reads, and a row is
    read without its `User:` and `Assistant:` labels, so `user` can name a fact. A recall row
    holds the value only in its reply, so a restatement is still deleted; a call with no message
    reads no row apart; and a card whose rows are all kept is `None`, with the result `KEPT_ALL`.

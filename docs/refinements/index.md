@@ -83,7 +83,6 @@ never a reading of what the tree does now.
 - **[R-1062](tasks/1062-a-correction-of-a-stored-value-says-updated-and-keeps-the-old-row.md)** A correction of a stored value says "updated" and keeps the old row (memory). Its claim was checked against the code on 2026-11-08.
 - **[R-1071](tasks/1071-a-message-in-capitals-gets-the-english-note.md)** A message in capitals gets the English note (memory). Its claim was checked against the code on 2026-11-08.
 - **[R-1086](tasks/1086-a-forget-reads-no-need-to-keep-as-a-request-to-keep.md)** A forget reads no need to keep as a request to keep (memory). Its claim was checked against the code on 2026-11-09.
-- **[R-1087](tasks/1087-function-words-of-the-other-languages-name-rows-in-a-forget.md)** Function words of the other languages name rows in a forget (memory). Its claim was checked against the code on 2026-11-09.
 - **[R-1088](tasks/1088-a-german-negation-after-the-keep-verb-reads-as-a-keep.md)** A German negation after the keep verb reads as a keep (memory). Its claim was checked against the code on 2026-11-09.
 - **[R-1089](tasks/1089-the-kept-rows-note-is-english-beside-notes-in-the-message-language.md)** The kept rows note is English beside notes in the message language (memory). Its claim was checked against the code on 2026-11-09.
 - **[R-1090](tasks/1090-the-unkept-note-follows-a-forget-reply-that-kept-the-fact-asked-to-keep.md)** The unkept note follows a forget reply that kept the fact asked to keep (memory). Its claim was checked against the code on 2026-11-09.
@@ -93,6 +92,7 @@ never a reading of what the tree does now.
 - **[R-1094](tasks/1094-keep-it-in-mind-for-now-beside-a-later-save-decision-is-stored.md)** Keep it in mind for now beside a later save decision is stored (memory). Its claim was checked against the code on 2026-11-09.
 - **[R-1095](tasks/1095-a-romanian-removal-in-a-feminine-plural-or-cedilla-form-gets-a-second-count.md)** A Romanian removal in a feminine, plural or cedilla form gets a second count (memory). Its claim was checked against the code on 2026-11-09.
 - **[R-1096](tasks/1096-a-forget-of-a-value-beside-do-not-keep-the-other-one-keeps-the-unnamed-rows.md)** A forget of a value beside do not keep the other one keeps the unnamed rows (memory). Its claim was checked against the code on 2026-11-09.
+- **[R-1097](tasks/1097-a-compound-code-word-names-no-fact-in-a-forget.md)** A compound code word names no fact in a forget (memory). Its claim was checked against the code on 2026-11-09.
 
 ### Actionable, once a port changes (2)
 
@@ -630,7 +630,6 @@ never a reading of what the tree does now.
 - [R-1067](tasks/1067-a-later-forget-with-the-asked-value-and-another-still-runs.md) A later forget with the asked value and another still runs. open, waiting for its trigger.
 - [R-1071](tasks/1071-a-message-in-capitals-gets-the-english-note.md) A message in capitals gets the English note. open, actionable.
 - [R-1086](tasks/1086-a-forget-reads-no-need-to-keep-as-a-request-to-keep.md) A forget reads no need to keep as a request to keep. open, actionable.
-- [R-1087](tasks/1087-function-words-of-the-other-languages-name-rows-in-a-forget.md) Function words of the other languages name rows in a forget. open, actionable.
 - [R-1088](tasks/1088-a-german-negation-after-the-keep-verb-reads-as-a-keep.md) A German negation after the keep verb reads as a keep. open, actionable.
 - [R-1089](tasks/1089-the-kept-rows-note-is-english-beside-notes-in-the-message-language.md) The kept rows note is English beside notes in the message language. open, actionable.
 - [R-1090](tasks/1090-the-unkept-note-follows-a-forget-reply-that-kept-the-fact-asked-to-keep.md) The unkept note follows a forget reply that kept the fact asked to keep. open, actionable.
@@ -639,6 +638,7 @@ never a reading of what the tree does now.
 - [R-1094](tasks/1094-keep-it-in-mind-for-now-beside-a-later-save-decision-is-stored.md) Keep it in mind for now beside a later save decision is stored. open, actionable.
 - [R-1095](tasks/1095-a-romanian-removal-in-a-feminine-plural-or-cedilla-form-gets-a-second-count.md) A Romanian removal in a feminine, plural or cedilla form gets a second count. open, actionable.
 - [R-1096](tasks/1096-a-forget-of-a-value-beside-do-not-keep-the-other-one-keeps-the-unnamed-rows.md) A forget of a value beside do not keep the other one keeps the unnamed rows. open, actionable.
+- [R-1097](tasks/1097-a-compound-code-word-names-no-fact-in-a-forget.md) A compound code word names no fact in a forget. open, actionable.
 
 ### orchestrator
 

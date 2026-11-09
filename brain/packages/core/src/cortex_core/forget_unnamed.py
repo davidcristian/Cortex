@@ -5,6 +5,7 @@ from collections.abc import Iterable, Mapping
 
 from cortex_core.memory import MemoryRecord
 from cortex_core.memory_values import code_word, digit_runs, whole_values
+from cortex_core.note_language import message_language
 
 _WORD = re.compile(r"[^\W\d_]{3,}")
 _REPLY = "\nAssistant: "
@@ -16,6 +17,31 @@ _COMMON = frozenset(
         "erase memory"
     )
 )
+# The function words of each other language, read only in a message of that language, since an
+# English fact can be named by "den", "son" or "care".
+_FUNCTION = {
+    language: frozenset(_WORD.findall(words))
+    for language, words in {
+        "fr": "les des une aux dans pour par avec sur sous chez que qui quoi dont mon ton son mes "
+        "tes ses notre votre nos vos leur leurs celui celle ceux celles cela ceci cet cette ces "
+        "est sont était ont mais aussi non pas plus moi toi lui elle nous vous eux elles ils "
+        "oublie oubliez efface effacez supprime supprimez mémoire merci",
+        "de": "der die das den dem des ein eine einen einem einer eines und oder aber für von vom "
+        "mit aus bei beim zum zur auf über unter nach mein meine meinen meinem meiner meines dein "
+        "deine deinen deinem deiner sein seine seinen seinem ihr ihre ihren ihrem ihrer unser "
+        "unsere euer eure ist sind war hat habe haben hast auch nicht noch nur jetzt bitte ich "
+        "mich mir dich dir sie ihn ihm uns euch wir was dass diese dieser dieses diesen diesem "
+        "vergiss lösche entferne",
+        "es": "los las del una uno unos unas que con por para sin sobre mis tus sus mío mía tuyo "
+        "tuya suyo suya nuestro nuestra este esta esto estos estas ese esa eso esos esas también "
+        "pero está son era fue tiene tengo hay favor ahora solo ella ellos ellas usted les nos "
+        "olvida olvide borra borre elimina memoria",
+        "ro": "sau dar pentru din despre cel cea cei cele lui ale mea meu mele mei tău tale său "
+        "sale nostru noastră acest această acesta aceasta aceste acel acea aceea care este sunt "
+        "era are acum doar încă tine mine noi voi lor îmi mie nici rog uită șterge ştergeţi "
+        "sterge memorie",
+    }.items()
+}
 
 _EVERY = frozenset(
     _WORD.findall("all every everywhere everything partout tout tous toutes überall alle todas")
@@ -83,10 +109,10 @@ def _keys(text: str) -> set[str]:
     return {*whole_values(text), *digit_runs(text)}
 
 
-def _words(text: str) -> set[str]:
+def _words(text: str, function: frozenset[str] = frozenset()) -> set[str]:
     """The words of ``text`` that can name a fact: three or more letters, no common or code word."""
     words = {word.lower() for word in _WORD.findall(text)}
-    return {word for word in words - _COMMON - _EVERY if not code_word(word)}
+    return {word for word in words - _COMMON - function - _EVERY if not code_word(word)}
 
 
 def _row_words(text: str) -> set[str]:
@@ -136,8 +162,9 @@ def _split(query: str) -> tuple[set[str], set[str]]:
             elif not keeping:
                 keeping = _opens_keep(clause, at)
             (keep if keeping else forget).append(token)
-    named = _words(" ".join(forget))
-    kept = {word for word in _words(" ".join(keep)) if not _KEEP.fullmatch(word)}
+    function = _FUNCTION.get(message_language(query), frozenset())
+    named = _words(" ".join(forget), function)
+    kept = {word for word in _words(" ".join(keep), function) if not _KEEP.fullmatch(word)}
     return named, kept - named
 
 

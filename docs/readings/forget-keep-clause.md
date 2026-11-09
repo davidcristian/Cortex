@@ -62,6 +62,31 @@ the name (`Forget my do not disturb PIN 7319.`) and a noun the keep verb list ma
 (`replay.log` in the same directory), changed none of 1,766 strings in either condition.
 
 Still open, each filed with its reproduction: `no need to keep the shed one` reads as a keep
-([task 1086](../refinements/tasks/1086-a-forget-reads-no-need-to-keep-as-a-request-to-keep.md)); function words such as `den`, `del` or `celui` name rows in the other four languages
-([task 1087](../refinements/tasks/1087-function-words-of-the-other-languages-name-rows-in-a-forget.md)); a German negation after the keep verb is not read ([task 1088](../refinements/tasks/1088-a-german-negation-after-the-keep-verb-reads-as-a-keep.md)); and `Forget 7319 and
+([task 1086](../refinements/tasks/1086-a-forget-reads-no-need-to-keep-as-a-request-to-keep.md)); a German negation after the keep verb is not read ([task 1088](../refinements/tasks/1088-a-german-negation-after-the-keep-verb-reads-as-a-keep.md)); and `Forget 7319 and
 do not keep the shed one` keeps the bike row, which `Forget 7319.` alone deletes ([task 1096](../refinements/tasks/1096-a-forget-of-a-value-beside-do-not-keep-the-other-one-keeps-the-unnamed-rows.md)).
+
+## Function words of the other languages, 2026-11-09
+
+The common words were English only, so an article, preposition or pronoun of another language
+named every row holding it. Over two German rows sharing 7319, `Vergiss 7319, behalte den vom
+Schuppen.` kept both through `den`, and `Vergiss den Code von meinem Fahrradschloss, 7319.` listed
+the shed row for deletion. Now the articles, prepositions, pronouns, auxiliaries and forget verbs
+of French, German, Spanish and Romanian (`_FUNCTION`) name no fact in a message that
+`message_language` reads as that language. Each list is read only there, since an English fact
+can be named by `den`, `son` or `care`: `Forget the den code 7319.` still names the den row. The
+tests are `test_forget_function_words.py`.
+
+Replay: every distinct string of `docs/readings/` holding a forget verb of the five languages
+(1,802) went through the old and new reader over twelve rows holding its value (the seven above,
+plus German, Spanish and Romanian rows, a French pool locker row and a German dog row), with and
+without the calling chat's row. 112 cases changed, all French, German or Romanian, none English.
+87 keep more rows, where a function word had named a row of its language. 9 now delete only the
+calling chat's newest row, since no function word names a row in `Oublie ce que je viens de te
+dire.` or `Vergiss bitte, was ich dir gerade gesagt habe.`, which ask to forget what was just said.
+16, from `Uită codul meu 7788.` and `Vergiss den Fahrradcode 7319, alles andere bleibt.`, name no
+row by another word and now ask for every row holding the value, as the same message in English
+does; before, `meu` or `den` named the one row of that language. The second names its fact only by
+the code word `Fahrradcode`, as `Forget the doorcode 7319, keep everything else.` does in English
+([task 1097](../refinements/tasks/1097-a-compound-code-word-names-no-fact-in-a-forget.md)). No case
+deletes a row outside those two rules. Script `replay2.py` and log `replay2.log` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot14/`.
