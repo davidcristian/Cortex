@@ -2,7 +2,7 @@
 
 import re
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from cortex_core.errors import MemoryStoreError
 from cortex_core.forget_unnamed import KEPT_ALL, KEPT_LINE, KeptRows, forgot, unnamed
@@ -295,4 +295,4 @@ class ForgetChosenTool:
                 f"{FORGET_CHOSEN_LIMIT}, so the value is not forgotten",
             )
         said = forgot(removed, holding, len(shown.kept))
-        return self._result(call, said, error=False, holding=holding)
+        return replace(self._result(call, said, error=False, holding=holding), forgot=removed)

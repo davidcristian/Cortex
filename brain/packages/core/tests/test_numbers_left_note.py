@@ -32,6 +32,7 @@ from cortex_core import (
     TurnEngine,
 )
 from cortex_core.closing_notes import limit_notes
+from cortex_core.forget_count_note import forgot_count_note
 from cortex_core.numbers_left_claim import (
     NUMBERS_LEFT_NOTE,
     NUMBERS_LEFT_NOTES,
@@ -353,15 +354,19 @@ async def test_a_later_forget_of_a_number_the_message_lacks_keeps_its_rows_and_t
     [
         ("blue Fiat", "I've forgotten that your car is a blue Fiat."),
         ("door code", "I've forgotten your door code, but 1987 is still held in another exchange."),
-        ("door code", "OK."),
     ],
-    ids=["no-number-deleted", "names-the-row", "no-claim"],
+    ids=["no-number-deleted", "names-the-row"],
 )
 async def test_a_turn_with_no_number_left_or_a_reply_that_says_so_gets_no_note(
     asked: str, reply: str
 ) -> None:
     shown, _ = await _turn((_FIAT, _CODE, _DOOR, _ONLY_VALUE), [[_forget(asked)]], reply)
     assert NUMBERS_LEFT_NOTE not in shown
+
+
+async def test_a_reply_naming_no_removal_gets_the_count_note_then_the_numbers_left_note() -> None:
+    shown, _ = await _turn((_FIAT, _CODE, _DOOR, _ONLY_VALUE), [[_forget("door code")]], "OK.")
+    assert shown == "OK." + forgot_count_note(1, "en") + NUMBERS_LEFT_NOTE
 
 
 @pytest.mark.parametrize(

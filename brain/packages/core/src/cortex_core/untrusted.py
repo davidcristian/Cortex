@@ -146,6 +146,8 @@ class TaintLedger:
     forget_numbers_left: bool = False
     # Excerpts of the rows ``forget_memories`` kept as unnamed this turn that still exist.
     forget_kept: tuple[str, ...] = ()
+    # How many rows the successful ``forget_memories`` deletes of this turn removed.
+    forget_deleted: int = 0
     # Whether a sidecar call, or a call that runs sidecar tools, was refused as unasked.
     sidecar_refused: bool = False
     # Whether a ``schedule_task`` call stored a rule that repeats on days of every month.

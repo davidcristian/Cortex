@@ -8,6 +8,7 @@ from cortex_core.conversation import ToolRun
 from cortex_core.events import TurnEvent
 from cortex_core.file_claim import UNREAD_FOLDERS_NOTE, unread_folders_claim
 from cortex_core.forget_claim import UNFORGOTTEN_CLAIM_NOTE, names_removal, unforgotten_claim
+from cortex_core.forget_count_note import forgot_count_note, forgot_note_due
 from cortex_core.forget_unfound_claim import DELETED_UNFOUND_NOTE, unfound_claim
 from cortex_core.forget_unnamed import kept_note
 from cortex_core.memory_claim import (
@@ -68,8 +69,9 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
     unforgotten = unforgotten_claim(made, reply, unmatched=taint.forget_unmatched) or (
         taint.forget_refused and (not claims_kept(reply) or names_removal(reply))
     )
-    held = numbers_left_claim(reply, left=taint.forget_numbers_left)
     unfound = unfound_claim(made, reply, unmatched=taint.forget_unmatched)
+    counted = forgot_note_due(taint.forget_deleted, reply) and not unfound
+    held = numbers_left_claim(reply, left=taint.forget_numbers_left, counted=counted)
     unread = unread_folders_claim(taint, query, reply)
     unsearched = unsearched_files_claim(taint, reply)
     yield from cap_note(stops, parts)
@@ -96,6 +98,7 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
         (unkept, UNKEPT_CLAIM_NOTE),
         (stored, KEPT_BEYOND_CHAT_NOTE),
         (unforgotten, UNFORGOTTEN_CLAIM_NOTE),
+        (counted, forgot_count_note(taint.forget_deleted, language)),
         (held, in_language(NUMBERS_LEFT_NOTE, NUMBERS_LEFT_NOTES, language)),
         (bool(taint.forget_kept), kept_note(taint.forget_kept)),
         (unfound, DELETED_UNFOUND_NOTE),

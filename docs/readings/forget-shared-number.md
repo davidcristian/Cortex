@@ -181,7 +181,7 @@ said nothing was forgotten, and none named the padlock. Seven replies said the g
 was forgotten and ended with `NUMBERS_LEFT_NOTE`. The eighth, a label first draw whose requests
 match the base build's, said `I've updated your gym locker number to 5521.` and ended with the note
 that nothing in the message was kept
-([task 1073](../refinements/tasks/1073-a-forget-naming-the-value-can-be-answered-as-an-update.md)).
+([the count note](forget-count-note.md)).
 The rule passes, so the change ships.
 
 Replayed through the old and new reader, the value first draws of

@@ -113,6 +113,6 @@ def names_still_held(reply: str) -> bool:
     )
 
 
-def numbers_left_claim(reply: str, *, left: bool) -> bool:
-    """Whether ``reply`` says a fact was forgotten that ``left`` rows still hold a number of."""
-    return left and says_forgotten(reply) and not names_still_held(reply)
+def numbers_left_claim(reply: str, *, left: bool, counted: bool = False) -> bool:
+    """Whether ``reply`` or a ``counted`` note says a fact was forgotten that ``left`` rows hold."""
+    return left and (counted or says_forgotten(reply)) and not names_still_held(reply)

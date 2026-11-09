@@ -41,6 +41,7 @@ from cortex_core import (
 )
 from cortex_core.brain_phase import BrainPhase
 from cortex_core.dispatch import UNASKED_MSG, DispatchRefusal
+from cortex_core.forget_count_note import forgot_count_note
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 
 _AT = datetime(2026, 10, 30, 3, 0, 0, tzinfo=UTC)
@@ -342,7 +343,7 @@ async def test_a_request_to_remember_and_to_forget_still_shows_the_card_and_runs
     shown = await rig.turn(_REMEMBER_AND_FORGET, _ReplyBackend([_forget("Fiat")]))
     assert len(rig.confirmer.requests) == 1
     assert await rig.held() == []
-    assert shown == "Noted." + UNKEPT_CLAIM_NOTE
+    assert shown == "Noted." + UNKEPT_CLAIM_NOTE + forgot_count_note(1, "en")
 
 
 async def test_the_refusal_lasts_one_turn_and_the_next_message_can_forget() -> None:

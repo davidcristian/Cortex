@@ -293,6 +293,14 @@ async def test_a_record_keeps_the_rows_its_forgets_kept() -> None:
     assert loaded.forget_kept == ("a row", "b row")
 
 
+async def test_a_record_keeps_how_many_rows_its_forgets_deleted() -> None:
+    store = RedisHandoffStore(FakeAsyncRedis(server=FakeServer()))
+    await store.put(replace(handoff_contract.make_record("t1"), forget_deleted=3))
+    loaded = await store.get("t1")
+    assert loaded is not None
+    assert loaded.forget_deleted == 3
+
+
 async def test_a_record_written_before_the_kept_rows_reads_as_none_kept() -> None:
     client = FakeAsyncRedis(server=FakeServer())
     fields = cast("dict[str, Any]", json.loads(encode_record(handoff_contract.make_record("t1"))))

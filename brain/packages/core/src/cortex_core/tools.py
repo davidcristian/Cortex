@@ -103,6 +103,8 @@ class ToolResult:
     numbers_left: bool | None = None
     # Set by a forget: excerpts of the rows the turn's forget calls kept that still exist.
     kept: tuple[str, ...] | None = None
+    # Set by a forget whose delete fully succeeded: how many rows it deleted.
+    forgot: int = 0
 
 
 @dataclass(frozen=True, slots=True)
