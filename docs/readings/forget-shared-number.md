@@ -104,3 +104,34 @@ ran: every one was refused, so each held a value the message lacks. The fixed on
 the base audit keeps the texts as `<redacted>`. The rule
 passes, so the change ships. Unit tests replay the value first draws of
 [forget-value-repeats.md](forget-value-repeats.md), and each still deletes every row.
+
+## Later calls when the message holds the value: count and rule, 2026-11-09
+
+In the n1 setup the message holds no value, so a later call holding the asked value beside
+another cannot occur there, and the 16 draws above show no later call that ran. The `n1v` flow
+keeps the rig and asks `Forget my gym locker number, it is 5521.`, so a later call holding `5521`
+runs. Eight draws on a second brain through the proxy, built from the commit that keeps a fact the
+message does not name, count each later `forget_memories` call by form: the value alone, the value
+beside a phrase or another value, a phrase naming the padlock, other.
+
+Written before the draws: `value_unasked` changes only if a later call with the value beside a
+phrase or another value, or a phrase naming the padlock, occurs. A later call of the value alone
+is the forget the message asked for and is not counted against the check.
+
+## The n1v draws, 2026-11-09
+
+Eight draws, every card approved, the SM clock at 0.57 to 0.58 of its maximum before each.
+
+| First call | Draws | Later calls, by form | Padlock row left |
+| --- | --- | --- | --- |
+| `5521` | 4 | none | 0: each card listed both rows, since the message holds the value |
+| `gym locker number` | 4 | the value alone, in 2 | 2: the two draws with no later call |
+
+No later call held the value beside a phrase or another value, and none named the padlock, so
+`value_unasked` is unchanged. Over the 24 draws of both setups, all 8 later calls were the value
+alone. Every reply said the gym locker number was forgotten, and both draws that left the padlock
+row ended with `NUMBERS_LEFT_NOTE`; one of them first said `I have also cleared that specific
+number`, which no call did, and the note then said the number is still held. The 6 draws that
+deleted the padlock row, on a message naming the value only to identify the gym locker, are
+[task 1072](../refinements/tasks/1072-a-forget-naming-the-value-beside-a-label-deletes-another-fact.md).
+The run record is `n1v.jsonl` in the slot directory above.
