@@ -216,3 +216,25 @@ The SM clock read 0.57 of its maximum throughout.
 The refusal was reached in 6 of 8 fixed follow-ups, and each of the 6 ended with one item at the
 pass time. No t1, t2 or x1 draw ended with a rule or with no item, and both r1 draws kept their
 daily rule, so the rule holds and the refusal ships.
+
+## A one-time item moved to another zone's wall clock
+
+**2026-11-09**, the same stack and cleanup. The base is the candidate built from the tree with the
+`at_time` refusal above; the fixed build lets `at` take `in_zone` for an `at` with no offset. Two
+draws on each build, in chats named `s19z-<build>-z1-<draw>`; the row and rule were written first.
+
+| Flow | First turn | Follow-up | Pass when |
+| --- | --- | --- | --- |
+| z1 | `Remind me on Wednesday at 9:00 to send the parcel.` | `Actually make that 9:00 New York time.` | one item, one time, due 11 Nov 14:00 UTC |
+
+**Rule.** `in_zone` beside `at` ships when every fixed draw ends with one item, one time, due
+2026-11-11T14:00Z, and none ends with a rule or with no item. How many follow-ups passed `in_zone`
+beside `at` is a separate count.
+
+**Results** (records `rows-zbase.jsonl` and `rows-zfix.jsonl` in the same directory, the calls in
+the stack's proxy log; SM clock 0.57 of its maximum). Both builds passed both draws, each item due
+2026-11-11T14:00Z with no rule. On the base, one follow-up first passed `at_time` with `in_zone`,
+was refused, and retried with an `at` holding the `-05:00` offset; the other wrote that `at` at
+once. On the fixed build both follow-ups first passed `at_time` with `in_zone`, were refused, and
+retried with an `at` with no offset beside `in_zone`, so 2 of 2 passed `in_zone` beside `at`. The
+rule holds and the change ships: it moves the zone's offset from the model to the zone database.

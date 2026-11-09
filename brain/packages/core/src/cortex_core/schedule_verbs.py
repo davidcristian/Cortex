@@ -209,8 +209,8 @@ class EditScheduledTool:
                     "at": {
                         "type": "string",
                         "description": (
-                            "New one-time due time of a one-time item, an ISO-8601 date-time as "
-                            "schedule_task takes; the item stays one time (optional)."
+                            "New due time of a one-time item, an ISO-8601 date-time read in "
+                            "'in_zone' when it has no offset; the item stays one time (optional)."
                         ),
                     },
                     **day_selector_properties(),
@@ -251,7 +251,9 @@ class EditScheduledTool:
 
     async def _move(self, call: ToolCall, item_id: str) -> ToolResult:
         """Move a one-time item to the call's ``at``, keeping it one time."""
-        moved = parse_move(call.arguments, now=self._clock.now(), zone=self._zone)
+        moved = parse_move(
+            call.arguments, now=self._clock.now(), zone=self._zone, resolve_zone=self._resolve_zone
+        )
         if isinstance(moved, str):
             return error_result(call.id, moved)
         text, due = moved

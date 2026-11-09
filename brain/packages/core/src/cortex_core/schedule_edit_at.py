@@ -6,15 +6,18 @@ from typing import Any
 
 from cortex_core.schedule import ScheduledItem
 from cortex_core.schedule_args import BAD_TEXT, parse_at
-from cortex_core.schedule_day_args import has_day_selector
-from cortex_core.schedule_time import DisplayZone
+from cortex_core.schedule_day_args import has_day_selector, parse_in_zone
+from cortex_core.schedule_time import DisplayZone, ZoneResolver
 
 AT_ALONE = (
     "'at' moves a one-time item to a new date and time, so do not combine it with 'at_time', "
-    "'every_seconds', 'starting', 'in_zone' or a day selector; give another zone's time as an "
-    "offset in 'at'"
+    "'every_seconds', 'starting' or a day selector; for another zone's wall clock, add 'in_zone'"
 )
-_RULE_ARGUMENTS = ("at_time", "every_seconds", "starting", "in_zone")
+AT_OFFSET_AND_ZONE = (
+    "give another zone's time either as an offset in 'at' or as 'in_zone' beside an 'at' with no "
+    "offset, not both"
+)
+_RULE_ARGUMENTS = ("at_time", "every_seconds", "starting")
 REPEAT_PROPERTY: dict[str, dict[str, Any]] = {
     "repeat": {
         "type": "boolean",
@@ -35,9 +38,9 @@ def once_kept(item: ScheduledItem | None, arguments: Mapping[str, Any]) -> str |
     return (
         f"REFUSED: {item.id} is a one-time item, and 'at_time' would make it repeat, every day "
         "or on the days given, so this call was not run. To move it and keep it one time, call "
-        "again with 'at' set to the ISO-8601 date-time of its new due time and no 'at_time' or "
-        "day selector. Only if the person asked for it to repeat, call again with these "
-        "arguments and 'repeat' set to true."
+        "again with 'at' set to the ISO-8601 date-time of its new due time, any 'in_zone' kept, "
+        "and no 'at_time' or day selector. Only if the person asked for it to repeat, call again "
+        "with these arguments and 'repeat' set to true."
     )
 
 
@@ -54,8 +57,16 @@ def raced(item_id: str) -> str:
     return f"{item_id} changed underneath (fired or cancelled); use list_scheduled to re-check"
 
 
+def _has_offset(at: object) -> bool:
+    """Whether ``at`` is an ISO-8601 date-time that names its own UTC offset."""
+    try:
+        return isinstance(at, str) and datetime.fromisoformat(at).tzinfo is not None
+    except ValueError:
+        return False
+
+
 def parse_move(
-    arguments: Mapping[str, Any], *, now: datetime, zone: DisplayZone
+    arguments: Mapping[str, Any], *, now: datetime, zone: DisplayZone, resolve_zone: ZoneResolver
 ) -> tuple[str | None, datetime] | str:
     """The new text, if any, and the new due time of a call with ``at``, or a correction."""
     if has_day_selector(arguments) or any(
@@ -65,7 +76,12 @@ def parse_move(
     text = arguments.get("text")
     if text is not None and (not isinstance(text, str) or not text.strip()):
         return BAD_TEXT
-    due = parse_at(arguments.get("at"), now, zone)
+    own = parse_in_zone(arguments, resolve_zone)
+    if isinstance(own, str):
+        return own
+    if own is not None and _has_offset(arguments.get("at")):
+        return AT_OFFSET_AND_ZONE
+    due = parse_at(arguments.get("at"), now, own or zone)
     if isinstance(due, str):
         return due
     return (text if isinstance(text, str) else None), due

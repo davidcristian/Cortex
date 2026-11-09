@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -11,7 +12,14 @@ from cortex_core import (
     ToolCall,
     TurnStamp,
 )
-from cortex_core.schedule_edit_at import AT_ALONE, REPEAT_PROPERTY, at_repeats, once_kept
+from cortex_core.schedule_edit_at import (
+    AT_ALONE,
+    AT_OFFSET_AND_ZONE,
+    REPEAT_PROPERTY,
+    at_repeats,
+    once_kept,
+)
+from cortex_core.schedule_time import DisplayZone, ZoneContext
 
 _NOW = datetime(2026, 11, 8, 8, 0, tzinfo=UTC)
 
@@ -83,7 +91,6 @@ async def test_at_with_new_text_changes_both() -> None:
         ({"at": "2026-11-11T09:00:00", "at_time": "09:00"}, AT_ALONE),
         ({"at": "2026-11-11T09:00:00", "on_days": ["wed"]}, AT_ALONE),
         ({"at": "2026-11-11T09:00:00", "every_seconds": 0}, AT_ALONE),
-        ({"at": "2026-11-11T09:00:00", "in_zone": "America/New_York"}, AT_ALONE),
         ({"at": "2026-11-11T09:00:00", "text": "  "}, "'text' must be a non-empty string"),
         ({"at": "Wednesday"}, "'at' must be an ISO-8601 date-time, e.g. 2026-07-12T18:00:00"),
     ],
@@ -203,3 +210,65 @@ def test_the_spec_offers_repeat_as_a_boolean() -> None:
     spec = EditScheduledTool(InMemoryScheduleStore(), _FixedClock()).spec
     assert spec.parameters["properties"]["repeat"] == REPEAT_PROPERTY["repeat"]
     assert REPEAT_PROPERTY["repeat"]["type"] == "boolean"
+
+
+class _NewYorkResolver:
+    def resolve(self, name: str) -> DisplayZone | None:
+        return _NEW_YORK if name == "America/New_York" else None
+
+
+_NEW_YORK = DisplayZone(name="America/New_York", tz=ZoneInfo("America/New_York"))
+
+
+async def _zoned_edit(store: InMemoryScheduleStore, **changes: object) -> tuple[str, bool]:
+    tool = EditScheduledTool(store, _FixedClock(), zones=ZoneContext(resolver=_NewYorkResolver()))
+    result = await tool.invoke(_call("edit_scheduled", {"id": "item-1", **changes}))
+    return result.content, result.is_error
+
+
+async def test_at_with_in_zone_moves_a_one_time_item_to_that_zones_wall_clock() -> None:
+    store = InMemoryScheduleStore()
+    await _stored(store, at="2026-11-11T08:00:00")
+    content, is_error = await _zoned_edit(
+        store, at="2026-11-11T09:00:00", in_zone="America/New_York"
+    )
+    assert (content, is_error) == ("edited item-1: now due 2026-11-11T14:00:00+00:00", False)
+    (item,) = await store.list_active()
+    assert (item.due_at, item.rule, item.every) == (
+        datetime(2026, 11, 11, 14, tzinfo=UTC),
+        None,
+        None,
+    )
+
+
+@pytest.mark.parametrize(
+    ("changes", "said"),
+    [
+        ({"at": "2026-11-11T09:00:00-05:00", "in_zone": "America/New_York"}, AT_OFFSET_AND_ZONE),
+        ({"at": "2026-11-11T09:00:00Z", "in_zone": "America/New_York"}, AT_OFFSET_AND_ZONE),
+        (
+            {"at": "2026-11-11T09:00:00", "in_zone": "Mars/Olympus"},
+            "'in_zone' names no known timezone: 'Mars/Olympus'; use an IANA key like "
+            "America/New_York",
+        ),
+        (
+            {"at": "Wednesday", "in_zone": "America/New_York"},
+            "'at' must be an ISO-8601 date-time, e.g. 2026-07-12T18:00:00",
+        ),
+    ],
+)
+async def test_a_zoned_move_with_an_offset_or_an_unknown_zone_is_corrected(
+    changes: dict[str, object], said: str
+) -> None:
+    store = InMemoryScheduleStore()
+    await _stored(store, at="2026-11-11T08:00:00")
+    assert await _zoned_edit(store, **changes) == (said, True)
+    (item,) = await store.list_active()
+    assert item.due_at == datetime(2026, 11, 11, 8, tzinfo=UTC)
+
+
+async def test_an_offset_at_with_no_in_zone_still_moves_the_item() -> None:
+    store = InMemoryScheduleStore()
+    await _stored(store, at="2026-11-11T08:00:00")
+    content, is_error = await _zoned_edit(store, at="2026-11-11T09:00:00-05:00")
+    assert (content, is_error) == ("edited item-1: now due 2026-11-11T14:00:00+00:00", False)
