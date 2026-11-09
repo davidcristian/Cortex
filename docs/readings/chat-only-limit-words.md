@@ -49,3 +49,13 @@ On the stack brain rebuilt from that change, from 05:19:13 to 05:19:52, four dra
 `clocks.max.sm`) called no tool and stored one row each, every one deleted after. This shows the
 change runs; it is no rule row. The record is
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot11/live.jsonl`.
+
+## Second audit probes of keep it in mind, 2026-11-09
+
+Unit calls (`probe3.py`, log `probe3.log` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot13/`).
+`asks_not_kept` reads every request not to keep beside `keep it in mind`: `for now but don't save
+it`, `no need to remember it`, `for this chat only, don't store it`, `but do not keep it in memory`,
+`Don't write it down anywhere`, `but forget it after this chat` and `don't remember it in other
+chats`, so `memory_withheld` stores none of them. `Keep it in mind for now, I'll tell you later
+whether to save it.` asks for no keep and no withhold, and is stored ([task 1094](../refinements/tasks/1094-keep-it-in-mind-for-now-beside-a-later-save-decision-is-stored.md)).

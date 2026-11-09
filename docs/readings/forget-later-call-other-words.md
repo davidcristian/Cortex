@@ -159,3 +159,13 @@ The first three are never stored claims the note no longer followed. The reader 
 so all three are read again and `No other records of it remain.` is still not. A replay of every
 string in `docs/readings/` (28,430) through the reader before and after that change moved only
 these three.
+
+## Second audit probes of the never told reader, 2026-11-09
+
+Unit calls (`probe4.py`, log `probe4.log` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot13/`).
+`says_not_stored` reads `No record of it remains, since you never told me.`, and the forms where a
+later clause says another fact was never told (`and you never told me the shed one`, `; you never
+gave me another code`), which name a fact not stored, so the note is right there. It does not read
+a sentence after the one that says the record is gone (`No record of it remains. You never told me
+anything else.`) or `now that you've told me to forget it`. No defect.

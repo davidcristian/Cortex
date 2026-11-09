@@ -62,6 +62,6 @@ the name (`Forget my do not disturb PIN 7319.`) and a noun the keep verb list ma
 (`replay.log` in the same directory), changed none of 1,766 strings in either condition.
 
 Still open, each filed with its reproduction: `no need to keep the shed one` reads as a keep
-(task 1086); function words such as `den`, `del` or `celui` name rows in the other four languages
-(task 1087); a German negation after the keep verb is not read (task 1088); and `Forget 7319 and
-do not keep the shed one` keeps the bike row, which `Forget 7319.` alone deletes (task 1096).
+([task 1086](../refinements/tasks/1086-a-forget-reads-no-need-to-keep-as-a-request-to-keep.md)); function words such as `den`, `del` or `celui` name rows in the other four languages
+([task 1087](../refinements/tasks/1087-function-words-of-the-other-languages-name-rows-in-a-forget.md)); a German negation after the keep verb is not read ([task 1088](../refinements/tasks/1088-a-german-negation-after-the-keep-verb-reads-as-a-keep.md)); and `Forget 7319 and
+do not keep the shed one` keeps the bike row, which `Forget 7319.` alone deletes ([task 1096](../refinements/tasks/1096-a-forget-of-a-value-beside-do-not-keep-the-other-one-keeps-the-unnamed-rows.md)).

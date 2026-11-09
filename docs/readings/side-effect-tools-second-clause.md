@@ -111,3 +111,13 @@ reads a time before the verb (`at`, `around`, `by` or `before` and a digit, or `
 minutes or hours), after at most two day words, so that message keeps both tools, while `and at 9
 I leave` and `by 2019 paid it off` still refuse both. A replay of every string in `docs/readings/`
 (28,434) through `actions_asked` before and after that change moved none.
+
+## Second audit probes of a time before the verb, 2026-11-09
+
+Unit calls (`probe4.py`, log `probe4.log` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot13/`).
+`actions_asked` reads no action in `and at 10 the cinema opens`, `and at 9 work starts`, `and by 8
+traffic gets bad` or `on Fridays at 9 meetings run long`, and reads `and tomorrow at 6 open the
+windows` and `and every morning at 7 wake me up`. It reads `and tomorrow at 8 coffee with us at
+Luigi's`, a plan rather than a request, as an action, which keeps the tool (the safe side). No
+defect.

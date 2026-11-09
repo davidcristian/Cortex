@@ -68,10 +68,10 @@ than the card's limit hold the value, deleted its listed row and reported a coun
 saying nothing was forgotten got no note. Those results now count their rows (tests in
 `test_forget_count_note.py`). A count of 0 shows no note. Over a reply naming no removal, the count
 and numbers left notes agree and take the message's language, while the kept rows note stays
-English beside them (task 1089). The kept rows note and the count never contradict each other,
+English beside them ([task 1089](../refinements/tasks/1089-the-kept-rows-note-is-english-beside-notes-in-the-message-language.md)). The kept rows note and the count never contradict each other,
 but two other notes do. Over `Done, I've forgotten your bike lock code and kept the shed one.`,
-`UNKEPT_CLAIM_NOTE` says nothing was kept (task 1090), and `NUMBERS_LEFT_NOTE` asks the person
-to forget the number the message asked to keep (task 1091). A store failure after the delete still
-counts nothing (task 1092). `Amintirea a fost ștearsă.` names the removal in a form the reader
-lacks, so a second, Romanian count note follows it (task 1095). A forget turn stores no exchange
+`UNKEPT_CLAIM_NOTE` says nothing was kept ([task 1090](../refinements/tasks/1090-the-unkept-note-follows-a-forget-reply-that-kept-the-fact-asked-to-keep.md)), and `NUMBERS_LEFT_NOTE` asks the person
+to forget the number the message asked to keep ([task 1091](../refinements/tasks/1091-the-numbers-left-note-asks-to-forget-a-number-the-message-asked-to-keep.md)). A store failure after the delete still
+counts nothing ([task 1092](../refinements/tasks/1092-a-store-failure-after-a-forget-deleted-rows-counts-nothing.md)). `Amintirea a fost ștearsă.` names the removal in a form the reader
+lacks, so a second, Romanian count note follows it ([task 1095](../refinements/tasks/1095-a-romanian-removal-in-a-feminine-plural-or-cedilla-form-gets-a-second-count.md)). A forget turn stores no exchange
 row, so none of these notes reaches memory; they stay in the chat's transcript.

@@ -69,3 +69,18 @@ and `'ll repeat` after `it`, `this`, `that`, `which`, `reminder` or `alarm`, bef
 a day or time word, so that reply gets no note, while `It will repeat the question at 8.`, `Should it
 repeat?` and `It will not repeat.` still read as no repeat. A replay of every string in
 `docs/readings/` (28,449) through the reader before and after that change moved only this reply.
+
+## Second audit probes, 2026-11-09
+
+Unit calls (`probe4.py`, log `probe4.log` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot13/`).
+`made_repeating_after` drops its item on a cancel, a daily `at_time` edit and an interval, and keeps it on a
+snooze or a text edit, so no note names a rule the store no longer holds. It adds any edit with
+`repeat`, `at_time` and a day selector, whether or not the item repeated before, so an edit of a
+daily rule that sets `repeat` gets a note saying it now repeats and asking to make it one time
+again ([task 1093](../refinements/tasks/1093-an-edit-that-sets-repeat-on-a-repeating-rule-says-it-now-repeats.md)). Live draws on the stack brain at `e33ba4c8f` (`live1.sh`, SM clock 0.57 of
+`clocks.max.sm`): a daily rule changed to weekdays, and another changed to Mondays and Thursdays,
+each answered with the right rule and no note, so the form set `repeat` in 0 of 2. Near misses of
+`names_repeat`: `I've set it to repeat every Tuesday`, `It is now set to repeat weekly` and `will now
+recur` read as no repeat, so the note shows beside them (the safe side); `It will repeat only
+once` and `It will repeat once more at 15:00 and then stop` read as no repeat, as they should.
