@@ -40,6 +40,7 @@ from cortex_core import (
     unforgotten_claim,
 )
 from cortex_core.brain_phase import BrainPhase
+from cortex_core.forget_unfound_claim import DECLINED_FORGET_NOTE
 
 _AT = datetime(2026, 10, 30, 3, 0, 0, tzinfo=UTC)
 _HELD = "User: Please remember this: my locker code is 7319.\nAssistant: Noted."
@@ -218,7 +219,7 @@ async def test_a_removal_claim_ends_with_the_note_unless_a_forget_call_deleted_a
 
 @pytest.mark.parametrize(
     ("approve", "note", "left"),
-    [(False, UNFORGOTTEN_CLAIM_NOTE, 1), (True, "", 0)],
+    [(False, UNFORGOTTEN_CLAIM_NOTE + DECLINED_FORGET_NOTE, 1), (True, "", 0)],
     ids=["denied", "approved"],
 )
 async def test_a_claim_streamed_before_its_card_ends_with_the_note_when_the_card_is_denied(

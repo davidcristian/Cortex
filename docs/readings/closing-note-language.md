@@ -26,6 +26,7 @@ another language gets no note, the defect.
 | `UNFORGOTTEN_CLAIM_NOTE` | `claims_forgotten` and nothing deleted, or a refused forget and not `claims_kept` or `names_removal` | English | drops, except the refused branch's `claims_kept`, which adds |
 | `NUMBERS_LEFT_NOTE` | numbers left and `says_forgotten` | five | drops |
 | `DELETED_UNFOUND_NOTE` | a delete, an unmatched call and `says_not_stored` | English | drops |
+| `DECLINED_FORGET_NOTE` | a denied forget card and not `names_still_held` | reply English, note five | adds |
 | `UNREAD_FOLDERS_NOTE` | `claims_folders` on an untainted file question | English | drops |
 | `UNSEARCHED_FILES_NOTE` | a claim of searched files with no file call | English | drops |
 

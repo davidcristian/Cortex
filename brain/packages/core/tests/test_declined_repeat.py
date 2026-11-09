@@ -191,3 +191,11 @@ async def test_a_declined_call_whose_result_ends_with_a_note_still_refuses_its_r
     await _run(_RoundsBackend([[_call(1)], [_call(2)]]), context)
     assert len(confirmer.requests) == 1
     assert [record.detail for record in sink.records] == [USER_DECLINED_MSG, ALREADY_DECLINED_MSG]
+
+
+async def test_a_declined_card_of_another_tool_marks_no_declined_forget() -> None:
+    sink, confirmer = RecordingAuditSink(), RecordingConfirmer(answer=False)
+    context = _context(sink, confirmer)
+    await _run(_RoundsBackend([[_call(1)]]), context)
+    assert [record.detail for record in sink.records] == [USER_DECLINED_MSG]
+    assert not context.taint.forget_declined

@@ -227,6 +227,7 @@ async def run_round(
         result = _told(result, refusal, call, context)
         if refusal is None and says_declined(result.content):
             context.declined.append(call)
+            context.taint.forget_declined |= call.name == FORGET_CHOSEN_TOOL_NAME
         if refusal is None and spec is not None:
             yield StepOutcome(tool_name=spec.name, ok=not result.is_error)
         if spec is not None and spec.name == FORGET_UNTRUSTED_TOOL_NAME and not result.is_error:

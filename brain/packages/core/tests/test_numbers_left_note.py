@@ -33,6 +33,7 @@ from cortex_core import (
 )
 from cortex_core.closing_notes import limit_notes
 from cortex_core.forget_count_note import forgot_count_note
+from cortex_core.forget_unfound_claim import DECLINED_FORGET_NOTE
 from cortex_core.numbers_left_claim import (
     NUMBERS_LEFT_NOTE,
     NUMBERS_LEFT_NOTES,
@@ -412,7 +413,8 @@ async def test_a_number_left_by_any_delete_of_the_turn_keeps_the_note(
 ) -> None:
     reply, query = "I've forgotten your door code.", "Forget my door code and 1987."
     shown, left = await _turn((_DOOR, _ONLY_VALUE, _FIAT), rounds, reply, answers, query)
-    assert shown.endswith(reply + NUMBERS_LEFT_NOTE)
+    declined = DECLINED_FORGET_NOTE if False in answers else ""
+    assert shown.endswith(reply + NUMBERS_LEFT_NOTE + declined)
     assert "m1" in left
 
 

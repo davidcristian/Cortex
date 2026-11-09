@@ -128,10 +128,12 @@ async def test_a_record_written_before_the_refused_mark_reads_as_no_refusal() ->
     record = handoff_contract.make_record("t1")
     fields = cast("dict[str, Any]", json.loads(encode_record(record)))
     del fields["forget_refused"]
+    del fields["forget_declined"]
     await client.set("cortex:handoff:t1", json.dumps(fields))
     loaded = await RedisHandoffStore(client).get("t1")
     assert loaded is not None
     assert not loaded.forget_refused
+    assert not loaded.forget_declined
 
 
 async def test_a_record_written_before_the_forget_counts_reads_them_as_zero() -> None:

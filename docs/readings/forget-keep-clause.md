@@ -152,8 +152,8 @@ split into `forget_results.py`, and no exemption names either module. Scripts `p
 One live turn on the stack brain rebuilt with this reader (`Vergiss meinen Türcode, aber behalte
 die Postleitzahl.`, after two chats stored a Postleitzahl row and a Türcode row, both 7319) drew a
 call with the text `Türcode`, so the card listed the door row alone and never reached the value
-path. The card was denied and both rows stayed, and the reply called the Türcode never stored
-(task 1106). The SM clock read 0.57 to 0.58 of its maximum.
+path. The card was denied and both rows stayed, and the reply called the Türcode never stored; a
+reply after a denied forget card ends with `DECLINED_FORGET_NOTE`. The SM clock read 0.57 to 0.58 of its maximum.
 
 ## Whole words to forget beside a keep clause, 2026-11-09
 

@@ -111,9 +111,12 @@ def test_a_snapshot_keeps_a_refused_forget_call_and_the_ledger_restores_it() -> 
     )
     assert slot.refs is not None
     slot.refs.taint.forget_refused = True
+    slot.refs.taint.forget_declined = True
     record = slot.snapshot(turn_id="t1", session_id="s1", requested_at=_AT)
     assert record.forget_refused
+    assert record.forget_declined
     assert record.taint_ledger().forget_refused
+    assert record.taint_ledger().forget_declined
 
 
 def test_a_snapshot_keeps_the_forget_counts_and_the_ledger_restores_them() -> None:

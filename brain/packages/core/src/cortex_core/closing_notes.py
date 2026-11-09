@@ -9,7 +9,13 @@ from cortex_core.events import TurnEvent
 from cortex_core.file_claim import UNREAD_FOLDERS_NOTE, unread_folders_claim
 from cortex_core.forget_claim import UNFORGOTTEN_CLAIM_NOTE, names_removal, unforgotten_claim
 from cortex_core.forget_count_note import forgot_count_note, forgot_note_due
-from cortex_core.forget_unfound_claim import DELETED_UNFOUND_NOTE, unfound_claim
+from cortex_core.forget_unfound_claim import (
+    DECLINED_FORGET_NOTE,
+    DECLINED_FORGET_NOTES,
+    DELETED_UNFOUND_NOTE,
+    declined_note_due,
+    unfound_claim,
+)
 from cortex_core.forget_unnamed import kept_note
 from cortex_core.memory_claim import (
     UNKEPT_CLAIM_NOTE,
@@ -102,6 +108,10 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
         (held, in_language(NUMBERS_LEFT_NOTE, NUMBERS_LEFT_NOTES, language)),
         (bool(taint.forget_kept), kept_note(taint.forget_kept, language)),
         (unfound, DELETED_UNFOUND_NOTE),
+        (
+            declined_note_due(reply, declined=taint.forget_declined),
+            in_language(DECLINED_FORGET_NOTE, DECLINED_FORGET_NOTES, language),
+        ),
         (unread, UNREAD_FOLDERS_NOTE),
         (unsearched, UNSEARCHED_FILES_NOTE),
     ):

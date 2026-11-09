@@ -5,7 +5,22 @@ from collections.abc import Sequence
 
 from cortex_core.conversation import ToolRun
 from cortex_core.forget_claim import deleted_memory
+from cortex_core.numbers_left_claim import names_still_held
 
+DECLINED_FORGET_NOTE = (
+    "\n\n(A forget card for this message was declined, so the remembered exchanges it listed are "
+    "still stored.)"
+)
+DECLINED_FORGET_NOTES = {
+    "fr": "\n\n(Une carte d'oubli pour ce message a été refusée, donc les échanges mémorisés "
+    "qu'elle listait sont toujours enregistrés.)",
+    "de": "\n\n(Eine Karte zum Vergessen für diese Nachricht wurde abgelehnt, daher sind die "
+    "Unterhaltungen, die sie aufgeführt hat, noch gespeichert.)",
+    "es": "\n\n(Una tarjeta de olvido para este mensaje fue rechazada, así que los intercambios "
+    "que mostraba siguen guardados.)",
+    "ro": "\n\n(Un card de uitare pentru acest mesaj a fost refuzat, așa că schimburile memorate "
+    "pe care le arăta sunt încă în memorie.)",
+}
 DELETED_UNFOUND_NOTE = (
     "\n\n(A forget call in this turn deleted remembered exchanges, and another call found no "
     "remembered exchange holding its text. What the reply above calls not stored or not found may "
@@ -43,6 +58,11 @@ def says_not_stored(reply: str) -> bool:
         for sentence in _SENTENCE_END.split(reply)
         for found in _NOT_STORED.finditer(sentence)
     )
+
+
+def declined_note_due(reply: str, *, declined: bool) -> bool:
+    """Whether a ``declined`` forget card kept its rows and ``reply`` does not say they are held."""
+    return declined and not names_still_held(reply)
 
 
 def unfound_claim(runs: Sequence[ToolRun], reply: str, *, unmatched: int) -> bool:
