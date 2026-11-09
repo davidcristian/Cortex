@@ -119,8 +119,11 @@ _REMOVE = re.compile(
     r"\bfrom\s+(?:your\s+(?:memory|memories|notes)|what\s+you\s+(?:know|remember))\b",
     re.IGNORECASE,
 )
+# "Keep it in mind for him" keeps a fact for someone else, and "keep him in mind" weighs a person.
 _REMEMBER = re.compile(
-    rf"{_OPENS}(?:remember(?!{_NOT_TO_KEEP}{_MESSAGE})|keep\s+in\s+mind|{_NOT}\s+forget"
+    rf"{_OPENS}(?:remember(?!{_NOT_TO_KEEP}{_MESSAGE})"
+    r"|keep\s+(?:(?:it|this|that|these)\s+)?in\s+mind(?!\s+for\s+(?:him|her|them)\b)"
+    rf"|{_NOT}\s+forget"
     r"|note(?=\s+(?:that|this|these|those|it|my|mine|down)\b))\b",
     re.IGNORECASE,
 )

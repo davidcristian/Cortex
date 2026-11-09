@@ -287,6 +287,7 @@ REMEMBER_AND_NOT_KEPT = [
     "Remember you must forget it.",
     "Please remember that you need to forget my PIN.",
     "Remember that you have to erase this.",
+    "Keep it in mind, but don't save it.",
 ]
 
 NOTE = ["Note my code 7319.", "Note down my locker number 42.", "Note this down: my bus is at 8."]
@@ -606,6 +607,49 @@ def test_a_request_not_to_keep_the_message_beside_a_request_to_remember_is_read(
 ) -> None:
     assert asks_kept(query)
     assert asks_not_kept(query)
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "My seat on the train is 14C, keep it in mind while we talk.",
+        "Keep it in mind that my seat is 14C.",
+        "Keep that in mind: my seat is 14C.",
+        "Keep this in mind, my seat is 14C.",
+        "My seats are 14C and 14D, keep these in mind.",
+    ],
+)
+def test_keep_it_in_mind_is_a_request_to_remember(query: str) -> None:
+    assert asks_kept(query)
+    assert not asks_not_kept(query)
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "I keep it in mind.",
+        "Do you keep it in mind?",
+        "Don't keep it in mind.",
+        "My seat is 14C, but don't keep it in mind.",
+        "My brother's seat is 14C, keep it in mind for him.",
+        "Keep in mind for her that the shop closes at 9.",
+        "Keep him in mind for the job.",
+        "Tell Anna to keep it in mind.",
+        "Their flight is at 9, keep that in mind for them.",
+    ],
+)
+def test_keep_it_in_mind_as_a_statement_negation_or_for_another_person_is_not(
+    query: str,
+) -> None:
+    assert not asks_kept(query)
+
+
+@pytest.mark.parametrize(
+    "query", ["Don't keep it in mind.", "My PIN is 5521, don't keep it in mind."]
+)
+def test_a_request_not_to_keep_it_in_mind_is_never_stored(query: str) -> None:
+    assert asks_not_kept(query)
+    assert memory_withheld(_caps(), TaintLedger(), (), query=query)
 
 
 @pytest.mark.parametrize("query", [*NOT_KEPT, *DISCARD, *REMEMBER_AND_NOT_KEPT])

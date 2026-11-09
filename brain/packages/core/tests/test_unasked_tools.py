@@ -352,6 +352,7 @@ def test_a_tool_that_calls_sidecar_tools_stays_callable_where_they_do(query: str
         "Remember the address of my new flat.",
         "Remember that my phone number is 0612345678.",
         "Please remember this: my daughter is allergic to peanuts.",
+        "My seat on the train is 14C, keep it in mind while we talk.",
     ],
 )
 def test_a_tool_that_calls_sidecar_tools_is_refused_with_them(query: str) -> None:

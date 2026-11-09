@@ -34,8 +34,12 @@ Memory stored one row in each draw.
 | `as we talk`, `while we talk` or another unread limit | 0 | |
 
 The form occurs in 0 of 8, so under the rule above the reader is left unchanged. In 4 of the 8
-the cortex called `spawn_subagents` and the call ran, because `asks_kept` does not read `keep it
-in mind` as a request to remember, so the brain refused nothing
-([R-1076](../refinements/tasks/1076-keep-it-in-mind-is-not-read-as-a-request-to-remember.md)). The
-record is `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot7/rows1063.jsonl`;
+the cortex called `spawn_subagents` and the call ran, because `asks_kept` did not read `keep it
+in mind` as a request to remember, so the brain refused nothing. The record is `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot7/rows1063.jsonl`;
 every row of the draws was deleted.
+
+`asks_kept` now reads `keep it`, `keep this`, `keep that` and `keep these` before `in mind`, but not
+before `for him`, `for her` or `for them`, so this message refuses `spawn_subagents`,
+`schedule_task` and `set_volume` by name. A replay of every string in `docs/readings/` (28,438)
+through the reader before and after that change moved only this message; the recorded `Please
+remember this: I am vegetarian, so keep that in mind for any recipes.` reads the same.
