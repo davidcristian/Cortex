@@ -114,3 +114,16 @@ auch den Code 7319.`: `Vergiss 7319, behalte aber den vom Schuppen.` drew a `for
 call with the text `7319`, and the card listed the bike row to delete and the shed row under
 `KEPT_LINE`. The card was refused and both rows stayed. The SM clock read 0.57 to 0.63 of
 `clocks.max.sm`. Script `live.sh`, records `live.jsonl` and `live.log` in the same directory.
+
+## A call text that holds no value, 2026-11-09
+
+`unnamed` returned no row when the call's text held no value, before it read the keep clause.
+With the text `bike lock code`, `Forget my bike lock code, keep the shed one.` listed the shed
+row, which holds 7319 and the word `code`, under `Listed because they also hold 7319:`. A row a
+keep clause names is now kept whatever the text holds, while `Forget my bike lock code.` and
+`Forget my bike lock code, keep it.` still list it (tests in `test_forget_keep_clause.py`).
+Replay: the 1,858 recorded forget strings went through the reader before and after over the
+twelve rows above, with the texts `7319`, `code`, `lock code` and `number`, with and without the
+calling chat's row. 174 cases from 29 strings changed, none with the value as the text, and each
+keeps more rows. Script `replay1098.py` and log `replay1098.log` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot17/`.

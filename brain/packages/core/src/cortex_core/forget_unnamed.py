@@ -240,7 +240,7 @@ def unnamed(
     rows, deleted = list(records), list(deleted)
     asked, (words, keep) = _keys(query), _split(query, [*(row.text for row in rows), *deleted])
     values = _keys(text) - asked or _keys(text)
-    if not values or not query.strip():
+    if not query.strip():
         return []
     named = _named(rows, words, deleted)
     every = values <= asked and (not named or _quantifies(query))

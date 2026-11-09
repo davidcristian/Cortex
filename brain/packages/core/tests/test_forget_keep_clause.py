@@ -2,8 +2,16 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from cortex_core import MemoryRecord
-from cortex_core.forget_unnamed import unnamed
+from cortex_core import (
+    FORGET_CHOSEN_TOOL_NAME,
+    GLOBAL_MEMORY_SCOPE,
+    ForgetChosenTool,
+    InMemoryMemoryStore,
+    MemoryRecord,
+    ToolCall,
+)
+from cortex_core.forget_unnamed import KEPT_LINE, unnamed
+from cortex_core.tools import TurnStamp
 
 _AT = datetime(2026, 11, 9, 5, 0, 0, tzinfo=UTC)
 _BIKE = "User: Remember that my bike lock code is 7319.\nAssistant: Noted."
@@ -131,3 +139,41 @@ def test_a_negation_or_keep_word_inside_the_asked_facts_name_names_it(query: str
 )
 def test_a_keep_verb_form_or_a_lead_after_no_naming_word_still_asks_to_keep(query: str) -> None:
     assert _kept(query) == ["shed"]
+
+
+_LOCK = "User: Remember that the shed lock code is also 7319.\nAssistant: Noted."
+
+
+@pytest.mark.parametrize(
+    ("query", "kept"),
+    [
+        ("Forget my bike lock code, keep the shed one.", ["shed"]),
+        ("Oublie le code du bike lock, garde celui du shed.", ["shed"]),
+        ("Forget my bike lock code.", []),
+        ("Forget my bike lock code, keep it.", []),
+        ("Forget my bike lock code, don't keep the shed one either.", []),
+    ],
+)
+def test_a_keep_clause_keeps_its_row_when_the_call_text_holds_no_value(
+    query: str, kept: list[str]
+) -> None:
+    rows = (_record("bike", _BIKE), _record("shed", _LOCK, 1))
+    assert [record.id for record in unnamed(rows, "bike lock code", query)] == kept
+
+
+async def test_a_card_for_words_lists_no_row_its_keep_clause_names() -> None:
+    store = InMemoryMemoryStore()
+    for record in (_record("bike", _BIKE), _record("shed", _LOCK, 1)):
+        await store.add(record)
+    tool = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
+    stamp = TurnStamp(turn_id="t1", query="Forget my bike lock code, keep the shed one.")
+    call = ToolCall(
+        id="c1", name=FORGET_CHOSEN_TOOL_NAME, arguments={"text": "bike lock code"}, stamp=stamp
+    )
+    card = await tool.card(call)
+    assert card is not None
+    lines = card.splitlines()
+    assert (len(lines), lines[2]) == (4, KEPT_LINE)
+    assert ("bike lock" in lines[1], "shed lock" in lines[3]) == (True, True)
+    await tool.invoke(call)
+    assert [hit.record.id for hit in await store.search((1.0, 0.0), k=10)] == ["shed"]

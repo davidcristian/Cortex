@@ -91,18 +91,27 @@ def _call(call_id: str, text: str, query: str) -> ToolCall:
     return ToolCall(id=call_id, name=FORGET_CHOSEN_TOOL_NAME, arguments={"text": text}, stamp=stamp)
 
 
-async def test_a_forget_reports_every_row_it_kept_until_a_later_call_deletes_it() -> None:
+async def _first_then(query: str) -> tuple[str | None, tuple[str, ...] | None]:
     store = InMemoryMemoryStore()
     await store.add(_row("bike", _BIKE, 0))
     await store.add(_row("shed", _SHED, 1))
     tool = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
-    first = _call("c1", "7319", _QUERY)
+    first = _call("c1", "7319", query)
     await tool.card(first)
     kept = await tool.invoke(first)
     assert (kept.spared, kept.kept, kept.forgot) == (_SPARED, (), 1)
-    later = _call("c2", "shed padlock", _QUERY)
-    assert await tool.card(later) is not None
-    assert (await tool.invoke(later)).spared == ()
+    later = _call("c2", "shed padlock", query)
+    card = await tool.card(later)
+    return card, (await tool.invoke(later)).spared
+
+
+async def test_a_forget_reports_every_row_it_kept_until_a_later_call_deletes_it() -> None:
+    card, spared = await _first_then("Forget my bike lock code 7319.")
+    assert (card is not None, spared) == (True, ())
+
+
+async def test_a_later_call_by_words_keeps_the_row_a_keep_clause_names() -> None:
+    assert await _first_then(_QUERY) == (None, _SPARED)
 
 
 async def test_a_forget_that_kept_every_row_reports_them_as_kept_and_spared() -> None:
