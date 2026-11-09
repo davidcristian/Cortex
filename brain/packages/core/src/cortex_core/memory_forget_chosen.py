@@ -16,7 +16,7 @@ from cortex_core.forget_results import (
     unavailable,
     unlisted,
 )
-from cortex_core.forget_unnamed import KEPT_ALL, KEPT_LINE, KeptRows, forgot, unnamed
+from cortex_core.forget_unnamed import KEPT_ALL, KEPT_LINE, KeptRows, asks_to_keep, forgot, unnamed
 from cortex_core.memory import MemoryRecord
 from cortex_core.memory_values import code_runs, digit_runs, value_searches, whole_values
 from cortex_core.ports import MemoryStore
@@ -163,7 +163,7 @@ class ForgetChosenTool:
         return extra
 
     async def _holding(self, call: ToolCall) -> int:
-        """How many remaining memories hold four or more digits a row the turn deleted held."""
+        """How many remaining rows not asked to keep hold four or more digits a deleted row held."""
         deleted = self._deleted_rows.get(call.stamp.turn_id, ())
         runs = {key: form for text in deleted for key, form in code_runs(text).items()}
         holders: set[str] = set()
@@ -173,7 +173,8 @@ class ForgetChosenTool:
                 limit=FORGET_CHOSEN_LIMIT + 1,
                 scopes=self._scope.read_scopes(call.stamp.session_id),
             ):
-                if not runs.keys().isdisjoint(digit_runs(record.text)):
+                held = not runs.keys().isdisjoint(digit_runs(record.text))
+                if held and not asks_to_keep(record.text, call.stamp.query):
                     holders.add(record.id)
         return len(holders)
 

@@ -47,6 +47,7 @@ _EVERY = frozenset(
     _WORD.findall("all every everywhere everything partout tout tous toutes überall alle todas")
 )
 _TOPIC = frozenset({"about", "else", "sur", "über", "sobre"})
+_REST = _EVERY | frozenset({"rest", "reste", "others"})
 _TOKEN = re.compile(r"[^\W_]+|[,;.!?:]")
 _MARKS = frozenset(",;.!?:")
 # Only a keep verb's own forms, since "guardian", "keepsake" or "mantenimiento" can name a fact.
@@ -161,8 +162,8 @@ def _opens_keep(clause: list[str], at: int) -> bool:
     return at + 1 == len(clause) or not _KEEP.fullmatch(clause[at + 1])
 
 
-def _split(query: str) -> tuple[set[str], set[str]]:
-    """The words of ``query`` naming a fact to forget, and those only of a clause asking to keep."""
+def _parts(query: str) -> tuple[list[str], list[str]]:
+    """The tokens of ``query`` outside a clause asking to keep, and those inside one."""
     forget: list[str] = []
     keep: list[str] = []
     for clause in _clauses(query):
@@ -173,10 +174,23 @@ def _split(query: str) -> tuple[set[str], set[str]]:
             elif not keeping:
                 keeping = _opens_keep(clause, at)
             (keep if keeping else forget).append(token)
+    return forget, keep
+
+
+def _split(query: str) -> tuple[set[str], set[str]]:
+    """The words of ``query`` naming a fact to forget, and those only of a clause asking to keep."""
+    forget, keep = _parts(query)
     function = _FUNCTION.get(message_language(query), frozenset())
     named = _words(" ".join(forget), function)
     kept = {word for word in _words(" ".join(keep), function) if not _KEEP.fullmatch(word)}
     return named, kept - named
+
+
+def asks_to_keep(text: str, query: str) -> bool:
+    """Whether a clause of ``query`` asking to keep names a fact of the row ``text``, or all."""
+    return not _REST.isdisjoint(_parts(query)[1]) or not _split(query)[1].isdisjoint(
+        _row_words(text)
+    )
 
 
 def _quantifies(query: str) -> bool:

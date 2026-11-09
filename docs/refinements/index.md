@@ -83,12 +83,12 @@ never a reading of what the tree does now.
 - **[R-1062](tasks/1062-a-correction-of-a-stored-value-says-updated-and-keeps-the-old-row.md)** A correction of a stored value says "updated" and keeps the old row (memory). Its claim was checked against the code on 2026-11-08.
 - **[R-1071](tasks/1071-a-message-in-capitals-gets-the-english-note.md)** A message in capitals gets the English note (memory). Its claim was checked against the code on 2026-11-08.
 - **[R-1090](tasks/1090-the-unkept-note-follows-a-forget-reply-that-kept-the-fact-asked-to-keep.md)** The unkept note follows a forget reply that kept the fact asked to keep (memory). Its claim was checked against the code on 2026-11-09.
-- **[R-1091](tasks/1091-the-numbers-left-note-asks-to-forget-a-number-the-message-asked-to-keep.md)** The numbers left note asks to forget a number the message asked to keep (memory). Its claim was checked against the code on 2026-11-09.
 - **[R-1092](tasks/1092-a-store-failure-after-a-forget-deleted-rows-counts-nothing.md)** A store failure after a forget deleted rows counts nothing (memory). Its claim was checked against the code on 2026-11-09.
 - **[R-1093](tasks/1093-an-edit-that-sets-repeat-on-a-repeating-rule-says-it-now-repeats.md)** An edit that sets repeat on a repeating rule says it now repeats (scheduling). Its claim was checked against the code on 2026-11-09.
 - **[R-1094](tasks/1094-keep-it-in-mind-for-now-beside-a-later-save-decision-is-stored.md)** Keep it in mind for now beside a later save decision is stored (memory). Its claim was checked against the code on 2026-11-09.
 - **[R-1095](tasks/1095-a-romanian-removal-in-a-feminine-plural-or-cedilla-form-gets-a-second-count.md)** A Romanian removal in a feminine, plural or cedilla form gets a second count (memory). Its claim was checked against the code on 2026-11-09.
 - **[R-1097](tasks/1097-a-compound-code-word-names-no-fact-in-a-forget.md)** A compound code word names no fact in a forget (memory). Its claim was checked against the code on 2026-11-09.
+- **[R-1098](tasks/1098-a-forget-by-words-lists-a-row-the-message-asked-to-keep.md)** A forget by words lists a row the message asked to keep (memory). Its claim was checked against the code on 2026-11-09.
 
 ### Actionable, once a port changes (2)
 
@@ -626,11 +626,11 @@ never a reading of what the tree does now.
 - [R-1067](tasks/1067-a-later-forget-with-the-asked-value-and-another-still-runs.md) A later forget with the asked value and another still runs. open, waiting for its trigger.
 - [R-1071](tasks/1071-a-message-in-capitals-gets-the-english-note.md) A message in capitals gets the English note. open, actionable.
 - [R-1090](tasks/1090-the-unkept-note-follows-a-forget-reply-that-kept-the-fact-asked-to-keep.md) The unkept note follows a forget reply that kept the fact asked to keep. open, actionable.
-- [R-1091](tasks/1091-the-numbers-left-note-asks-to-forget-a-number-the-message-asked-to-keep.md) The numbers left note asks to forget a number the message asked to keep. open, actionable.
 - [R-1092](tasks/1092-a-store-failure-after-a-forget-deleted-rows-counts-nothing.md) A store failure after a forget deleted rows counts nothing. open, actionable.
 - [R-1094](tasks/1094-keep-it-in-mind-for-now-beside-a-later-save-decision-is-stored.md) Keep it in mind for now beside a later save decision is stored. open, actionable.
 - [R-1095](tasks/1095-a-romanian-removal-in-a-feminine-plural-or-cedilla-form-gets-a-second-count.md) A Romanian removal in a feminine, plural or cedilla form gets a second count. open, actionable.
 - [R-1097](tasks/1097-a-compound-code-word-names-no-fact-in-a-forget.md) A compound code word names no fact in a forget. open, actionable.
+- [R-1098](tasks/1098-a-forget-by-words-lists-a-row-the-message-asked-to-keep.md) A forget by words lists a row the message asked to keep. open, actionable.
 
 ### orchestrator
 

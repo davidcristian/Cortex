@@ -69,9 +69,22 @@ saying nothing was forgotten got no note. Those results now count their rows (te
 `test_forget_count_note.py`). A count of 0 shows no note. Over a reply naming no removal, the
 count, numbers left and kept rows notes agree and take the message's language (`KEPT_NOTES`,
 tested in `test_forget_just_said.py`). The kept rows note and the count never contradict each other,
-but two other notes do. Over `Done, I've forgotten your bike lock code and kept the shed one.`,
-`UNKEPT_CLAIM_NOTE` says nothing was kept ([task 1090](../refinements/tasks/1090-the-unkept-note-follows-a-forget-reply-that-kept-the-fact-asked-to-keep.md)), and `NUMBERS_LEFT_NOTE` asks the person
-to forget the number the message asked to keep ([task 1091](../refinements/tasks/1091-the-numbers-left-note-asks-to-forget-a-number-the-message-asked-to-keep.md)). A store failure after the delete still
+but another note does. Over `Done, I've forgotten your bike lock code and kept the shed one.`,
+`UNKEPT_CLAIM_NOTE` says nothing was kept ([task 1090](../refinements/tasks/1090-the-unkept-note-follows-a-forget-reply-that-kept-the-fact-asked-to-keep.md)). A store failure after the delete still
 counts nothing ([task 1092](../refinements/tasks/1092-a-store-failure-after-a-forget-deleted-rows-counts-nothing.md)). `Amintirea a fost ștearsă.` names the removal in a form the reader
 lacks, so a second, Romanian count note follows it ([task 1095](../refinements/tasks/1095-a-romanian-removal-in-a-feminine-plural-or-cedilla-form-gets-a-second-count.md)). A forget turn stores no exchange
 row, so none of these notes reaches memory; they stay in the chat's transcript.
+
+## A row the message asked to keep, 2026-11-09
+
+`NUMBERS_LEFT_NOTE` asks the person to forget the number itself, so the count behind it
+(`_holding`) leaves out a row that `asks_to_keep` reads a keep clause of the message naming, and
+every row when that clause holds a word for all or the rest (`everything`, `rest`, `tout`,
+`reste`). A kept row the message did not ask to keep is still counted, so the note shows (tests in
+`test_forget_keep_numbers_left.py`). Of 173 backticked strings in `docs/readings/` holding a forget
+verb, the reader reads a keep in 21: 8 are prose a backtick pair split, 11 are real keep requests,
+and 2 are the forms the keep reader is recorded as declining
+([forget-keep-clause.md](forget-keep-clause.md)), `Forget 7319, no need to keep the shed one.` and
+`Vergiss 7319 und behalte den vom Schuppen auch nicht.`, whose card lists the kept row. Script
+`replay1091.py` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot15/`.
