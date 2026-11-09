@@ -147,3 +147,9 @@ message `den` and `hat` name nothing (task 1104). No moved forget result text ch
 split into `forget_results.py`, and no exemption names either module. Scripts `probe2.py`,
 `probe4.py`, `probe6.py` and log `replay.log` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot18/`.
+
+One live turn on the stack brain rebuilt with this reader (`Vergiss meinen Türcode, aber behalte
+die Postleitzahl.`, after two chats stored a Postleitzahl row and a Türcode row, both 7319) drew a
+call with the text `Türcode`, so the card listed the door row alone and never reached the value
+path. The card was denied and both rows stayed, and the reply called the Türcode never stored
+(task 1106). The SM clock read 0.57 to 0.58 of its maximum.
