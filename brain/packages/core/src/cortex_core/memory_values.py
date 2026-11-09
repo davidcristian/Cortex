@@ -23,6 +23,11 @@ _CODE_WORD = re.compile(
     re.IGNORECASE,
 )
 
+_ANY_KIND = re.compile(
+    r"codes?|numbers?|nummer[ns]?|zahl|num[ée]ros?|n[uú]meros?|c[oó]digos?|cod(?:ul|ului|uri)?"
+    r"|num[aă]r(?:ul|ului)?|combos?",
+    re.IGNORECASE,
+)
 _COMPOUND = re.compile(
     r"([^\W\d_]{3,}?)(?:codes?|nummer\w*|zahl|passwor[dt]s?|kennwort|kombination)", re.IGNORECASE
 )
@@ -70,6 +75,11 @@ def digit_runs(text: str) -> dict[str, str]:
 def code_word(word: str) -> bool:
     """Whether ``word`` names a kind of value, such as a code, a number or a password."""
     return _CODE_WORD.fullmatch(word) is not None
+
+
+def kind_word(word: str) -> bool:
+    """Whether the code word ``word`` names one kind of value, such as ``PIN``, not any code."""
+    return code_word(word) and _ANY_KIND.fullmatch(word) is None
 
 
 def code_stem(word: str) -> str | None:

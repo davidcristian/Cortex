@@ -4,7 +4,7 @@ import re
 from collections.abc import Iterable, Mapping
 
 from cortex_core.memory import MemoryRecord
-from cortex_core.memory_values import code_stem, code_word, digit_runs, whole_values
+from cortex_core.memory_values import code_stem, code_word, digit_runs, kind_word, whole_values
 from cortex_core.note_language import ENGLISH, in_language, message_language
 
 _WORD = re.compile(r"[^\W\d_]{3,}")
@@ -132,16 +132,20 @@ def _stems(text: str) -> set[str]:
     return {stem for word in _WORD.findall(text) if (stem := code_stem(word)) is not None}
 
 
-def _started(text: str, held: set[str]) -> set[str]:
-    """The words of ``held`` that the stem of a compound code word of ``text`` starts."""
-    stems = _stems(text)
-    return {word for word in held if any(word.startswith(stem) for stem in stems)}
+def _kinds(text: str) -> set[str]:
+    """The code words of ``text`` naming one kind of value, such as ``pin`` or ``passcode``."""
+    return {word.lower() for word in _WORD.findall(text) if kind_word(word)}
 
 
 def row_words(text: str) -> set[str]:
     """The words of a stored exchange that can name a fact, with the stems of its compounds."""
     plain = _PREFIX.sub("\n", text)
     return _words(plain) | _stems(plain)
+
+
+def _row_names(text: str) -> set[str]:
+    """The words of a stored exchange a forget part or keep clause can name it by."""
+    return row_words(text) | _kinds(_PREFIX.sub("\n", text))
 
 
 def _named(rows: list[MemoryRecord], words: set[str], deleted: Iterable[str]) -> bool:
@@ -189,23 +193,24 @@ def _parts(query: str) -> tuple[list[str], list[str]]:
     return forget, keep
 
 
-def _split(query: str, texts: Iterable[str] = ()) -> tuple[set[str], set[str]]:
-    """The words of ``query`` naming a fact to forget, and those only of a clause asking to keep.
-
-    A compound code word such as ``doorcode`` also names each word of ``texts`` its stem starts.
+def _split(query: str) -> tuple[set[str], set[str], set[str] | None, bool]:
+    """The words of ``query`` naming a fact to forget, those only of a clause asking to keep, the
+    words naming the rows to delete when a clause asks to keep, and whether it has a compound.
     """
-    forget, keep = (" ".join(tokens) for tokens in _parts(query))
+    forget_tokens, keep_tokens = _parts(query)
+    forget, keep = " ".join(forget_tokens), " ".join(keep_tokens)
     function = _FUNCTION.get(message_language(query), frozenset())
-    held = {word for text in texts for word in row_words(text)}
-    named = _words(forget, function) | _started(forget, held)
-    kept = _words(keep, function) | _started(keep, held)
-    return named, {word for word in kept - named if not _KEEP.fullmatch(word)}
+    named = _words(forget, function) | _stems(forget)
+    kept = _words(keep) | _stems(keep) | _kinds(keep)
+    kept = {word for word in kept - named - _kinds(forget) if not _KEEP.fullmatch(word)}
+    listed = (named or _kinds(forget)) if keep_tokens else None
+    return named, kept, listed, bool(_stems(forget))
 
 
 def asks_to_keep(text: str, query: str) -> bool:
     """Whether a clause of ``query`` asking to keep names a fact of the row ``text``, or all."""
-    return not _REST.isdisjoint(_parts(query)[1]) or not _split(query, (text,))[1].isdisjoint(
-        row_words(text)
+    return not _REST.isdisjoint(_parts(query)[1]) or not _split(query)[1].isdisjoint(
+        _row_names(text)
     )
 
 
@@ -239,28 +244,32 @@ def unnamed(
     deleted: Iterable[str] = (),
     session_id: str | None = None,
 ) -> list[MemoryRecord]:
-    """The ``records`` a clause of ``query`` asks to keep, or whose request holds a value of
-    ``text`` and no other word of ``query``, unless it asks for every row. The newest row
-    ``session_id`` stored is kept only when ``query`` names a fact of the rows or of ``deleted``.
+    """The ``records`` to keep: with a clause asking to keep, each no whole word outside it names
+    or that it names; else each whose request holds a value of ``text`` and no word of ``query``,
+    unless ``query`` asks for every row or names nothing and ``session_id`` stored the newest.
     """
     rows, deleted = list(records), list(deleted)
-    asked, (words, keep) = _keys(query), _split(query, [*(row.text for row in rows), *deleted])
-    values = _keys(text) - asked or _keys(text)
+    words, keep, listed, compound = _split(query)
     if not query.strip():
         return []
-    named = _named(rows, words, deleted)
+    if listed is not None:
+        # A clause asks to keep: delete only a row a whole word names, so a misread keeps it.
+        return [
+            record
+            for record in rows
+            if listed.isdisjoint(names := _row_names(record.text)) or not keep.isdisjoint(names)
+        ]
+    asked, values = _keys(query), _keys(text) - _keys(query) or _keys(text)
+    named = compound or _named(rows, words, deleted)
     every = values <= asked and (not named or _quantifies(query))
     said = None if named else _just_said(rows, session_id)
     return [
         record
         for record in rows
-        if not keep.isdisjoint(row_words(record.text))
-        or (
-            not every
-            and record.id != said
-            and not values.isdisjoint(_keys(record.text.split(_REPLY, 1)[0]))
-            and words.isdisjoint(row_words(record.text))
-        )
+        if not every
+        and record.id != said
+        and not values.isdisjoint(_keys(record.text.split(_REPLY, 1)[0]))
+        and words.isdisjoint(row_words(record.text))
     ]
 
 

@@ -27,7 +27,6 @@ def _kept(query: str) -> list[str]:
     [
         "Forget 7319.",
         "Forget the code 7319.",
-        "Forget my passcode 7319.",
         "Forget my pincode 7319.",
         "Forget the doorbell 7319 code.",
     ],
@@ -36,24 +35,28 @@ def test_a_value_named_by_no_fact_word_asks_for_every_row(query: str) -> None:
     assert _kept(query) == []
 
 
+def test_a_compound_code_word_naming_no_row_keeps_every_row() -> None:
+    assert _kept("Forget my passcode 7319.") == ["door", "rad", "shed"]
+
+
 @pytest.mark.parametrize(
     ("query", "kept"),
     [
         ("Forget the doorcode 7319, keep everything else.", ["rad", "shed"]),
         ("Forget my door code 7319, keep everything else.", ["rad", "shed"]),
-        ("Vergiss den Fahrradcode 7319, alles andere bleibt.", ["door", "shed"]),
-        ("Forget 7319 but keep the doorcode.", ["door"]),
+        ("Vergiss den Fahrradcode 7319, alles andere bleibt.", ["door", "rad", "shed"]),
+        ("Forget 7319 but keep the doorcode.", ["door", "rad", "shed"]),
     ],
 )
-def test_the_stem_of_a_compound_code_word_names_the_rows_it_starts(
+def test_the_stem_of_a_compound_code_word_names_only_the_same_whole_word(
     query: str, kept: list[str]
 ) -> None:
     assert _kept(query) == kept
 
 
-def test_a_keep_clause_naming_a_compound_keeps_the_row_it_starts() -> None:
-    assert asks_to_keep(_ROWS[2][1], "Vergiss 7319, behalte den Fahrradcode.")
-    assert not asks_to_keep(_ROWS[1][1], "Vergiss 7319, behalte den Fahrradcode.")
+def test_a_keep_clause_naming_a_compound_keeps_no_row_the_compound_only_starts() -> None:
+    assert asks_to_keep(_ROWS[0][1], "Forget 7319, keep the doorcode.")
+    assert not asks_to_keep(_ROWS[2][1], "Forget 7319, keep the Fahrradcode.")
 
 
 @pytest.mark.parametrize(
@@ -106,12 +109,12 @@ def _kept_of_compounds(query: str) -> list[str]:
 @pytest.mark.parametrize(
     ("query", "kept"),
     [
-        ("Forget 7319 but keep the Postleitzahl.", ["plz"]),
-        ("Vergiss 7319, behalte den Fahrradcode.", ["rad"]),
+        ("Forget the Fahrradcode 7319 but keep the Postleitzahl.", ["haus", "pass", "pin", "plz"]),
+        ("Vergiss 7319, behalte den Fahrradcode.", ["haus", "pass", "pin", "plz", "rad"]),
         ("Vergiss den Fahrradcode 7319, alles andere bleibt.", ["haus", "pass", "pin", "plz"]),
         ("Vergiss meine Postleitzahl 7319, alles andere bleibt.", ["haus", "pass", "pin", "rad"]),
-        ("Forget 7319 but keep my passport.", []),
-        ("Forget 7319 but keep the pin.", []),
+        ("Forget my passcode 7319 but keep my passport.", ["haus", "pin", "plz", "rad"]),
+        ("Forget my pincode 7319 but keep the pin.", ["haus", "pass", "plz", "rad"]),
     ],
 )
 def test_the_stem_of_a_compound_code_word_in_a_row_names_that_row(

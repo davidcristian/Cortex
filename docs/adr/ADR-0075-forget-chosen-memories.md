@@ -108,11 +108,11 @@ that removes exactly those rows and holds against a turn in flight. This record 
    `all` asks for every row: one within two words of a value (or alone in the clause after
    one), outside a clause asking to keep and not before `about` or `else`, so a closing `that's
    all` keeps the rows. A message naming the value beside a label deleted the second
-   fact in 6 of 8 draws; a message whose words name no stored fact asks for every row. A word of a
-   clause asking to keep (a keep verb form not negated, or a negation that opens the clause or
-   follows `but` with no naming word such as `my` before that) names a fact to keep unless the
-   message also names it outside one, and a matched row it
-   names is kept in every case
+   fact in 6 of 8 draws; a message whose words name no stored fact asks for every row, unless a
+   compound code word such as `passcode` names a fact no row holds. When a clause asks to keep
+   (a keep verb form not negated, or a negation that opens the clause or follows `but` with no
+   naming word such as `my` before that), a matched row is deleted only when a whole word
+   outside the clause names it and no word of the clause does, so a misread keeps the row
    ([readings](../readings/forget-keep-clause.md)). The result
    of that delete says the rows were kept and the value is still remembered, and never that a
    forget of the value would remove them

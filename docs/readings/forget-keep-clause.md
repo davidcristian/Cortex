@@ -27,8 +27,9 @@ other possessives) comes before that word, as in `my do not disturb PIN`. The cl
 that no negation precedes, so `don't forget the shed one` keeps the shed row. A word of such a
 clause, other than the keep verb, names a fact to keep unless the message also names it outside
 one. A matched row naming a fact to keep is listed under `KEPT_LINE` and kept, even beside a word
-to forget or a word for all, and even when it holds the value only in its reply. The other words
-decide the rest as before.
+to forget or a word for all, and even when it holds the value only in its reply. Beside such a
+clause, a matched row is deleted only when a whole word outside it names the row
+([below](#whole-words-to-forget-beside-a-keep-clause-2026-11-09)).
 
 Near misses, each still reading its words as facts to forget: `the not so new shed padlock code`
 (a negation inside a label), `Don't keep my bike lock code 7319.`, `Do not keep ...`,
@@ -140,10 +141,10 @@ no `pincode` row (tests in `test_forget_compound_code.py`). Replay: the 1,874 re
 strings went through the reader before and after over the twelve rows above with the same four
 texts, and no case changed.
 
-Still open: a short stem names unrelated words (`passcode` lists a `passport` row, task 1102);
-a fact named only by a code word such as `PIN` names no row (task 1103); a message in capitals
-reads as English, so German `DEN` names a row (task 1071); and in a mixed German and English
-message `den` and `hat` name nothing (task 1104). No moved forget result text changed in the
+The probes also found a short stem naming unrelated words, a fact named only by a code word such
+as `PIN` naming no row, and a mixed German and English message whose `den` and `hat` named
+nothing, each read by the shape below. Still open: a message in capitals reads as English, so
+German `DEN` names a row (task 1071). No moved forget result text changed in the
 split into `forget_results.py`, and no exemption names either module. Scripts `probe2.py`,
 `probe4.py`, `probe6.py` and log `replay.log` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot18/`.
@@ -153,3 +154,35 @@ die Postleitzahl.`, after two chats stored a Postleitzahl row and a Türcode row
 call with the text `Türcode`, so the card listed the door row alone and never reached the value
 path. The card was denied and both rows stayed, and the reply called the Türcode never stored
 (task 1106). The SM clock read 0.57 to 0.58 of its maximum.
+
+## Whole words to forget beside a keep clause, 2026-11-09
+
+The keep reader was widened six times in one night, and each audit found more word list misses,
+each one listing a row the person asked to keep. Its shape now makes a miss keep the row. When a
+clause asks to keep, a matched row is deleted only when a whole word of the rest of the message
+names it and no word of the clause does. Every other row is kept, on the card under `KEPT_LINE`
+or, when all are kept, in the kept rows note. The part of a compound code word (`code_stem`) names
+only the same whole word or a row's same compound, so `passcode` names no `passport` row,
+`carcode` no `card` row, `doorcode` no `doorbell` row and `Fahrradcode` no `Fahrradschloss` row.
+A code word for one kind of value (`kind_word` in `memory_values.py`: `PIN`, `password`,
+`Postleitzahl`, never `code` or `number`) names a row holding the same word, outside the clause
+only when no other word names one, so `Forget my card PIN 7319, keep everything else.` lists no
+phone `PIN` row. A word of the clause keeps the row it names whatever language the function word
+list picked. Without a keep clause, a compound code word naming no row keeps every row rather
+than asking for every row. The tests are `test_forget_keep_whole_words.py`.
+
+Replay: the 1,888 recorded forget strings went through the reader before and after over seventeen
+rows (the twelve above, plus a passport, card `PIN`, doorbell, Postleitzahl and den row, each
+holding the string's value) with the four texts above, with and without the calling chat's row.
+1,930 cases from 286 strings changed. None keeps fewer rows, and `asks_to_keep` turned no row from
+kept to not kept. 1,922 are beside a keep clause. In `Forget 7319, keep the shed one.`, `Vergiss
+7319, behalte aber den vom Schuppen.` and `Forget it, but keep the shed padlock code.` no word
+outside the clause names a row, so every row is now kept and the reply ends with the kept rows
+note, where before the other rows, or the newest row the calling chat stored, were deleted. With
+the text `code`, `Forget my bike lock code 7319, keep everything else.` listed every row and now
+lists the bike rows alone. The other 8 are `Forget my passcode 7319.` and `Bitte vergiss meine
+Passnummer X4821937.`, which listed the passport row by its start and now keep every row. No draw
+message of the n1, n1v, x6, x7 or f1 flows changed, and neither did `Forget 7319.`. Script
+`replay.py` and log `replay.log` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot19/`.
+No turn was drawn.

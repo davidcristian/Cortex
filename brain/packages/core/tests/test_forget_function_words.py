@@ -42,14 +42,11 @@ def _kept(language: str, query: str) -> list[str]:
 @pytest.mark.parametrize(
     ("language", "query", "kept"),
     [
-        ("de", "Vergiss 7319, behalte den vom Schuppen.", ["other"]),
         ("de", "Vergiss den Code von meinem Fahrradschloss, 7319.", ["other"]),
-        ("es", "Olvida 7319, guarda el del cobertizo.", ["other"]),
         ("es", "Olvida el código del candado de mi bici, 7319, por favor.", ["other"]),
         ("fr", "Oublie celui de mon vélo, 7319.", ["other"]),
         ("fr", "Oublie le code qui est 7319 pour mon vélo.", ["other"]),
         ("ro", "Uită codul care este pentru bicicleta mea, 7319.", ["other"]),
-        ("ro", "Uită 7319, păstrează-l pe cel de la magazie.", ["other"]),
         ("en", "Also, vergiss den bike lock Code 7319.", ["other"]),
     ],
 )
@@ -74,3 +71,17 @@ def test_a_content_word_or_an_english_word_still_names_its_row(
     language: str, query: str, kept: list[str]
 ) -> None:
     assert _kept(language, query) == kept
+
+
+@pytest.mark.parametrize(
+    ("language", "query"),
+    [
+        ("de", "Vergiss 7319, behalte den vom Schuppen."),
+        ("es", "Olvida 7319, guarda el del cobertizo."),
+        ("ro", "Uită 7319, păstrează-l pe cel de la magazie."),
+    ],
+)
+def test_a_keep_clause_beside_a_value_naming_no_fact_keeps_both_rows(
+    language: str, query: str
+) -> None:
+    assert _kept(language, query) == ["bike", "other"]

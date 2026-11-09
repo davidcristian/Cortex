@@ -44,24 +44,33 @@ def _kept(query: str, *rows: MemoryRecord) -> list[str]:
         "Forget my bike lock code 7319 but not the shed one.",
         "Forget my bike lock code, not the shed one.",
         "Forget my bike lock code 7319 and not the shed one.",
-        "Forget 7319, keep the shed one.",
-        "Forget 7319 everywhere, but keep the shed one.",
         "Keep the shed padlock code and forget the bike lock code 7319.",
         "Can you keep the shed one and forget my bike lock code 7319?",
         "Forget my bike lock code 7319, but don't forget the shed one.",
         "Forget my bike lock code 7319, it is not the shed one.",
         "Forget my bike lock code 7319, it's not the shed one.",
         "Oublie le code du bike lock 7319, mais pas celui du shed.",
-        "Oublie 7319, garde celui du shed.",
         "Vergiss den bike lock Code 7319, aber nicht den shed Code.",
-        "Vergiss 7319, behalte den shed Code.",
         "Olvida el código del bike lock 7319, pero no el del shed.",
         "Uită codul de la bike lock 7319, dar nu pe cel de la shed.",
-        "Uită 7319, păstrează codul de la shed.",
     ],
 )
 def test_a_fact_named_only_in_a_clause_asking_to_keep_is_kept(query: str) -> None:
     assert _kept(query) == ["shed"]
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Forget 7319, keep the shed one.",
+        "Forget 7319 everywhere, but keep the shed one.",
+        "Oublie 7319, garde celui du shed.",
+        "Vergiss 7319, behalte den shed Code.",
+        "Uită 7319, păstrează codul de la shed.",
+    ],
+)
+def test_a_keep_clause_beside_a_value_naming_no_fact_keeps_every_row(query: str) -> None:
+    assert _kept(query) == ["bike", "shed"]
 
 
 @pytest.mark.parametrize(
@@ -100,14 +109,14 @@ def test_a_row_named_by_a_keep_clause_and_by_a_word_to_forget_is_kept() -> None:
 
 def test_a_keep_clause_keeps_a_row_holding_the_value_only_in_its_reply() -> None:
     recall = _record("recall", _SHED_RECALL, 2)
-    assert _kept("Forget 7319, keep the shed one.", _TWO[0], recall) == ["recall"]
+    assert _kept("Forget the bike code 7319, keep the shed one.", _TWO[0], recall) == ["recall"]
     assert _kept("Forget 7319.", _TWO[0], recall) == []
 
 
 def test_a_keep_verb_alone_names_no_fact() -> None:
     keeper = _record("keeper", "User: Keep the gate code 7319 handy.\nAssistant: Noted.", 2)
     assert _kept("Forget my bike lock code 7319, keep it.", _TWO[0], keeper) == ["keeper"]
-    assert _kept("Forget 7319, keep it.", _TWO[0], keeper) == []
+    assert _kept("Forget 7319, keep it.", _TWO[0], keeper) == ["bike", "keeper"]
 
 
 @pytest.mark.parametrize(
