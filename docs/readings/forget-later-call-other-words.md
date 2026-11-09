@@ -154,5 +154,8 @@ read. The script is `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740
 | `No records of that remained.` | false | true |
 | `I have no record of that; you never told me.` | true | true |
 
-The first three are never stored claims the note no longer follows, filed as
-[task 1081](../refinements/tasks/1081-no-record-of-it-remains-since-you-never-told-me-gets-no-note.md).
+The first three are never stored claims the note no longer followed. The reader now also reads
+`no record of` in a sentence saying the person never told, gave or mentioned it, whatever follows,
+so all three are read again and `No other records of it remain.` is still not. A replay of every
+string in `docs/readings/` (28,430) through the reader before and after that change moved only
+these three.

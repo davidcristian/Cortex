@@ -61,6 +61,11 @@ NOT_STORED = [
     "I have no other record of your passport number stored.",
     "There are no records of it, so nothing else was removed.",
     "No records of the locker combination were found left in my memory.",
+    "No record of it remains, since you never told me that.",
+    "There is no record of it left, because you never gave it to me.",
+    "No record of it exists because you never mentioned it.",
+    "No other records of it remain, as you didn't tell me about it.",
+    "No record of it is left, since you didn\u2019t give it to me.",
 ]
 
 NEW_NOT_KEPT = [
@@ -92,6 +97,10 @@ NEAR_MISSES = [
     "I've forgotten it, and no records of it are kept now.",
     "I've removed it, so no record of it is left in my memory.",
     "I've deleted the code; no other records of it exist any more.",
+    "No other records of it remain.",
+    "No other records of it remain, and I never told anyone about it.",
+    "No record of it is left, so you never have to tell me again.",
+    "No record of it remains, so did you never tell me?",
 ]
 
 
