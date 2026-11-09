@@ -81,10 +81,10 @@ never a reading of what the tree does now.
 - **[R-1057](tasks/1057-a-romanian-reminder-reply-holds-a-broken-word.md)** A Romanian reminder reply holds a broken word (inference). Its claim was checked against the code on 2026-11-08.
 - **[R-1061](tasks/1061-a-forget-of-what-was-just-said-can-match-nothing-and-say-it-was-never-stored.md)** A forget of what was just said can match nothing and say it was never stored (memory). Its claim was checked against the code on 2026-11-09.
 - **[R-1062](tasks/1062-a-correction-of-a-stored-value-says-updated-and-keeps-the-old-row.md)** A correction of a stored value says "updated" and keeps the old row (memory). Its claim was checked against the code on 2026-11-08.
-- **[R-1063](tasks/1063-the-chat-only-reader-misses-a-limit-with-no-conversation-word.md)** The chat-only reader misses a limit with no conversation word (memory). Its claim was checked against the code on 2026-11-08.
 - **[R-1071](tasks/1071-a-message-in-capitals-gets-the-english-note.md)** A message in capitals gets the English note (memory). Its claim was checked against the code on 2026-11-08.
 - **[R-1073](tasks/1073-a-forget-naming-the-value-can-be-answered-as-an-update.md)** A forget naming the value can be answered as an update (memory). Its claim was checked against the code on 2026-11-09.
 - **[R-1075](tasks/1075-a-french-request-to-remember-that-raises-a-forget-call-keeps-nothing.md)** A French request to remember that raises a forget call keeps nothing (memory). Its claim was checked against the code on 2026-11-09.
+- **[R-1076](tasks/1076-keep-it-in-mind-is-not-read-as-a-request-to-remember.md)** Keep it in mind is not read as a request to remember (memory). Its claim was checked against the code on 2026-11-09.
 
 ### Actionable, once a port changes (2)
 
@@ -619,11 +619,11 @@ never a reading of what the tree does now.
 - [R-1048](tasks/1048-the-numbers-left-count-can-miss-a-holder-behind-a-common-group.md) The numbers left count can miss a holder behind a common group. open, waiting for its trigger.
 - [R-1061](tasks/1061-a-forget-of-what-was-just-said-can-match-nothing-and-say-it-was-never-stored.md) A forget of what was just said can match nothing and say it was never stored. open, actionable.
 - [R-1062](tasks/1062-a-correction-of-a-stored-value-says-updated-and-keeps-the-old-row.md) A correction of a stored value says "updated" and keeps the old row. open, actionable.
-- [R-1063](tasks/1063-the-chat-only-reader-misses-a-limit-with-no-conversation-word.md) The chat-only reader misses a limit with no conversation word. open, actionable.
 - [R-1067](tasks/1067-a-later-forget-with-the-asked-value-and-another-still-runs.md) A later forget with the asked value and another still runs. open, waiting for its trigger.
 - [R-1071](tasks/1071-a-message-in-capitals-gets-the-english-note.md) A message in capitals gets the English note. open, actionable.
 - [R-1073](tasks/1073-a-forget-naming-the-value-can-be-answered-as-an-update.md) A forget naming the value can be answered as an update. open, actionable.
 - [R-1075](tasks/1075-a-french-request-to-remember-that-raises-a-forget-call-keeps-nothing.md) A French request to remember that raises a forget call keeps nothing. open, actionable.
+- [R-1076](tasks/1076-keep-it-in-mind-is-not-read-as-a-request-to-remember.md) Keep it in mind is not read as a request to remember. open, actionable.
 
 ### orchestrator
 

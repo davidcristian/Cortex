@@ -151,9 +151,7 @@ weekly call. Both chats' items were cancelled and their rows deleted.
 At 09:07 the stack brain was rebuilt from the tree holding the `as we continue` form, and c1's
 first turn was drawn twice more (chats `s16-v3`, `s16-v4`, log `flows4.log`). Neither reply used
 `as we continue`: one said "I'll keep that in mind as we talk!", which names no conversation and
-got no note
-([R-1063](../refinements/tasks/1063-the-chat-only-reader-misses-a-limit-with-no-conversation-word.md)),
-and one named no limit. Both rows were deleted.
+got no note ([eight more draws](chat-only-limit-words.md)), and one named no limit. Both rows were deleted.
 
 ## Counts
 
