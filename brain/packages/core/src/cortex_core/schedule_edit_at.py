@@ -85,3 +85,15 @@ def parse_move(
     if isinstance(due, str):
         return due
     return (text if isinstance(text, str) else None), due
+
+
+def with_kept_time(item: ScheduledItem | None, arguments: Mapping[str, Any]) -> Mapping[str, Any]:
+    """The call's arguments, with the item's own wall clock when a day selector names none."""
+    if arguments.get("at_time") is not None or not has_day_selector(arguments):
+        return arguments
+    if item is None or item.rule is None:
+        return arguments
+    kept: dict[str, Any] = {**arguments, "at_time": item.rule.wall_time}
+    if item.rule.zone is not None and arguments.get("in_zone") is None:
+        kept["in_zone"] = item.rule.zone.name
+    return kept

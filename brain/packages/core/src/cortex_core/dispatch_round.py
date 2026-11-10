@@ -15,6 +15,7 @@ from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
 from cortex_core.ports import Clock
 from cortex_core.progress import ProgressSink, hold_wait
 from cortex_core.provenance import SourceKind, as_source
+from cortex_core.schedule_cancelled import cancelled_after
 from cortex_core.schedule_claim import stored_time
 from cortex_core.schedule_daily import daily_after
 from cortex_core.schedule_first_fire import early_first_fire_after
@@ -262,6 +263,7 @@ async def run_round(
             context.taint.early_first_fire,
         )
         context.taint.weekly_stored = weekly_after(call, result, context.taint.weekly_stored)
+        context.taint.cancelled = cancelled_after(result, context.taint.cancelled)
         if call.name == FORGET_CHOSEN_TOOL_NAME:
             _note_forget(context.taint, result)
         context.taint.observe(

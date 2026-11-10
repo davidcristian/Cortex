@@ -111,6 +111,9 @@ class ToolResult:
     forgot: int = 0
     # Set by an edit that ran: whether the item was one time before the edit.
     was_once: bool = False
+    # Set by a cancel that deleted an item: its stored text, or its id when the text is unread or
+    # came from untrusted content.
+    cancelled: str = ""
 
 
 @dataclass(frozen=True, slots=True)

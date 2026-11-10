@@ -70,6 +70,7 @@ class HandoffRecord:
     weekday_off: tuple[tuple[str, str], ...] = ()
     early_first_fire: tuple[tuple[str, str, str], ...] = ()
     weekly_stored: tuple[tuple[str, str], ...] = ()
+    cancelled: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if self.requested_at.tzinfo is None or self.requested_at.utcoffset() is None:
@@ -107,6 +108,7 @@ class HandoffRecord:
             weekday_off=self.weekday_off,
             early_first_fire=self.early_first_fire,
             weekly_stored=self.weekly_stored,
+            cancelled=self.cancelled,
         )
 
 
@@ -191,4 +193,5 @@ class EscalationSlot:
             weekday_off=self.refs.taint.weekday_off,
             early_first_fire=self.refs.taint.early_first_fire,
             weekly_stored=self.refs.taint.weekly_stored,
+            cancelled=self.refs.taint.cancelled,
         )

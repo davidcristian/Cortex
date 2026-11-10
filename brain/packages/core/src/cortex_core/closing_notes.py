@@ -32,6 +32,7 @@ from cortex_core.numbers_left_claim import (
     NUMBERS_LEFT_NOTES,
     numbers_left_claim,
 )
+from cortex_core.schedule_cancelled import cancelled_notes
 from cortex_core.schedule_claim import (
     MONTHLY_STORED_NOTE,
     UNSCHEDULED_CLAIM_NOTE,
@@ -94,11 +95,11 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
     yield from cap_note(stops, parts)
     yield from rounds_note(stops, runs, parts)
     yield from repeat_note(stops, parts)
+    language = message_language(query)
     if claimed:
         yield from append_note(parts, UNSCHEDULED_CLAIM_NOTE)
     if taint.monthly_stored and claims_yearly(reply):
         yield from append_note(parts, MONTHLY_STORED_NOTE)
-    language = message_language(query)
     if taint.stored_time and not names_time_of_day(reply):
         yield from append_note(parts, stored_time_note(taint.stored_time, language))
     if taint.daily_stored and not names_repeat(reply):
@@ -110,6 +111,7 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
     if taint.once_after_weekly:
         yield from append_note(parts, ONCE_STORED_NOTE)
     for note in (
+        *cancelled_notes(made, taint.cancelled, language),
         *quoted_stored_notes(made, query, daily=bool(taint.daily_stored), time=taint.stored_time),
         *(weekday_off_note(day, language) for day in weekday_off_dates(taint.weekday_off)),
         *early_first_fire_notes(taint.early_first_fire),

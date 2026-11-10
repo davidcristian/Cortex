@@ -93,3 +93,13 @@ the task, `Done, your 9:00 reminder now goes off at 9:30.`, has no update verb, 
 under either reader and is filed as
 [R-1135](../refinements/tasks/1135-a-reply-giving-a-reminder-a-new-time-with-no-update-verb-gets-no-note.md).
 The replay is `replay1134.py` in the same scratch directory.
+
+## The cancel note on the stack, 2026-11-11
+
+At 00:30 local, a build of the working tree with `CANCELLED_NOTE` (`schedule_cancelled.py`) ran
+as `cortexn19-brain-s2` through `cortexn19-proxy`, with the SM clock at 0.57 of `clocks.max.sm`.
+Chat `n19s2-a` stored `Remind me every day at 10:00 to water the plants.`, then answered `Cancel
+my plant reminder.` with `list_scheduled` and an approved `cancel_scheduled`. The reply `OK. I've
+cancelled your reminder to water the plants.` closed with the note naming `water the plants`.
+This turn shows the note reaches a reply; it is not a draw of the change form. Scratch log:
+`smoke.log` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot2/`.

@@ -172,6 +172,8 @@ class TaintLedger:
     early_first_fire: tuple[tuple[str, str, str], ...] = ()
     # The item id and weekday names of each rule on chosen weekdays a ``schedule_task`` call stored.
     weekly_stored: tuple[tuple[str, str], ...] = ()
+    # The stored texts of the items the successful ``cancel_scheduled`` calls of this turn deleted.
+    cancelled: tuple[str, ...] = ()
     untrusted_urls: set[str] = field(default_factory=set[str])
     sources: tuple[Provenance, ...] = ()
     # The tainted memories this turn recalled: its record is stored only while they all exist.

@@ -134,6 +134,15 @@ def test_a_snapshot_keeps_the_forget_counts_and_the_ledger_restores_them() -> No
     assert (ledger.forget_asked, ledger.forget_calls, ledger.forget_unmatched) == (True, 3, 2)
 
 
+def test_a_snapshot_keeps_the_texts_of_the_items_a_cancel_deleted() -> None:
+    slot = _slot([], budget=DispatchBudget(), base_len=0)
+    assert slot.refs is not None
+    slot.refs.taint.cancelled = ("water the plants",)
+    record = slot.snapshot(turn_id="t1", session_id="s1", requested_at=_AT)
+    assert record.cancelled == ("water the plants",)
+    assert record.taint_ledger().cancelled == ("water the plants",)
+
+
 def test_a_snapshot_keeps_the_rows_a_forget_kept_for_a_longer_value() -> None:
     slot = _slot([], budget=DispatchBudget(), base_len=0)
     assert slot.refs is not None

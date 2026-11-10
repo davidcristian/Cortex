@@ -1,20 +1,24 @@
 """The ``cancel_scheduled`` / ``snooze_scheduled`` / ``edit_scheduled`` lifecycle verbs."""
 
-from collections.abc import Mapping
 from dataclasses import replace
 from datetime import datetime
-from typing import Any
 
 from cortex_core.errors import ScheduleStoreError
 from cortex_core.ports import Clock, ScheduleStore
-from cortex_core.schedule import ScheduledItem, ScheduleKind, ScheduleStatus
+from cortex_core.schedule import ScheduleKind, ScheduleStatus
 from cortex_core.schedule_args import MIN_EVERY_SECONDS, starting_property
 from cortex_core.schedule_day_args import (
     day_selector_properties,
-    has_day_selector,
     in_zone_property,
 )
-from cortex_core.schedule_edit_at import REPEAT_PROPERTY, at_repeats, once_kept, parse_move, raced
+from cortex_core.schedule_edit_at import (
+    REPEAT_PROPERTY,
+    at_repeats,
+    once_kept,
+    parse_move,
+    raced,
+    with_kept_time,
+)
 from cortex_core.schedule_render import describe_item, effective_zone
 from cortex_core.schedule_time import UTC_DISPLAY, UTC_ZONE_CONTEXT, DisplayZone, ZoneContext
 from cortex_core.schedule_transitions import ScheduleEdit
@@ -45,18 +49,6 @@ def store_down_result(call_id: str, err: ScheduleStoreError) -> ToolResult:
 def error_result(call_id: str, message: str) -> ToolResult:
     """A trusted correction the model can act on (shared with ``schedule_tools``)."""
     return ToolResult(call_id=call_id, content=message, is_error=True, trust=Trust.TRUSTED)
-
-
-def _with_kept_time(item: ScheduledItem | None, arguments: Mapping[str, Any]) -> Mapping[str, Any]:
-    """The call's arguments, with the item's own wall clock when a day selector names none."""
-    if arguments.get("at_time") is not None or not has_day_selector(arguments):
-        return arguments
-    if item is None or item.rule is None:
-        return arguments
-    kept: dict[str, Any] = {**arguments, "at_time": item.rule.wall_time}
-    if item.rule.zone is not None and arguments.get("in_zone") is None:
-        kept["in_zone"] = item.rule.zone.name
-    return kept
 
 
 class CancelScheduledTool:
@@ -100,12 +92,20 @@ class CancelScheduledTool:
         if not isinstance(item_id, str) or not item_id:
             return error_result(call.id, "'id' must be a non-empty string")
         try:
+            item = await self._store.get(item_id)
+        except ScheduleStoreError:
+            # A corrupt record cannot be read and is still cancelled.
+            item = None
+        try:
             cancelled = await self._store.cancel(item_id)
         except ScheduleStoreError as err:
             return store_down_result(call.id, err)
         if not cancelled:
             return error_result(call.id, f"no scheduled item {item_id}")
-        return ToolResult(call_id=call.id, content=f"cancelled {item_id}", trust=Trust.TRUSTED)
+        text = item_id if item is None or item.tainted else item.text
+        return ToolResult(
+            call_id=call.id, content=f"cancelled {item_id}", trust=Trust.TRUSTED, cancelled=text
+        )
 
 
 class SnoozeScheduledTool:
@@ -244,7 +244,7 @@ class EditScheduledTool:
         try:
             before = await self._store.get(item_id)
             refusal = once_kept(before, call.arguments)
-            arguments = _with_kept_time(before, call.arguments)
+            arguments = with_kept_time(before, call.arguments)
             parsed = refusal or parse_edit(
                 arguments, now=self._clock.now(), zone=self._zone, resolve_zone=self._resolve_zone
             )

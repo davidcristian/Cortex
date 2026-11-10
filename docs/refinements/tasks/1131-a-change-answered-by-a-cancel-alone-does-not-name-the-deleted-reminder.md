@@ -1,9 +1,8 @@
 # A change answered by a cancel alone does not name the deleted reminder
 
-**Status:** open, actionable
+**Status:** done 2026-11-11
 **Area:** scheduling
 **Origin:** [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md)
-**Verified:** 2026-11-11
 
 On 2026-11-10 at 06:00 local, chat `s14-e2` on the shared stack (gemma 12B cortex) stored `Remind
 me every day at 10:00 to water the plants.`, then answered `Change my plant reminder to 9:30 every
@@ -32,3 +31,10 @@ not say that the plant reminder was deleted, and a reply that names no update ge
   no change by a cancel alone came and the build was not called for
   ([readings](../../readings/schedule-change-request.md#the-draws-2026-11-11)); the remedy now
   names a note that needs no reader of the message.
+- 2026-11-11: Done. The `cancel_scheduled` result now has `cancelled`, the item's stored
+  text read before the delete (its id for an unreadable or untrusted item), which the ledger and
+  the handoff record keep. `CANCELLED_NOTE` (`schedule_cancelled.py`, in five languages) names
+  each deleted item after a turn where no store, edit or snooze succeeded. The note reads neither
+  the message nor the reply, so a plain cancel gets it too: it is true there, asks for nothing,
+  and names the item the call really deleted when the reply names another. A live cancel on the
+  stack closed with it ([readings](../../readings/schedule-change-request.md#the-cancel-note-on-the-stack-2026-11-11)).

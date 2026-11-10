@@ -86,6 +86,7 @@ def encode_record(record: HandoffRecord) -> str:
             "weekday_off": [list(pair) for pair in record.weekday_off],
             "early_first_fire": [list(each) for each in record.early_first_fire],
             "weekly_stored": [list(pair) for pair in record.weekly_stored],
+            "cancelled": list(record.cancelled),
             "sources": [
                 {"kind": source.kind.value, "value": source.value} for source in record.sources
             ],
@@ -151,6 +152,7 @@ def decode_record(raw: bytes | str, handoff_id: str) -> HandoffRecord:
                 (item, first, when) for item, first, when in fields.get("early_first_fire", ())
             ),
             weekly_stored=tuple((item, days) for item, days in fields.get("weekly_stored", ())),
+            cancelled=tuple(fields.get("cancelled", ())),
         )
     except (KeyError, TypeError, ValueError) as err:
         msg = f"corrupt handoff record at {record_key(handoff_id)!r}"
