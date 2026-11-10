@@ -56,11 +56,11 @@ _SCHEDULED = re.compile(rf"{_DONE}scheduled\b", re.IGNORECASE)
 _SET = re.compile(rf"{_DONE}(?:set|created|added|booked)\b", re.IGNORECASE)
 _MOVED = re.compile(rf"{_DONE}moved\b", re.IGNORECASE)
 _SCHEDULE_NOUN = re.compile(r"\b(?:reminders?|tasks?|alarms?|schedule)\b", re.IGNORECASE)
-# An update of "your alarm code" or "your work schedule" names a fact the person keeps, so an
-# update names the item only when a reminder or alarm ends its phrase.
+# An update of "your alarm code" or "your work schedule" names a fact the person keeps, while
+# "your reminder time" names the reminder.
 _UPDATED_ITEM = re.compile(
-    r"\b(?:reminders?|alarms?)\b"
-    r"(?!\s+(?!(?:to|for|at|on|is|has|was|will|and|from|now)\b)[^\W\d_])",
+    r"\b(?:reminders?|alarms?)\b(?!\s+(?:codes?|pins?|passcodes?|passwords?|numbers?"
+    r"|preferences?|systems?|company)\b)",
     re.IGNORECASE,
 )
 _PRONOUN = re.compile(r"^\W*(?:it|this|that)\b", re.IGNORECASE)

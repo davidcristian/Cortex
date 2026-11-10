@@ -62,6 +62,11 @@ CLAIMS = [
     "Updated your plant reminder to 9:30.",
     "I've updated your morning alarm for 7:00.",
     "Your reminder is ready. It has been moved to 9:30.",
+    "I've updated your reminder time to 9:30.",
+    "I've changed the alarm time to 6:30.",
+    "Your reminder time has been updated to 9:30.",
+    "I've updated the plant reminder message.",
+    "I've moved your alarm settings to 7:00.",
 ]
 
 NOT_CLAIMS = [
@@ -98,6 +103,10 @@ NOT_CLAIMS = [
     "I've changed your task list in memory.",
     "I've moved your task notes to the new file.",
     "Your reminder preference is noted. It has been updated to 9 am.",
+    "I've updated your alarm PIN to 4412.",
+    "Your alarm system password has been changed.",
+    "I've updated your alarm company's number.",
+    "I've updated your reminder preferences: mornings only.",
 ]
 
 
