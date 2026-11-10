@@ -32,6 +32,8 @@ KEEPS_A_STORED_ROW = [
     ("Am șters PIN-ul de la bancă și am salvat codul de la sală.", _RO),
     ("J'ai effacé votre code bancaire et j'ai enregistré votre code de casier.", _FR),
     ("Ich habe den Bankcode gelöscht, aber dein Fahrradcode ist gespeichert.", _DE),
+    ("He borrado tu PIN del banco y he guardado tu código del gimnasio 5521.", _ES),
+    ("J'ai effacé votre code bancaire et j'ai enregistré votre code de casier 44 17.", _FR),
 ]
 CLAIMS_A_NEW_FACT = [
     ("He borrado tu PIN del banco y he guardado tu nuevo código del gimnasio.", _ES),
@@ -41,6 +43,8 @@ CLAIMS_A_NEW_FACT = [
     ("He borrado tu PIN del banco y he guardado tu código del gimnasio.", _EN),
     ("Am șters PIN-ul și am salvat noul cod de la sală.", _RO),
     ("He borrado tu PIN del banco y he guardado tu código del gimnasio.", ()),
+    ("He borrado tu PIN del banco y he guardado tu código del gimnasio 7788.", _ES),
+    ("J'ai effacé votre code bancaire et j'ai enregistré votre code de casier 4418.", _FR),
 ]
 
 
@@ -77,6 +81,14 @@ def test_a_keep_claim_naming_more_than_a_stored_row_keeps_the_note() -> None:
     assert names_spared("OK. I've forgotten your phone number and kept Anna's.", _ANNA_ROW)
     assert not names_spared("I've forgotten your number and kept your new phone.", _ANNA_ROW)
     assert not names_spared("I've forgotten your number and kept Anna's new phone.", _ANNA_ROW)
+
+
+def test_a_keep_claim_naming_a_number_no_stored_row_holds_keeps_the_note() -> None:
+    held = "I've forgotten your phone number and kept Anna's phone 015 123 456 999 in memory."
+    assert names_spared(held, _ANNA_ROW)
+    assert names_spared(held.replace("015 123 456 999", "015123456999"), _ANNA_ROW)
+    assert not names_spared(held.replace("999", "998"), _ANNA_ROW)
+    assert unkept_note_due(_KEEP_ANNA, held.replace("999", "998"), _ANNA_ROW, forget_called=True)
 
 
 def _row(record_id: str, text: str, minutes: int) -> MemoryRecord:

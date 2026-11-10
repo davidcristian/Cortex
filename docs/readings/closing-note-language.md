@@ -218,7 +218,9 @@ clause names (`keep_named`, `forget_keep_named.py`), and `names_spared_other` re
 `claims_kept_other` whose verb keeps or saves (`guardado`, `salvat`, `gespeichert`, `enregistré`),
 taking the words of its clause. Each object word must now be a word of such a row (it was one
 shared word), so `kept your new phone number` beside Anna's row keeps the note. A noted verb, an
-opening `Guardado.`, a new value, and a row stored in another language than the reply keep it too.
+opening `Guardado.`, a new word, a number no such row holds (`kept Anna's phone 015 123 456 998 in
+memory`, `he guardado tu código del gimnasio 7788`, `keeps_held`), and a row stored in another
+language than the reply keep it too.
 
 Every distinct readings string (29,621) was replayed through the old and new `unkept_note_due`
 with six spared sets (none, Anna's row, the shed, gym rows in English, Spanish and Romanian), each

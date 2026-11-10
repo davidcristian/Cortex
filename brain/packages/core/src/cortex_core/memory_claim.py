@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from cortex_core.conversation import ToolRun
 from cortex_core.file_request import asks_files
 from cortex_core.forget_unnamed import row_words
-from cortex_core.memory_claim_other import claims_kept_other, names_spared_other
+from cortex_core.memory_claim_other import claims_kept_other, keeps_held, names_spared_other
 from cortex_core.memory_claim_update import claims_updated
 from cortex_core.memory_forget import FORGET_UNTRUSTED_TOOL_NAME
 from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
@@ -118,12 +118,12 @@ def names_spared(reply: str, spared: Sequence[str]) -> bool:
     held = {word for text in spared for word in _named(text)}
     claims = [sentence for sentence in _SENTENCE_END.split(reply) if claims_kept(sentence)]
     objects = [
-        (verb.group().lower(), _named(_OBJECT_END.split(sentence[verb.end() :])[0]))
+        (verb.group().lower(), _OBJECT_END.split(sentence[verb.end() :])[0])
         for sentence in claims
         for verb in _VERB.finditer(sentence)
     ]
     return bool(objects) and all(
-        verb in _KEEPING and words and words <= held for verb, words in objects
+        verb in _KEEPING and keeps_held(_named(text), text, held, spared) for verb, text in objects
     )
 
 

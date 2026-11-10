@@ -53,6 +53,7 @@ _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
 # Only verbs of keeping or saving, since a fact "noted" in a reply is a new one.
 _KEEPING = re.compile(r"guard|salv|speicher|enregistr", re.IGNORECASE)
 _FUNCTION = frozenset(word for words in FUNCTION.values() for word in words)
+_NUMBER = re.compile(r"\d+(?:[ .\-/]\d+)*")
 
 
 def claims_kept_other(reply: str) -> bool:
@@ -96,11 +97,26 @@ def names_spared_other(reply: str, spared: Sequence[str]) -> bool:
     return (
         bool(objects)
         and not opening
-        and all(_KEEPING.search(verb) and words and words <= held for verb, words in objects)
+        and all(
+            _KEEPING.search(verb) and keeps_held(row_words(text) - _FUNCTION, text, held, spared)
+            for verb, text in objects
+        )
     )
 
 
-def _object(sentence: str, match: re.Match[str]) -> set[str]:
-    """The words naming a fact in the clause of ``sentence`` holding ``match``, without it."""
+def _object(sentence: str, match: re.Match[str]) -> str:
+    """The clause of ``sentence`` holding ``match``, without it."""
     start, end = _clause(sentence, match)
-    return row_words(f"{sentence[start : match.start()]} {sentence[match.end() : end]}") - _FUNCTION
+    return f"{sentence[start : match.start()]} {sentence[match.end() : end]}"
+
+
+def _numbers(text: str) -> set[str]:
+    """The digits of each number ``text`` names, its groups joined."""
+    return {"".join(re.findall(r"\d", match.group())) for match in _NUMBER.finditer(text)}
+
+
+def keeps_held(words: set[str], text: str, held: set[str], spared: Sequence[str]) -> bool:
+    """Whether a keep claim's object ``text`` has ``words``, all in ``held``, and only numbers
+    a row of ``spared`` holds."""
+    numbers = {number for row in spared for number in _numbers(row)}
+    return bool(words) and words <= held and _numbers(text) <= numbers
