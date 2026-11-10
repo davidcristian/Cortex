@@ -182,3 +182,25 @@ words (`VERGISS BITTE DEN TÜRCODE 7319, ALLES ANDERE BLEIBT.`) now reads as Ger
 no longer names the den row; with one (`VERGISS DEN TÜRCODE 7319, ...`) it still reads as English
 (task 1108). Scripts `replay1071.py`, `probe2.py` and log `replay1071.log` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot1/`.
+
+## A keep claim in four other languages, 2026-11-10
+
+`claims_kept_other` (`memory_claim_other.py`) reads a keep claim in French, German, Spanish and
+Romanian: `c'est noté`, `j'ai bien noté`, `je m'en souviendrai`, `ich habe mir das gemerkt`, `das
+ist gespeichert`, `lo recordaré`, `queda anotado`, `am reținut`, `voi ține minte`, and an opening
+`Noté`, `Notiert`, `Anotado` or `Notat` on the reply's first line. A question, a claim after a
+condition word (`si`, `wenn`, `falls`, `cuando`, `dacă`) and a claim whose clause holds a negation
+claim nothing, and a negation in another clause (`Pas de souci, c'est noté.`) does not count.
+`unkept_note_due` reads it beside `claims_kept`, so `UNKEPT_CLAIM_NOTE` shows on such a reply on a
+turn that stores nothing; `claims_kept` itself is unchanged, so the refused forget branch of
+`UNFORGOTTEN_CLAIM_NOTE` and `names_spared` read English only. The near misses were written first:
+the same verbs in a question, a condition and a negation in each language, plus `Ich merke mir
+Namen schlecht.` and English `Note my code 7319.`. Every distinct readings string (29,123) was
+replayed through the old reader (`claims_kept`) and the new one (either reader): 71 claims became
+81, none was lost, and the 10 added are the recorded French, German and Spanish replies
+(`D'accord, j'ai bien noté votre rappel [...]`, `Je m'en souviendrai pour la suite de notre
+conversation`, `C'est noté, je retiens [...]`, `Notiert.`, `Entendido, lo recordaré.`) written in
+several lines, and one prose fragment. No English string was added. The note stays English under
+such a reply: `UNKEPT_CLAIM_NOTE` has no translations, and a wording in another language is a pick.
+Script `replay1049.py` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot2/`.

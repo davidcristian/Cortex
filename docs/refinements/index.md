@@ -77,7 +77,7 @@ never a reading of what the tree does now.
 - **[R-999](tasks/999-a-note-the-brain-appends-is-english-under-a-reply-in-another-language.md)** A note the brain appends is English under a reply in another language (cross-cutting). Its claim was checked against the code on 2026-11-08.
 - **[R-1004](tasks/1004-a-french-reply-can-hold-a-chinese-word.md)** A French reply can hold a Chinese word (inference). Its claim was checked against the code on 2026-11-07.
 - **[R-1005](tasks/1005-a-recall-question-that-finds-no-value-loops-in-its-thinking.md)** A recall question that finds no value loops in its thinking (inference). Its claim was checked against the code on 2026-11-07.
-- **[R-1049](tasks/1049-a-false-claim-in-another-language-gets-no-closing-note.md)** A false claim in another language gets no closing note (cross-cutting). Its claim was checked against the code on 2026-11-08.
+- **[R-1049](tasks/1049-a-false-claim-in-another-language-gets-no-closing-note.md)** A false claim in another language gets no closing note (cross-cutting). Its claim was checked against the code on 2026-11-10.
 - **[R-1057](tasks/1057-a-romanian-reminder-reply-holds-a-broken-word.md)** A Romanian reminder reply holds a broken word (inference). Its claim was checked against the code on 2026-11-08.
 - **[R-1061](tasks/1061-a-forget-of-what-was-just-said-can-match-nothing-and-say-it-was-never-stored.md)** A forget of what was just said can match nothing and say it was never stored (memory). Its claim was checked against the code on 2026-11-09.
 - **[R-1062](tasks/1062-a-correction-of-a-stored-value-says-updated-and-keeps-the-old-row.md)** A correction of a stored value says "updated" and keeps the old row (memory). Its claim was checked against the code on 2026-11-08.

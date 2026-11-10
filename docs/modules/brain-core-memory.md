@@ -143,7 +143,7 @@ pool down to the hits one turn sees. The turn that calls it is in
   returns on it, and `limit_notes` (`closing_notes.py`) reads it over the same runs and appends
   `UNKEPT_CLAIM_NOTE` when `unkept_note_due(query, reply)` holds: `asks_kept(query)` reads a request to
   remember and `asks_not_kept(query)` does not, or `asks_kept` reads one clause of a statement of the message, not a question, that `asks_not_kept` does not (a clause ends at a comma, a semicolon or a joining word such as `and` or `und`, and a request with no object, `Remember,`, is read with the next clause), whatever the reply says, since "I've updated that"
-  is also what a reply says after a file edit. It also holds when `claims_kept(reply)` finds a statement, not a question, saying something
+  is also what a reply says after a file edit. It also holds when `claims_kept_other(reply)` (`memory_claim_other.py`) reads such a claim in French, German, Spanish or Romanian outside a question, a condition and a negated clause, or when `claims_kept(reply)` finds a statement, not a question, saying something
   was noted, remembered, made a note of, or kept or saved "in mind" or "in memory" (also after
   "I'll make sure to"), or that "my
   records" or "your information" were updated, or "your phone number" updated to a value, alone or
