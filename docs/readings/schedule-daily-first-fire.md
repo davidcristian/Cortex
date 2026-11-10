@@ -75,10 +75,8 @@ refuses and changes nothing. The form came in 5 of 12 R draws on the second buil
 1 of 4, R3 0 of 4) and 0 of 2 controls; on the first build 3 of 12 daily and 2 one time today. The
 replaced item's form, one time made from a repeat by an interval edit, came in 0 of 14 second
 build draws and is checked by unit tests. Three findings followed: br2-4's weekly rule for one
-time tomorrow showed no note
-([R-1125](../refinements/tasks/1125-a-one-time-request-for-tomorrow-stored-weekly-shows-no-note.md)),
-r1-3 stored one time today by a path with no log (counted below), and the note is English under
-a French reply
+time tomorrow showed no note (built below), r1-3 stored one time today by a path with no log
+(counted below), and the note is English under a French reply
 ([R-1124](../refinements/tasks/1124-the-first-fire-note-is-english-in-every-language.md)). br3-4
 claimed a reminder with no call and `UNSCHEDULED_CLAIM_NOTE` showed.
 
@@ -109,3 +107,40 @@ one time today by the edit path r1-1 showed, which `FIRST_FIRE_NOTE` names. The 
 declined. Rows `rows1.jsonl` and the brain log `brain1.log` are in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot15/`;
 every `s15-*` item was deleted.
+
+## A rule on chosen days for one time tomorrow, 2026-11-10
+
+br2-4 stored `at_time` 09:00 with `on_days` `["wed"]` for a message asking for one time tomorrow,
+and its reply said only tomorrow at 9:00. `DAILY_STORED_NOTE` reads daily items only, and the
+item first fires on the named day, so no note showed. The build appends a note naming the days
+after a `schedule_task` store with `on_days` short of every day, unless a sentence of the reply
+states a repeat; the message is not read, so a weekly request whose reply says only the day also
+shows it. Nothing is refused or rewritten. Its safe direction is to show.
+
+**Rule, written before the build and any draw.** Unit tests first, as near misses: replies saying
+`every Wednesday`, `on Wednesdays`, `each week` and `a weekly reminder` (no note); `the weekly
+report` as the reminder's text, a question and a negation (the note); a one-time `at` store for
+Wednesday, which is tomorrow (no note); `on_days` naming all seven days (the daily note only); a
+cancel or a rule edit of the item in the same turn (no note). Live rows on the stack brain rebuilt
+from the build, one new chat per draw, model time capped at 10 minutes: R2 eight times and
+`Remind me every Wednesday at 9 to move the car.` (C2) twice. The build ships only if every draw
+storing a rule on chosen days whose reply states no repeat ends with the note naming its days, no
+draw storing a one-time or daily item or stating the repeat shows it, and every stored item is what the turn's calls
+asked for. **The form**, R2 storing a rule on chosen days, is counted apart, so the build ships
+even if it does not come.
+
+**Results.** Chats `s15-r2-*` and `s15-c2-*` on the stack brain rebuilt from the build (06:12 to
+06:14 local), SM clock 0.57 of `clocks.max.sm`, calls from the brain's `tool.invocation` lines:
+
+| Row | Rule on chosen days | Daily made one time, today | Once, tomorrow | Weekly note |
+| --- | --- | --- | --- | --- |
+| R2, 8 draws | 0 | 2 (r2-5, r2-8), `FIRST_FIRE_NOTE` 2 of 2 | 6 | 0 of 8 |
+| C2, 2 draws | 2 (`["wed"]`, replies say `every Wednesday`) | 0 | 0 | 0 of 2 |
+
+The rule passes: no one-time or daily item and no reply stating the repeat showed the note, and
+each stored item is what the turn's `schedule_task` and `edit_scheduled` calls asked for. The
+form came in 0 of 8 R2 draws and is checked by unit tests. Replayed through the reply reader with
+and without the weekly patterns, 349 distinct draw replies from tonight's and last night's slots
+read differently in 4, each stating a weekly repeat (`every Thursday`, `every Wednesday`, `every
+weekday`, `every Monday and Thursday`). Rows `rows2.jsonl`, the brain log `brain2.log`,
+`replay.py` and `mut.py` are in the slot directory above; every `s15-*` row and item was deleted.

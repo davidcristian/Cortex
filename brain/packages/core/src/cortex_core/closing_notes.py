@@ -45,6 +45,7 @@ from cortex_core.schedule_first_fire import early_first_fire_notes
 from cortex_core.schedule_made_repeating import MADE_REPEATING_NOTE, MADE_REPEATING_NOTES
 from cortex_core.schedule_weekday import weekday_off_dates, weekday_off_note
 from cortex_core.schedule_weekly import ONCE_STORED_NOTE
+from cortex_core.schedule_weekly_stored import weekly_stored_notes
 from cortex_core.stops import StopLedger
 from cortex_core.turn_context import TurnCapabilities
 from cortex_core.turn_output import append_note, cap_note, repeat_note, rounds_note
@@ -110,6 +111,7 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
     for note in (
         *(weekday_off_note(day, language) for day in weekday_off_dates(taint.weekday_off)),
         *early_first_fire_notes(taint.early_first_fire),
+        *weekly_stored_notes(taint.weekly_stored, reply),
     ):
         yield from append_note(parts, note)
     for due, note in (

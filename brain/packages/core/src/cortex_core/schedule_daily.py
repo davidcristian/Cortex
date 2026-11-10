@@ -39,14 +39,14 @@ _REPEATS = re.compile(
 )
 # An adjective such as "daily" may describe the reminder's own text ("your daily vitamins"), so it
 # names a repeat only within two words of a word for the reminder or for reminding.
-_REMINDER = (
+REMINDER_WORD = (
     r"(?:remind\w*|alarm\w*|erinner\w*|rappel\w*|recordar\w*|recordatori\w*|recuerd\w*"
     r"|aminti\w*|amintesc|memento\w*)"
 )
 _DAILY_WORD = r"(?:daily|täglich\w*|quotidien\w*|diari(?:o|a|amente)|zilnic\w*)"
 _DAILY_BESIDE = re.compile(
-    rf"\b{_REMINDER}\S*\s+(?:\S+\s+){{0,2}}{_DAILY_WORD}\b"
-    rf"|\b{_DAILY_WORD}\S*\s+(?:\S+\s+){{0,2}}{_REMINDER}",
+    rf"\b{REMINDER_WORD}\S*\s+(?:\S+\s+){{0,2}}{_DAILY_WORD}\b"
+    rf"|\b{_DAILY_WORD}\S*\s+(?:\S+\s+){{0,2}}{REMINDER_WORD}",
     re.IGNORECASE,
 )
 # A condition or an offer anywhere in a sentence makes its repeat a choice rather than the fact.
@@ -84,14 +84,14 @@ _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
 _CLAUSE_END = re.compile(r"[,;]")
 
 
-def _states_repeat(sentence: str) -> bool:
+def _states_repeat(sentence: str, also: tuple[re.Pattern[str], ...]) -> bool:
     """Whether ``sentence`` states a repeat, rather than asking, offering or negating one."""
     told = _ASIDE.sub("", sentence)
     if "?" in sentence or _CHOICE.search(told) is not None:
         return False
     return any(
         _NEGATION.search(clause) is None
-        and (_REPEATS.search(head) is not None or _DAILY_BESIDE.search(head) is not None)
+        and any(each.search(head) is not None for each in (_REPEATS, _DAILY_BESIDE, *also))
         for clause in _CLAUSE_END.split(told)
         for head in (_head(clause),)
     )
@@ -103,9 +103,12 @@ def _head(clause: str) -> str:
     return clause if own is None else clause[: own.start()]
 
 
-def names_repeat(reply: str) -> bool:
-    """Whether a statement in ``reply`` says something repeats, in one of five languages."""
-    return any(_states_repeat(sentence) for sentence in _SENTENCE_END.split(reply))
+def names_repeat(reply: str, also: tuple[re.Pattern[str], ...] = ()) -> bool:
+    """Whether a statement in ``reply`` says something repeats, in one of five languages.
+
+    Each pattern in ``also`` names a repeat too, read with the same question and negation rules.
+    """
+    return any(_states_repeat(sentence, also) for sentence in _SENTENCE_END.split(reply))
 
 
 def daily_after(call: ToolCall, result: ToolResult, held: tuple[str, ...]) -> tuple[str, ...]:

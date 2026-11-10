@@ -24,6 +24,7 @@ from cortex_core.schedule_offset import offset_date_wrong, offset_refusal
 from cortex_core.schedule_time import UTC_DISPLAY, DisplayZone
 from cortex_core.schedule_weekday import weekday_off_after
 from cortex_core.schedule_weekly import stores_once, weekly_refusal, weekly_unasked
+from cortex_core.schedule_weekly_stored import weekly_after
 from cortex_core.schedule_yearly import monthly_for_yearly, same_month_days, stores_monthly
 from cortex_core.stops import StopLedger
 from cortex_core.tool_budget import DispatchBudget
@@ -260,6 +261,7 @@ async def run_round(
             context.zone.tz,
             context.taint.early_first_fire,
         )
+        context.taint.weekly_stored = weekly_after(call, result, context.taint.weekly_stored)
         if call.name == FORGET_CHOSEN_TOOL_NAME:
             _note_forget(context.taint, result)
         context.taint.observe(

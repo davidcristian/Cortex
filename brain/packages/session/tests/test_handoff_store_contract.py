@@ -224,6 +224,7 @@ async def test_a_record_written_before_the_file_and_monthly_marks_reads_as_neith
     del fields["once_after_weekly"]
     del fields["weekday_off"]
     del fields["early_first_fire"]
+    del fields["weekly_stored"]
     await client.set("cortex:handoff:t1", json.dumps(fields))
     loaded = await RedisHandoffStore(client).get("t1")
     assert loaded is not None
@@ -233,6 +234,7 @@ async def test_a_record_written_before_the_file_and_monthly_marks_reads_as_neith
     assert not loaded.once_after_weekly
     assert loaded.weekday_off == ()
     assert loaded.early_first_fire == ()
+    assert loaded.weekly_stored == ()
 
 
 async def test_a_record_keeps_the_ids_its_turn_stored_to_repeat_daily() -> None:
@@ -287,6 +289,15 @@ async def test_a_record_keeps_each_item_a_day_off_the_named_weekday_and_its_date
     loaded = await store.get("t1")
     assert loaded is not None
     assert loaded.weekday_off == held
+
+
+async def test_a_record_keeps_each_rule_on_chosen_weekdays_and_its_days() -> None:
+    store = RedisHandoffStore(FakeAsyncRedis(server=FakeServer()))
+    held = (("abc", "Wednesday"),)
+    await store.put(replace(handoff_contract.make_record("t1"), weekly_stored=held))
+    loaded = await store.get("t1")
+    assert loaded is not None
+    assert loaded.weekly_stored == held
 
 
 async def test_a_record_keeps_each_repeat_first_firing_before_the_named_day() -> None:
