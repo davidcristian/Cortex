@@ -71,7 +71,7 @@ that removes exactly those rows and holds against a turn in flight. This record 
    text named, the store unavailable, more than 20 matches, no match) shows no card: `card` returns
    `None`, and the dispatcher then asks nothing and runs the call at once, so the model reads why
    nothing was deleted. Such a card asked the person to approve the forget of a fact they had just
-   asked to keep ([readings](../readings/forget-that-deletes-nothing.md)). The tool keeps the ids it
+   asked to keep ([readings](../readings/forget-that-deletes-nothing.md)). When a call matched nothing and no forget of the turn removed a row, the brain appends `UNMATCHED_FORGET_NOTE` after the reply, whatever it says, because the no-match result tells the model to say nothing was stored, which is false when a row states the fact in other words; the note states only what is true, so it needs no reader of the reply and no guess of what the person meant ([readings](../readings/forget-matched-nothing-note.md)). The tool keeps the ids it
    listed under the call's id, and `invoke` deletes exactly those, so a row written after the card
    was shown is never deleted unseen. The ids live in the brain process only between the card and
    the answer to it, the same span the dispatcher holds the call. After the delete it searches again

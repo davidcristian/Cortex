@@ -15,6 +15,7 @@ from cortex_core import (
     TurnCapabilities,
 )
 from cortex_core.closing_notes import limit_notes
+from cortex_core.forget_unfound_claim import UNMATCHED_FORGET_NOTE
 from cortex_core.memory_claim import unkept_note_due
 from cortex_core.stops import StopLedger
 
@@ -81,18 +82,21 @@ def test_each_way_a_request_to_remember_stays_out_of_memory_shows_the_note(
     ("taint", "runs", "query"),
     [
         (TaintLedger(), (), _PLAIN),
-        (_forget(unmatched=1), (_DELETED,), _PLAIN),
         (TaintLedger(tainted=True), (_READ,), "What does notes.txt say?"),
         (_forget(), (_DELETED,), "Forget my old phone number."),
         (TaintLedger(), (), "Don't save this: my PIN is 5521."),
         (TaintLedger(), (), "Which folders can you read?"),
     ],
-    ids=["stored", "unmatched", "file", "forget", "not-kept", "folders"],
+    ids=["stored", "file", "forget", "not-kept", "folders"],
 )
 def test_a_silent_reply_shows_no_note_when_the_turn_is_stored_or_was_not_asked_to_keep(
     *, taint: TaintLedger, runs: tuple[ToolRun, ...], query: str
 ) -> None:
     assert _shown(taint, runs, query) == _REPLY
+
+
+def test_a_stored_turn_whose_forget_matched_nothing_shows_only_the_unmatched_note() -> None:
+    assert _shown(_forget(unmatched=1), (_DELETED,), _PLAIN) == _REPLY + UNMATCHED_FORGET_NOTE
 
 
 def test_a_turn_without_memory_shows_no_note_on_a_request_to_remember() -> None:

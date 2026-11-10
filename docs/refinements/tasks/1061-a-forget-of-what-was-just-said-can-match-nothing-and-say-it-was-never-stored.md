@@ -1,9 +1,8 @@
 # A forget of what was just said can match nothing and say it was never stored
 
-**Status:** open, actionable
+**Status:** done 2026-11-10
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-09
 
 Flow x7 of [the readings](../../readings/overlay-corrections-flows.md), one chat, every card
 approved: `Mein Fahrradschloss hat den Code 2468, merk dir das.` was stored as an exchange row, and
@@ -42,3 +41,9 @@ from the previous turn. One draw is not a rate.
   de mon cadenas de vélo`, and the reply said nothing about the lock was stored
   ([readings](../../readings/forget-what-was-just-said.md#the-draws-of-the-start-hash-and-the-candidate-2026-11-09)).
   Its call names no number, so the held value note does not reach it.
+- 2026-11-10: done. `UNMATCHED_FORGET_NOTE` (`forget_unfound_claim.py`) now follows every turn
+  whose forget matched nothing and removed no row, saying nothing was deleted and that an
+  exchange stating the fact in other words is still stored. It reads no reply, so the German
+  and French replies get it, and it needs no number in the call text. A unit test runs the x7
+  call against its row; all 7 live turns that reached the note on purpose ended with it, and
+  the 3 x7 draws deleted the row and had none ([readings](../../readings/forget-matched-nothing-note.md)). The result text is [R-1109](1109-the-no-match-forget-result-tells-the-model-to-say-nothing-was-stored.md).

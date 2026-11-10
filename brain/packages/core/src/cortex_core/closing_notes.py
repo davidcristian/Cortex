@@ -13,8 +13,10 @@ from cortex_core.forget_unfound_claim import (
     DECLINED_FORGET_NOTE,
     DECLINED_FORGET_NOTES,
     DELETED_UNFOUND_NOTE,
+    UNMATCHED_FORGET_NOTE,
     declined_note_due,
     unfound_claim,
+    unmatched_note_due,
 )
 from cortex_core.forget_unnamed import kept_note
 from cortex_core.memory_claim import (
@@ -76,6 +78,9 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
         taint.forget_refused and (not claims_kept(reply) or names_removal(reply))
     )
     unfound = unfound_claim(made, reply, unmatched=taint.forget_unmatched)
+    missed = unmatched_note_due(
+        made, unmatched=taint.forget_unmatched, deleted=taint.forget_deleted
+    )
     counted = forgot_note_due(taint.forget_deleted, reply) and not unfound
     held = numbers_left_claim(reply, left=taint.forget_numbers_left, counted=counted)
     unread = unread_folders_claim(taint, query, reply)
@@ -108,6 +113,7 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
         (held, in_language(NUMBERS_LEFT_NOTE, NUMBERS_LEFT_NOTES, language)),
         (bool(taint.forget_kept), kept_note(taint.forget_kept, language)),
         (unfound, DELETED_UNFOUND_NOTE),
+        (missed, UNMATCHED_FORGET_NOTE),
         (
             declined_note_due(reply, declined=taint.forget_declined),
             in_language(DECLINED_FORGET_NOTE, DECLINED_FORGET_NOTES, language),

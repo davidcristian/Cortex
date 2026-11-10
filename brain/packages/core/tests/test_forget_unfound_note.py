@@ -5,6 +5,7 @@ import pytest
 
 from cortex_core import (
     FORGET_CHOSEN_TOOL_NAME,
+    FORGET_UNTRUSTED_TOOL_NAME,
     GLOBAL_MEMORY_SCOPE,
     CompositeToolRegistry,
     DispatchPolicy,
@@ -31,7 +32,13 @@ from cortex_core import (
 )
 from cortex_core.closing_notes import limit_notes
 from cortex_core.conversation import ToolRun
-from cortex_core.forget_unfound_claim import DELETED_UNFOUND_NOTE, says_not_stored, unfound_claim
+from cortex_core.forget_unfound_claim import (
+    DELETED_UNFOUND_NOTE,
+    UNMATCHED_FORGET_NOTE,
+    says_not_stored,
+    unfound_claim,
+    unmatched_note_due,
+)
 from cortex_core.stops import StopLedger
 from cortex_core.tools import ConfirmAnswer, ConfirmationRequest
 
@@ -46,6 +53,13 @@ _LK3 = (
     "combination\" entries saved, but I've ensured that information is cleared."
 )
 _RUN = ToolRun(FORGET_CHOSEN_TOOL_NAME, ok=True)
+_KEPT_RUN = ToolRun(FORGET_CHOSEN_TOOL_NAME, ok=False)
+_BIKE = "User: Mein Fahrradschloss hat den Code 2468, merk dir das.\nAssistant: Notiert."
+_NEVER_KEPT = (
+    "Ich habe festgestellt, dass ich mir diese Information ohnehin nicht dauerhaft gespeichert "
+    "hatte, daher ist nichts gel\u00f6scht worden."
+)
+_NO_OLD = "I couldn't find a previous phone number to remove as there wasn't one stored."
 
 NOT_STORED = [
     _LK3,
@@ -225,3 +239,55 @@ async def test_a_turn_deleting_a_row_then_missing_closes_a_not_stored_reply_with
 async def test_a_later_call_that_names_the_delete_gets_no_note() -> None:
     shown = await _turn(_LOCKER, ("5819", "gym locker code"), _LK3)
     assert DELETED_UNFOUND_NOTE not in shown
+
+
+@pytest.mark.parametrize(
+    ("runs", "unmatched", "deleted", "due"),
+    [
+        ((_RUN,), 1, 0, True),
+        ((_RUN, _KEPT_RUN), 1, 0, True),
+        ((_RUN,), 0, 0, False),
+        ((_RUN, _RUN), 1, 0, False),
+        ((_RUN, _KEPT_RUN), 1, 2, False),
+        ((_RUN, ToolRun(FORGET_UNTRUSTED_TOOL_NAME, ok=True)), 1, 0, False),
+    ],
+    ids=["miss", "miss-and-kept", "no-miss", "miss-and-delete", "failed-delete", "untrusted"],
+)
+def test_the_unmatched_note_needs_a_miss_and_no_row_deleted(
+    *, runs: tuple[ToolRun, ...], unmatched: int, deleted: int, due: bool
+) -> None:
+    assert unmatched_note_due(runs, unmatched=unmatched, deleted=deleted) is due
+
+
+@pytest.mark.parametrize(
+    ("row", "texts", "reply"),
+    [
+        (_BIKE, ("Fahrradschloss Code 2468",), _NEVER_KEPT),
+        (_PHONE, ("0699000000",), _NO_OLD),
+        (_LOCKER, ("passport number",), "Nothing about a passport was stored."),
+        (_LOCKER, ("passport number", "Fahrradschloss"), "Okay."),
+    ],
+    ids=["just-said-other-words", "new-value", "never-stored", "two-misses"],
+)
+async def test_a_turn_whose_every_forget_matched_nothing_ends_with_the_note(
+    row: str, texts: tuple[str, ...], reply: str
+) -> None:
+    assert await _turn(row, texts, reply) == reply + UNMATCHED_FORGET_NOTE
+
+
+async def test_a_turn_whose_forget_deleted_the_row_gets_no_unmatched_note() -> None:
+    assert await _turn(_LOCKER, ("5819",), "I've removed the code.") == "I've removed the code."
+
+
+async def test_a_delete_then_a_miss_shows_only_the_deleted_note() -> None:
+    shown = await _turn(_LOCKER, ("5819", "locker combination"), _LK3)
+    assert UNMATCHED_FORGET_NOTE not in shown
+
+
+def test_a_miss_after_a_failed_delete_that_removed_rows_gets_no_unmatched_note() -> None:
+    parts = ["Okay."]
+    taint = TaintLedger(forget_asked=True, forget_calls=2, forget_unmatched=1, forget_deleted=2)
+    caps = TurnCapabilities()
+    runs = (_RUN, _KEPT_RUN)
+    list(limit_notes(StopLedger(), runs, parts, caps=caps, taint=taint, query="Forget it."))
+    assert UNMATCHED_FORGET_NOTE not in "".join(parts)

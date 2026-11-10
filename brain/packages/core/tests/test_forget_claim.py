@@ -40,7 +40,7 @@ from cortex_core import (
     unforgotten_claim,
 )
 from cortex_core.brain_phase import BrainPhase
-from cortex_core.forget_unfound_claim import DECLINED_FORGET_NOTE
+from cortex_core.forget_unfound_claim import DECLINED_FORGET_NOTE, UNMATCHED_FORGET_NOTE
 
 _AT = datetime(2026, 10, 30, 3, 0, 0, tzinfo=UTC)
 _HELD = "User: Please remember this: my locker code is 7319.\nAssistant: Noted."
@@ -207,7 +207,12 @@ async def _turn(
         ([[TextChunk(_REMOVED)]], True, _REMOVED + UNFORGOTTEN_CLAIM_NOTE, 1),
         ([[TextChunk(_REMOVED)]], False, _REMOVED + UNFORGOTTEN_CLAIM_NOTE, 0),
         ([[_forget("7319")], [TextChunk(_REMOVED)]], True, _REMOVED, 0),
-        ([[_forget("Fiat")], [TextChunk(_REMOVED)]], True, _REMOVED + UNFORGOTTEN_CLAIM_NOTE, 1),
+        (
+            [[_forget("Fiat")], [TextChunk(_REMOVED)]],
+            True,
+            _REMOVED + UNFORGOTTEN_CLAIM_NOTE + UNMATCHED_FORGET_NOTE,
+            1,
+        ),
         ([[TextChunk("Boil the pasta.")]], True, "Boil the pasta.", 1),
     ],
 )

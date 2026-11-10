@@ -1,4 +1,4 @@
-"""Close a reply that says something was not stored while a forget of the turn deleted rows."""
+"""Close a reply after a forget of the turn found no remembered exchange holding its text."""
 
 import re
 from collections.abc import Sequence
@@ -25,6 +25,12 @@ DELETED_UNFOUND_NOTE = (
     "\n\n(A forget call in this turn deleted remembered exchanges, and another call found no "
     "remembered exchange holding its text. What the reply above calls not stored or not found may "
     "be among the deleted exchanges, rather than never stored.)"
+)
+
+UNMATCHED_FORGET_NOTE = (
+    "\n\n(Nothing was deleted from memory in this turn. A forget call in it searched for an exact "
+    "text that no remembered exchange contains, so any remembered exchange that states the same "
+    "fact in other words is still stored.)"
 )
 
 # "No other records of it remain" says the delete held, unless the clause names finding or storing
@@ -68,3 +74,11 @@ def declined_note_due(reply: str, *, declined: bool) -> bool:
 def unfound_claim(runs: Sequence[ToolRun], reply: str, *, unmatched: int) -> bool:
     """Whether a forget among ``runs`` deleted rows, one matched nothing, and ``reply`` says so."""
     return unmatched > 0 and deleted_memory(runs, unmatched) and says_not_stored(reply)
+
+
+def unmatched_note_due(runs: Sequence[ToolRun], *, unmatched: int, deleted: int) -> bool:
+    """Whether a forget among ``runs`` matched nothing and no forget of the turn deleted a row.
+
+    ``deleted`` counts the rows the turn's ``forget_memories`` calls removed, failed ones included.
+    """
+    return unmatched > 0 and not deleted and not deleted_memory(runs, unmatched)

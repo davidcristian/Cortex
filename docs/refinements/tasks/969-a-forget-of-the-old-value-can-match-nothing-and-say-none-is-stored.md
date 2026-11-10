@@ -1,9 +1,8 @@
 # A forget of the old value can match nothing and say none is stored
 
-**Status:** open, actionable
+**Status:** done 2026-11-10
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-09
 
 `Note that my phone number is now 0699000000, and delete the old one.`, with a row holding
 `0612345678`, called `forget_memories` with a text that matched nothing in 3 of 22 draws of it and its
@@ -74,3 +73,11 @@ row holds; each reply said it could not find the old number. Over 60 draws of M0
   [R-1061](1061-a-forget-of-what-was-just-said-can-match-nothing-and-say-it-was-never-stored.md)
   does not reach this form, since no row holds the new value its call names, so one fix for both is
   not supported. Step 1's row was not drawn inside the slot's time box.
+- 2026-11-10: done. The cause it shares with
+  [R-1061](1061-a-forget-of-what-was-just-said-can-match-nothing-and-say-it-was-never-stored.md)
+  is `_NONE_FOUND`, which tells the model to say nothing about the fact was stored. A fix for
+  one call text could not meet a rule, since the text came in 0 to 2 of 24 draws.
+  `UNMATCHED_FORGET_NOTE` (`forget_unfound_claim.py`) now follows every turn whose forget
+  matched nothing and removed no row: nothing was deleted, and an exchange stating the fact in
+  other words is still stored. It reads no reply, its unit tests include this form, and all 7
+  turns that reached it on purpose ended with it ([readings](../../readings/forget-matched-nothing-note.md)). The result text is [R-1109](1109-the-no-match-forget-result-tells-the-model-to-say-nothing-was-stored.md).
