@@ -8,9 +8,9 @@
 which `:server-cuda` names too. Neither image is in the tree. To decide it, read the tag's amd64
 `org.opencontainers.image.version` label from the registry, extract that image's `/app` layer, and
 run its `llama-server` with the pair against a missing model file under `docker run --network none`:
-it has not fired while the first error is the missing model. On 2026-10-16 both tags name build
-11669.
-**Verified:** 2026-10-25
+it has not fired while the first error is the missing model. On 2026-11-10 both tags name build
+12242.
+**Verified:** 2026-11-10
 
 `ghcr.io/ggml-org/llama.cpp:server` prints this on every subagent boot:
 
@@ -90,3 +90,7 @@ subagents-cpu and injection-probes runbooks, and the brain-inference-live module
   The cached `:server` and `:server-cuda` tags still hold build 10680.
 - 2026-10-25: checked again and not fired: no check after the 2026-10-16 reading is recorded, and
   `_SUBAGENT_TAIL` still passes both thinking flags.
+- 2026-11-10: not fired. Both tags' amd64 labels now name build 12242. That image, pulled by digest
+  and removed after, starts `llama-server` with the pair under `--network none`, prints the
+  deprecation warning and fails first on the missing model file. The pair is now listed in
+  `scripts/subagentflags.py`.

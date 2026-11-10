@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-10-28
+**Verified:** 2026-11-10
 **Trigger:** either ladder assertion in `body/crates/core/tests/capture_bytes.rs` failing: the four
 realistic frames on a 4K display, or the same grainy photograph on the three display sizes the
 second one draws it at, no longer fitting inside `MAX_CAPTURE_BYTES` (6291456, in
@@ -79,3 +79,6 @@ ratio between the display and the requested edge: the same heavy-grain photograp
 - 2026-10-28: checked again and not fired: none of the inputs the trigger names, `screen_policy.rs`,
   `screen_image.rs`, `capture_bytes.rs` or the encoder crates in `body/Cargo.lock`, has a commit
   since 2026-10-25.
+- 2026-11-10: checked again and not fired: none of `screen_policy.rs`, `screen_image.rs`,
+  `capture_bytes.rs` or `body/Cargo.lock` has a commit since 2026-10-28, and the four encoder crates
+  are at the versions above.

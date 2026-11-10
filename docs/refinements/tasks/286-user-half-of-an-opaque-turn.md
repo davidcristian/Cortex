@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-10-25
+**Verified:** 2026-11-10
 **Trigger:** a report, written on this entry's history or as a host task, of a sentence a user
 asked the assistant to remember during an opaque turn and could not recall later. The loss needs
 two settings together: memory recorded at all (`CORTEX_MEMORY_BACKEND=pgvector`, which the memory
@@ -67,4 +67,6 @@ change here rewrites the decision at all three.
   call between the two halves whenever the turn ran a tool (`turn_output.py:91-95`), which a capture
   turn always does, and the body now says so.
 - 2026-10-25: checked again and not fired: no report exists, and `render_exchange` still writes the
+  user line, the tools line and the reply in that order.
+- 2026-11-10: checked again and not fired: no report exists, and `render_exchange` still writes the
   user line, the tools line and the reply in that order.

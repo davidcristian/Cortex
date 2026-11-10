@@ -1,6 +1,7 @@
 # A fact with a second verb phrase keeps the reminder and sound tools
 
 **Status:** open, waiting for its trigger
+**Verified:** 2026-11-10
 **Trigger:** a recorded draw of a request to remember a fact alone that calls `schedule_task` or
 `set_volume` on a turn where `actions_asked` read a clause of the fact.
 **Area:** memory
@@ -32,3 +33,5 @@ for comes back.
 ## History
 
 - 2026-11-08: filed by the night's audit slot, from a unit probe and a count over the readings.
+- 2026-11-10: checked and not fired: every `schedule_task` call recorded in `docs/readings/` since
+  2026-11-08 answers a request that asked for a reminder, and no recorded draw calls `set_volume`.

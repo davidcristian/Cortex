@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0042](../../adr/ADR-0042-cross-tree-constant-registry.md)
-**Verified:** 2026-10-25
+**Verified:** 2026-11-10
 **Trigger:** A third value on the capture-target enum, a reader for declarations in the `.proto`
 arriving in the scan for another reason, any module outside the body's rpc crate and the brain's
 body client that has to name one of the two gRPC status codes, or either side of that pair gaining
@@ -139,3 +139,6 @@ not also retune.
   shell started serving on Linux, so it now says the constant is compiled on both targets.
 - 2026-10-25: checked again and not fired: the proto still declares two capture targets and
   `crosscheck.py` still reads `.py`, `.rs` and `.ts` only; the proto change since was a comment.
+- 2026-11-10: checked again and not fired: the proto still declares two capture targets,
+  `crosscheck.DECLARATIONS` still reads `.py`, `.rs` and `.ts` only, and the two codes are still
+  written in `screen.rs`, `server.rs` and `failures.py`.

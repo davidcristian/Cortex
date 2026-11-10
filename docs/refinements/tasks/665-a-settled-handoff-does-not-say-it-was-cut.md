@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** inference-model-manager
 **Origin:** [ADR-0048](../../adr/ADR-0048-generation-bounds.md)
-**Verified:** 2026-10-25
+**Verified:** 2026-11-10
 **Trigger:** a consumer in this tree asks how often a deep answer was cut: code that counts
 handoffs or deep completions by how they stopped, or a runbook step that asks an operator that
 question. On 2026-10-03
@@ -66,3 +66,5 @@ count kept outside the handoff store, which is a port, a fake and a contract tes
   line still has none.
 - 2026-10-25: checked again and not fired: the trigger's grep prints the same five lines, and
   `cap_note` still only appends the note.
+- 2026-11-10: checked again and not fired: the trigger's grep prints the same five lines; the
+  2026-11-10 change to `handoff.py` added three taint fields to the record and nothing that counts.

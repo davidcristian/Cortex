@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-08
+**Verified:** 2026-11-10
 **Trigger:** a recorded message, in a draw, a flow record or a test, that states what someone else
 forgets or erases after `et`, `mais`, `y`, `pero`, `și` or `dar` in French, Spanish or Romanian.
 
@@ -26,3 +26,7 @@ code.`, `Gracias y olvida mi PIN.`), and replay every recorded message through t
 
 - 2026-11-08: filed by the slot that widened the reader to forget imperatives in four more languages.
   Named in [R-1007](1007-a-request-to-forget-in-another-language-answered-without-a-call-is-stored.md).
+- 2026-11-10: checked again and not fired: a search of the brain's tests and `docs/readings/` for
+  one of the six conjunctions before a forget or erase verb in French, Spanish or Romanian finds
+  `Mon code est 7731, mais oublie-le.`, an imperative, and this task's own example in
+  `claim-reader-replays.md`.

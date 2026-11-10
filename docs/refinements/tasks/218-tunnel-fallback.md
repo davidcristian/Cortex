@@ -7,7 +7,7 @@
 `host.docker.internal:<port>` failing while a `python3 -m http.server` bound to `0.0.0.0` on this
 host listens on that port, which `ss -ltn` confirms before the dial. The same reach to the
 Windows-side body is observed by host task 002, not here.
-**Verified:** 2026-10-25
+**Verified:** 2026-11-10
 
 The brain dials the body directly, at `CORTEX_BODY_ENDPOINT` through `GrpcBodyGateway.connect`. If
 `host.docker.internal` proves unreliable on WSL2, tunnelling body-directed calls over a
@@ -60,3 +60,7 @@ part, a `BrainService` handler that hands the stream to that adapter and a third
   needs the composition root's selection and stream handler, which the entry had not counted.
 - 2026-10-25: checked again and not fired: the tree records no failed bridge dial and the body
   gateway is unchanged; the default port moved to 23151, which the body does not name.
+- 2026-11-10: not fired. A `python3 -m http.server` on `0.0.0.0:23999`, confirmed by `ss -ltn`,
+  answered a `wget` from `alpine:latest` on the default bridge network at
+  `host.docker.internal:23999`. The cached `alpine:latest` is a `linux/arm64` image, which Docker
+  ran under emulation.

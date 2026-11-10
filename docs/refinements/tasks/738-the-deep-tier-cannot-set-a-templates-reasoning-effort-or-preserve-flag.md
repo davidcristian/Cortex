@@ -5,7 +5,7 @@
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
 **Trigger:** ADR-0004 names a Qwen3.8 artifact as a pick or alternate for any tier, or the maintainer
 picks the step two names below.
-**Verified:** 2026-10-25
+**Verified:** 2026-11-10
 
 The Qwen3.8 template reads `reasoning_effort` (`xhigh` by default, `high` rendered as `xhigh`,
 `medium`, `low`; any other value raises with thinking on) and `preserve_thinking` (on by default).
@@ -58,3 +58,6 @@ and the maintainer declines step two.
   holds `supports_reasoning_effort`, so the proposal is still writable.
 - 2026-10-25: checked again and not fired: the deep row of ADR-0004 is unchanged, and
   `GenerationBounds` still has no effort field.
+- 2026-11-10: checked again and not fired: ADR-0004 has no commit since 2026-10-25 and lists the
+  Qwen3.8 artifacts as candidates only, no pick is recorded here, and `GenerationBounds` still has
+  no effort field.

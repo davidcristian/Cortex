@@ -7,11 +7,11 @@
 raises, or imap-tools moves off 1.13.0 in `brain/uv.lock`, since which class a dropped connection
 raises is those libraries' choice and the unit test scripts the class itself. That tag follows 3.12
 patch releases with no commit, so the middle part is read by comparing a rebuilt image's
-`imaplib.py` with that of 3.12.15, the last one read. Or a search on a real server drops its
+`imaplib.py` with that of 3.12.16, the last one read. Or a search on a real server drops its
 connection and comes back as `SearchRefusedError`, sending a model to rewrite a query that was never
 the problem.
 **Origin:** [ADR-0056](../../adr/ADR-0056-email-reader-answers.md)
-**Verified:** 2026-10-25
+**Verified:** 2026-11-10
 
 `_search_failure` in `brain/packages/email/src/cortex_email/imap.py` reads the type of what imaplib
 raised. A plain `IMAP4.error` is the server refusing to parse the query, which crosses the port as
@@ -81,3 +81,6 @@ published port and a second address for `just email-folder-probe` to find.
   how to read one.
 - 2026-10-25: checked again and not fired: the brain image still runs Python 3.12 and imap-tools
   1.13.0.
+- 2026-11-10: not fired, with one reading moved: the brain image now runs Python 3.12.16, and its
+  `imaplib.py` is identical to the 3.12.15 copy in the cached `cortex-brain` image. imap-tools is
+  still 1.13.0.

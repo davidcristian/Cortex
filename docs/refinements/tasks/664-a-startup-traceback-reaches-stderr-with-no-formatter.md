@@ -8,7 +8,7 @@ withhold, most plausibly a connection URL with a credential inside it. Two readi
 point, and raising from inside `run_from_env` says what the container's last line looks like. This
 entry's history records what both answered when they were last taken.
 **Origin:** [ADR-0051](../../adr/ADR-0051-log-line-rendering.md)
-**Verified:** 2026-10-25
+**Verified:** 2026-11-10
 
 `entry.main` configures logging and runs `asyncio.run(serve())`, where `serve` defaults to
 `run_from_env`, and catches only `ConfigError`, a refused setting,
@@ -74,3 +74,5 @@ scheme and no `@` around it passes through every pattern this repo owns.
   unchanged.
 - 2026-10-25: checked again and not fired: `entry.py` still has the only `asyncio.run` and still
   catches only `ConfigError`; the body now names `serve`.
+- 2026-11-10: checked again and not fired: `entry.py` still has the only `asyncio.run` and still
+  catches only `ConfigError`.

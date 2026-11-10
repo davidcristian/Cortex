@@ -11,7 +11,7 @@ the container does. The same text is also in the stored `SubagentResult` under
 `cortex:task:{id}:result` in Redis, written with a TTL of 3600 s, half the shipped bound; Redis
 keeps an expiry as an absolute time across a restart, so that copy can be read only within the
 hour after the refusal.
-**Verified:** 2026-11-06
+**Verified:** 2026-11-10
 
 The wait bound refuses late, after the caller has already paid
 `CORTEX_SUBAGENTS_ADMISSION_WAIT_S`, which ships at 7200 s. A depth bound would refuse early, once
@@ -80,3 +80,6 @@ depth refusal comes before anything has elapsed.
 - 2026-11-06: Not fired. The warning at `runner.py` line 110 and the `outlasts the deployment's
   admission bound` reason at `scheduler.py` line 14 are unchanged, with no commit to either file
   since 2026-10-17. The stack was down, so neither the brain's output nor Redis was read.
+- 2026-11-10: checked again and not fired: `runner.py` and `scheduler.py` have no commit since
+  2026-11-06 and still write the warning and the reason, and the shared test stack's brain output,
+  from a container started at 06:09, holds neither.

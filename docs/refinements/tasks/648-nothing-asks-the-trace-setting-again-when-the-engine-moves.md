@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** inference
 **Origin:** [ADR-0049](../../adr/ADR-0049-thinking-switch-and-trace-budget.md)
-**Verified:** 2026-10-25
+**Verified:** 2026-11-10
 **Trigger:** a newer llama.cpp pulled under a brain that keeps running, where the new build answers
 the trace question differently from the answer that brain cached and the documented restart was
 skipped, which shows as the GPU runbook's own `curl` contradicting the brain's boot line, or as a
@@ -85,3 +85,5 @@ to argue against it with a deployment that actually hit the problem.
   builds.
 - 2026-10-25: checked again and not fired: no new engine was pulled under a running brain. Under
   `auto` the cached answer is now a `TraceBudgetProbe`, and the body says so.
+- 2026-11-10: checked again and not fired: the shared test stack's brain log holds one `model now
+  served by engine build` line, and no new engine was pulled under it.

@@ -13,7 +13,7 @@ runbook sentence can wrap the variable and its file onto two lines; and count th
 aliased to a `CORTEX_MODEL_FILE_SUBAGENT` variable. Neither half reads a host's shell or `.env`,
 where a deployment would really write the second file.
 **Origin:** [ADR-0018](../../adr/ADR-0018-heterogeneous-subagents.md)
-**Verified:** 2026-10-25
+**Verified:** 2026-11-10
 
 `_entry_profile` in `cortex_orchestrator.subagent_builders` gives the default entry two backends,
 one per `PlacementTarget`, over `CORTEX_SUBAGENTS_GPU_ENDPOINT` and `CORTEX_SUBAGENTS_ENDPOINT`.
@@ -100,3 +100,6 @@ stored.
   for settings it does not list; it now names the compose file and the validation runbook.
 - 2026-10-25: checked again and not fired: `subagent_gpu_file` is still the only field aliased to a
   subagent file variable, and there is no second hosted pick.
+- 2026-11-10: checked again and not fired: the shipped files name the same gemma-4-E4B file under
+  both variables, the GPU variable defaulting to empty in `docker-compose.gpu.yml`, and
+  `subagent_gpu_file` is still the only field aliased to a subagent file variable.

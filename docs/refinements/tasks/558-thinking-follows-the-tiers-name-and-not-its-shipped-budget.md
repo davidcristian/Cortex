@@ -9,7 +9,7 @@ that tier's rows as it runs them. Read it with
 `grep -n 'CORTEX_REASONING_BUDGET' docker/docker-compose.gpu.yml`, which names both variables and
 defaults both to `-1` today, and confirm what a tier's flag tail then has with
 `ModelHostConfig(...).tiers()`.
-**Verified:** 2026-10-25
+**Verified:** 2026-11-10
 
 `Model.thinking` in
 [test_injection_defense_live.py](../../../brain/packages/inference/tests/test_injection_defense_live.py)
@@ -97,3 +97,5 @@ no constant.
 - 2026-10-17: checked again and not fired. Both variables still default to `-1` in the GPU override.
 - 2026-10-25: checked again and not fired: both budgets still default to `-1`, and the tier tails
   match the table.
+- 2026-11-10: checked again and not fired: both budgets still default to `-1` in
+  `docker-compose.gpu.yml`.

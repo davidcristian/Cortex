@@ -8,7 +8,7 @@ while `CORTEX_MEMORY_SCOPE` is `global`, the size at which the exact scan costs 
 turn's time to first token; the recall trail's `available` field reports the same count on every
 recalled turn when `CORTEX_MEMORY_RECALL_AUDIT` is on or `CORTEX_MEMORY_RECALL_AUDIT_FILE` names a
 file, which also receives it as a JSON line. The count was 2 on 2026-10-03.
-**Verified:** 2026-10-25
+**Verified:** 2026-11-10
 
 Memory search is an exact cosine scan. An approximate index would need a migration
 ([ADR-0004](../../adr/ADR-0004-model-lineup.md)).
@@ -105,3 +105,7 @@ opaque turns by default, and so sets how fast the count grows.
   `memory_builders.py`, about seven times the exact scan's measured cost at 220,000 rows.
 - 2026-10-25: checked again and not fired: no row count is recorded and the search is still an exact
   `ORDER BY` scan; `record_exchange` now also skips a turn whose recalled memory was forgotten.
+- 2026-11-10: checked again and not fired: no deployment row count is recorded, the shared test
+  stack's `memories` table held 0 rows after its cleanup, and the search is still an exact `ORDER BY
+  embedding <=>` scan. `find_value`, added on 2026-11-10, is a text scan like `find` and reads no
+  embedding.

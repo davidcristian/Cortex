@@ -3,14 +3,14 @@
 **Status:** open, waiting for its trigger
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-10-28
+**Verified:** 2026-11-10
 **Trigger:** `escalate_to_brain` can run on a tainted turn: its spec in `escalate.py` stops setting
 `confirm_required` (`grep -n confirm_required brain/packages/core/src/cortex_core/escalate.py`
 prints `confirm_required=True` today), or the tainted-turn denial in `ToolDispatcher.dispatch`
 (`dispatch.py`, the `if call.stamp.tainted and card is None:` branch) admits it. That branch admits
-only a tool that shows a record card, which today is `cancel_scheduled` and
-`forget_untrusted_memories`, so a `card` method on `EscalateToBrainTool` would fire it as surely as
-a new exception. The work then starts
+only a tool that shows a record card, which today is `cancel_scheduled`,
+`forget_untrusted_memories` and `forget_memories`, so a `card` method on `EscalateToBrainTool`
+would fire it as surely as a new exception. The work then starts
 with R-257's store, a brain-tier projector setting, and a probe of that tier.
 
 Nothing persists an in-turn image: not the session store, and not the handoff record. The record's
@@ -138,3 +138,6 @@ exactly on the record and on the ledger rebuilt from it.
 - 2026-10-28: checked again and not fired: `escalate.py` still sets `confirm_required=True`, and the
   tainted-turn branch still admits only the tools with a card, `cancel_scheduled` and
   `forget_untrusted_memories`.
+- 2026-11-10: checked again and not fired: `escalate.py` still sets `confirm_required=True` and
+  defines no `card`. The trigger named two record card tools, and `forget_memories` has a `card`
+  method too, so it now names three.

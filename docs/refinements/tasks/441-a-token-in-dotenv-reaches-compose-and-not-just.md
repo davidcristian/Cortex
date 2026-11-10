@@ -8,7 +8,7 @@ readings decide it: `grep -c '^CORTEX_SEAM_TOKEN=' .env` in the checkout (no `.e
 added.
 **Area:** rpc-auth
 **Origin:** [ADR-0016](../../adr/ADR-0016-shared-token.md)
-**Verified:** 2026-10-25
+**Verified:** 2026-11-10
 
 The settings table in `docs/runbooks/local-dev-wsl.md` (line 60) documents the token as passed
 through by compose from the host environment or `.env`, and compose does read that file: `just up`
@@ -70,3 +70,5 @@ documentation stops offering `.env` as a way to configure anything except the co
   settings table at line 60.
 - 2026-10-25: checked again and not fired: the checkout has no `.env` and the justfile still sets
   nothing from one.
+- 2026-11-10: checked again and not fired: the checkout has no `.env`, and `grep -n '^set' justfile`
+  prints nothing.

@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** inference-model-manager
 **Origin:** [ADR-0046](../../adr/ADR-0046-work-identities-on-log-lines.md)
-**Verified:** 2026-10-25
+**Verified:** 2026-11-10
 **Trigger:** either half of the agreement moves: `EscalatingTurnEngine(` gains a construction site
 other than the one in `cortex_orchestrator/engines.py`, or that site's factory returns anything but
 `self._turn_engine(...)`; or `TurnEngine.handle_turn` in `cortex_core/engine.py` stops completing
@@ -78,3 +78,6 @@ right depends on whether a second runner ever sits behind `make_inner`.
 - 2026-10-25: checked again and not fired: `engines.py` still builds the only
   `EscalatingTurnEngine`. `for_stream` now returns a `SerialTurnRunner`, so the body now names
   `_engine`.
+- 2026-11-10: checked again and not fired: `engines.py` still builds the only
+  `EscalatingTurnEngine`, its factory returns `self._turn_engine(...)`, and `handle_turn` still
+  completes with `TurnCompleted(turn_id=turn_id, ...)`.

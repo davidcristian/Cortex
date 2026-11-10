@@ -4,7 +4,7 @@
 **Area:** scheduling
 **Origin:** [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md)
 **Trigger:** a reminder that no message of its chat asked for is reported from a real chat
-**Verified:** 2026-10-26
+**Verified:** 2026-11-10
 
 Asked "Write a one-line message I can send to my team saying that I have scheduled the design
 review for Friday at 10.", the cortex sometimes calls `schedule_task` and stores a reminder "Design
@@ -40,3 +40,5 @@ calls `schedule_task` in 4 or more of 40 chains.
   jasmine") storing two reminders its reply did not name
   ([readings](../../readings/forget-card-on-remember.md)). Driver chats, so the trigger has not
   fired.
+- 2026-11-10: checked again and not fired: no reminder unasked in a real chat is reported; the
+  compound request flows recorded since are driver chats.

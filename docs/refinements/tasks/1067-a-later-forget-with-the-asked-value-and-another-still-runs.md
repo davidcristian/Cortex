@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-09
+**Verified:** 2026-11-10
 **Trigger:** a later `forget_memories` call, in a draw or a flow record, whose text holds the asked
 value beside a phrase or another value, or names another fact by a phrase, after a delete left a
 deleted number held.
@@ -37,3 +37,7 @@ value alone, and neither unrefused form occurred
 - 2026-11-08: filed by the audit of tonight's reader changes, from unit probes.
 - 2026-11-09: drew the n1 setup 16 times and the `n1v` setup 8 times. All 8 later calls were the
   value alone, so the check is unchanged and the task waits for a form.
+- 2026-11-10: checked again and not fired: in the forget draws recorded since
+  (`forget-value-short-groups.md`, `forget-matched-nothing-note.md`, `forget-keep-clause.md`) no
+  turn made a `forget_memories` call after an earlier call of the same turn deleted a row; the only
+  turns with several calls, flow o's, deleted none.

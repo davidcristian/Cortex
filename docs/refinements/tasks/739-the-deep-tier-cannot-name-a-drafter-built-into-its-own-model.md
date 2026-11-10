@@ -7,7 +7,7 @@
 `CORTEX_MODEL_FILE_BRAIN` by a compose default, a recipe or an env file in this tree, or ADR-0004
 decision 8 naming Qwen3.8-27B as the deep pick or its alternate. Read it with
 `grep -rn 'CORTEX_MODEL_FILE_BRAIN' docker/ justfile` and decision 8's first sentence.
-**Verified:** 2026-10-25
+**Verified:** 2026-11-10
 
 `drafter_flags` in `tiers.py` returns `--model-draft PATH --spec-type draft-mtp` for a named
 `CORTEX_MODEL_FILE_BRAIN_DRAFT` and nothing otherwise (ADR-0004 decision 14), because the pick's
@@ -44,3 +44,5 @@ asks of the pick's drafter.
   b11312 build still lists `draft-mtp` among `--spec-type` values.
 - 2026-10-25: checked again and not fired: `CORTEX_MODEL_FILE_BRAIN` still defaults to empty and the
   justfile names no Qwen file.
+- 2026-11-10: checked again and not fired: `CORTEX_MODEL_FILE_BRAIN` still defaults to empty, the
+  justfile names no Qwen file, and decision 8 of ADR-0004 still picks gemma-4-31B.

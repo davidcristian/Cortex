@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** email-confirmer
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
-**Verified:** 2026-10-28
+**Verified:** 2026-11-10
 **Trigger:** a record under `docs/readings/`, `docs/host/` or this file's History of a person
 approving a confirmation card without reading it, because cards came often enough in one turn or one
 chat. `grep -rliE 'without reading' docs/readings docs/host` finds only
@@ -92,3 +92,6 @@ allowlist over `send_email` is a permanent approval to send mail.
 - 2026-10-28: checked again and not fired: the `without reading` grep still finds one reading and
   `ALWAYS_CONFIRMED` is unchanged; the forget tool, now offered only to a chat with tainted
   memories, already raised a card.
+- 2026-11-10: checked again and not fired: `without reading` still finds only
+  `recall-tainted-send.md`, `config_tools.py` and `tool_budget.py` have no commit since 2026-10-28,
+  and `MAX_TOOL_DISPATCHES` is still 32.

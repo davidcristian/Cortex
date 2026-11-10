@@ -10,7 +10,7 @@ then read `available_devices` and that property. The guest decides first whether
 taking: while `find /usr/lib/wsl/drivers -ipath '*npu*' -name '*.so*'` prints nothing, the vendor
 half below is unmet and no container has a driver to enumerate the NPU through. This entry's
 history records what each was when last read, and the body records which half is already met.
-**Verified:** 2026-11-06
+**Verified:** 2026-11-10
 
 An OpenVINO `InferenceBackend` adapter and a third `PlacementTarget` would use the otherwise idle
 NPU for tiny subagents or embeddings, which serves the same goal as the subagent container limits
@@ -100,3 +100,6 @@ placer rule for when a spawn goes to the NPU, and an `ngl` moved off the enum.
   exists with `card0` and `renderD128` from the kernel's software `vgem` device under
   `/sys/devices/faux/vgem`, not from Intel hardware; the five PCI devices still show vendors 0x1414
   and 0x1af4 only. The device node sentence above is corrected to that.
+- 2026-11-10: checked again and not fired: `find /usr/lib/wsl/drivers -ipath '*npu*' -name '*.so*'`
+  still prints nothing, so the container run was not taken, and the kernel is still
+  6.18.54.1-microsoft-standard-WSL2.

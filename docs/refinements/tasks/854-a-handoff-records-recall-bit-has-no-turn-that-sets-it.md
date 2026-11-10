@@ -4,7 +4,7 @@
 **Area:** untrusted-content
 **Origin:** [ADR-0019](../../adr/ADR-0019-tainted-memory-recording.md) decision 8
 **Trigger:** a turn that recall alone tainted calls `escalate_to_brain` and is shown its card.
-**Verified:** 2026-10-25
+**Verified:** 2026-11-10
 
 A handoff record stores the ledger's `recalled_only`, so the deep phase allows a task and words a
 blocked send as the cortex phase would. Unit tests cover it, and no live turn can reach it today.
@@ -38,3 +38,5 @@ today, or the deep phase words a send blocked after a forget as `RECALL_DENIED_M
 - 2026-10-25: checked again and not fired: `ToolDispatcher._dispatched` still blocks a confirmed
   call on a tainted turn unless the tool is a record card, and `escalate.py` defines none. The body
   now names the `forgotten` flag the record must also keep.
+- 2026-11-10: checked again and not fired: `escalate.py` still defines no `card`, so a tainted
+  turn's `escalate_to_brain` call is still blocked before any card.

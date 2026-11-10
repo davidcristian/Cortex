@@ -8,7 +8,7 @@
 `/models` also finds the control API's routes `/models/{model}` in `api.py` and `adapter.py`, which
 are URLs and not the mount
 **Origin:** [ADR-0043](../../adr/ADR-0043-subagent-server-flags.md)
-**Verified:** 2026-10-25
+**Verified:** 2026-11-10
 
 `artifactnames.tiered` reads one module, the model host's `config.py`, and in it the fields
 `ModelHostConfig` hands to its resolver `_path`. A second module joining a file onto the mount,
@@ -32,3 +32,5 @@ reviewed diff.
 - 2026-10-17: checked again and not fired. `grep -rn models_root brain/packages/*/src` still finds
   the model host's `config.py` alone.
 - 2026-10-25: checked again and not fired: only the model host's `config.py` reads `models_root`.
+- 2026-11-10: checked again and not fired: `grep -rn models_root brain/packages/*/src` still finds
+  the model host's `config.py` alone.

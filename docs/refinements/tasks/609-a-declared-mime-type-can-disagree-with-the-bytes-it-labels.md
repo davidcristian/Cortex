@@ -6,7 +6,7 @@
 names another format than its bytes; llama.cpp build 10680 reads all four such pairs tried by
 their bytes.
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-10-25
+**Verified:** 2026-11-10
 
 `blocks.py` builds an `ImagePart` from two values it reads independently: the mime type the MCP
 block declares, which is checked only against the core's `ALLOWED_MIME_TYPES`, and the size, which
@@ -80,3 +80,6 @@ that a newer engine build needs the four pairs tried again.
   in the ADR and the module doc before the last check; only the operator note is missing.
 - 2026-10-25: checked again and not fired: `_image_part` still types from the declared MIME type,
   and the cached images are the same.
+- 2026-11-10: checked again and not fired: `_image_part` still types from the declared MIME type,
+  and the model host is still built on the cached `server-cuda` image of build 10680, though the
+  registry tag now names build 12242.

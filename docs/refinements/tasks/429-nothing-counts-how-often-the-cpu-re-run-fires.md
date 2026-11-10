@@ -11,7 +11,7 @@ tree a retune is a move of `DEFAULT_ADMISSION_WAIT_S` (7200.0, `cortex_core/sche
 `CORTEX_SUBAGENTS_RUN_TIMEOUT_S` a value, counted by
 `grep -rnE 'CORTEX_SUBAGENTS_(ADMISSION_WAIT|RUN_TIMEOUT)_S: *[^ ]' docker/`. A value set only in a
 host's shell or `.env` reaches the brain as well and is outside the tree.
-**Verified:** 2026-10-28
+**Verified:** 2026-11-10
 
 `SubagentRunner._placed` logs a warning when a GPU-placed attempt is re-run on the CPU, and that is
 the only trace the path leaves. Nothing counts the warnings, nothing passes the re-run into the
@@ -81,3 +81,5 @@ against whether the path happens at all.
   recorded a refusal.
 - 2026-10-28: checked again and not fired: the three constants still read 7200.0, 2400.0 and 2, and
   the compose grep finds nothing.
+- 2026-11-10: checked again and not fired: the three constants are unchanged, the compose grep finds
+  nothing, and the shared test stack's brain output holds no refused spawn warning.
