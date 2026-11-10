@@ -15,16 +15,25 @@ WEEKLY_STORED_NOTE = (
 )
 
 _DAYS = r"(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|weekday|weekend)"
+_DE = r"(?:montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag|werktag)"
+_FR = r"(?:lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|semaine)"
+_ES = r"(?:lunes|martes|miércoles|jueves|viernes|sábado|domingo|semana)"
+_RO = r"(?:luni|mar[țţ]i|miercuri|joi|vineri|sâmbătă|duminică|săptămână)"
+_WEEKLY_WORD = r"(?:weekly|wöchentlich\w*|hebdomadaire\w*|semanal\w*|săptămânal\w*)"
 _WEEKLY = (
     re.compile(
         rf"\b(?:every|each)\s+(?:single\s+|other\s+)?(?:week|{_DAYS})s?\b|\b{_DAYS}s\b"
-        r"|\bonce\s+a\s+week\b",
+        r"|\bonce\s+a\s+week\b"
+        rf"|\bjeden\s+(?:zweiten\s+)?{_DE}\b|\bjede\s+(?:zweite\s+)?Woche\b|\b{_DE}s\b"
+        rf"|\bchaque\s+{_FR}\b|\b(?:tous|toutes)\s+les\s+{_FR}s\b"
+        rf"|\bcada\s+{_ES}\b|\b(?:todos|todas)\s+l[oa]s\s+{_ES}s?\b|\blos\s+{_ES}s?\b"
+        rf"|\bfiecare\s+{_RO}\b",
         re.IGNORECASE,
     ),
     # "Weekly" may describe the reminder's own text ("the weekly report"), as "daily" may.
     re.compile(
-        rf"\b{REMINDER_WORD}\S*\s+(?:\S+\s+){{0,2}}weekly\b|\bweekly\S*\s+(?:\S+\s+){{0,2}}"
-        rf"{REMINDER_WORD}",
+        rf"\b{REMINDER_WORD}\S*\s+(?:\S+\s+){{0,2}}{_WEEKLY_WORD}\b"
+        rf"|\b{_WEEKLY_WORD}\S*\s+(?:\S+\s+){{0,2}}{REMINDER_WORD}",
         re.IGNORECASE,
     ),
 )
@@ -82,6 +91,6 @@ def weekly_after(
 
 def weekly_stored_notes(held: tuple[tuple[str, str], ...], reply: str) -> tuple[str, ...]:
     """One note per distinct weekday set in ``held``, or none when ``reply`` states a repeat."""
-    if names_repeat(reply, _WEEKLY):
+    if names_repeat(reply, _WEEKLY, daily=False):
         return ()
     return tuple(WEEKLY_STORED_NOTE.format(days=days) for days in dict.fromkeys(d for _, d in held))

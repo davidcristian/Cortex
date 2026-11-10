@@ -104,7 +104,8 @@ decision 2).
   day before the one the person's message names (tomorrow, the day after, or one weekday), the
   brain appends `FIRST_FIRE_NOTE` naming that first fire's day, date and time
   (`TaintLedger.early_first_fire`, `schedule_first_fire.py`). A `schedule_task` call storing
-  `on_days` short of every day under a reply stating no repeat gets `WEEKLY_STORED_NOTE` naming
+  `on_days` short of every day under a reply stating no weekly repeat in any of the five
+  languages (an every-day phrase states none) gets `WEEKLY_STORED_NOTE` naming
   those weekdays, the new ones after a later edit of the turn moves it to other weekdays
   (`TaintLedger.weekly_stored`, `schedule_weekly_stored.py`). No call is refused or
   changed for either ([readings](../readings/schedule-daily-first-fire.md)).

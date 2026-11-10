@@ -81,6 +81,53 @@ def test_a_reply_stating_no_repeat_closes_with_the_note(reply: str) -> None:
     assert weekly_stored_notes(_HELD, reply) == (_NOTE,)
 
 
+@pytest.mark.parametrize(
+    "reply",
+    [
+        "I'll remind you every day at 9:00 to move the car.",
+        "I've set a daily reminder for Wednesday at 9:00.",
+        "Ich erinnere dich am Mittwoch um 9 Uhr.",
+        "Soll ich dich jeden Mittwoch erinnern?",
+        "Ich erinnere dich nicht jeden Mittwoch.",
+        "Ich erinnere dich jeden Tag um 9 Uhr.",
+        "Je vous le rappellerai mercredi à 9h.",
+        "Voulez-vous un rappel chaque mercredi ?",
+        "Je ne vous le rappellerai pas chaque mercredi.",
+        "Je vous le rappellerai tous les jours à 9h.",
+        "Rappel réglé pour demain à 9h pour envoyer le rapport hebdomadaire.",
+        "Te lo recordaré el miércoles a las 9.",
+        "¿Quieres que te lo recuerde cada miércoles?",
+        "No te lo recordaré cada miércoles.",
+        "Te lo recordaré todos los días a las 9.",
+        "Îți voi aminti miercuri la ora 9.",
+        "Vrei să îți amintesc în fiecare miercuri?",
+        "Nu îți voi aminti în fiecare miercuri.",
+        "Îți voi aminti în fiecare zi la ora 9.",
+    ],
+)
+def test_a_reply_naming_one_day_a_daily_repeat_or_asking_closes_with_the_note(reply: str) -> None:
+    assert weekly_stored_notes(_HELD, reply) == (_NOTE,)
+
+
+@pytest.mark.parametrize(
+    "reply",
+    [
+        "Ich erinnere dich jeden Mittwoch um 9 Uhr.",
+        "Ich erinnere dich mittwochs um 9 Uhr.",
+        "Ich habe eine wöchentliche Erinnerung für Mittwoch eingestellt.",
+        "Die Erinnerung kommt jede Woche am Mittwoch.",
+        "Je vous le rappellerai chaque mercredi à 9h.",
+        "Je vous le rappellerai tous les mercredis à 9h.",
+        "Te lo recordaré cada miércoles a las 9.",
+        "Te lo recordaré los miércoles a las 9.",
+        "Te lo recordaré todas las semanas, el miércoles.",
+        "Îți voi aminti în fiecare miercuri la ora 9.",
+    ],
+)
+def test_a_reply_stating_the_weekly_repeat_in_another_language_has_no_note(reply: str) -> None:
+    assert weekly_stored_notes(_HELD, reply) == ()
+
+
 def test_a_rule_on_chosen_days_is_held_with_its_weekdays_in_order() -> None:
     assert weekly_after(_call(), _ran(), ()) == _HELD
     days = {**_WED, "on_days": ["fri", "mon", "wed"]}

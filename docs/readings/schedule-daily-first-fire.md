@@ -144,3 +144,17 @@ and without the weekly patterns, 349 distinct draw replies from tonight's and la
 read differently in 4, each stating a weekly repeat (`every Thursday`, `every Wednesday`, `every
 weekday`, `every Monday and Thursday`). Rows `rows2.jsonl`, the brain log `brain2.log`,
 `replay.py` and `mut.py` are in the slot directory above; every `s15-*` row and item was deleted.
+
+## The weekly repeat in four more languages, 2026-11-10
+
+A probe returned the weekly note under `Ich erinnere dich jeden Mittwoch um 9 Uhr.`, a reply that
+already states the repeat, because the weekly patterns were English only. The build reads
+`jeden Mittwoch`, `mittwochs`, `jede Woche`, `chaque mercredi`, `tous les mercredis`, `cada
+miércoles`, `los miércoles`, `todas las semanas`, `în fiecare miercuri` and the weekly adjectives
+beside a word for the reminder, and stops reading every-day phrases (`every day`, `jeden Tag`,
+`a daily reminder`) as stating a weekly rule's repeat. Near misses were written as tests first: one
+named day, a question and a negation in each language, and an every-day phrase. Replayed through
+the old and new reader, 388 distinct draw replies from tonight's and last night's slots read
+differently in 21, each naming an every-day phrase, which now reads as no weekly repeat; none
+read newly as weekly. No live row was drawn. `replay.py` and `mut.py` are in the
+run's `slot20` scratch directory.

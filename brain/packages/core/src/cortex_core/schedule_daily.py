@@ -25,16 +25,20 @@ STORED_ID = re.compile(r"\bscheduled \w+ (\S+): due ")
 # "It will now repeat every Tuesday" names the reminder's repeat, while "it will repeat the
 # question" names its text and "I'll repeat the details" names the reply.
 _REPEATS = re.compile(
-    r"\b(?:every|each)\s+(?:single\s+)?(?:day|morning|afternoon|evening|night)\b"
-    r"|\brepeat(?:s|ing)\b|\brecurring\b"
+    r"\brepeat(?:s|ing)\b|\brecurring\b"
     r"|\b(?:it|this|that|which|reminder|alarm)(?:\s+will|['\u2019]ll)\s+(?:now\s+|also\s+)?repeat"
     r"(?=\s*(?:[.,;!]|$)|\s+(?:every|each|on|daily|weekly|monthly|at|from|until)\b)"
-    r"|\bjeden\s+(?:Tag|Morgen|Nachmittag|Abend)\b|\bwiederholt\b|\bwiederkehrend\w*"
+    r"|\bwiederholt\b|\bwiederkehrend\w*|\bse\s+répète\b|\brécurrent\w*|\bse\s+repite\b"
+    r"|\bse\s+repetă\b",
+    re.IGNORECASE,
+)
+_EVERY_DAY = re.compile(
+    r"\b(?:every|each)\s+(?:single\s+)?(?:day|morning|afternoon|evening|night)\b"
+    r"|\bjeden\s+(?:Tag|Morgen|Nachmittag|Abend)\b"
     r"|\btous\s+les\s+(?:jours|matins|après-midi|soirs)\b|\bchaque\s+(?:jour|matin|soir)\b"
-    r"|\bse\s+répète\b|\brécurrent\w*"
     r"|\btodos\s+los\s+días\b|\btodas\s+las\s+(?:mañanas|tardes|noches)\b"
-    r"|\bcada\s+(?:día|mañana|tarde|noche)\b|\bse\s+repite\b"
-    r"|\bîn\s+fiecare\s+(?:zi|dimineață|seară)\b|\bzi\s+de\s+zi\b|\bse\s+repetă\b",
+    r"|\bcada\s+(?:día|mañana|tarde|noche)\b"
+    r"|\bîn\s+fiecare\s+(?:zi|dimineață|seară)\b|\bzi\s+de\s+zi\b",
     re.IGNORECASE,
 )
 # An adjective such as "daily" may describe the reminder's own text ("your daily vitamins"), so it
@@ -84,14 +88,13 @@ _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
 _CLAUSE_END = re.compile(r"[,;]")
 
 
-def _states_repeat(sentence: str, also: tuple[re.Pattern[str], ...]) -> bool:
+def _states_repeat(sentence: str, patterns: tuple[re.Pattern[str], ...]) -> bool:
     """Whether ``sentence`` states a repeat, rather than asking, offering or negating one."""
     told = _ASIDE.sub("", sentence)
     if "?" in sentence or _CHOICE.search(told) is not None:
         return False
     return any(
-        _NEGATION.search(clause) is None
-        and any(each.search(head) is not None for each in (_REPEATS, _DAILY_BESIDE, *also))
+        _NEGATION.search(clause) is None and any(each.search(head) is not None for each in patterns)
         for clause in _CLAUSE_END.split(told)
         for head in (_head(clause),)
     )
@@ -103,12 +106,13 @@ def _head(clause: str) -> str:
     return clause if own is None else clause[: own.start()]
 
 
-def names_repeat(reply: str, also: tuple[re.Pattern[str], ...] = ()) -> bool:
+def names_repeat(reply: str, also: tuple[re.Pattern[str], ...] = (), *, daily: bool = True) -> bool:
     """Whether a statement in ``reply`` says something repeats, in one of five languages.
 
-    Each pattern in ``also`` names a repeat too, read with the same question and negation rules.
+    Each pattern in ``also`` names a repeat too; ``daily`` false reads no every-day phrase.
     """
-    return any(_states_repeat(sentence, also) for sentence in _SENTENCE_END.split(reply))
+    patterns = (_REPEATS, *((_EVERY_DAY, _DAILY_BESIDE) if daily else ()), *also)
+    return any(_states_repeat(sentence, patterns) for sentence in _SENTENCE_END.split(reply))
 
 
 def daily_after(call: ToolCall, result: ToolResult, held: tuple[str, ...]) -> tuple[str, ...]:
