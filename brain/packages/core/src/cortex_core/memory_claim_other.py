@@ -60,7 +60,7 @@ def claims_kept_other(reply: str) -> bool:
     if _OPENING.search(reply.lstrip().partition("\n")[0]):
         return True
     return any(
-        _stated(sentence, match)
+        stated(sentence, match)
         for sentence in _SENTENCE_END.split(reply)
         if not sentence.rstrip().endswith("?")
         for match in _CLAIM.finditer(sentence)
@@ -74,7 +74,7 @@ def _clause(sentence: str, match: re.Match[str]) -> tuple[int, int]:
     return (starts[-1] if starts else 0), (len(sentence) if after is None else after.start())
 
 
-def _stated(sentence: str, match: re.Match[str]) -> bool:
+def stated(sentence: str, match: re.Match[str]) -> bool:
     """Whether ``match`` follows no condition in ``sentence`` and its clause holds no negation."""
     if _CONDITION.search(sentence, 0, match.start()):
         return False
@@ -90,7 +90,7 @@ def names_spared_other(reply: str, spared: Sequence[str]) -> bool:
         for sentence in _SENTENCE_END.split(reply)
         if not sentence.rstrip().endswith("?")
         for match in _CLAIM.finditer(sentence)
-        if _stated(sentence, match)
+        if stated(sentence, match)
     ]
     opening = _OPENING.search(reply.lstrip().partition("\n")[0]) is not None
     return (

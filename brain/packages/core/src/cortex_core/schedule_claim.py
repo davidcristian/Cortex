@@ -5,6 +5,7 @@ from collections.abc import Sequence
 
 from cortex_core.conversation import Message, Role, ToolRun
 from cortex_core.note_language import in_language
+from cortex_core.schedule_claim_other import claims_scheduled_other
 from cortex_core.schedule_tools import SCHEDULE_TOOL_NAME
 from cortex_core.schedule_verbs import EDIT_SCHEDULED_TOOL_NAME, SNOOZE_SCHEDULED_TOOL_NAME
 from cortex_core.tools import ToolCall
@@ -102,7 +103,7 @@ def unscheduled_claim(runs: Sequence[ToolRun], reply: str, said: Sequence[str] =
     """Whether ``reply`` claims a schedule that none of the turn's ``runs`` made."""
     if any(run.ok and run.name in SCHEDULING_TOOLS for run in runs):
         return False
-    return claims_scheduled(reply, said=said)
+    return claims_scheduled(reply, said=said) or claims_scheduled_other(reply)
 
 
 def names_time_of_day(reply: str) -> bool:
