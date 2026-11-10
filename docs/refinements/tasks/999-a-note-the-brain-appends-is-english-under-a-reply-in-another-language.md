@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** cross-cutting
 **Origin:** [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md)
-**Verified:** 2026-11-08
+**Verified:** 2026-11-10
 
 Every note `limit_notes` in `closing_notes.py` appends is a fixed English sentence, and the readers
 that decide whether one is due (`names_time_of_day`, `claims_scheduled`, `claims_yearly`,
@@ -46,3 +46,7 @@ another language and adds nothing.
 - 2026-11-08: the second audit of the night found that `ONCE_STORED_NOTE`, added the same night
   for a one-time item stored after the weekly refusal, is English too, and that refusal reads
   French, German, Spanish and Romanian weekdays. It needs its mapping like the others.
+- 2026-11-10: the compound request flows ended a German reply with the English
+  `UNKEPT_CLAIM_NOTE`, and showed `STORED_TIME_NOTE` after French replies naming `demain à 9h de
+  vider` and `**9h00**`, which `names_time_of_day` reads as no time
+  ([readings](../../readings/overlay-compound-request-flows.md#counts)).
