@@ -4,6 +4,7 @@ import re
 from collections.abc import Sequence
 
 from cortex_core.conversation import ToolRun
+from cortex_core.forget_claim_other import claims_forgotten_other
 from cortex_core.memory_forget import FORGET_UNTRUSTED_TOOL_NAME
 from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
 
@@ -100,4 +101,5 @@ def deleted_memory(runs: Sequence[ToolRun], unmatched: int) -> bool:
 
 def unforgotten_claim(runs: Sequence[ToolRun], reply: str, *, unmatched: int = 0) -> bool:
     """Whether ``reply`` says something was forgotten that no forget call among ``runs`` deleted."""
-    return not deleted_memory(runs, unmatched) and claims_forgotten(reply)
+    claimed = claims_forgotten(reply) or claims_forgotten_other(reply)
+    return not deleted_memory(runs, unmatched) and claimed
