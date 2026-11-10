@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-08
+**Verified:** 2026-11-10
 
 Flow x8 of [the readings](../../readings/overlay-corrections-flows.md), every card approved: one
 chat stored `Remember that my bike lock code is 4826.`; a second chat sent `My bike lock code is
@@ -26,3 +26,8 @@ is not a rate.
 ## History
 
 - 2026-11-08: filed from flow x8 in [the readings](../../readings/overlay-corrections-flows.md).
+- 2026-11-10: left open. Rows and a rule were written in
+  [the readings](../../readings/correction-keeps-old-value.md) before 18 draws of x8 and two other
+  `X, not Y` corrections; 2 of 18 kept the seed row and said updated or replacing, under the rule's
+  3, so no note was built. The same draws filed tasks 1110, 1111 and 1112. An update claim reader
+  built for task 1110 can serve this form too.
