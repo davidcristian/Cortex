@@ -34,6 +34,13 @@ NEAR_MISSES = [
     "Ich erinnere dich morgen um 9 Uhr.",
     "Te lo recordaré mañana a las 9.",
     "Îți voi aminti mâine la ora 9.",
+    "Voulez-vous que je vous programme un rappel ?",
+    "Je ne vous ai pas programmé de rappel.",
+    "Je vous ai également envoyé le rappel de la facture.",
+    "Je vous ai demandé l'heure du rappel.",
+    "Si vous voulez, je vous ai programmé ce genre de rappel pour d'autres.",
+    "Je vais vous programmer un rappel pour demain.",
+    "Je vous ai déjà dit que je ne peux pas programmer de rappel.",
 ]
 CLAIMS = [
     "D'accord, j'ai bien noté votre rappel pour appeler le plombier à 17h30.",
@@ -46,6 +53,11 @@ CLAIMS = [
     "El recordatorio queda configurado para mañana.",
     "Am programat un memento pentru astăzi la ora 17:30.",
     "Am setat mementoul pentru mâine.",
+    'Je vous ai également programmé un rappel pour demain à 9h00 pour "vider le casier".',
+    "Je t'ai programmé un rappel pour demain.",
+    "Nous vous avons programmé un rappel pour vendredi.",
+    "J'ai également noté un rappel pour demain à 9h.",
+    "Je vous ai donc bien programmé un rappel.",
 ]
 
 

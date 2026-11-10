@@ -4,9 +4,10 @@ import re
 
 from cortex_core.memory_claim_other import stated
 
+# An object pronoun may stand before the auxiliary ("je vous ai") and any two words after it.
 _DONE_FR = (
-    r"\b(?:j['\u2019]ai|c['\u2019]est|(?:est|sont)(?:\s+maintenant)?)\s+"
-    r"(?:bien\s+|aussi\s+|d[ée]j[àa]\s+)?"
+    r"\b(?:j['\u2019]ai|je\s+(?:\w+\s+|\w['\u2019])ai|nous\s+(?:\w+\s+|\w['\u2019])?avons"
+    r"|c['\u2019]est|est|sont)\s+(?:[\w'\u2019]+\s+){0,2}?"
 )
 _SOME_DE = r"(?:(?!(?:nicht|nie|kein\w*)\b)[\w'\u2019:]+\s+){0,6}?"
 _ALONE = re.compile(

@@ -9,7 +9,9 @@ is in [the closing note readings](closing-note-language.md#the-notes-and-their-r
 `claims_scheduled_other` (`schedule_claim_other.py`) reads a schedule claim in French, German,
 Spanish and Romanian, and `unscheduled_claim` reads it beside `claims_scheduled`, so
 `UNSCHEDULED_CLAIM_NOTE` shows on such a reply when no scheduling call succeeded. `j'ai programmé`,
-`c'est programmé`, `he programado`, `queda programado` and `am programat` claim alone. A set,
+`c'est programmé`, `he programado`, `queda programado` and `am programat` claim alone; in French
+an object pronoun may stand before the auxiliary (`je vous ai programmé`) and up to two words
+after it (`j'ai également programmé`). A set,
 created, added, noted or saved form (`j'ai bien noté`, `ist gespeichert`, `ich habe [...]
 eingestellt`, `queda configurado`, `am setat`) claims only in a sentence naming a reminder, an
 alarm, a timer or a task. As in English, a future form (`Je vous rappellerai`, `Ich erinnere
