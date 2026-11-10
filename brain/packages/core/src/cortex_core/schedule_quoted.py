@@ -11,9 +11,10 @@ QUOTED_STORED_NOTE = (
     "stand in quotation marks.)"
 )
 
-# An opening mark with no closing mark quotes to the end of the message.
+# An opening mark with no closing mark quotes to the end of the message, and a straight mark
+# after a digit is an inch mark, as in 27".
 _QUOTED = re.compile(
-    r'"[^"]*(?:"|$)|“[^”]*(?:”|$)|„[^“”]*(?:[“”]|$)'
+    r'(?<!\d)"[^"]*(?:"|$)|“[^”]*(?:”|$)|„[^“”]*(?:[“”]|$)'
     r"|«[^»]*(?:»|$)|»[^«]*(?:«|$)"
 )
 _REMIND = (

@@ -32,6 +32,7 @@ _DAILY_NOTE = QUOTED_STORED_NOTE.format(what="A daily reminder at 08:00")
         "Ana dijo “recuérdame mañana”. Le gustan las plantas.",
         "Ana a spus „amintește-mi mâine”. Îi plac plantele.",
         '"Remind me at 8," I told myself.',
+        'My 27" monitor came. Anna said "remind me at 9 to set it up".',
     ],
 )
 def test_a_request_to_remind_only_inside_quotation_marks_is_read(message: str) -> None:
@@ -53,6 +54,8 @@ def test_a_request_to_remind_only_inside_quotation_marks_is_read(message: str) -
         "Anna a dit « appelle-moi », réveille-moi à 7 h.",
         '"Remind me every day at 8 to water the plants."',
         '"Remind me at 8." 9:30',
+        'My 27" monitor arrives Friday, so remind me at 9 to set it up.',
+        'The 40" screen and the 32" one arrive Friday; remind me at 9.',
     ],
 )
 def test_a_request_outside_the_quotes_or_none_inside_them_is_not_read(message: str) -> None:
