@@ -98,7 +98,12 @@ decision 2).
   too when the edit's result says it was one time before the edit (`ToolResult.was_once`)
   (`TaintLedger.made_repeating`, `schedule_made_repeating.py`) and appends
   `MADE_REPEATING_NOTE` under the same reply check
-  ([readings](../readings/schedule-edit-repeat.md)).
+  ([readings](../readings/schedule-edit-repeat.md)). A rule with no `starting` first fires today
+  when its time has not passed, so when a repeat a `schedule_task` call stored first fires on a
+  day before the one the person's message names (tomorrow, the day after, or one weekday), the
+  brain appends `FIRST_FIRE_NOTE` naming that first fire's day, date and time
+  (`TaintLedger.early_first_fire`, `schedule_first_fire.py`). No call is refused or changed for it
+  ([readings](../readings/schedule-daily-first-fire.md)).
 - The record gains an added `rule` object, decoded with `.get` so an older record reads as having
   none; a rule that is present is decoded strictly, so a malformed one fails loudly rather than
   becoming a one-shot.

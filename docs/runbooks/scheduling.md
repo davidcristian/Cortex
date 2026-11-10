@@ -87,13 +87,13 @@ There are two shapes and an item takes exactly one.
   Giving more than one selector in a single call is refused: a rule holds exactly one.
 
   `at_time` with no selector repeats every day, so a request for one time ("tomorrow at 10:00")
-  belongs in `at`. The spec says both, since the cortex stored such a request as a daily item
-  when the `at_time` text said only "recurring"
-  ([readings](../readings/schedule-one-time-and-daily.md)). It still writes `at_time` for a bare
-  "at 9" in some draws, so the confirmation of `at_time` with no selector says the item repeats
-  every day and that `edit_scheduled` with its id and `every_seconds` 0 makes it one time. Every
-  creation confirmation, like a listing line, names the due day counted from today, such as
-  `(tomorrow)`.
+  belongs in `at`. The spec says both, since the cortex stored such a request as a daily item when
+  the `at_time` text said only "recurring" ([readings](../readings/schedule-one-time-and-daily.md)).
+  It still writes `at_time` for a bare "at 9" in some draws, so the confirmation of `at_time` with
+  no selector says the item repeats every day and that `edit_scheduled` with its id and
+  `every_seconds` 0 makes it one time. Every creation confirmation, like a listing line, names the
+  due day counted from today, such as `(tomorrow)`; a repeat first firing before the day asked for
+  ends with a note naming that first fire ([readings](../readings/schedule-daily-first-fire.md)).
 
   An optional `in_zone` (an IANA key such as `"America/New_York"`) names the zone the `at_time`
   wall clock is in, for a reminder that should fire on another zone's clock, say 09:00 New York

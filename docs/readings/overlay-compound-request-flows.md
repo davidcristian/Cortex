@@ -25,14 +25,14 @@ the third batch on, every row and schedule item was deleted before each turn.
 | Flow | Message | Calls | Stored | Notes | Result |
 | --- | --- | --- | --- | --- | --- |
 | c1 | Remember that my locker code is 4417 and remind me at 18:00 to empty the locker. | `schedule_task` `at_time` 18:00 | 1 row, 1 daily item | daily | the message asked for one time |
-| c2 | Read notes.txt and remind me tomorrow at 9 of the first item in it. | 3 file calls, `schedule_task` `at_time` 09:00 | 0 rows, 1 daily item first due today | daily | reply said tomorrow ([R-1122](../refinements/tasks/1122-a-daily-item-for-tomorrow-first-fires-today.md)) |
+| c2 | Read notes.txt and remind me tomorrow at 9 of the first item in it. | 3 file calls, `schedule_task` `at_time` 09:00 | 0 rows, 1 daily item first due today | daily | reply said tomorrow ([first fire](schedule-daily-first-fire.md)) |
 | c3 | Forget my old locker code 4417, remember the new one is 5528, and remind me Friday to test it. | `forget_memories` `4417` (card: 2 rows), `schedule_task` `at` Friday 09:00 | 0 rows, 1 item | unkept | correct |
 | c4 | Remind me at 7 to call Anna and don't save anything else from this message. | `schedule_task` `at` today 07:00 | 0 rows, 1 item | none | correct |
 | c5 | What's in notes.txt? Also, forget what I told you about my bike. | 4 file calls, `forget_memories` `bike` (card: 1 row) | 0 rows | none | correct |
 | c6 | Souviens-toi que le code de mon casier est 4417 et rappelle-moi demain à 9h de vider le casier. | `spawn_subagents` refused | 1 row, 0 items | **none** | false schedule claim ([R-1123](../refinements/tasks/1123-a-refused-fan-out-on-a-remember-turn-drops-the-reminder.md)) |
 | c7 | Vergiss meinen alten Spindcode 4417, merk dir, dass der neue 5528 ist, und erinnere mich am Freitag daran, ihn zu testen. | `forget_memories` `4417` (card: 1 row, 1 kept), `spawn_subagents` refused | 1 row (kept), 0 items | unkept, numbers left | no reminder, the reply said so (R-1123) |
 | c2b | as c2 | 3 file calls, `schedule_task` `at` tomorrow 09:00 | 0 rows, 1 item | none | correct |
-| c2c | Remember that I park on level 3 and remind me tomorrow at 9 to move the car. | `schedule_task` `at_time` 09:00 | 1 row, 1 daily item first due today | daily | reply said tomorrow (R-1122) |
+| c2c | Remember that I park on level 3 and remind me tomorrow at 9 to move the car. | `schedule_task` `at_time` 09:00 | 1 row, 1 daily item first due today | daily | reply said tomorrow (first fire) |
 | c2d, c2e | as c2c | `schedule_task` `at` tomorrow 09:00 | 1 row, 1 item | none | correct |
 | c6b, c6c | as c6 | `schedule_task` `at` tomorrow 09:00 | 1 row, 1 item | c6b: time | correct |
 | s1 | as c1, on the shell | `spawn_subagents` refused, then `schedule_task` `at_time` 18:00 | 1 row, 1 daily item | none | reply said daily; one time asked |
@@ -42,7 +42,7 @@ Seeds before c3, c5 and c7 (`Remember that my locker code is 4417.`, the bike, `
 mein Spindcode 4417 ist.`) each stored one row. Controls: `Remind me tomorrow at 9 to move the
 car.` twice, each stored `at` tomorrow 09:00 with no note. On a brain built after the reader
 change below, the c6 message three more times (f1 to f3): f1 stored `at_time` 09:00 first due
-today under a reply saying `demain à 9h00` (R-1122), f2 and f3 stored `at` tomorrow 09:00.
+today under a reply saying `demain à 9h00` (first fire), f2 and f3 stored `at` tomorrow 09:00.
 
 ## Counts
 
@@ -57,7 +57,8 @@ Of 18 compound turns (c1 to c7, c2b to c2e, c6b, c6c, f1 to f3, s1, s2):
 - **Schedule shape**: 5 of 14 turns that made a schedule call stored a daily item for a one-time
   request (c1, c2, c2c, f1, s1), against 0 of 2 single requests. The `at 18:00` form was stored
   daily 2 of 2 and `tomorrow at 9` 3 of 10. Each daily item ended with `DAILY_STORED_NOTE` or a
-  reply naming the daily repeat; the three for tomorrow first fire today (R-1122).
+  reply naming the daily repeat; the three for tomorrow first fire today, which
+  `FIRST_FIRE_NOTE` now names ([schedule-daily-first-fire.md](schedule-daily-first-fire.md)).
 - **Refused fan-out**: `spawn_subagents` was called and refused in 3 turns (c6, c7, s1); the
   reminder after it was claimed with no call once, dropped with a true reply once, and stored by
   a direct call once.

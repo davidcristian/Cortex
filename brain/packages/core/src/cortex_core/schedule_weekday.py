@@ -54,7 +54,7 @@ def weekday_off(call: ToolCall, result: ToolResult, query: str, tz: tzinfo) -> s
     return when.date().isoformat() if (when.weekday() - named) % 7 in {1, 6} else ""
 
 
-def _item_of(call: ToolCall, result: ToolResult) -> str:
+def item_of(call: ToolCall, result: ToolResult) -> str:
     """The id of the item ``call`` moved, or the id its result names as stored, else empty."""
     item = call.arguments.get("id")
     if call.name == EDIT_SCHEDULED_TOOL_NAME and isinstance(item, str):
@@ -63,14 +63,17 @@ def _item_of(call: ToolCall, result: ToolResult) -> str:
     return "" if stored is None else stored.group(1)
 
 
-def _changes_due(call: ToolCall, item_id: str) -> bool:
-    """Whether ``call`` cancels, snoozes or re-times ``item_id``, or any item when that is empty."""
+def changes_due(call: ToolCall, item_id: str, kept: frozenset[str] = _KEPT_BY_EDIT) -> bool:
+    """Whether ``call`` cancels, snoozes or re-times ``item_id``, or any item when that is empty.
+
+    An edit re-times an item when it sets any argument outside ``kept``.
+    """
     if item_id and call.arguments.get("id") != item_id:
         return False
     if call.name in {CANCEL_SCHEDULED_TOOL_NAME, SNOOZE_SCHEDULED_TOOL_NAME}:
         return True
     return call.name == EDIT_SCHEDULED_TOOL_NAME and any(
-        value is not None for key, value in call.arguments.items() if key not in _KEPT_BY_EDIT
+        value is not None for key, value in call.arguments.items() if key not in kept
     )
 
 
@@ -83,9 +86,9 @@ def weekday_off_after(
     """
     if result.is_error:
         return held
-    kept = tuple(pair for pair in held if not _changes_due(call, pair[0]))
+    kept = tuple(pair for pair in held if not changes_due(call, pair[0]))
     off = weekday_off(call, result, query, tz)
-    return (*kept, (_item_of(call, result), off)) if off else kept
+    return (*kept, (item_of(call, result), off)) if off else kept
 
 
 def weekday_off_dates(held: tuple[tuple[str, str], ...]) -> tuple[str, ...]:

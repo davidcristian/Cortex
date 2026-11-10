@@ -17,6 +17,7 @@ from cortex_core.progress import ProgressSink, hold_wait
 from cortex_core.provenance import SourceKind, as_source
 from cortex_core.schedule_claim import stored_time
 from cortex_core.schedule_daily import daily_after
+from cortex_core.schedule_first_fire import early_first_fire_after
 from cortex_core.schedule_made_repeating import made_repeating_after
 from cortex_core.schedule_midnight import midnight_unasked
 from cortex_core.schedule_offset import offset_date_wrong, offset_refusal
@@ -250,6 +251,14 @@ async def run_round(
         context.taint.once_after_weekly |= bool(record.weekly_refused) and stores_once(call, result)
         context.taint.weekday_off = weekday_off_after(
             call, result, context.query, context.zone.tz, context.taint.weekday_off
+        )
+        context.taint.early_first_fire = early_first_fire_after(
+            call,
+            result,
+            context.query,
+            context.clock.now(),
+            context.zone.tz,
+            context.taint.early_first_fire,
         )
         if call.name == FORGET_CHOSEN_TOOL_NAME:
             _note_forget(context.taint, result)

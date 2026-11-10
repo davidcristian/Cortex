@@ -68,6 +68,7 @@ class HandoffRecord:
     made_repeating: tuple[str, ...] = ()
     once_after_weekly: bool = False
     weekday_off: tuple[tuple[str, str], ...] = ()
+    early_first_fire: tuple[tuple[str, str, str], ...] = ()
 
     def __post_init__(self) -> None:
         if self.requested_at.tzinfo is None or self.requested_at.utcoffset() is None:
@@ -103,6 +104,7 @@ class HandoffRecord:
             made_repeating=self.made_repeating,
             once_after_weekly=self.once_after_weekly,
             weekday_off=self.weekday_off,
+            early_first_fire=self.early_first_fire,
         )
 
 
@@ -185,4 +187,5 @@ class EscalationSlot:
             made_repeating=self.refs.taint.made_repeating,
             once_after_weekly=self.refs.taint.once_after_weekly,
             weekday_off=self.refs.taint.weekday_off,
+            early_first_fire=self.refs.taint.early_first_fire,
         )

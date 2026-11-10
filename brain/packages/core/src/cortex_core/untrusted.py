@@ -168,6 +168,8 @@ class TaintLedger:
     once_after_weekly: bool = False
     # The item id and ISO date of each one-time item stored a day off the weekday the message names.
     weekday_off: tuple[tuple[str, str], ...] = ()
+    # The item id, local first fire and day word of each repeat first firing before the named day.
+    early_first_fire: tuple[tuple[str, str, str], ...] = ()
     untrusted_urls: set[str] = field(default_factory=set[str])
     sources: tuple[Provenance, ...] = ()
     # The tainted memories this turn recalled: its record is stored only while they all exist.
