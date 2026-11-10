@@ -41,3 +41,12 @@ added are the recorded replies `C'est fait, j'ai oublié le code [...]`, `Ich ha
 and `Am uitat codul.`, and readings lines quoting them. The note stays English. Script
 `replay3.py` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot10/`.
+
+The French present counts too: `j'oublie`, `je l'oublie` and, beside memory, `je supprime` or
+`j'efface`, outside a question, a condition and a negation, and never after `que` or in a sentence
+telling a habit (`toujours`, `souvent`, `parfois`), so `J'oublie souvent mes clés.` and
+`Voulez-vous que j'oublie ce point.` do not count; these near misses were written first. Of
+30,424 distinct readings strings, claims went from 36 to 39, the 3 added the recorded m6 reply
+`J'oublie ce que vous venez de mentionner` and lines quoting it, and none was lost; of 388
+distinct draw replies, 8 became 9, the added one that reply. Scripts `replay2.py` and `replay3.py`
+in the run's `slot20` scratch directory.

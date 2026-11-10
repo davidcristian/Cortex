@@ -185,7 +185,7 @@ pool down to the hits one turn sees. The turn that calls it is in
   memory: no `forget_untrusted_memories` run is `ok`, and the `ok` runs of `forget_memories`
   number no more than `unmatched`, the turn's `forget_unmatched`. A clause whose subject is
   negated ("Nothing was removed") and a removal that names no memory ("I've removed the reminder")
-  do not count. `claims_forgotten_other` (`forget_claim_other.py`) reads the same claims in French, German, Spanish and Romanian (`j'ai oublié`, `ich habe [...] vergessen`, `he olvidado`, `am uitat`, and a deletion beside a word for memory), outside a question, a condition, a negated clause and a forgetting to do something. `limit_notes` reads `forget_unmatched` from the ledger and appends
+  do not count. `claims_forgotten_other` (`forget_claim_other.py`) reads the same claims in French, German, Spanish and Romanian (`j'ai oublié`, `ich habe [...] vergessen`, `he olvidado`, `am uitat`, and a deletion beside a word for memory, and the French present `j'oublie`, `je l'oublie`, or `je supprime` beside memory, outside a habit word such as `souvent` and never after `que`), outside a question, a condition, a negated clause and a forgetting to do something. `limit_notes` reads `forget_unmatched` from the ledger and appends
   `UNFORGOTTEN_CLAIM_NOTE`, telling the person nothing was forgotten and to ask again in a
   message of its own. The reply is every round's text and a denied card's run is not `ok`, so a
   claim a round streams before a card the person denies ends with the note too

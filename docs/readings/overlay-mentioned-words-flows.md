@@ -66,8 +66,8 @@ Of 25 turns (m1 to m18 with their repeats, s1, s2):
   as a request to remember, filed as
   [R-1129](../refinements/tasks/1129-a-question-asking-to-note-a-fact-is-not-read-as-a-request-to-remember.md).
 - **Notes**: every note shown was true (m5: daily and unkept). One reply claimed an action with no
-  note: m6's present-tense French forget claim, 1 of 3 draws, filed as
-  [R-1130](../refinements/tasks/1130-a-french-reply-saying-it-forgets-in-the-present-gets-no-note.md).
+  note: m6's present-tense French forget claim, 1 of 3 draws, which the forget claim reader now
+  reads ([readings](claim-readers-in-other-languages.md)).
 
 ## The weekday read under the two schedule notes
 

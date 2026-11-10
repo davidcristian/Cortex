@@ -29,6 +29,18 @@ NEAR_MISSES = [
     "C'est oublié ?",
     "¿He olvidado algo?",
     "Am uitat ceva?",
+    "J'oublie souvent mes clés.",
+    "J'oublie toujours mes clés.",
+    "Parfois j'oublie mes clés.",
+    "Je n'oublie rien.",
+    "Voulez-vous que j'oublie ce point.",
+    "Si vous voulez, j'oublie ce point.",
+    "Dites-moi si j'oublie quelque chose.",
+    "J'oublie de vous demander l'heure.",
+    "Je supprime le fichier ?",
+    "Je supprime le rappel de demain.",
+    "Je supprime souvent des notes de ma mémoire.",
+    "Je ne supprime rien de ma mémoire.",
 ]
 CLAIMS = [
     "J'ai oublié votre code.",
@@ -40,6 +52,11 @@ CLAIMS = [
     "Tu código ha sido borrado de la memoria.",
     "Am uitat codul tău.",
     "Am șters codul din memorie.",
+    "J'oublie ce que vous venez de mentionner (le « ça »).",
+    "C'est noté, j'oublie votre code.",
+    "Je l'oublie.",
+    "Je supprime votre code de ma mémoire.",
+    "J'efface ce point de ma mémoire.",
 ]
 
 

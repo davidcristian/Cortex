@@ -20,6 +20,21 @@ _DELETED = re.compile(
     rf"|{_ES}(?:borrad|eliminad)[oa]s?|{_RO}(?:[șşs]ters|eliminat)[ăe]?)\b",
     re.IGNORECASE,
 )
+# The present counts for French only, and never after "que" ("Voulez-vous que j'oublie ce point").
+_FORGETS = re.compile(
+    r"(?<!que\s)\b(?:j['\u2019]|je\s+(?:l['\u2019]|les\s+))oublie\b(?!\s+(?:de|d['\u2019])(?!\w))",
+    re.IGNORECASE,
+)
+_DELETES = re.compile(
+    r"(?<!que\s)\b(?:j['\u2019]efface|je\s+(?:l['\u2019]|les\s+)?(?:supprime|efface))\b",
+    re.IGNORECASE,
+)
+# "J'oublie souvent mes clés" tells a habit rather than a forget of this turn.
+_HABIT = re.compile(
+    r"(?<!\w)(?:toujours|souvent|parfois|tout\s+le\s+temps|facilement|vite|r[ée]guli[èe]rement"
+    r"|chaque\s+fois|d['\u2019]habitude)(?!\w)",
+    re.IGNORECASE,
+)
 # A deletion counts only beside memory, since a reminder or a file is deleted in the same words.
 _MEMORY = re.compile(
     r"\b(?:m[ée]moire|ged[äa]chtnis|speicher|memoria|memorie[i]?)\b", re.IGNORECASE
@@ -32,10 +47,18 @@ def claims_forgotten_other(reply: str) -> bool:
     for sentence in _SENTENCE_END.split(reply):
         if sentence.rstrip().endswith("?"):
             continue
-        named = _MEMORY.search(sentence) is not None
-        patterns = (_FORGOT, _DELETED) if named else (_FORGOT,)
         if any(
-            stated(sentence, found) for pattern in patterns for found in pattern.finditer(sentence)
+            stated(sentence, found)
+            for pattern in _patterns(sentence)
+            for found in pattern.finditer(sentence)
         ):
             return True
     return False
+
+
+def _patterns(sentence: str) -> tuple[re.Pattern[str], ...]:
+    """The claim forms read in ``sentence``: a deletion beside memory, the present in no habit."""
+    now = _HABIT.search(sentence) is None
+    named = _MEMORY.search(sentence) is not None
+    forms = ((_FORGOT, True), (_FORGETS, now), (_DELETED, named), (_DELETES, now and named))
+    return tuple(pattern for pattern, read in forms if read)
