@@ -41,9 +41,10 @@ _ONCE = "scheduled reminder abc: due 2026-11-11T09:00:00+01:00 (tomorrow)"
 _CAR = "Remember that I park on level 3 and remind me tomorrow at 9 to move the car."
 _DAILY = {"kind": "reminder", "text": "move the car", "at_time": "09:00"}
 _NOTE = (
-    "\n\n(A reminder set in this turn first fires today, Tuesday 2026-11-10 at 09:00. Ask to "
-    "change its first day if you meant a later one.)"
+    "\n\n(A reminder set or changed in this turn first fires today, Tuesday 2026-11-10 at 09:00. "
+    "Ask to change its first day if you meant a later one.)"
 )
+_EDITED = "edited abc: now due 2026-11-10T09:30:00+01:00"
 
 
 def _ran(content: str, *, failed: bool = False) -> ToolResult:
@@ -134,9 +135,40 @@ def test_a_repeat_first_firing_before_the_named_day_is_read_with_its_first_fire(
 
 
 def test_a_failed_store_or_another_tool_reads_no_first_fire() -> None:
-    edit = ToolCall(id="c1", name=EDIT_SCHEDULED_TOOL_NAME, arguments={"id": "abc", **_DAILY})
+    cancel = ToolCall(id="c1", name=CANCEL_SCHEDULED_TOOL_NAME, arguments={"id": "abc"})
     assert early_first_fire(_store(), _ran(_TODAY, failed=True), _CAR, _NOW, _BERLIN) == ("", "")
-    assert early_first_fire(edit, _ran(_TODAY), _CAR, _NOW, _BERLIN) == ("", "")
+    assert early_first_fire(cancel, _ran(_TODAY), _CAR, _NOW, _BERLIN) == ("", "")
+
+
+@pytest.mark.parametrize(
+    ("arguments", "content", "expected"),
+    [
+        ({"id": "abc", "at_time": "09:30"}, _EDITED, ("2026-11-10T09:30", "today")),
+        ({"id": "abc", "on_days": ["tuesday"]}, _EDITED, ("2026-11-10T09:30", "today")),
+        (
+            {"id": "abc", "at_time": "09:30", "starting": "2026-11-11"},
+            "edited abc: now due 2026-11-11T09:30:00+01:00",
+            ("", ""),
+        ),
+        ({"id": "abc", "every_seconds": 3600}, _EDITED, ("", "")),
+        ({"id": "abc", "at": "2026-11-10T09:30:00"}, _EDITED, ("", "")),
+        ({"id": "abc", "at_time": "09:30"}, "edited abc", ("", "")),
+    ],
+)
+def test_an_edit_moving_a_repeat_before_the_named_day_is_read_with_its_first_fire(
+    *, arguments: Mapping[str, object], content: str, expected: tuple[str, str]
+) -> None:
+    edit = ToolCall(id="c2", name=EDIT_SCHEDULED_TOOL_NAME, arguments=arguments)
+    assert early_first_fire(edit, _ran(content), _CAR, _NOW, _BERLIN) == expected
+
+
+def test_a_store_re_timed_to_another_early_time_keeps_one_first_fire() -> None:
+    held = early_first_fire_after(_store(), _ran(_TODAY), _CAR, _NOW, _BERLIN, ())
+    edit = ToolCall(
+        id="c2", name=EDIT_SCHEDULED_TOOL_NAME, arguments={"id": "abc", "at_time": "09:30"}
+    )
+    after = early_first_fire_after(edit, _ran(_EDITED), _CAR, _NOW, _BERLIN, held)
+    assert after == (("abc", "2026-11-10T09:30", "today"),)
 
 
 def test_a_store_after_nine_first_fires_on_the_named_day() -> None:

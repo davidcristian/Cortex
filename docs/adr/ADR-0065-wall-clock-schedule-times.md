@@ -99,7 +99,8 @@ decision 2).
   (`TaintLedger.made_repeating`, `schedule_made_repeating.py`) and appends
   `MADE_REPEATING_NOTE` under the same reply check
   ([readings](../readings/schedule-edit-repeat.md)). A rule with no `starting` first fires today
-  when its time has not passed, so when a repeat a `schedule_task` call stored first fires on a
+  when its time has not passed, so when a repeat a `schedule_task` call stored, or an
+  `edit_scheduled` call re-timed with `at_time` or a day selector, first fires on a
   day before the one the person's message names (tomorrow, the day after, or one weekday), the
   brain appends `FIRST_FIRE_NOTE` naming that first fire's day, date and time
   (`TaintLedger.early_first_fire`, `schedule_first_fire.py`). No call is refused or changed for it

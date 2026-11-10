@@ -1,16 +1,17 @@
-"""Read whether a repeat stored this turn first fires before the day the person's message names."""
+"""Read whether a repeat stored or re-timed this turn first fires before the day a message names."""
 
 import re
 from datetime import date, datetime, timedelta, tzinfo
 
 from cortex_core.schedule_tools import SCHEDULE_TOOL_NAME
+from cortex_core.schedule_verbs import EDIT_SCHEDULED_TOOL_NAME
 from cortex_core.schedule_weekday import changes_due, item_of
 from cortex_core.schedule_weekly import WEEKDAY_NAMES, named_weekday
 from cortex_core.tools import ToolCall, ToolResult
 
 FIRST_FIRE_NOTE = (
-    "\n\n(A reminder set in this turn first fires {when}, {day} {date} at {time}. Ask to change "
-    "its first day if you meant a later one.)"
+    "\n\n(A reminder set or changed in this turn first fires {when}, {day} {date} at {time}. Ask "
+    "to change its first day if you meant a later one.)"
 )
 
 _AFTER_TOMORROW = re.compile(
@@ -41,15 +42,22 @@ def days_named(query: str, today: date) -> int:
     return 0 if named is None else (named - today.weekday()) % 7
 
 
+def _repeats(call: ToolCall) -> bool:
+    """Whether ``call`` stores a repeat at a wall time or edits an item's due time by its rule."""
+    if call.name == SCHEDULE_TOOL_NAME:
+        return call.arguments.get("at_time") is not None
+    moved = call.name == EDIT_SCHEDULED_TOOL_NAME and call.arguments.get("at") is None
+    return moved and changes_due(call, "", _KEPT_BY_EDIT)
+
+
 def early_first_fire(
     call: ToolCall, result: ToolResult, query: str, now: datetime, tz: tzinfo
 ) -> tuple[str, str]:
-    """The local ``YYYY-MM-DDTHH:MM`` and day word of a repeat ``call`` stored that first fires
-    before the day ``query`` names; empty strings when it stored none or fires on that day or later.
+    """The local ``YYYY-MM-DDTHH:MM`` and day word of a repeat ``call`` stored or re-timed that
+    first fires before the day ``query`` names; empty strings when none or on that day or later.
     """
     found = _DUE.search(result.content)
-    repeat = call.name == SCHEDULE_TOOL_NAME and call.arguments.get("at_time") is not None
-    if result.is_error or not repeat or found is None:
+    if result.is_error or not _repeats(call) or found is None:
         return "", ""
     try:
         first = datetime.fromisoformat(found.group(1))
