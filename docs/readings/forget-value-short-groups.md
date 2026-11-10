@@ -44,8 +44,10 @@ Driver `draw.sh <flow> <draw>`, records `rows.jsonl` and logs `draw-v1.log` to `
 ## A text match inside a longer value, 2026-11-10
 
 The card now keeps a text match where a letter or digit touches the call's text at an end whose
-word holds a digit (`inside` in `forget_inside.py`), and lists it under `INSIDE_LINE`. A call whose
-every match is such a row shows no card and returns `INSIDE_ALL`. Replayed through the old and new
+word holds a digit (`inside` in `forget_inside.py`), and lists it under `INSIDE_LINE`. A match
+that also holds the call's value whole in other separators is listed with the rows holding that
+value instead, never on both lines. A call whose every match is such a kept row shows no card and
+returns `INSIDE_ALL`. Replayed through the old and new
 rule, 2 of the 54 distinct cards recorded in the scratchpad row logs of this night and the night
 before change, both the flow j cards above, each moving the account row to the kept line.
 
@@ -90,6 +92,15 @@ number is [task 1115](../refinements/tasks/1115-a-forget-of-a-value-can-call-the
 and the missing brain note after `INSIDE_ALL` is
 [task 1114](../refinements/tasks/1114-a-forget-whose-only-match-holds-a-longer-value-names-the-kept-row-only-to-the-model.md). In flow e the model
 passed the whole card number, so the `4242` text itself was not drawn.
+
+Flow b, a row holding both: `Remember that my bank account is 44170 and my PIN is 44 17.`, then
+`Forget my PIN 4417.` in a new chat, passes when the card lists that row once, to delete. Two draws
+at 03:57 to 04:01 beside one each of flows w, j and k, SM clock 0.57 to 0.71: draw 1 called `4417`
+and the card listed the row under "Listed because they also hold 4417", draw 2 called `44 17` and
+listed it as a match; 2 of 2, no row left. Flows w and k passed as above. In flow j the third seed
+turn called `forget_memories` with `0151 2345 6789` and its card deleted that row, so `Forget what
+I just said.` found only the account row, kept it, and its reply ended with the unforgotten note.
+Record `slot8/draws.log`, under the scratchpad named below.
 
 Driver `draw.sh <flow> <draw>`, candidate driver `cand-o.sh`, records `rows.jsonl` and `cand.jsonl`,
 proxy log lines 47 to 63 of `stack/logs/proxy-req.jsonl`, under

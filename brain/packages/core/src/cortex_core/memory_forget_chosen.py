@@ -196,10 +196,12 @@ class ForgetChosenTool:
         try:
             matches = await self._found(call)
             inner = inside(matches, _text(call))
-            within = [record for record in matches if record.id in inner]
             found = [record for record in matches if record.id not in inner]
             small = len(matches) <= FORGET_CHOSEN_LIMIT
             extra = await self._repeating(call, found) if small else []
+            # A row also holding the value whole, in other separators, is listed rather than kept.
+            inner -= {record.id for record, _, _ in extra}
+            within = [record for record in matches if record.id in inner]
         except MemoryStoreError as err:
             return unavailable(err), None
         if not small:

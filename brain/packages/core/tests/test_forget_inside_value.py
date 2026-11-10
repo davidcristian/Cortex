@@ -142,6 +142,33 @@ async def test_the_value_finds_a_row_with_other_separators_beside_a_longer_numbe
     assert left == ["account"]
 
 
+@pytest.mark.parametrize(
+    "beside",
+    ["my PIN 44 17", "my door code 44-17", "my PIN 4417"],
+    ids=["spaces", "hyphen", "glued-elsewhere"],
+)
+async def test_a_row_also_holding_the_value_whole_is_listed_and_not_shown_kept(beside: str) -> None:
+    row = f"User: Remember my account 44170 and {beside}.\nAssistant: Noted."
+    lines, said, left = await _forget("4417", _record("both", row))
+    assert lines is not None
+    assert INSIDE_LINE not in lines
+    assert said.startswith("forgot 1 remembered exchanges;")
+    assert left == []
+
+
+@pytest.mark.parametrize(
+    "beside", ["my PIN 44 18", "my PIN 4-4-1-7-0"], ids=["other-digits", "longer-in-groups"]
+)
+async def test_a_row_holding_no_whole_value_named_beside_a_longer_one_stays_kept(
+    beside: str,
+) -> None:
+    row = f"User: Remember my account 44170 and {beside}.\nAssistant: Noted."
+    lines, said, left = await _forget("4417", _record("both", row))
+    assert lines is None
+    assert said == f"{INSIDE_ALL}."
+    assert left == ["both"]
+
+
 async def test_a_value_held_only_inside_a_longer_number_deletes_nothing_and_shows_no_card() -> None:
     store = InMemoryMemoryStore()
     await store.add(_record("account", _ACCOUNT))
