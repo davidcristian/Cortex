@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from cortex_core.conversation import ToolRun
 from cortex_core.file_request import asks_files
 from cortex_core.forget_unnamed import row_words
-from cortex_core.memory_claim_other import claims_kept_other
+from cortex_core.memory_claim_other import claims_kept_other, names_spared_other
 from cortex_core.memory_claim_update import claims_updated
 from cortex_core.memory_forget import FORGET_UNTRUSTED_TOOL_NAME
 from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
@@ -114,7 +114,7 @@ def _named(text: str) -> set[str]:
 
 
 def names_spared(reply: str, spared: Sequence[str]) -> bool:
-    """Whether each sentence of ``reply`` claiming a keep says only that a kept row was kept."""
+    """Whether each sentence of ``reply`` claiming a keep names only words of a row still stored."""
     held = {word for text in spared for word in _named(text)}
     claims = [sentence for sentence in _SENTENCE_END.split(reply) if claims_kept(sentence)]
     objects = [
@@ -123,7 +123,7 @@ def names_spared(reply: str, spared: Sequence[str]) -> bool:
         for verb in _VERB.finditer(sentence)
     ]
     return bool(objects) and all(
-        verb in _KEEPING and not held.isdisjoint(words) for verb, words in objects
+        verb in _KEEPING and words and words <= held for verb, words in objects
     )
 
 
@@ -134,7 +134,9 @@ def unkept_note_due(
     # A reply can say the value was updated in words a file edit shares, so a request to keep is
     # enough, and a bare update claim counts only on a turn that called the forget tool.
     # A clause that also asks not to keep expects nothing kept, and a question asks none.
-    claimed = (claims_kept(reply) and not names_spared(reply, spared)) or claims_kept_other(reply)
+    claimed = (claims_kept(reply) and not names_spared(reply, spared)) or (
+        claims_kept_other(reply) and not names_spared_other(reply, spared)
+    )
     claimed = claimed or (forget_called and claims_updated(reply))
     return claimed or (asks_kept(query) and not asks_not_kept(query)) or _asks_kept_beside(query)
 

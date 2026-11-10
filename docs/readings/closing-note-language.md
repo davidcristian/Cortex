@@ -194,7 +194,7 @@ condition word (`si`, `wenn`, `falls`, `cuando`, `dacă`) and a claim whose clau
 claim nothing, and a negation in another clause (`Pas de souci, c'est noté.`) does not count.
 `unkept_note_due` reads it beside `claims_kept`, so `UNKEPT_CLAIM_NOTE` shows on such a reply on a
 turn that stores nothing; `claims_kept` itself is unchanged, so the refused forget branch of
-`UNFORGOTTEN_CLAIM_NOTE` and `names_spared` read English only. The near misses were written first:
+`UNFORGOTTEN_CLAIM_NOTE` reads English only. The near misses were written first:
 the same verbs in a question, a condition and a negation in each language, plus `Ich merke mir
 Namen schlecht.` and English `Note my code 7319.`. Every distinct readings string (29,123) was
 replayed through the old reader (`claims_kept`) and the new one (either reader): 71 claims became
@@ -205,3 +205,24 @@ several lines, and one prose fragment. No English string was added. The note sta
 such a reply: `UNKEPT_CLAIM_NOTE` has no translations, and a wording in another language is a pick.
 Script `replay1049.py` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot2/`.
+
+## A keep claim naming a row still stored, 2026-11-10
+
+`unkept_note_due` skips `UNKEPT_CLAIM_NOTE` when every keep claim of the reply names only a row
+still stored. Two forms got the note anyway. A reply in Spanish or Romanian saying the row a keep
+clause spared stayed (`He borrado tu PIN del banco y he guardado tu código del gimnasio.`) had no
+exception, and `OK. I've forgotten your phone number and kept Anna's.` (flow k of
+[the short groups readings](forget-value-short-groups.md)) named a row no forget call matched, so
+`TaintLedger.forget_spared` did not hold it. The forget card now adds the rows the message's keep
+clause names (`keep_named`, `forget_keep_named.py`), and `names_spared_other` reads a claim of
+`claims_kept_other` whose verb keeps or saves (`guardado`, `salvat`, `gespeichert`, `enregistré`),
+taking the words of its clause. Each object word must now be a word of such a row (it was one
+shared word), so `kept your new phone number` beside Anna's row keeps the note. A noted verb, an
+opening `Guardado.`, a new value, and a row stored in another language than the reply keep it too.
+
+Every distinct readings string (29,621) was replayed through the old and new `unkept_note_due`
+with six spared sets (none, Anna's row, the shed, gym rows in English, Spanish and Romanian), each
+with and without a forget call. Two results changed, both a readings line quoting the Anna reply
+with more words after it, and both now show the note. No recorded reply in another language keeps
+a stored row (`names_spared_other` holds on 0 strings). Script `replay.py` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot10/`.

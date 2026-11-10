@@ -1,6 +1,10 @@
 """Read a reply in French, German, Spanish or Romanian that says something was noted or kept."""
 
 import re
+from collections.abc import Sequence
+
+from cortex_core.forget_languages import FUNCTION
+from cortex_core.forget_unnamed import row_words
 
 _KEPT_FR = r"(?:not[ée]|enregistr[ée]|m[ée]moris[ée]|retenu|pris\s+note)\w*"
 _PRONOUN_FR = r"(?:le\s+|la\s+|les\s+|l['\u2019])?"
@@ -46,6 +50,9 @@ _NEGATION = re.compile(
 )
 _CLAUSE_END = re.compile(r"[,;:]|\b(?:et|mais|und|aber|y|pero|și|şi|dar)\b", re.IGNORECASE)
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
+# Only verbs of keeping or saving, since a fact "noted" in a reply is a new one.
+_KEEPING = re.compile(r"guard|salv|speicher|enregistr", re.IGNORECASE)
+_FUNCTION = frozenset(word for words in FUNCTION.values() for word in words)
 
 
 def claims_kept_other(reply: str) -> bool:
@@ -60,11 +67,40 @@ def claims_kept_other(reply: str) -> bool:
     )
 
 
+def _clause(sentence: str, match: re.Match[str]) -> tuple[int, int]:
+    """Where the clause of ``sentence`` holding ``match`` starts and ends."""
+    starts = [found.end() for found in _CLAUSE_END.finditer(sentence, 0, match.start())]
+    after = _CLAUSE_END.search(sentence, match.end())
+    return (starts[-1] if starts else 0), (len(sentence) if after is None else after.start())
+
+
 def _stated(sentence: str, match: re.Match[str]) -> bool:
     """Whether ``match`` follows no condition in ``sentence`` and its clause holds no negation."""
     if _CONDITION.search(sentence, 0, match.start()):
         return False
-    starts = [found.end() for found in _CLAUSE_END.finditer(sentence, 0, match.start())]
-    after = _CLAUSE_END.search(sentence, match.end())
-    end = len(sentence) if after is None else after.start()
-    return _NEGATION.search(sentence, starts[-1] if starts else 0, end) is None
+    start, end = _clause(sentence, match)
+    return _NEGATION.search(sentence, start, end) is None
+
+
+def names_spared_other(reply: str, spared: Sequence[str]) -> bool:
+    """Whether each claim of ``reply`` in another language keeps only a row still stored."""
+    held = {word for text in spared for word in row_words(text)}
+    objects = [
+        (match.group(), _object(sentence, match))
+        for sentence in _SENTENCE_END.split(reply)
+        if not sentence.rstrip().endswith("?")
+        for match in _CLAIM.finditer(sentence)
+        if _stated(sentence, match)
+    ]
+    opening = _OPENING.search(reply.lstrip().partition("\n")[0]) is not None
+    return (
+        bool(objects)
+        and not opening
+        and all(_KEEPING.search(verb) and words and words <= held for verb, words in objects)
+    )
+
+
+def _object(sentence: str, match: re.Match[str]) -> set[str]:
+    """The words naming a fact in the clause of ``sentence`` holding ``match``, without it."""
+    start, end = _clause(sentence, match)
+    return row_words(f"{sentence[start : match.start()]} {sentence[match.end() : end]}") - _FUNCTION

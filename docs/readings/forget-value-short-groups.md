@@ -125,8 +125,9 @@ row as unnamed (`KEPT_ALL`), so `kept_note` named the row and `inside_note` name
 The reply of draw 1 also offered to forget the phrase `phone account`; such a forget shows a card
 before it deletes anything.
 The engine tests in `test_forget_inside_note.py` cover the form itself. In flow k, draw 2's reply
-`OK. I've forgotten your phone number and kept Anna's.` ended with `UNKEPT_CLAIM_NOTE`
-([task 1121](../refinements/tasks/1121-a-reply-saying-it-kept-a-row-the-forget-never-matched-gets-the-unkept-note.md)).
+`OK. I've forgotten your phone number and kept Anna's.` ended with `UNKEPT_CLAIM_NOTE`, since no
+call matched Anna's row; the forget card now also reports the rows a keep clause names
+([readings](closing-note-language.md#a-keep-claim-naming-a-row-still-stored-2026-11-10)).
 Record `slot9/draws.log`, under the scratchpad named below.
 
 Driver `draw.sh <flow> <draw>`, candidate driver `cand-o.sh`, records `rows.jsonl` and `cand.jsonl`,

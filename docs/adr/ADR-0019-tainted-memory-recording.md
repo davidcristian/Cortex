@@ -159,8 +159,8 @@ across turns (a recalled memory).
    that says it reaches such a folder ends with `UNREAD_FOLDERS_NOTE` (`file_claim.py`).
    `record_exchange` returns on it, and `limit_notes` reads it over the same runs and appends
    `UNKEPT_CLAIM_NOTE` when `claims_kept` also finds a statement that something was noted or will
-   be remembered (or `claims_kept_other` finds one in French, German, Spanish or Romanian, or, on a turn that called `forget_memories`, `claims_updated` finds a clause saying a value was updated, since such a turn is about memory rather than a file), unless each such statement only says it kept a row the turn's forget kept
-   (`names_spared`, over `TaintLedger.forget_spared`), since that row is in memory, as `UNSCHEDULED_CLAIM_NOTE` closes a schedule claim no call made
+   be remembered (or `claims_kept_other` finds one in French, German, Spanish or Romanian, or, on a turn that called `forget_memories`, `claims_updated` finds a clause saying a value was updated, since such a turn is about memory rather than a file), unless each such statement says with a verb of keeping only that it kept a row still stored, every word naming its object being a word of a row the turn's forget kept or of a row the message's keep clause names, matched by a call or not (`keep_named`, `forget_keep_named.py`)
+   (`names_spared`, and `names_spared_other` for the four other languages, over `TaintLedger.forget_spared`), since that row is in memory, as `UNSCHEDULED_CLAIM_NOTE` closes a schedule claim no call made
    ([ADR-0025](ADR-0025-scheduling-reminders.md)), or when the message asks to remember and does
    not also ask not to keep, or a clause of a statement asks to remember and does not itself ask
    not to keep, whatever the reply says, so a request beside a forget or a put off decision about something else shows it ([replay](../readings/chat-only-limit-words.md#a-request-to-remember-in-a-clause-beside-a-request-not-to-keep-2026-11-10)),

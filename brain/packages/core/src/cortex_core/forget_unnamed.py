@@ -186,9 +186,14 @@ def _split(query: str, language: str) -> tuple[set[str], set[str], set[str] | No
     return named, kept, listed, bool(_stems(forget))
 
 
+def keep_words(query: str) -> set[str]:
+    """The words naming a fact that only a clause of ``query`` asking to keep holds."""
+    return _split(query, message_language(query))[1]
+
+
 def asks_to_keep(text: str, query: str) -> bool:
     """Whether a clause of ``query`` asking to keep names a fact of the row ``text``, or all."""
-    kept = _split(query, message_language(query))[1]
+    kept = keep_words(query)
     return not _REST.isdisjoint(_parts(query)[1]) or not kept.isdisjoint(_row_names(text))
 
 
