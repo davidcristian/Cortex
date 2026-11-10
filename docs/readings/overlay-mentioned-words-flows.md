@@ -56,8 +56,7 @@ Of 25 turns (m1 to m18 with their repeats, s1, s2):
 - **Requests not to keep**: the quoted `don't save the receipts` (m9) withheld nothing; the fact
   beside it was stored.
 - **Schedule items**: 4 of 4 turns quoting Anna's request to remind stored a daily reminder for
-  the person (m5, m5-2, m5-3, s2), filed as
-  [R-1128](../refinements/tasks/1128-a-reminder-quoted-from-another-person-is-stored-as-the-persons-own.md).
+  the person (m5, m5-2, m5-3, s2); such a turn now closes with the note below.
   0 of 3 turns naming a repeat in a quote, a report of an earlier request or a hypothetical (m11,
   m14, m16) stored an item. m3 stored its reminder on the day of the reported clause, and the
   reply named that day.
@@ -97,6 +96,32 @@ Monday.`) and the car request.
 repeat first fires before it, the note shows whatever repeat or change word the message holds. The
 form's frequency is a separate count: the model stored the car request on Friday in 3 of 3 draws
 (m8), so these draws show no note on either build.
+
+## The note after a reminder stored from quoted words
+
+`quoted_stored_notes` (`schedule_quoted.py`) closes a turn whose `schedule_task` call succeeded
+while the message asks to remind only inside quotation marks and holds words outside them,
+naming the repeat and the time stored. Near misses written first as tests: a request outside the
+quote (`Remind me at 8 to "water the plants".`, `Remind me to answer Anna's "call me at 8".`), a
+quote holding no request, a request to wake beside a quoted one, and a message that is all quote
+show no note; `"Remind me at 8," I told myself.` shows it, which is true and not needed. Replayed
+through the reader, 105 distinct driver messages from tonight's and last night's rows: 1 read
+(m5). With the readings' cells, 7 of 7,412 strings: the other 6 cite a message inside prose.
+
+**Pass rule** (written before the draws). The note ships when it closes every draw of m5 that
+stores a reminder and no near miss above shows it. How often m5 stores a reminder is a separate
+count; a draw storing none counts for neither.
+
+**Draws** on the rebuilt stack brain, 06:49 to 06:51, chats `s18-m5-1` to `s18-m5-3`, SM clock
+0.57 of `clocks.max.sm`: 2 of 3 stored a daily reminder at 08:00 and both closed with the note,
+so the note ships. The third called only `spawn_subagents` and stored nothing. In `s18-m5-1` the
+daily note showed as well, true and not needed: `you like plants` makes `names_repeat` read the
+sentence as a choice. `s18-m5-3` called `list_allowed_directories`, `list_directory` and
+`read_text_file` twice beside `schedule_task` and stopped at the round cap with no answer, which
+[R-1129](../refinements/tasks/1129-a-question-asking-to-note-a-fact-is-not-read-as-a-request-to-remember.md)
+counts. Driver rows `rows.jsonl`, the replays `replay.py` and `rows.py` and the mutation rows
+`mut.py` are in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot18/`.
 
 Driver rows `rows1.jsonl` to `rows3.jsonl`, frames `f02.png` and `f03.png`, the replay `replay.py`
 and the probes in

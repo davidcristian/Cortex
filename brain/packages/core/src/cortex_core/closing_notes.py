@@ -43,6 +43,7 @@ from cortex_core.schedule_claim import (
 from cortex_core.schedule_daily import DAILY_STORED_NOTE, DAILY_STORED_NOTES, names_repeat
 from cortex_core.schedule_first_fire import early_first_fire_notes
 from cortex_core.schedule_made_repeating import MADE_REPEATING_NOTE, MADE_REPEATING_NOTES
+from cortex_core.schedule_quoted import quoted_stored_notes
 from cortex_core.schedule_weekday import weekday_off_dates, weekday_off_note
 from cortex_core.schedule_weekly import ONCE_STORED_NOTE
 from cortex_core.schedule_weekly_stored import weekly_stored_notes
@@ -109,6 +110,7 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
     if taint.once_after_weekly:
         yield from append_note(parts, ONCE_STORED_NOTE)
     for note in (
+        *quoted_stored_notes(made, query, daily=bool(taint.daily_stored), time=taint.stored_time),
         *(weekday_off_note(day, language) for day in weekday_off_dates(taint.weekday_off)),
         *early_first_fire_notes(taint.early_first_fire),
         *weekly_stored_notes(taint.weekly_stored, reply),

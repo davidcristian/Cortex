@@ -10,7 +10,9 @@ day at 8 to water the plants". Can you note that she likes plants?`. The cortex 
 `list_allowed_directories` first, which taints the turn, so nothing was kept, and the reply said
 `I've noted that you like plants` before the unkept note
 ([readings](../../readings/overlay-mentioned-words-flows.md)). The fact was lost and the reply
-named the wrong person. The two later draws called no file tool and kept the exchange.
+named the wrong person. The two later draws called no file tool and kept the exchange. At 06:50
+the same message (chat `s18-m5-3`) called `list_allowed_directories`, `list_directory` and
+`read_text_file` twice beside `schedule_task` and stopped at the round cap with no answer.
 
 `asks_kept` (`memory_request.py`) reads `Please note that Anna likes plants.` as a request to
 remember but not `Can you note that Anna likes plants?`, so `unasked_sidecar_tools` refuses no
