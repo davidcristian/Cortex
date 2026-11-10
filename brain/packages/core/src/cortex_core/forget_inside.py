@@ -1,7 +1,7 @@
 """Find the rows a forget's text matches only inside a longer value, such as ``789`` in ``7890``."""
 
 import re
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 
 from cortex_core.memory import MemoryRecord
 
@@ -13,6 +13,15 @@ INSIDE_ALL = (
     "nothing was forgotten: each remembered exchange containing that text holds it only inside a "
     "longer value, which is a different value, so each was kept"
 )
+INSIDE_NOTE = (
+    "\n\n(Still in memory, since the text a forget call searched for is in each only as part of a "
+    "longer value:"
+)
+
+
+def inside_note(rows: Iterable[str]) -> str:
+    """The note closing a reply that names the rows a forget kept for holding a longer value."""
+    return "\n".join([INSIDE_NOTE, *(f"- {row}" for row in rows)]) + ")"
 
 
 def _bounded(text: str) -> re.Pattern[str] | None:

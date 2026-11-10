@@ -86,6 +86,10 @@ class KeptRows:
         for row_id in ids:
             self._turns.get(turn, {}).pop(row_id, None)
 
+    def ids(self, turn: str) -> frozenset[str]:
+        """The ids of the rows kept in ``turn`` that no later call deleted."""
+        return frozenset(self._turns.get(turn, {}))
+
     def held(self, turn: str) -> tuple[str, ...]:
         """The excerpts of the rows kept in ``turn`` that no later call deleted."""
         return tuple(self._turns.get(turn, {}).values())

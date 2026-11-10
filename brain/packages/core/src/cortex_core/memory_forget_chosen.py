@@ -47,11 +47,6 @@ def _excerpt(record: MemoryRecord, text: str) -> str:
     return ("..." if start else "") + flat[start:end] + ("..." if end < len(flat) else "")
 
 
-def _tokens(text: str) -> set[str]:
-    """The runs of letters and digits in ``text``, lower case."""
-    return {token.lower() for token in _TOKEN.findall(text)}
-
-
 def _flat(text: str) -> str:
     """``text`` in lower case with every run of white space one space."""
     return " ".join(text.lower().split())
@@ -68,8 +63,8 @@ def _values(records: Sequence[MemoryRecord]) -> dict[str, str]:
 
 def _repeats(record: MemoryRecord, key: str, words: set[str]) -> bool:
     """Whether ``record`` holds the whole value ``key`` and a word of ``words``, if any."""
-    held = key in whole_values(record.text)
-    return held and (not words or not _tokens(record.text).isdisjoint(words))
+    tokens = {token.lower() for token in _TOKEN.findall(record.text)}
+    return key in whole_values(record.text) and (not words or not tokens.isdisjoint(words))
 
 
 def _about(text: str, deleted: tuple[str, ...]) -> bool:
@@ -102,6 +97,7 @@ class ForgetChosenTool:
         self._deleted_rows: dict[str, tuple[str, ...]] = {}
         self._kept = KeptRows()
         self._spared = KeptRows()
+        self._inside = KeptRows()
 
     @property
     def result_note(self) -> str:
@@ -219,8 +215,10 @@ class ForgetChosenTool:
         found = [record for record in found if record.id not in held]
         repeats = [] if left_out else [row for row in extra if row[0].id not in held]
         if not found and not repeats:
-            excerpts = {record.id: _excerpt(record, _text(call)) for record in kept}
-            self._kept.keep(call.stamp.turn_id, excerpts)
+            turn = call.stamp.turn_id
+            self._kept.keep(turn, {row.id: spared[row.id] for row in kept})
+            self._inside.keep(turn, {row.id: spared[row.id] for row in within})
+            self._inside.drop(turn, self._kept.ids(turn))
             return (KEPT_ALL if kept else INSIDE_ALL), None
         listed = [*found, *(record for record, _, _ in repeats)]
         lines = [f"- {_excerpt(record, _text(call))}" for record in found]
@@ -261,6 +259,7 @@ class ForgetChosenTool:
             numbers_left=None if holding is None else holding > 0,
             kept=self._kept.held(call.stamp.turn_id),
             spared=self._spared.held(call.stamp.turn_id),
+            inside=self._inside.held(call.stamp.turn_id),
         )
 
     async def invoke(self, call: ToolCall) -> ToolResult:
@@ -274,8 +273,8 @@ class ForgetChosenTool:
         try:
             removed = await self._store.delete_ids(shown.ids)
             turn = call.stamp.turn_id
-            self._kept.drop(turn, shown.ids)
-            self._spared.drop(turn, shown.ids)
+            for rows in (self._kept, self._spared, self._inside):
+                rows.drop(turn, shown.ids)
             for ledger, texts in (
                 (self._deleted_turns, (*shown.texts, _text(call))),
                 (self._deleted_rows, shown.texts),

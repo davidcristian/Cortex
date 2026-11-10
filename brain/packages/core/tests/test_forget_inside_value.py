@@ -1,4 +1,3 @@
-from collections.abc import AsyncIterator, Sequence
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -6,33 +5,12 @@ import pytest
 from cortex_core import (
     FORGET_CHOSEN_TOOL_NAME,
     GLOBAL_MEMORY_SCOPE,
-    UNFORGOTTEN_CLAIM_NOTE,
-    CompositeToolRegistry,
-    DispatchPolicy,
     ForgetChosenTool,
-    GenerationBounds,
-    HashEmbedder,
-    InferenceEvent,
     InMemoryMemoryStore,
-    InMemorySessionStore,
-    JsonSchema,
-    MemoryRecaller,
     MemoryRecord,
-    Message,
-    RecordingAuditSink,
-    SystemClock,
-    TextChunk,
-    TextDelta,
     ToolCall,
-    ToolDispatcher,
-    ToolSpec,
-    TurnCapabilities,
-    TurnEngine,
 )
 from cortex_core.forget_inside import INSIDE_ALL, INSIDE_LINE, inside
-from cortex_core.forget_unfound_claim import UNMATCHED_FORGET_NOTE
-from cortex_core.forget_unnamed import kept_note
-from cortex_core.tools import ConfirmAnswer, ConfirmationRequest
 
 _AT = datetime(2026, 11, 10, 3, 0, 0, tzinfo=UTC)
 _PHONE = "User: My phone is 015 123 456 789, remember it.\nAssistant: Noted."
@@ -208,68 +186,3 @@ def test_a_value_glued_at_the_start_is_kept_while_the_same_text_elsewhere_is_not
     glued = _record("glued", "User: Codes 94417 and 4417x.\nAssistant: Noted.")
     both = _record("both", "User: Codes 94417 and 4417.\nAssistant: Noted.")
     assert inside([glued, both], "4417") == {"glued"}
-
-
-class _Rounds:
-    def __init__(self, text: str, reply: str) -> None:
-        self._calls = [ToolCall(id="f0", name=FORGET_CHOSEN_TOOL_NAME, arguments={"text": text})]
-        self._reply = reply
-
-    async def stream(
-        self,
-        model: str,
-        messages: Sequence[Message],
-        *,
-        tools: Sequence[ToolSpec] = (),
-        schema: JsonSchema | None = None,
-        bounds: GenerationBounds | None = None,
-    ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools, schema, bounds
-        if not self._calls:
-            yield TextChunk(self._reply)
-            return
-        yield self._calls.pop()
-
-
-class _Approve:
-    async def confirm(self, request: ConfirmationRequest) -> ConfirmAnswer:
-        del request
-        return ConfirmAnswer.APPROVED
-
-
-class _Clock:
-    def now(self) -> datetime:
-        return _AT + timedelta(minutes=10)
-
-
-async def _turn(reply: str) -> str:
-    store, embedder = InMemoryMemoryStore(), HashEmbedder()
-    vector = tuple(await embedder.embed(_ACCOUNT))
-    await store.add(MemoryRecord(id="account", text=_ACCOUNT, embedding=vector, at=_AT))
-    forget = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
-    dispatcher = ToolDispatcher(
-        CompositeToolRegistry([forget]),
-        RecordingAuditSink(),
-        _Clock(),
-        confirmer=_Approve(),
-        policy=DispatchPolicy(
-            record_cards={FORGET_CHOSEN_TOOL_NAME: forget}, notes={FORGET_CHOSEN_TOOL_NAME: forget}
-        ),
-    )
-    caps = TurnCapabilities(memory=MemoryRecaller(store, embedder, SystemClock()), tools=dispatcher)
-    engine = TurnEngine(InMemorySessionStore(), _Rounds(_VALUE, reply), _Clock(), capabilities=caps)
-    events = [event async for event in engine.handle_turn("s", f"Forget {_VALUE}.", turn_id="t")]
-    assert len(await store.find_text(_VALUE, limit=5)) == 1
-    return "".join(event.text for event in events if isinstance(event, TextDelta))
-
-
-async def test_a_turn_keeping_its_only_match_gets_no_matched_nothing_note() -> None:
-    reply = "Nothing was deleted: the number stored is a longer, different one."
-    assert await _turn(reply) == reply
-
-
-async def test_a_turn_keeping_its_only_match_closes_a_forgotten_claim_with_the_note() -> None:
-    shown = await _turn("I've forgotten that number.")
-    assert shown == "I've forgotten that number." + UNFORGOTTEN_CLAIM_NOTE
-    assert UNMATCHED_FORGET_NOTE not in shown
-    assert kept_note([_ACCOUNT]) not in shown

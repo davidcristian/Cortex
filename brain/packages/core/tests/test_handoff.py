@@ -134,6 +134,15 @@ def test_a_snapshot_keeps_the_forget_counts_and_the_ledger_restores_them() -> No
     assert (ledger.forget_asked, ledger.forget_calls, ledger.forget_unmatched) == (True, 3, 2)
 
 
+def test_a_snapshot_keeps_the_rows_a_forget_kept_for_a_longer_value() -> None:
+    slot = _slot([], budget=DispatchBudget(), base_len=0)
+    assert slot.refs is not None
+    slot.refs.taint.forget_inside = ("a row",)
+    record = slot.snapshot(turn_id="t1", session_id="s1", requested_at=_AT)
+    assert record.forget_inside == ("a row",)
+    assert record.taint_ledger().forget_inside == ("a row",)
+
+
 def test_snapshot_keeps_a_closed_budget_as_closed() -> None:
     budget = DispatchBudget(limit=2)
     assert budget.charge(3) is False

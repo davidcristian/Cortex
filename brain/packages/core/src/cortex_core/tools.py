@@ -105,6 +105,8 @@ class ToolResult:
     kept: tuple[str, ...] | None = None
     # Set by a forget: excerpts of every row the turn's forget calls kept, on a card or not.
     spared: tuple[str, ...] | None = None
+    # Set by a forget: excerpts of the rows kept with no card for holding a longer value.
+    inside: tuple[str, ...] | None = None
     # Set by a forget whose delete fully succeeded: how many rows it deleted.
     forgot: int = 0
     # Set by an edit that ran: whether the item was one time before the edit.

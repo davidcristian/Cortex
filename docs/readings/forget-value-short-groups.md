@@ -89,8 +89,7 @@ so every reply ended with `kept_note` naming it (in the first candidate draw als
 it). Three replies said nothing was found or deleted; one said `I've processed your request to forget
 that number.`, which the rule fails. A call naming the longer, recalled
 number is [task 1115](../refinements/tasks/1115-a-forget-of-a-value-can-call-the-longer-number-recalled-beside-it.md),
-and the missing brain note after `INSIDE_ALL` is
-[task 1114](../refinements/tasks/1114-a-forget-whose-only-match-holds-a-longer-value-names-the-kept-row-only-to-the-model.md). In flow e the model
+and the brain note after `INSIDE_ALL` is drawn in the next section. In flow e the model
 passed the whole card number, so the `4242` text itself was not drawn.
 
 Flow b, a row holding both: `Remember that my bank account is 44170 and my PIN is 44 17.`, then
@@ -101,6 +100,34 @@ listed it as a match; 2 of 2, no row left. Flows w and k passed as above. In flo
 turn called `forget_memories` with `0151 2345 6789` and its card deleted that row, so `Forget what
 I just said.` found only the account row, kept it, and its reply ended with the unforgotten note.
 Record `slot8/draws.log`, under the scratchpad named below.
+
+### The note naming a row kept inside a longer value, 2026-11-10
+
+The brain now appends `inside_note` after the reply, naming the rows a call with no card kept
+because each holds the call's text only inside a longer value, unless a later call of the turn
+deleted the row or kept it as unnamed, which `kept_note` then names instead. A draw of o passes
+when no row is deleted, the reply says nothing was forgotten or ends with the unforgotten note,
+and a note the brain appends names the account row; j, w and k pass as above. The form the note
+is for, a turn whose only call reaching the account row returns `INSIDE_ALL`, is counted apart.
+
+04:15 to 04:21, 26 turns on the stack brain rebuilt from the working tree with the change, two
+draws of each flow, SM clock 0.57 to 0.72 of `clocks.max.sm`.
+
+| Flow | Rows left | Pass |
+| --- | --- | --- |
+| o | the account row; both replies said nothing was found or deleted and ended with `kept_note` naming it | 2 of 2 |
+| w | the account row | 2 of 2 |
+| k | the account row and Anna's | 2 of 2 |
+| j | the `0151 2345 6789` row and the account row, with the numbers left note | 2 of 2 |
+
+The form occurred in 0 of 2 flow o draws: each made two calls, and one of them kept the account
+row as unnamed (`KEPT_ALL`), so `kept_note` named the row and `inside_note` named it in neither.
+The reply of draw 1 also offered to forget the phrase `phone account`; such a forget shows a card
+before it deletes anything.
+The engine tests in `test_forget_inside_note.py` cover the form itself. In flow k, draw 2's reply
+`OK. I've forgotten your phone number and kept Anna's.` ended with `UNKEPT_CLAIM_NOTE`
+([task 1121](../refinements/tasks/1121-a-reply-saying-it-kept-a-row-the-forget-never-matched-gets-the-unkept-note.md)).
+Record `slot9/draws.log`, under the scratchpad named below.
 
 Driver `draw.sh <flow> <draw>`, candidate driver `cand-o.sh`, records `rows.jsonl` and `cand.jsonl`,
 proxy log lines 47 to 63 of `stack/logs/proxy-req.jsonl`, under
