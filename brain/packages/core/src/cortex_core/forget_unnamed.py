@@ -3,6 +3,7 @@
 import re
 from collections.abc import Iterable, Mapping
 
+from cortex_core.forget_languages import FUNCTION, readings
 from cortex_core.memory import MemoryRecord
 from cortex_core.memory_values import code_stem, code_word, digit_runs, kind_word, whole_values
 from cortex_core.note_language import ENGLISH, in_language, message_language
@@ -17,32 +18,6 @@ _COMMON = frozenset(
         "erase memory"
     )
 )
-# The function words of each other language, read only in a message of that language, since an
-# English fact can be named by "den", "son" or "care".
-_FUNCTION = {
-    language: frozenset(_WORD.findall(words))
-    for language, words in {
-        "fr": "les des une aux dans pour par avec sur sous chez que qui quoi dont mon ton son mes "
-        "tes ses notre votre nos vos leur leurs celui celle ceux celles cela ceci cet cette ces "
-        "est sont était ont mais aussi non pas plus moi toi lui elle nous vous eux elles ils "
-        "oublie oubliez efface effacez supprime supprimez mémoire merci",
-        "de": "der die das den dem des ein eine einen einem einer eines und oder aber für von vom "
-        "mit aus bei beim zum zur auf über unter nach mein meine meinen meinem meiner meines dein "
-        "deine deinen deinem deiner sein seine seinen seinem ihr ihre ihren ihrem ihrer unser "
-        "unsere euer eure ist sind war hat habe haben hast auch nicht noch nur jetzt bitte ich "
-        "mich mir dich dir sie ihn ihm uns euch wir was dass diese dieser dieses diesen diesem "
-        "vergiss lösche entferne",
-        "es": "los las del una uno unos unas que con por para sin sobre mis tus sus mío mía tuyo "
-        "tuya suyo suya nuestro nuestra este esta esto estos estas ese esa eso esos esas también "
-        "pero está son era fue tiene tengo hay favor ahora solo ella ellos ellas usted les nos "
-        "olvida olvide borra borre elimina memoria",
-        "ro": "sau dar pentru din despre cel cea cei cele lui ale mea meu mele mei tău tale său "
-        "sale nostru noastră acest această acesta aceasta aceste acel acea aceea care este sunt "
-        "era are acum doar încă tine mine noi voi lor îmi mie nici rog uită șterge ştergeţi "
-        "sterge memorie",
-    }.items()
-}
-
 _EVERY = frozenset(
     _WORD.findall("all every everywhere everything partout tout tous toutes überall alle todas")
 )
@@ -193,13 +168,13 @@ def _parts(query: str) -> tuple[list[str], list[str]]:
     return forget, keep
 
 
-def _split(query: str) -> tuple[set[str], set[str], set[str] | None, bool]:
-    """The words of ``query`` naming a fact to forget, those only of a clause asking to keep, the
-    words naming the rows to delete when a clause asks to keep, and whether it has a compound.
+def _split(query: str, language: str) -> tuple[set[str], set[str], set[str] | None, bool]:
+    """The words of ``query`` read in ``language`` naming a fact to forget, those only of a clause
+    asking to keep, the words naming the rows to delete beside one, and whether it has a compound.
     """
     forget_tokens, keep_tokens = _parts(query)
     forget, keep = " ".join(forget_tokens), " ".join(keep_tokens)
-    function = _FUNCTION.get(message_language(query), frozenset())
+    function = FUNCTION.get(language, frozenset())
     named = _words(forget, function) | _stems(forget)
     kept = _words(keep) | _stems(keep) | _kinds(keep)
     kept = {word for word in kept - named - _kinds(forget) if not _KEEP.fullmatch(word)}
@@ -209,9 +184,8 @@ def _split(query: str) -> tuple[set[str], set[str], set[str] | None, bool]:
 
 def asks_to_keep(text: str, query: str) -> bool:
     """Whether a clause of ``query`` asking to keep names a fact of the row ``text``, or all."""
-    return not _REST.isdisjoint(_parts(query)[1]) or not _split(query)[1].isdisjoint(
-        _row_names(text)
-    )
+    kept = _split(query, message_language(query))[1]
+    return not _REST.isdisjoint(_parts(query)[1]) or not kept.isdisjoint(_row_names(text))
 
 
 def _quantifies(query: str) -> bool:
@@ -244,14 +218,31 @@ def unnamed(
     deleted: Iterable[str] = (),
     session_id: str | None = None,
 ) -> list[MemoryRecord]:
-    """The ``records`` to keep: with a clause asking to keep, each no whole word outside it names
+    """The ``records`` to keep, each a reading of ``query`` in one of its ``readings`` keeps."""
+    rows, deleted = list(records), list(deleted)
+    if not query.strip():
+        return []
+    kept = {
+        record.id
+        for language in readings(query)
+        for record in _unnamed(rows, text, query, deleted, session_id, language)
+    }
+    return [record for record in rows if record.id in kept]
+
+
+def _unnamed(
+    rows: list[MemoryRecord],
+    text: str,
+    query: str,
+    deleted: list[str],
+    session_id: str | None,
+    language: str,
+) -> list[MemoryRecord]:
+    """The ``rows`` to keep: with a clause asking to keep, each no whole word outside it names
     or that it names; else each whose request holds a value of ``text`` and no word of ``query``,
     unless ``query`` asks for every row or names nothing and ``session_id`` stored the newest.
     """
-    rows, deleted = list(records), list(deleted)
-    words, keep, listed, compound = _split(query)
-    if not query.strip():
-        return []
+    words, keep, listed, compound = _split(query, language)
     if listed is not None:
         # A clause asks to keep: delete only a row a whole word names, so a misread keeps it.
         return [

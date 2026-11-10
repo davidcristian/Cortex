@@ -34,4 +34,4 @@ ADR-0076, and no recorded draw message is written in capitals
   more, when two are in one language's list. The four messages read as their own language, nine
   near misses stay English, and the replay changed no recorded string
   ([the readings](../../readings/closing-note-language.md)). A forget in capitals with one German
-  list word still reads as English: task 1108.
+  list word still reads as English here, and the forget reader reads it by its forget verb.

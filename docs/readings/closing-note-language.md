@@ -179,8 +179,9 @@ words only (`CALL BOB 9 EST MONDAY`, `REMIND ME TO CALL MON 9 EST`). Replayed th
 new picker, 29,065 distinct strings of `docs/readings/` (785 with no lowercase letter) and the 46
 distinct driver messages still on disk changed none. A forget in capitals with two German list
 words (`VERGISS BITTE DEN TÜRCODE 7319, ALLES ANDERE BLEIBT.`) now reads as German, so its `DEN`
-no longer names the den row; with one (`VERGISS DEN TÜRCODE 7319, ...`) it still reads as English
-(task 1108). Scripts `replay1071.py`, `probe2.py` and log `replay1071.log` in
+no longer names the den row; with one (`VERGISS DEN TÜRCODE 7319, ...`) it still reads as English,
+and the forget reader adds a German reading by its forget verb
+([forget-keep-clause.md](forget-keep-clause.md)). Scripts `replay1071.py`, `probe2.py` and log `replay1071.log` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot1/`.
 
 ## A keep claim in four other languages, 2026-11-10

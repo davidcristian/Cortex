@@ -143,8 +143,8 @@ texts, and no case changed.
 
 The probes also found a short stem naming unrelated words, a fact named only by a code word such
 as `PIN` naming no row, and a mixed German and English message whose `den` and `hat` named
-nothing, each read by the shape below. Still open: a message in capitals with one German list
-word reads as English, so German `DEN` names a row (task 1108). No moved forget result text
+nothing, each read by the shape below. A message in capitals with one German list word reads as
+English, and its forget verb now adds a German reading (the last section). No moved forget result text
 changed in the split into `forget_results.py`, and no exemption names either module. Scripts `probe2.py`,
 `probe4.py`, `probe6.py` and log `replay.log` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot18/`.
@@ -192,3 +192,27 @@ everything else.` drew a call with the text `7319`, and the card listed the card
 the door row under `KEPT_LINE`. The card was refused and both rows stayed. The SM clock read 0.57
 to 0.59 of its maximum. Script `live.sh`, records `live.jsonl` and `live.log` in the same
 directory.
+
+## A forget verb of another language, 2026-11-10
+
+A message in capitals is read by its words of four letters or more, and only when two are in one
+language's list, so `VERGISS DEN TÜRCODE 7319, ALLES ANDERE BLEIBT.` read as English, its `DEN`
+named a fact, and the card listed the den alarm row beside the door row. The forget reader now
+also reads a message in each language whose forget verb it uses (`readings` in
+`forget_languages.py`: `vergiss`, `lösche`, `oublie`, `olvida`, `uită` and the other forms), with
+that language's function words, and keeps a row any reading keeps. A reading only adds kept rows,
+so a misread keeps the row. `VERGISS DEN CODE 7319.` still lists only the den row, which the
+English reading names, where the lowercase message lists every row holding 7319. An English verb
+adds no reading, so `FORGET THE DEN ALARM CODE 7319, KEEP THE REST.`, `FORGET MY SON'S CODE 7319,
+KEEP THE REST.` and `Jürgen: forget den code 7319, keep the rest` still list the den or son row.
+The note picker is unchanged. The tests are `test_forget_verb_language.py`.
+
+Replay: the 1,983 distinct recorded forget strings and each in capitals (3,932 strings) went
+through the reader before and after over twenty-one rows holding the string's value (the seventeen
+above, plus a German Türcode row and the hat, care home and son rows), with the four texts above,
+with and without the calling chat's row. 170 cases from 40 strings changed. None keeps fewer rows,
+and `asks_to_keep` changed for no row. 31 of the 40 have no lowercase letter, each a recorded
+French or German message in capitals such as `OUBLIE LE CODE DE MON CASIER À LA PISCINE.`; the
+other 9 are readings sentences quoting a French or German forget beside English prose.
+Script `replay.py` and log `replay.log` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot4/`.
