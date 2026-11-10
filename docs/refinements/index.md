@@ -84,8 +84,8 @@ never a reading of what the tree does now.
 - **[R-1115](tasks/1115-a-forget-of-a-value-can-call-the-longer-number-recalled-beside-it.md)** A forget of a value can call the longer number recalled beside it (memory). Its claim was checked against the code on 2026-11-10.
 - **[R-1116](tasks/1116-an-update-of-a-stored-value-can-search-files-until-the-round-cap.md)** An update of a stored value can search files until the round cap (memory). Its claim was checked against the code on 2026-11-10.
 - **[R-1117](tasks/1117-a-reply-in-another-language-saying-a-kept-row-stayed-gets-the-unkept-note.md)** A reply in another language saying a kept row stayed gets the unkept note (memory). Its claim was checked against the code on 2026-11-10.
-- **[R-1118](tasks/1118-a-forget-keeping-only-longer-values-withholds-a-request-to-remember.md)** A forget keeping only longer values withholds a request to remember (memory). Its claim was checked against the code on 2026-11-10.
 - **[R-1119](tasks/1119-the-note-naming-a-row-kept-for-a-longer-value-is-english-only.md)** The note naming a row kept for a longer value is English only (memory). Its claim was checked against the code on 2026-11-10.
+- **[R-1120](tasks/1120-a-correction-naming-an-old-value-is-stored-when-no-forget-deleted-it.md)** A correction naming an old value is stored when no forget deleted it (memory). Its claim was checked against the code on 2026-11-10.
 - **[R-1121](tasks/1121-a-reply-saying-it-kept-a-row-the-forget-never-matched-gets-the-unkept-note.md)** A reply saying it kept a row the forget never matched gets the unkept note (memory). Its claim was checked against the code on 2026-11-10.
 
 ### Actionable, once a port changes (1)
@@ -627,8 +627,8 @@ never a reading of what the tree does now.
 - [R-1115](tasks/1115-a-forget-of-a-value-can-call-the-longer-number-recalled-beside-it.md) A forget of a value can call the longer number recalled beside it. open, actionable.
 - [R-1116](tasks/1116-an-update-of-a-stored-value-can-search-files-until-the-round-cap.md) An update of a stored value can search files until the round cap. open, actionable.
 - [R-1117](tasks/1117-a-reply-in-another-language-saying-a-kept-row-stayed-gets-the-unkept-note.md) A reply in another language saying a kept row stayed gets the unkept note. open, actionable.
-- [R-1118](tasks/1118-a-forget-keeping-only-longer-values-withholds-a-request-to-remember.md) A forget keeping only longer values withholds a request to remember. open, actionable.
 - [R-1119](tasks/1119-the-note-naming-a-row-kept-for-a-longer-value-is-english-only.md) The note naming a row kept for a longer value is English only. open, actionable.
+- [R-1120](tasks/1120-a-correction-naming-an-old-value-is-stored-when-no-forget-deleted-it.md) A correction naming an old value is stored when no forget deleted it. open, actionable.
 - [R-1121](tasks/1121-a-reply-saying-it-kept-a-row-the-forget-never-matched-gets-the-unkept-note.md) A reply saying it kept a row the forget never matched gets the unkept note. open, actionable.
 
 ### orchestrator
