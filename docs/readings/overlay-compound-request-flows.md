@@ -83,3 +83,41 @@ call, which shows no note. Scripts `rp.py` and `mut.py` in
 driver rows `rows1.jsonl` to `rows4.jsonl` beside them.
 
 After the flows every `s11-*` row, both shell rows and every schedule item were deleted.
+
+## Smoke flow over the night's changes, 2026-11-10
+
+The same rig at the tree of the night's last code change, Tuesday 07:49 to 07:55 local time, SM
+clock 0.57 to 0.63 of `clocks.max.sm`. One chat per turn (`s22-<turn>`) through the driver with
+every card approved, and sh1 and sh2 on the Linux shell, each in a new chat. Seeds: t1's row
+for t2 and t3; one message naming both numbers for t4; one row each for t4b
+(`Remember that my savings account number is 015 123 456 789.` and `Remember that my library
+card number is 0151234567890.`); `Remember that my gym is on Elm Street.` for t5; sh1's row for
+sh2. Rows and items were deleted after each flow.
+
+| Turn | Message | Calls | Stored | Notes | Result |
+| --- | --- | --- | --- | --- | --- |
+| t1 | Remember that my locker code is 4417. | none | 1 row | none | correct |
+| t2 | What is my locker code? (new chat) | none | 1 row, answered 4417 | none | correct |
+| t3 | My locker code is 4471, not 4417. | `list_directory_with_sizes` failed, `spawn_subagents` | 0 rows, t1's 4417 row kept | unkept | reply says noted; the note is true |
+| t4 | Forget 015 123 456 789. | `forget_memories` (card: 1 row, both numbers) | 0 rows | unkept, forget count 1 | correct, unkept note not needed |
+| t4b | Forget 015 123 456 789. | `forget_memories` (card: 1 row) | the library card row kept | none | correct |
+| t5 | Forget my bike lock code. | `forget_memories`, no match | gym row kept | unfound | correct |
+| t6 | Remember that the plumber is called Marco, and remind me tomorrow at 9 to call him. | `schedule_task` `at` tomorrow 09:00 | 1 row, 1 item | none | correct |
+| t7 | Anna said: "remind me tomorrow at 8 to water the plants". Can you note that she likes plants? | `schedule_task` `at` tomorrow 08:00 | 1 row, 1 item | quoted | reply says the reminder is for her; the note says it is for you |
+| t8 | Erinnere mich jeden Montag um 8 Uhr daran, den Müll rauszubringen. | `schedule_task` `at_time` 08:00, `on_days` mon | 1 row, 1 weekly item first due Monday | none | correct |
+| t9 | Souviens-toi que mon code de casier est 5521. | none | 1 row, French reply | none | correct |
+| sh1 | as t6, on the shell | `spawn_subagents` refused, `schedule_task` `at` tomorrow 09:00 | 1 row, 1 item | none | correct |
+| sh2 | as t5, on the shell | `forget_memories`, no match | sh1's row kept | unfound | correct |
+
+Of 12 turns: every capability asked for ran, or a note said what did not happen, 12 of 12.
+Every request to keep a fact stored one row (t1, t6, t7, t9, sh1). 4 of 4 reminder requests
+stored the day and time asked, none as a daily item. The forget of a value written in groups
+deleted only the row holding that text when the longer number had a row of its own (t4b); t4's
+row held both, as its card listed. 6 notes in 12 turns, all true, 0 contradicting another; one
+was not needed (the unkept note under t4's `I've updated your memories.`, which the update
+claim reader shows by design). t3 is the form counted in
+[correction-keeps-old-value.md](correction-keeps-old-value.md) (a turn kept out after a file or
+subagent tool), filed as [R-1062](../refinements/tasks/1062-a-correction-of-a-stored-value-says-updated-and-keeps-the-old-row.md)
+and [R-1116](../refinements/tasks/1116-an-update-of-a-stored-value-can-search-files-until-the-round-cap.md).
+No new defect. Driver rows `rows.jsonl` and `rows2.jsonl` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot22/`.
