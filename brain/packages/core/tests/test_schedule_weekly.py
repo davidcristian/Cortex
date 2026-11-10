@@ -22,7 +22,12 @@ from cortex_core import (
 from cortex_core.brain_phase import BrainPhase
 from cortex_core.handoff_view import weekly_refused_calls
 from cortex_core.schedule_verbs import EDIT_SCHEDULED_TOOL_NAME
-from cortex_core.schedule_weekly import WEEKLY_DAY_MSG, names_one_weekday, weekly_unasked
+from cortex_core.schedule_weekly import (
+    WEEKLY_DAY_MSG,
+    names_one_weekday,
+    one_named_weekday,
+    weekly_unasked,
+)
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 
 _AT = datetime(2026, 11, 8, 3, 0, 0, tzinfo=UTC)
@@ -93,6 +98,23 @@ def test_a_repeat_word_a_change_word_or_no_single_weekday_names_no_one_weekday(
     message: str,
 ) -> None:
     assert not names_one_weekday(message)
+
+
+@pytest.mark.parametrize(
+    ("message", "day"),
+    [
+        ("Remind me Friday at 9 to move the car.", 4),
+        ("Remind me Friday at 9 to call Anna again.", 4),
+        ("Move my bins reminder to Tuesday at 8.", 1),
+        ("Remind me every Tuesday at 8 to put the bins out.", 1),
+        ("Remind me on Tuesday and Thursday at 8 to stretch.", None),
+        ("Remind me at 8 to stretch.", None),
+    ],
+)
+def test_the_one_weekday_a_message_names_is_read_beside_any_other_word(
+    message: str, day: int | None
+) -> None:
+    assert one_named_weekday(message) == day
 
 
 @pytest.mark.parametrize(

@@ -52,12 +52,15 @@ _MAY_REPEAT = re.compile(
 )
 
 
+def one_named_weekday(message: str) -> int | None:
+    """The one weekday ``message`` names, Monday as 0, whatever else it says; else ``None``."""
+    days = {_WEEKDAY[match.group(0).lower()] for match in _NAMED.finditer(message)}
+    return days.pop() if len(days) == 1 else None
+
+
 def named_weekday(message: str) -> int | None:
     """The one weekday ``message`` names, Monday as 0, beside no repeat word; else ``None``."""
-    days = {_WEEKDAY[match.group(0).lower()] for match in _NAMED.finditer(message)}
-    if len(days) != 1 or _MAY_REPEAT.search(message) is not None:
-        return None
-    return days.pop()
+    return None if _MAY_REPEAT.search(message) is not None else one_named_weekday(message)
 
 
 def names_one_weekday(message: str) -> bool:

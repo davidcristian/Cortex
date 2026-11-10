@@ -6,7 +6,7 @@ from datetime import date, datetime, timedelta, tzinfo
 from cortex_core.schedule_tools import SCHEDULE_TOOL_NAME
 from cortex_core.schedule_verbs import EDIT_SCHEDULED_TOOL_NAME
 from cortex_core.schedule_weekday import changes_due, item_of
-from cortex_core.schedule_weekly import WEEKDAY_NAMES, named_weekday
+from cortex_core.schedule_weekly import WEEKDAY_NAMES, one_named_weekday
 from cortex_core.tools import ToolCall, ToolResult
 
 FIRST_FIRE_NOTE = (
@@ -32,13 +32,13 @@ _DUE = re.compile(r"\bdue (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:[+-]\d{2}:\d{2}
 def days_named(query: str, today: date) -> int:
     """How many days after ``today`` the day ``query`` names is: 1 for tomorrow, else 0 for none.
 
-    The day after tomorrow is 2, and one weekday ``named_weekday`` reads counts to its next date.
+    The day after tomorrow is 2, and the one weekday the message names counts to its next date.
     """
     if _AFTER_TOMORROW.search(query) is not None:
         return 2
     if _TOMORROW.search(_MORNING.sub(" ", query)) is not None:
         return 1
-    named = named_weekday(query)
+    named = one_named_weekday(query)
     return 0 if named is None else (named - today.weekday()) % 7
 
 

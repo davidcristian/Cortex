@@ -8,7 +8,7 @@ from cortex_core.schedule_verbs import (
     EDIT_SCHEDULED_TOOL_NAME,
     SNOOZE_SCHEDULED_TOOL_NAME,
 )
-from cortex_core.schedule_weekly import WEEKDAY_NAMES, named_weekday, stores_once
+from cortex_core.schedule_weekly import WEEKDAY_NAMES, one_named_weekday, stores_once
 from cortex_core.tools import ToolCall, ToolResult
 
 WEEKDAY_OFF_NOTE = (
@@ -41,7 +41,7 @@ def weekday_off(call: ToolCall, result: ToolResult, query: str, tz: tzinfo) -> s
     Empty when no one-time item was left on an ``at``, or its date is on the weekday or further.
     """
     at = call.arguments.get("at")
-    named = named_weekday(query)
+    named = one_named_weekday(query)
     moved = call.name == EDIT_SCHEDULED_TOOL_NAME and not result.is_error
     if not (moved or stores_once(call, result)) or not isinstance(at, str) or named is None:
         return ""

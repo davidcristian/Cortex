@@ -47,6 +47,7 @@ _THURSDAY = {"text": "Arzttermin", "at": "2026-11-12T07:00:00"}
 _BINS = "Remind me at 6pm to put the bins out for Monday's collection."
 _FOLLOW_UP = "Remind me at 9 to follow up on Monday's call."
 _MUM = "Remind me Monday at 9pm to call mum."
+_CAR = "Remind me Friday at 9 to move the car."
 _LOS_ANGELES = ZoneInfo("America/Los_Angeles")
 _ENGLISH_FRIDAY = (
     "\n\n(A reminder set in this turn is on Friday 2026-11-13. Ask to move it if you meant "
@@ -74,8 +75,14 @@ def _ran(content: str = "scheduled", *, failed: bool = False) -> ToolResult:
             "Erinnere mich jeden Donnerstag um 7 Uhr an den Arzttermin.",
             "2026-11-13T07:00:00",
             UTC,
-            "",
+            "2026-11-13",
         ),
+        (_CAR, "2026-11-14T09:00:00", UTC, "2026-11-14"),
+        (_CAR, "2026-11-13T09:00:00", UTC, ""),
+        ("Remind me Friday at 9 to call Anna again.", "2026-11-12T09:00:00", UTC, "2026-11-12"),
+        ("Rappelle-moi vendredi de déplacer la voiture.", "2026-11-14T09:00:00", UTC, "2026-11-14"),
+        ("Move my Friday reminder to Saturday.", "2026-11-14T09:00:00", UTC, ""),
+        ("Remind me every Friday at 9 to move the car.", "2026-11-20T09:00:00", UTC, ""),
         ("Remind me at 7 to call the doctor.", "2026-11-13T07:00:00", UTC, ""),
         (_MUM, "2026-11-10T05:00:00Z", _LOS_ANGELES, ""),
         (_MUM, "2026-11-10T05:00:00Z", UTC, "2026-11-10"),

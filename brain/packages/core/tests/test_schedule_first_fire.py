@@ -171,6 +171,12 @@ def test_a_store_re_timed_to_another_early_time_keeps_one_first_fire() -> None:
     assert after == (("abc", "2026-11-10T09:30", "today"),)
 
 
+def test_a_daily_store_beside_a_weekday_and_a_change_verb_is_read_with_its_first_fire() -> None:
+    message = "Remind me Friday at 9 to move the car."
+    expected = ("2026-11-10T09:00", "today")
+    assert early_first_fire(_store(), _ran(_TODAY), message, _NOW, _BERLIN) == expected
+
+
 def test_a_store_after_nine_first_fires_on_the_named_day() -> None:
     late = datetime(2026, 11, 10, 8, 30, tzinfo=UTC)
     assert early_first_fire(_store(), _ran(_TOMORROW), _CAR, late, _BERLIN) == ("", "")
@@ -188,6 +194,11 @@ def test_a_store_after_nine_first_fires_on_the_named_day() -> None:
         ("at 9", 0),
         ("on Thursday at 9", 2),
         ("on Monday at 9", 6),
+        ("Remind me Friday at 9 to move the car.", 3),
+        ("Remind me Friday at 9 to call Anna again.", 3),
+        ("Remind me every Friday at 9 to move the car.", 3),
+        ("Move my Friday reminder to Monday.", 0),
+        ("Remind me every day until Friday at 8.", 3),
     ],
 )
 def test_the_named_day_is_counted_from_today(*, message: str, days: int) -> None:
