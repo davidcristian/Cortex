@@ -64,7 +64,8 @@ that removes exactly those rows and holds against a turn in flight. This record 
    about other facts share them. A text that is itself a value lists each other row holding that
    value. `find_value` finds those rows by the value's letters and digits, so a row writing it
    with any separators or groups (`015 123 456 789`) is listed, and the whole value filter drops a
-   row where they are part of a longer value. A recall reply restates a
+   row where they are part of a longer value. A text match is listed only where no letter or digit touches the text at an end whose word holds a digit (`inside` in `forget_inside.py`), so `015 123 456 789` lists no row holding `015 123 456 7890` or `789b`, while `4242` lists a card ending in `4242`; such a row is kept and shown under `INSIDE_LINE`, and a call whose every match is one shows no card and returns `INSIDE_ALL`, which does not count as a call that matched nothing, since a row contains the text, so `UNMATCHED_FORGET_NOTE` is not appended. Flow j of the [readings](../readings/forget-value-short-groups.md) deleted a row holding another number.
+   A recall reply restates a
    value in other words (`The code for your gym locker is 5819.`), so a forget of `gym locker code`
    left its row and a new chat recalled the value
    ([readings](../readings/forget-value-repeats.md)). A forget that deletes nothing whatever the answer (no

@@ -5,6 +5,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, replace
 
 from cortex_core.errors import MemoryStoreError
+from cortex_core.forget_inside import INSIDE_ALL, INSIDE_LINE, inside
 from cortex_core.forget_results import (
     ALREADY_DELETED,
     FORGET_CHOSEN_LIMIT,
@@ -148,10 +149,11 @@ class ForgetChosenTool:
     ) -> list[tuple[MemoryRecord, str, str]]:
         """Other memories holding a value of ``found`` and a word of the call or the value named."""
         words = {word.lower() for word in _WORD.findall(_text(call))}
-        named = whole_values(_text(call)).keys()
+        named = whole_values(_text(call))
         seen = {record.id for record in found}
         extra: list[tuple[MemoryRecord, str, str]] = []
-        values = [(key, form) for key, form in _values(found).items() if words or key in named]
+        held = {**named, **_values(found)}
+        values = [(key, form) for key, form in held.items() if words or key in named]
         for key, form in values:
             for record in await self._store.find_value(
                 key,
@@ -192,13 +194,17 @@ class ForgetChosenTool:
         if not _text(call):
             return "nothing was forgotten: the call named no text", None
         try:
-            found = await self._found(call)
-            extra = await self._repeating(call, found) if len(found) <= FORGET_CHOSEN_LIMIT else []
+            matches = await self._found(call)
+            inner = inside(matches, _text(call))
+            within = [record for record in matches if record.id in inner]
+            found = [record for record in matches if record.id not in inner]
+            small = len(matches) <= FORGET_CHOSEN_LIMIT
+            extra = await self._repeating(call, found) if small else []
         except MemoryStoreError as err:
             return unavailable(err), None
-        if len(found) > FORGET_CHOSEN_LIMIT:
+        if not small:
             return TOO_MANY, None
-        if not found:
+        if not matches:
             deleted = self._deleted_turns.get(call.stamp.turn_id, ())
             return (ALREADY_DELETED if _about(_text(call), deleted) else NONE_FOUND), None
         left_out = len(found) + len(extra) > FORGET_CHOSEN_LIMIT
@@ -206,13 +212,14 @@ class ForgetChosenTool:
         deleted = self._deleted_rows.get(call.stamp.turn_id, ())
         kept = unnamed(rows, _text(call), call.stamp.query, deleted, call.stamp.session_id)
         held = {record.id for record in kept}
-        self._spared.keep(call.stamp.turn_id, {row.id: _excerpt(row, _text(call)) for row in kept})
+        spared = {row.id: _excerpt(row, _text(call)) for row in (*kept, *within)}
+        self._spared.keep(call.stamp.turn_id, spared)
         found = [record for record in found if record.id not in held]
         repeats = [] if left_out else [row for row in extra if row[0].id not in held]
         if not found and not repeats:
             excerpts = {record.id: _excerpt(record, _text(call)) for record in kept}
             self._kept.keep(call.stamp.turn_id, excerpts)
-            return KEPT_ALL, None
+            return (KEPT_ALL if kept else INSIDE_ALL), None
         listed = [*found, *(record for record, _, _ in repeats)]
         lines = [f"- {_excerpt(record, _text(call))}" for record in found]
         for form in dict.fromkeys(form for _, form, _ in repeats):
@@ -224,6 +231,10 @@ class ForgetChosenTool:
             lines.append(LEFT_OUT_LINE)
         if kept:
             lines.extend([KEPT_LINE, *(f"- {_excerpt(record, _text(call))}" for record in kept)])
+        if within:
+            lines.extend(
+                [INSIDE_LINE, *(f"- {_excerpt(record, _text(call))}" for record in within)]
+            )
         card = "\n".join(
             [f"Deletes for good, with no undo, these {len(listed)} remembered exchanges:", *lines]
         )
@@ -270,7 +281,8 @@ class ForgetChosenTool:
                 ledger[turn] = (*ledger.get(turn, ()), *texts)
                 while len(ledger) > _PENDING_CALLS:
                     del ledger[next(iter(ledger))]
-            left = [record for record in await self._found(call) if record.id not in shown.kept]
+            now = await self._found(call)
+            left = [row for row in now if row.id not in shown.kept | inside(now, _text(call))]
             holding = 0 if left or shown.left_out else await self._holding(call)
         except MemoryStoreError as err:
             return replace(self._result(call, failed_during(removed, err)), forgot=removed)
