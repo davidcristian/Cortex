@@ -126,7 +126,8 @@ def test_an_edit_with_on_days_is_not_held() -> None:
         (EDIT_SCHEDULED_TOOL_NAME, {"id": "abc", "at": "2026-11-11T09:00:00"}, False),
         (EDIT_SCHEDULED_TOOL_NAME, {"id": "abc", "every_seconds": 0}, False),
         (EDIT_SCHEDULED_TOOL_NAME, {"id": "abc", "at_time": "10:00"}, False),
-        (EDIT_SCHEDULED_TOOL_NAME, {"id": "abc", "on_days": ["thu"]}, False),
+        (EDIT_SCHEDULED_TOOL_NAME, {"id": "abc", "on_days": ["thu"], "every_seconds": 0}, False),
+        (EDIT_SCHEDULED_TOOL_NAME, {"id": "abc", "on_month_days": [3]}, False),
         (EDIT_SCHEDULED_TOOL_NAME, {"id": "abc", "text": "move it"}, True),
         (SNOOZE_SCHEDULED_TOOL_NAME, {"id": "abc", "minutes": 10}, True),
     ],
@@ -136,6 +137,26 @@ def test_an_end_of_the_rule_drops_it_and_another_change_keeps_it(
 ) -> None:
     after = weekly_after(_call(arguments, name), _ran("done"), _HELD)
     assert after == (_HELD if kept else ())
+
+
+@pytest.mark.parametrize(
+    ("arguments", "held"),
+    [
+        ({"id": "abc", "on_days": ["thu"]}, (("abc", "Thursday"),)),
+        (
+            {"id": "abc", "at_time": "10:00", "on_days": ["fri", "thu"]},
+            (("abc", "Thursday and Friday"),),
+        ),
+        ({"id": "abc", "on_days": ["sun", "mon", "tue", "wed", "thu", "fri", "sat"]}, ()),
+        ({"id": "abc", "on_days": ["midweek"]}, ()),
+        ({"id": "def", "on_days": ["thu"]}, _HELD),
+    ],
+)
+def test_an_edit_moving_a_held_rule_to_other_days_names_the_new_days(
+    *, arguments: Mapping[str, object], held: tuple[tuple[str, str], ...]
+) -> None:
+    after = weekly_after(_call(arguments, EDIT_SCHEDULED_TOOL_NAME), _ran("done"), _HELD)
+    assert after == held
 
 
 def test_a_failed_cancel_keeps_the_rule() -> None:

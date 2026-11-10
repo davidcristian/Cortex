@@ -105,7 +105,8 @@ decision 2).
   brain appends `FIRST_FIRE_NOTE` naming that first fire's day, date and time
   (`TaintLedger.early_first_fire`, `schedule_first_fire.py`). A `schedule_task` call storing
   `on_days` short of every day under a reply stating no repeat gets `WEEKLY_STORED_NOTE` naming
-  those weekdays (`TaintLedger.weekly_stored`, `schedule_weekly_stored.py`). No call is refused or
+  those weekdays, the new ones after a later edit of the turn moves it to other weekdays
+  (`TaintLedger.weekly_stored`, `schedule_weekly_stored.py`). No call is refused or
   changed for either ([readings](../readings/schedule-daily-first-fire.md)).
 - The record gains an added `rule` object, decoded with `.get` so an older record reads as having
   none; a rule that is present is decoded strictly, so a malformed one fails loudly rather than

@@ -30,17 +30,34 @@ _WEEKLY = (
 )
 # An edit setting any of these gives the item another rule, which its own note names if any.
 _RULE_KEYS = frozenset({"at", "at_time", "every_seconds", *SELECTOR_KEYS})
+# An edit setting only these keeps the item a rule on chosen weekdays, on the days it names.
+_DAY_EDIT_KEYS = frozenset({"id", "at_time", "on_days", "in_zone", "text", "repeat"})
 
 
 def _days(call: ToolCall, result: ToolResult) -> str:
     """The weekdays a successful ``call`` stored a rule on, short of every day, else empty."""
     if result.is_error or call.name != SCHEDULE_TOOL_NAME or DAILY_NOTE in result.content:
         return ""
-    days = parse_on_days(call.arguments.get("on_days"))
-    if isinstance(days, str) or call.arguments.get("at_time") is None:
+    if call.arguments.get("at_time") is None:
+        return ""
+    return _day_names(call.arguments.get("on_days"))
+
+
+def _day_names(value: object) -> str:
+    """The weekday names an ``on_days`` list holds, short of every day, else empty."""
+    days = parse_on_days(value)
+    if isinstance(days, str) or len(days) == len(WEEKDAY_NAMES):
         return ""
     names = [WEEKDAY_NAMES[day] for day in sorted(days)]
     return names[0] if len(names) == 1 else f"{', '.join(names[:-1])} and {names[-1]}"
+
+
+def _moved_days(call: ToolCall) -> str:
+    """The new weekday names of an edit that only moves a rule to other weekdays, else empty."""
+    keys = {key for key, value in call.arguments.items() if value is not None}
+    if call.name != EDIT_SCHEDULED_TOOL_NAME or not keys <= _DAY_EDIT_KEYS:
+        return ""
+    return _day_names(call.arguments.get("on_days"))
 
 
 def weekly_after(
@@ -53,6 +70,9 @@ def weekly_after(
     days = _days(call, result)
     if days and stored is not None:
         return (*held, (stored.group(1), days))
+    moved = _moved_days(call)
+    if moved:
+        return tuple((item, moved if item == call.arguments.get("id") else d) for item, d in held)
     ended = call.name == CANCEL_SCHEDULED_TOOL_NAME or (
         call.name == EDIT_SCHEDULED_TOOL_NAME
         and any(call.arguments.get(key) is not None for key in _RULE_KEYS)
