@@ -88,7 +88,7 @@ never a reading of what the tree does now.
 - **[R-1120](tasks/1120-a-correction-naming-an-old-value-is-stored-when-no-forget-deleted-it.md)** A correction naming an old value is stored when no forget deleted it (memory). Its claim was checked against the code on 2026-11-10.
 - **[R-1124](tasks/1124-the-first-fire-note-is-english-in-every-language.md)** The first fire note is English in every language (scheduling). Its claim was checked against the code on 2026-11-10.
 - **[R-1129](tasks/1129-a-question-asking-to-note-a-fact-is-not-read-as-a-request-to-remember.md)** A question asking to note a fact is not read as a request to remember (memory). Its claim was checked against the code on 2026-11-10.
-- **[R-1131](tasks/1131-a-change-answered-by-a-cancel-alone-does-not-name-the-deleted-reminder.md)** A change answered by a cancel alone does not name the deleted reminder (scheduling). Its claim was checked against the code on 2026-11-10.
+- **[R-1131](tasks/1131-a-change-answered-by-a-cancel-alone-does-not-name-the-deleted-reminder.md)** A change answered by a cancel alone does not name the deleted reminder (scheduling). Its claim was checked against the code on 2026-11-11.
 - **[R-1135](tasks/1135-a-reply-giving-a-reminder-a-new-time-with-no-update-verb-gets-no-note.md)** A reply giving a reminder a new time with no update verb gets no note (scheduling). Its claim was checked against the code on 2026-11-11.
 
 ### Actionable, once a port changes (1)
