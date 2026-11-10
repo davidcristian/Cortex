@@ -74,12 +74,11 @@ each stored item is what the turn's successful `schedule_task` call asked for, s
 refuses and changes nothing. The form came in 5 of 12 R draws on the second build (R1 4 of 4, R2
 1 of 4, R3 0 of 4) and 0 of 2 controls; on the first build 3 of 12 daily and 2 one time today. The
 replaced item's form, one time made from a repeat by an interval edit, came in 0 of 14 second
-build draws and is checked by unit tests. Three findings are filed: br2-4's weekly rule for one
+build draws and is checked by unit tests. Three findings followed: br2-4's weekly rule for one
 time tomorrow showed no note
 ([R-1125](../refinements/tasks/1125-a-one-time-request-for-tomorrow-stored-weekly-shows-no-note.md)),
-r1-3 stored one time today by a path with no log
-([R-1126](../refinements/tasks/1126-a-one-time-item-for-tomorrow-stored-for-today-may-show-no-note.md)),
-and the note is English under a French reply
+r1-3 stored one time today by a path with no log (counted below), and the note is English under
+a French reply
 ([R-1124](../refinements/tasks/1124-the-first-fire-note-is-english-in-every-language.md)). br3-4
 claimed a reminder with no call and `UNSCHEDULED_CLAIM_NOTE` showed.
 
@@ -89,3 +88,24 @@ it read as none are `jeden Morgen` and `por la mañana`. Rows `rows.jsonl`, `row
 brain log `brain2.log`, `count.py`, `replay.py` and `mut.py` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot12/`;
 every `s12-*` row and schedule item was deleted.
+
+## A one-time `at` for today, 2026-11-10
+
+`early_first_fire` reads `at_time` stores and edits only, so a direct one-time `at` dated today
+under a message naming tomorrow would show no note. The widening to one-time stores was to be
+built only if such a call came. Ten R1 draws on the stack brain (chats `s15-r1-1` to `s15-r1-10`,
+06:04 to 06:07 local, container `f7f2ce757a91`, SM clock 0.57 of `clocks.max.sm`), counted from
+the brain's `tool.invocation` lines:
+
+| Stored | Draws | Note |
+| --- | --- | --- |
+| Daily, first fire today | 8 | 8 of 8 |
+| Daily, made one time by `edit_scheduled` with `every_seconds` 0, today | 1 (r1-9) | 1 of 1 |
+| One time by `at`, tomorrow 09:00 | 1 (r1-8) | 0 of 1 |
+| One time by `at`, today | 0 | |
+
+**Result.** 0 of 10 here and 0 of 14 on the second build wrote `at` for today, and r1-9 reached
+one time today by the edit path r1-1 showed, which `FIRST_FIRE_NOTE` names. The widening is
+declined. Rows `rows1.jsonl` and the brain log `brain1.log` are in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot15/`;
+every `s15-*` item was deleted.
