@@ -87,9 +87,9 @@ never a reading of what the tree does now.
 - **[R-1119](tasks/1119-the-note-naming-a-row-kept-for-a-longer-value-is-english-only.md)** The note naming a row kept for a longer value is English only (memory). Its claim was checked against the code on 2026-11-10.
 - **[R-1120](tasks/1120-a-correction-naming-an-old-value-is-stored-when-no-forget-deleted-it.md)** A correction naming an old value is stored when no forget deleted it (memory). Its claim was checked against the code on 2026-11-10.
 - **[R-1124](tasks/1124-the-first-fire-note-is-english-in-every-language.md)** The first fire note is English in every language (scheduling). Its claim was checked against the code on 2026-11-10.
-- **[R-1127](tasks/1127-a-reply-saying-a-cancelled-reminder-was-updated-gets-no-note.md)** A reply saying a cancelled reminder was updated gets no note (scheduling). Its claim was checked against the code on 2026-11-10.
 - **[R-1129](tasks/1129-a-question-asking-to-note-a-fact-is-not-read-as-a-request-to-remember.md)** A question asking to note a fact is not read as a request to remember (memory). Its claim was checked against the code on 2026-11-10.
 - **[R-1130](tasks/1130-a-french-reply-saying-it-forgets-in-the-present-gets-no-note.md)** A French reply saying it forgets in the present gets no note (memory). Its claim was checked against the code on 2026-11-10.
+- **[R-1131](tasks/1131-a-change-answered-by-a-cancel-alone-does-not-name-the-deleted-reminder.md)** A change answered by a cancel alone does not name the deleted reminder (scheduling). Its claim was checked against the code on 2026-11-10.
 
 ### Actionable, once a port changes (1)
 
@@ -941,7 +941,7 @@ never a reading of what the tree does now.
 - [R-1018](tasks/1018-a-repeat-word-in-the-reminder-text-hides-the-daily-note.md) A repeat word in the reminder text hides the daily note. done 2026-11-08.
 - [R-1029](tasks/1029-a-purpose-clause-holding-the-repeat-word-gives-a-daily-reply-the-daily-note.md) A purpose clause holding the repeat word gives a daily reply the daily note. declined 2026-11-08.
 - [R-1124](tasks/1124-the-first-fire-note-is-english-in-every-language.md) The first fire note is English in every language. open, actionable.
-- [R-1127](tasks/1127-a-reply-saying-a-cancelled-reminder-was-updated-gets-no-note.md) A reply saying a cancelled reminder was updated gets no note. open, actionable.
+- [R-1131](tasks/1131-a-change-answered-by-a-cancel-alone-does-not-name-the-deleted-reminder.md) A change answered by a cancel alone does not name the deleted reminder. open, actionable.
 
 ### session-history
 

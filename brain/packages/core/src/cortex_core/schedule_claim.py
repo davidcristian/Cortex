@@ -2,8 +2,10 @@
 
 import re
 from collections.abc import Sequence
+from itertools import pairwise
 
 from cortex_core.conversation import Message, Role, ToolRun
+from cortex_core.memory_claim_update import claims_updated
 from cortex_core.note_language import in_language
 from cortex_core.schedule_claim_other import claims_scheduled_other
 from cortex_core.schedule_tools import SCHEDULE_TOOL_NAME
@@ -51,8 +53,9 @@ _FIRST_PERSON = rf"\bI(?:\s+have|['\u2019]ve)?\s+{_ADVERB}"
 _PASSIVE = rf"\b(?:has\s+been|have\s+been|is\s+now)\s+{_ADVERB}"
 _DONE = rf"(?:{_FIRST_PERSON}|{_PASSIVE})"
 _SCHEDULED = re.compile(rf"{_DONE}scheduled\b", re.IGNORECASE)
-_SET = re.compile(rf"{_DONE}(?:set|created|added|booked)\b", re.IGNORECASE)
+_SET = re.compile(rf"{_DONE}(?:set|created|added|booked|moved)\b", re.IGNORECASE)
 _SCHEDULE_NOUN = re.compile(r"\b(?:reminders?|tasks?|alarms?|schedule)\b", re.IGNORECASE)
+_PRONOUN = re.compile(r"^\W*(?:it|this|that)\b", re.IGNORECASE)
 _YEARLY = re.compile(
     r"\b(?:every|each|per|once\s+a)\s+year\b|\b(?:yearly|annual(?:ly)?)\b", re.IGNORECASE
 )
@@ -73,16 +76,19 @@ _TIME_OF_DAY = re.compile(
 _DUE = re.compile(r"\bdue \d{4}-\d{2}-\d{2}T(\d{2}:\d{2})")
 
 
-def _claim(sentence: str, *, echoed: bool) -> bool:
+def _claim(sentence: str, before: str, *, echoed: bool) -> bool:
     """Whether one sentence says something was scheduled, given whether the person said so first."""
     if sentence.rstrip().endswith("?"):
         return False
-    named = _SCHEDULE_NOUN.search(sentence) is not None
+    # "It is now set to 9:30" names the reminder the sentence ``before`` it names.
+    named = _SCHEDULE_NOUN.search(sentence) is not None or (
+        _PRONOUN.search(sentence) is not None and _SCHEDULE_NOUN.search(before) is not None
+    )
     # A message drafted in the person's voice repeats their own claim, and names an event rather
     # than the reminder or task a scheduling call makes.
     if _SCHEDULED.search(sentence) and (named or not echoed):
         return True
-    return named and _SET.search(sentence) is not None
+    return named and (_SET.search(sentence) is not None or claims_updated(sentence))
 
 
 def claims_scheduled(reply: str, *, said: Sequence[str] = ()) -> bool:
@@ -91,7 +97,8 @@ def claims_scheduled(reply: str, *, said: Sequence[str] = ()) -> bool:
     ``said`` are the person's own messages in the chat.
     """
     echoed = any(claims_scheduled(text) for text in said)
-    return any(_claim(sentence, echoed=echoed) for sentence in _SENTENCE_END.split(reply))
+    sentences = ("", *_SENTENCE_END.split(reply))
+    return any(_claim(sentence, before, echoed=echoed) for before, sentence in pairwise(sentences))
 
 
 def said_by_person(history: Sequence[Message]) -> tuple[str, ...]:

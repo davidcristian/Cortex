@@ -53,6 +53,13 @@ CLAIMS = [
     "The background task is now scheduled.",
     "Your reminder has been successfully added.",
     "I have scheduled it for 10:00. Is there anything else?",
+    "I've updated your plant reminder. It is now set to 9:30 every day, starting from tomorrow.",
+    "I've changed your reminder to 9:30.",
+    "Your reminder has been updated to 9:30.",
+    "I've moved your plant reminder to 9:30.",
+    "I've updated your reminders: the plant one is cancelled.",
+    "Your plant reminder is ready. It is now set to 9:30.",
+    "Updated your plant reminder to 9:30.",
 ]
 
 NOT_CLAIMS = [
@@ -73,6 +80,16 @@ NOT_CLAIMS = [
     "I set the table.",
     "I've set out the notes. The reminder was not set.",
     "The schedule lists eight items, and I have read the file.",
+    "I've updated your notes file.",
+    "I read notes.txt. It is now set to 9:30.",
+    "Should I update your reminder to 9:30?",
+    "Have I updated your reminder?",
+    "I haven't updated your reminder.",
+    "I have not changed the reminder.",
+    "Your reminder was not updated.",
+    "If you want, I can change the reminder to 9:30.",
+    "I've updated your phone number. You have a reminder at 9:00.",
+    "It is now set to 9:30. Your reminder list is empty.",
 ]
 
 

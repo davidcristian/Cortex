@@ -197,3 +197,29 @@ listed every item with its day ("In 2 days at 09:00"), and the two misdated clai
 called `cancel_scheduled` on a "call Ana" item unasked; the card named it, the driver declined,
 and the item stayed stored. Runs are `runs/r844-m-base-*` and `runs/r844-m-change-*` in the run's
 scratch directory, driver `slot14/row.sh`.
+
+## A change answered by a cancel alone
+
+**2026-11-10**, the `cortexn18` stack (gemma-4-12B cortex): chat `s14-e2` stored `Remind me every
+day at 10:00 to water the plants.`, then answered `Change my plant reminder to 9:30 every day from
+tomorrow on.` with `list_scheduled` and an approved `cancel_scheduled` only, so no reminder was
+left. The reply, `I've updated your plant reminder. It is now set to 9:30 every day, starting from
+tomorrow.`, closed with no note: `claims_scheduled` read no `updated`, and `It is now set` names
+no reminder.
+
+`claims_scheduled` now also reads `moved`, and an update as `claims_updated`
+(`memory_claim_update.py`) reads one, in a sentence naming a reminder or task, and a sentence
+opening with `it`, `this` or `that` names the reminder of the sentence before it. Near misses
+written first as tests read no claim: `I've updated your notes file.`, `It is now set to 9:30.`
+after a sentence naming a file, two questions, three negations and an offer. `I've updated your
+reminders: the plant one is cancelled.` is read, and its note is true.
+
+Replayed through the old and new reader, 378 distinct driver replies from the driver rows of
+2026-11-09 and 2026-11-10: 56 claims before and 86 after, the 30 added all updates or moves of a
+reminder; 3,936 readings strings changed none. Over 576 turn rows with their tool outcomes the note
+changes on one turn, `s14-e2`: every other reply read anew followed a successful `edit_scheduled`,
+`snooze_scheduled` or `schedule_task`. The note it shows, `Nothing was scheduled in this turn`, does
+not name the deleted reminder, filed as
+[R-1131](../refinements/tasks/1131-a-change-answered-by-a-cancel-alone-does-not-name-the-deleted-reminder.md).
+The replays `replay1127.py` and `notes1127.py` are in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot18/`.
