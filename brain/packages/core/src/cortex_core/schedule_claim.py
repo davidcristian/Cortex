@@ -70,6 +70,13 @@ _UPDATED_PRONOUN = re.compile(
     r"(?:it|them|(?:(?:your|the)\s+(?:\S+\s+)?)?one)\b",
     re.IGNORECASE,
 )
+# "Your 9:00 reminder now goes off at 9:30" gives a new time with no verb of change.
+_NOW_FIRES = re.compile(
+    r"\bnow\s+(?:go(?:es)?\s+off|fires?|rings?|sounds?)\b|\bis\s+now\s+(?:at|for)\b",
+    re.IGNORECASE,
+)
+_CONDITION = re.compile(r"\b(?:if|unless|once|would|could|can|should)\b", re.IGNORECASE)
+_NEGATION = re.compile(r"\b(?:not|never)\b|n['\u2019]t\b", re.IGNORECASE)
 _YEARLY = re.compile(
     r"\b(?:every|each|per|once\s+a)\s+year\b|\b(?:yearly|annual(?:ly)?)\b", re.IGNORECASE
 )
@@ -105,7 +112,22 @@ def _claim(sentence: str, before: str, *, echoed: bool) -> bool:
     named_before = _UPDATED_PRONOUN.search(sentence) is not None and (
         _UPDATED_ITEM.search(before) is not None
     )
-    return updated and (named_before or _names(sentence, before, _UPDATED_ITEM))
+    if updated and (named_before or _names(sentence, before, _UPDATED_ITEM)):
+        return True
+    return _fires_now(sentence, before)
+
+
+def _fires_now(sentence: str, before: str) -> bool:
+    """Whether ``sentence`` states that a named reminder now goes off at a time."""
+    found = _NOW_FIRES.search(sentence)
+    # A negation after the new time, as in "at 9:30, not 9:00", names the old time.
+    return (
+        found is not None
+        and _TIME_OF_DAY.search(sentence) is not None
+        and _CONDITION.search(sentence) is None
+        and _NEGATION.search(sentence, 0, found.start()) is None
+        and _names(sentence, before, _UPDATED_ITEM)
+    )
 
 
 def _names(sentence: str, before: str, noun: re.Pattern[str]) -> bool:

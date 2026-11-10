@@ -35,5 +35,4 @@ shown the form yet.
   naming the reminder the sentence before names, and the person's last message as the sentence
   before the first; 14 near misses keep no claim, and the replay added none
   ([readings](../../readings/schedule-change-request.md#the-draws-2026-11-11)). The reply with no
-  update verb is filed as
-  [R-1135](1135-a-reply-giving-a-reminder-a-new-time-with-no-update-verb-gets-no-note.md).
+  update verb is read by `_fires_now` in the same file, built the same night.

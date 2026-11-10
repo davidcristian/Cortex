@@ -174,6 +174,51 @@ def test_an_update_of_a_pronoun_with_no_reminder_before_it_or_no_claim_is_not_on
     assert not claims_scheduled(reply, said=said)
 
 
+@pytest.mark.parametrize(
+    ("reply", "said"),
+    [
+        ("Done, your 9:00 reminder now goes off at 9:30.", (_MOVE,)),
+        ("Your plant reminder is now at 9:30 every day.", (_MOVE,)),
+        ("It now goes off at 9:30.", (_MOVE,)),
+        ("Your alarm will now go off at 7:00 am.", ("Move my alarm to 7.",)),
+        ("Your reminder now fires at 9:30, not 9:00.", ()),
+    ],
+)
+def test_a_reminder_that_now_goes_off_at_a_time_is_a_claim(
+    reply: str, said: tuple[str, ...]
+) -> None:
+    assert claims_scheduled(reply, said=said)
+
+
+@pytest.mark.parametrize(
+    ("reply", "said"),
+    [
+        ("Your reminder goes off at 9:00.", (_MOVE,)),
+        ("Does your reminder now go off at 9:30?", (_MOVE,)),
+        ("If you confirm, your reminder now goes off at 9:30.", (_MOVE,)),
+        ("Your reminder now goes off at 9:30 if you confirm.", (_MOVE,)),
+        ("I can make it so your reminder now goes off at 9:30.", (_MOVE,)),
+        ("I couldn't change it, so your reminder now goes off at 9:00 as before.", (_MOVE,)),
+        ("Your alarm code is now 5528.", ()),
+        ("Your alarm code now rings at 9:30 on the panel.", ()),
+        ("The meeting is now at 9:30.", ()),
+        ("Your reminder now goes off.", (_MOVE,)),
+        ("So the trigger now fires on a commit here.", ()),
+        ("It now goes off at 9:30.", ("Move my meeting to 9:30.",)),
+    ],
+)
+def test_a_new_time_asked_negated_or_naming_no_reminder_is_not_a_claim(
+    reply: str, said: tuple[str, ...]
+) -> None:
+    assert not claims_scheduled(reply, said=said)
+
+
+def test_a_new_time_after_an_edit_that_succeeded_has_no_claim_note() -> None:
+    reply = "Done, your 9:00 reminder now goes off at 9:30."
+    assert not unscheduled_claim((ToolRun(name=EDIT_SCHEDULED_TOOL_NAME, ok=True),), reply)
+    assert unscheduled_claim((ToolRun(name="list_scheduled", ok=True),), reply, (_MOVE,))
+
+
 _DRAFT_ASKED = (
     "Write a one-line message I can send to my team saying that I have scheduled the design "
     "review for Friday at 10."

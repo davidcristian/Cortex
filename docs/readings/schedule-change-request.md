@@ -89,9 +89,8 @@ three replies of the task that use a pronoun read as a claim under the new reade
 the old. The replay through both readers, of the 32 driver replies drawn here with the person's
 messages of their chat and of 7,344 backticked strings of `docs/readings/` with none, added no
 claim; the readings strings read 9 claims under both. **The change ships.** The fourth reply of
-the task, `Done, your 9:00 reminder now goes off at 9:30.`, has no update verb, reads no claim
-under either reader and is filed as
-[R-1135](../refinements/tasks/1135-a-reply-giving-a-reminder-a-new-time-with-no-update-verb-gets-no-note.md).
+the task, `Done, your 9:00 reminder now goes off at 9:30.`, has no update verb and reads no claim
+under either reader; its reading is [below](#a-new-time-with-no-update-verb-2026-11-11).
 The replay is `replay1134.py` in the same scratch directory.
 
 ## The cancel note on the stack, 2026-11-11
@@ -103,3 +102,17 @@ my plant reminder.` with `list_scheduled` and an approved `cancel_scheduled`. Th
 cancelled your reminder to water the plants.` closed with the note naming `water the plants`.
 This turn shows the note reaches a reply; it is not a draw of the change form. Scratch log:
 `smoke.log` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot2/`.
+
+## A new time with no update verb, 2026-11-11
+
+`_fires_now` (`schedule_claim.py`) reads a sentence that names a reminder or alarm, says it `now`
+goes off, fires, rings or sounds, or `is now at` or `for`, and names a time of day, as a claim,
+unless the sentence holds a condition word or a negation before `now`. No draw was made for the
+form. The 12 near misses in `test_schedule_claim.py` (a time with no `now`, a question, a
+condition before and after, an offer, a negation, two alarm codes, a meeting, no time, prose
+about a trigger, a pronoun after a meeting) keep no claim under the new reader. The replay through the old and new reader, of the 34 driver replies of
+tonight's two slots with their chat's messages and of 7,357 backticked strings of
+`docs/readings/` with none, changed one reading: the task's own reply, now a claim. **The change
+ships.** A reply describing a change made in an earlier turn with `now`, such as `Your alarm now
+goes off at 7:00.` after a list alone, reads as a claim, as `is now set for` already did. The
+replay is `replay1134.py` in the slot 1 scratch directory, run with the reader before the change.
