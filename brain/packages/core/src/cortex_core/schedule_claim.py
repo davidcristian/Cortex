@@ -64,6 +64,12 @@ _UPDATED_ITEM = re.compile(
     re.IGNORECASE,
 )
 _PRONOUN = re.compile(r"^\W*(?:it|this|that)\b", re.IGNORECASE)
+# "I've moved your 9:00 one to 9:30" moves the reminder a sentence before it names.
+_UPDATED_PRONOUN = re.compile(
+    r"\b(?:moved|updated|changed|corrected|replaced|amended)\s+"
+    r"(?:it|them|(?:(?:your|the)\s+(?:\S+\s+)?)?one)\b",
+    re.IGNORECASE,
+)
 _YEARLY = re.compile(
     r"\b(?:every|each|per|once\s+a)\s+year\b|\b(?:yearly|annual(?:ly)?)\b", re.IGNORECASE
 )
@@ -96,7 +102,10 @@ def _claim(sentence: str, before: str, *, echoed: bool) -> bool:
     if named and _SET.search(sentence) is not None:
         return True
     updated = _MOVED.search(sentence) is not None or claims_updated(sentence)
-    return updated and _names(sentence, before, _UPDATED_ITEM)
+    named_before = _UPDATED_PRONOUN.search(sentence) is not None and (
+        _UPDATED_ITEM.search(before) is not None
+    )
+    return updated and (named_before or _names(sentence, before, _UPDATED_ITEM))
 
 
 def _names(sentence: str, before: str, noun: re.Pattern[str]) -> bool:
@@ -110,10 +119,10 @@ def _names(sentence: str, before: str, noun: re.Pattern[str]) -> bool:
 def claims_scheduled(reply: str, *, said: Sequence[str] = ()) -> bool:
     """Whether a statement in ``reply`` says something was scheduled; a question never does.
 
-    ``said`` are the person's own messages in the chat.
+    ``said`` are the person's messages in the chat; the last is read before the first sentence.
     """
     echoed = any(claims_scheduled(text) for text in said)
-    sentences = ("", *_SENTENCE_END.split(reply))
+    sentences = (said[-1] if said else "", *_SENTENCE_END.split(reply))
     return any(_claim(sentence, before, echoed=echoed) for before, sentence in pairwise(sentences))
 
 

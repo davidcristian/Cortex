@@ -128,6 +128,52 @@ def test_a_claim_on_a_later_line_is_found() -> None:
     assert claims_scheduled("The file lists four items\nI've set a reminder for tomorrow")
 
 
+_MOVE = "Move my plant reminder to 9:30."
+
+
+@pytest.mark.parametrize(
+    ("reply", "said"),
+    [
+        ("I've updated it to 9:30.", (_MOVE,)),
+        ("I've moved it to 9:30.", (_MOVE,)),
+        ("Your plant reminder is ready. I've updated it to 9:30.", ()),
+        ("I've moved your 9:00 one to 9:30.", (_MOVE,)),
+        ("Done, I've changed them to 9:30.", ("Move my two plant reminders to 9:30.",)),
+        ("It is now set to 9:30.", (_MOVE,)),
+        ("I've updated it to 9:30.", ("My alarm code is now 5528.", _MOVE)),
+    ],
+)
+def test_an_update_of_a_pronoun_names_the_reminder_named_before_it(
+    reply: str, said: tuple[str, ...]
+) -> None:
+    assert claims_scheduled(reply, said=said)
+
+
+@pytest.mark.parametrize(
+    ("reply", "said"),
+    [
+        ("Your alarm code is 5528. I've updated it.", ()),
+        ("I've updated it.", ("My alarm code is now 5528.",)),
+        ("I've updated it.", (_MOVE, "My alarm code is now 5528.")),
+        ("Your phone number is 0699 000000. I've updated it.", ()),
+        ("I've updated it.", ("My new phone number is 0699 000000, remember it.",)),
+        ("I've moved it to the new file.", ("Move my shopping list to the new file.",)),
+        ("I've moved your 9:00 one to 9:30.", ()),
+        ("Should I move it to 9:30?", (_MOVE,)),
+        ("Have I updated it to 9:30?", (_MOVE,)),
+        ("If you like, I can move it to 9:30.", (_MOVE,)),
+        ("I can update it to 9:30 once you confirm.", (_MOVE,)),
+        ("I haven't moved it yet.", (_MOVE,)),
+        ("I have not updated it.", (_MOVE,)),
+        ("I couldn't change it to 9:30.", (_MOVE,)),
+    ],
+)
+def test_an_update_of_a_pronoun_with_no_reminder_before_it_or_no_claim_is_not_one(
+    reply: str, said: tuple[str, ...]
+) -> None:
+    assert not claims_scheduled(reply, said=said)
+
+
 _DRAFT_ASKED = (
     "Write a one-line message I can send to my team saying that I have scheduled the design "
     "review for Friday at 10."
@@ -284,6 +330,15 @@ async def test_a_reply_with_no_claim_gets_no_note() -> None:
     store = InMemorySessionStore()
     shown, _ = await _reply(_engine(store, [[TextChunk("It was not scheduled.")]]))
     assert shown == "It was not scheduled."
+
+
+async def test_a_reply_updating_the_reminder_the_message_names_gets_the_note() -> None:
+    store = InMemorySessionStore()
+    engine = _engine(store, [[TextChunk("I've updated it to 9:30.")]])
+    events = [event async for event in engine.handle_turn("s", _MOVE, turn_id="t-1")]
+    assert events[-1] == TurnCompleted(
+        turn_id="t-1", full_text="I've updated it to 9:30." + UNSCHEDULED_CLAIM_NOTE
+    )
 
 
 async def test_a_drafted_message_in_the_person_s_voice_gets_no_note() -> None:

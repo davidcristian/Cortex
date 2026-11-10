@@ -1,9 +1,8 @@
 # A reply saying it updated a reminder named only by a pronoun gets no note
 
-**Status:** open, actionable
+**Status:** done 2026-11-11
 **Area:** scheduling
 **Origin:** [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md)
-**Verified:** 2026-11-10
 
 `claims_scheduled` in `schedule_claim.py` reads an update or a move as a schedule claim only when
 its sentence names a reminder or alarm, or opens with `it`, `this` or `that` after a sentence that
@@ -31,3 +30,10 @@ shown the form yet.
 ## History
 
 - 2026-11-10: filed from the audit of the update reading in the schedule claim reader.
+- 2026-11-11: Done. 16 draws of a change or a move ran `edit_scheduled`, so the form came in
+  none. `claims_scheduled` now reads `it`, `them` or `one` right after the update or move verb as
+  naming the reminder the sentence before names, and the person's last message as the sentence
+  before the first; 14 near misses keep no claim, and the replay added none
+  ([readings](../../readings/schedule-change-request.md#the-draws-2026-11-11)). The reply with no
+  update verb is filed as
+  [R-1135](1135-a-reply-giving-a-reminder-a-new-time-with-no-update-verb-gets-no-note.md).
