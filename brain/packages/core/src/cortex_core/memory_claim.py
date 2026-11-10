@@ -7,6 +7,7 @@ from cortex_core.conversation import ToolRun
 from cortex_core.file_request import asks_files
 from cortex_core.forget_unnamed import row_words
 from cortex_core.memory_claim_other import claims_kept_other
+from cortex_core.memory_claim_update import claims_updated
 from cortex_core.memory_forget import FORGET_UNTRUSTED_TOOL_NAME
 from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
 from cortex_core.memory_request import asks_kept, asks_not_kept
@@ -126,11 +127,15 @@ def names_spared(reply: str, spared: Sequence[str]) -> bool:
     )
 
 
-def unkept_note_due(query: str, reply: str, spared: Sequence[str] = ()) -> bool:
+def unkept_note_due(
+    query: str, reply: str, spared: Sequence[str] = (), *, forget_called: bool = False
+) -> bool:
     """Whether a turn that stores nothing shows the note, given what was asked and what it said."""
     # A reply can say the value was updated in words a file edit shares, so a request to keep is
-    # enough. A clause that also asks not to keep expects nothing kept, and a question asks none.
+    # enough, and a bare update claim counts only on a turn that called the forget tool.
+    # A clause that also asks not to keep expects nothing kept, and a question asks none.
     claimed = (claims_kept(reply) and not names_spared(reply, spared)) or claims_kept_other(reply)
+    claimed = claimed or (forget_called and claims_updated(reply))
     return claimed or (asks_kept(query) and not asks_not_kept(query)) or _asks_kept_beside(query)
 
 

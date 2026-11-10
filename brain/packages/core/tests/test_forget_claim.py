@@ -224,7 +224,10 @@ async def test_a_removal_claim_ends_with_the_note_unless_a_forget_call_deleted_a
 
 @pytest.mark.parametrize(
     ("approve", "note", "left"),
-    [(False, UNFORGOTTEN_CLAIM_NOTE + DECLINED_FORGET_NOTE, 1), (True, "", 0)],
+    [
+        (False, UNKEPT_CLAIM_NOTE + UNFORGOTTEN_CLAIM_NOTE + DECLINED_FORGET_NOTE, 1),
+        (True, UNKEPT_CLAIM_NOTE, 0),
+    ],
     ids=["denied", "approved"],
 )
 async def test_a_claim_streamed_before_its_card_ends_with_the_note_when_the_card_is_denied(
