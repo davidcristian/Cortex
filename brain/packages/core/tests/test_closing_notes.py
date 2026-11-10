@@ -15,6 +15,7 @@ from cortex_core import (
     TurnCapabilities,
 )
 from cortex_core.closing_notes import limit_notes
+from cortex_core.memory_claim import unkept_note_due
 from cortex_core.stops import StopLedger
 
 _NEW_VALUE = "Note that my phone number is now 0699000000, and delete the old one."
@@ -83,11 +84,10 @@ def test_each_way_a_request_to_remember_stays_out_of_memory_shows_the_note(
         (_forget(unmatched=1), (_DELETED,), _PLAIN),
         (TaintLedger(tainted=True), (_READ,), "What does notes.txt say?"),
         (_forget(), (_DELETED,), "Forget my old phone number."),
-        (_forget(), (_DELETED,), "Remember my new number, and forget my old one."),
         (TaintLedger(), (), "Don't save this: my PIN is 5521."),
         (TaintLedger(), (), "Which folders can you read?"),
     ],
-    ids=["stored", "unmatched", "file", "forget", "both", "not-kept", "folders"],
+    ids=["stored", "unmatched", "file", "forget", "not-kept", "folders"],
 )
 def test_a_silent_reply_shows_no_note_when_the_turn_is_stored_or_was_not_asked_to_keep(
     *, taint: TaintLedger, runs: tuple[ToolRun, ...], query: str
@@ -105,8 +105,26 @@ def test_a_turn_without_memory_shows_no_note_on_a_request_to_remember() -> None:
         "Remember that my gym code is 4417. I'll tell you later whether to save the address.",
         "Merke dir, mein Code ist 4417. Ich sage dir später, ob du die Adresse speichern sollst.",
         "Never note my PIN. Note that my gym code is 4417.",
+        "Forget my card number 4242 4242 4242 4242, and remember that my locker code is 7319.",
+        "Please forget my card number, and note that I moved to Utrecht last week.",
+        "Erase the whiteboard photo from my notes and remember the new layout",
+        "Merk es dir erst mal, ich sage dir später, ob du es speichern sollst.",
+        "Remember my new number, and forget my old one.",
+        "Don't save this, but remember the gist.",
+        "Remember, my locker code is 7319, and forget my card number.",
     ],
-    ids=["later", "later-de", "not-kept"],
+    ids=[
+        "later",
+        "later-de",
+        "not-kept",
+        "card",
+        "moved",
+        "photo",
+        "for-now-de",
+        "both",
+        "gist",
+        "no-object",
+    ],
 )
 @pytest.mark.parametrize("reply", ["Got it.", "Okay, let me know about the address."])
 def test_a_request_to_remember_beside_a_request_not_to_keep_shows_the_note(
@@ -128,6 +146,24 @@ def test_a_request_to_remember_beside_a_request_not_to_keep_shows_the_note(
 )
 def test_a_request_not_to_keep_with_no_other_request_to_remember_shows_no_note(query: str) -> None:
     assert _shown(TaintLedger(), (), query, reply="Got it.") == "Got it."
+
+
+@pytest.mark.parametrize(
+    ("query", "due"),
+    [
+        ("Remember: don't save this.", False),
+        ("Remember, don't save this.", False),
+        ("Please remember, and don't keep it.", False),
+        ("Remember that you should forget my locker code.", False),
+        ("Remember that you should forget my locker code, and my card number.", False),
+        ("Remember not to save calls.", True),
+        ("Forget my card number, and remember my locker code?", False),
+    ],
+)
+def test_a_clause_asks_to_remember_only_beside_a_request_not_to_keep_something_else(
+    *, query: str, due: bool
+) -> None:
+    assert unkept_note_due(query, "Got it.") is due
 
 
 def test_a_reply_saying_the_value_was_not_kept_still_shows_the_note() -> None:

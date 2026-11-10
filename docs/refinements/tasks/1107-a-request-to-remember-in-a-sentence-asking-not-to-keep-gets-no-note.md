@@ -1,9 +1,8 @@
 # A request to remember in a sentence asking not to keep gets no note
 
-**Status:** open, actionable
+**Status:** done 2026-11-10
 **Area:** memory
 **Origin:** [ADR-0019](../../adr/ADR-0019-tainted-memory-recording.md)
-**Verified:** 2026-11-09
 
 A message that asks to forget or not to keep one thing and, in the same sentence, to remember
 another is withheld whole, and `unkept_note_due` in `memory_claim.py` reads it per sentence, so
@@ -24,3 +23,8 @@ direction is to show.
 
 - 2026-11-09: filed from the replay of the per sentence note rule
   ([readings](../../readings/chat-only-limit-words.md#a-request-to-remember-beside-a-request-not-to-keep-2026-11-09)).
+- 2026-11-10: done. `_asks_kept_beside` in `memory_claim.py` reads each clause of a statement,
+  with a request that has no object read with the clause after it, so the four messages above get
+  the note and the three near misses keep their result. The replay of every readings string moved
+  41 to the note and none away
+  ([readings](../../readings/chat-only-limit-words.md#a-request-to-remember-in-a-clause-beside-a-request-not-to-keep-2026-11-10)).

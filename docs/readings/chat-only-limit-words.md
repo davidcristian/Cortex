@@ -103,3 +103,20 @@ number, neither stored) and `retiens-le. Non, ne le retiens pas.`, where the not
 unasked. A request to remember in the same sentence as a forget or a put off decision still gets
 none (task 1107). Script `replay1105.py` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot21/`.
+
+## A request to remember in a clause beside a request not to keep, 2026-11-10
+
+`_asks_kept_beside` in `memory_claim.py` now reads each clause of a statement: a sentence split at a
+comma, a semicolon or a joining word in the five languages (`and`, `but`, `und`, `aber`, `et`,
+`mais`, `y`, `pero`, `și`, `dar`), with a request that has no object (`Remember,`, `Merke dir,`)
+joined to the clause after it. What is stored does not change. Near misses written first kept their
+result: `Remember: don't save this.`, `Remember, don't save this.`, `Please remember, and don't keep
+it.` and `Remember that you should forget my locker code.` get no note, `Remember not to save
+calls.` still asks to keep, and a question gets none. Every distinct readings string (29,097) was
+replayed as the message through the old and new reader, with the reply `Got it.`: 41 changed, all
+from no note to the note, 0 the other way. 12 of them ask not to keep, and they are the four
+messages of task 1107 (the card number, the move to Utrecht, the whiteboard photo and `Merk es dir
+erst mal`) written several ways, plus prose lines joining two quoted messages. The other 29 are
+prose lines in which a quoted request opens after a comma and a quote mark. `Remember it and don't
+save it.` now gets the note, which is true and unasked. Script `replay1107.py` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot2/`.
