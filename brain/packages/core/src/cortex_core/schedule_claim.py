@@ -53,8 +53,16 @@ _FIRST_PERSON = rf"\bI(?:\s+have|['\u2019]ve)?\s+{_ADVERB}"
 _PASSIVE = rf"\b(?:has\s+been|have\s+been|is\s+now)\s+{_ADVERB}"
 _DONE = rf"(?:{_FIRST_PERSON}|{_PASSIVE})"
 _SCHEDULED = re.compile(rf"{_DONE}scheduled\b", re.IGNORECASE)
-_SET = re.compile(rf"{_DONE}(?:set|created|added|booked|moved)\b", re.IGNORECASE)
+_SET = re.compile(rf"{_DONE}(?:set|created|added|booked)\b", re.IGNORECASE)
+_MOVED = re.compile(rf"{_DONE}moved\b", re.IGNORECASE)
 _SCHEDULE_NOUN = re.compile(r"\b(?:reminders?|tasks?|alarms?|schedule)\b", re.IGNORECASE)
+# An update of "your alarm code" or "your work schedule" names a fact the person keeps, so an
+# update names the item only when a reminder or alarm ends its phrase.
+_UPDATED_ITEM = re.compile(
+    r"\b(?:reminders?|alarms?)\b"
+    r"(?!\s+(?!(?:to|for|at|on|is|has|was|will|and|from|now)\b)[^\W\d_])",
+    re.IGNORECASE,
+)
 _PRONOUN = re.compile(r"^\W*(?:it|this|that)\b", re.IGNORECASE)
 _YEARLY = re.compile(
     r"\b(?:every|each|per|once\s+a)\s+year\b|\b(?:yearly|annual(?:ly)?)\b", re.IGNORECASE
@@ -80,15 +88,23 @@ def _claim(sentence: str, before: str, *, echoed: bool) -> bool:
     """Whether one sentence says something was scheduled, given whether the person said so first."""
     if sentence.rstrip().endswith("?"):
         return False
-    # "It is now set to 9:30" names the reminder the sentence ``before`` it names.
-    named = _SCHEDULE_NOUN.search(sentence) is not None or (
-        _PRONOUN.search(sentence) is not None and _SCHEDULE_NOUN.search(before) is not None
-    )
+    named = _names(sentence, before, _SCHEDULE_NOUN)
     # A message drafted in the person's voice repeats their own claim, and names an event rather
     # than the reminder or task a scheduling call makes.
     if _SCHEDULED.search(sentence) and (named or not echoed):
         return True
-    return named and (_SET.search(sentence) is not None or claims_updated(sentence))
+    if named and _SET.search(sentence) is not None:
+        return True
+    updated = _MOVED.search(sentence) is not None or claims_updated(sentence)
+    return updated and _names(sentence, before, _UPDATED_ITEM)
+
+
+def _names(sentence: str, before: str, noun: re.Pattern[str]) -> bool:
+    """Whether ``sentence`` names ``noun``, or opens with a pronoun after ``before`` names it."""
+    # "It is now set to 9:30" names the reminder the sentence ``before`` it names.
+    return noun.search(sentence) is not None or (
+        _PRONOUN.search(sentence) is not None and noun.search(before) is not None
+    )
 
 
 def claims_scheduled(reply: str, *, said: Sequence[str] = ()) -> bool:
