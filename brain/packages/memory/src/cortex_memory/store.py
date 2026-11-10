@@ -171,13 +171,24 @@ class PgVectorMemoryStore:
         self, text: str, *, limit: int, scopes: Sequence[str] | None = None
     ) -> Sequence[MemoryRecord]:
         """The first ``limit`` memories of ``scopes`` whose text contains ``text``, case ignored."""
+        return await self._find((sql.FIND_ALL, sql.FIND_SCOPED), text, limit, scopes)
+
+    async def find_value(
+        self, value: str, *, limit: int, scopes: Sequence[str] | None = None
+    ) -> Sequence[MemoryRecord]:
+        """As ``find_text``, with every space, dot, slash and hyphen removed from both texts."""
+        return await self._find((sql.FIND_VALUE_ALL, sql.FIND_VALUE_SCOPED), value, limit, scopes)
+
+    async def _find(
+        self, statements: tuple[str, str], text: str, limit: int, scopes: Sequence[str] | None
+    ) -> Sequence[MemoryRecord]:
+        """Run one text search, the second of ``statements`` when ``scopes`` is given."""
+        every, scoped = statements
         try:
             if scopes is None:
-                rows = await self._bounded(self._db.fetch(sql.FIND_ALL, text, limit))
+                rows = await self._bounded(self._db.fetch(every, text, limit))
             else:
-                rows = await self._bounded(
-                    self._db.fetch(sql.FIND_SCOPED, text, limit, list(scopes))
-                )
+                rows = await self._bounded(self._db.fetch(scoped, text, limit, list(scopes)))
             return tuple(_to_record(row) for row in rows)
         except _WRAPPED as err:
             msg = "finding memories by text failed"

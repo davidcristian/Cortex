@@ -19,7 +19,7 @@ from cortex_core.forget_results import (
 )
 from cortex_core.forget_unnamed import KEPT_ALL, KEPT_LINE, KeptRows, asks_to_keep, forgot, unnamed
 from cortex_core.memory import MemoryRecord
-from cortex_core.memory_values import code_runs, digit_runs, value_searches, whole_values
+from cortex_core.memory_values import code_runs, digit_runs, whole_values
 from cortex_core.ports import MemoryStore
 from cortex_core.scope import MemoryScope
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
@@ -153,29 +153,28 @@ class ForgetChosenTool:
         extra: list[tuple[MemoryRecord, str, str]] = []
         values = [(key, form) for key, form in _values(found).items() if words or key in named]
         for key, form in values:
-            for search in value_searches(key, form):
-                for record in await self._store.find_text(
-                    search,
-                    limit=FORGET_CHOSEN_LIMIT + 1,
-                    scopes=self._scope.read_scopes(call.stamp.session_id),
-                ):
-                    if record.id not in seen and _repeats(record, key, words):
-                        seen.add(record.id)
-                        extra.append((record, form, whole_values(record.text)[key]))
+            for record in await self._store.find_value(
+                key,
+                limit=FORGET_CHOSEN_LIMIT + 1,
+                scopes=self._scope.read_scopes(call.stamp.session_id),
+            ):
+                if record.id not in seen and _repeats(record, key, words):
+                    seen.add(record.id)
+                    extra.append((record, form, whole_values(record.text)[key]))
         return extra
 
     async def _holding(self, call: ToolCall) -> int:
         """How many remaining rows not asked to keep hold four or more digits a deleted row held."""
         deleted = self._deleted_rows.get(call.stamp.turn_id, ())
-        runs = {key: form for text in deleted for key, form in code_runs(text).items()}
+        runs = {key for text in deleted for key in code_runs(text)}
         holders: set[str] = set()
-        for search in {text for key, form in runs.items() for text in value_searches(key, form)}:
-            for record in await self._store.find_text(
-                search,
+        for key in runs:
+            for record in await self._store.find_value(
+                key,
                 limit=FORGET_CHOSEN_LIMIT + 1,
                 scopes=self._scope.read_scopes(call.stamp.session_id),
             ):
-                held = not runs.keys().isdisjoint(digit_runs(record.text))
+                held = not runs.isdisjoint(digit_runs(record.text))
                 if held and not asks_to_keep(record.text, call.stamp.query):
                     holders.add(record.id)
         return len(holders)

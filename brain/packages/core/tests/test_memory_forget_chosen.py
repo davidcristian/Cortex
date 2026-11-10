@@ -381,10 +381,10 @@ async def test_a_store_down_while_finding_repeats_deletes_nothing() -> None:
 
 
 class _FailingRepeatSearch(InMemoryMemoryStore):
-    async def find_text(
-        self, text: str, *, limit: int, scopes: Sequence[str] | None = None
+    async def find_value(
+        self, value: str, *, limit: int, scopes: Sequence[str] | None = None
     ) -> Sequence[MemoryRecord]:
-        if text == "7731":
+        if value == "7731":
             msg = "pgvector is down"
             raise MemoryStoreError(msg)
-        return await super().find_text(text, limit=limit, scopes=scopes)
+        return await super().find_value(value, limit=limit, scopes=scopes)

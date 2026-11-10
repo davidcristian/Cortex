@@ -385,6 +385,36 @@ async def test_find_text_matches_a_substring_and_maps_the_rows(
     assert sent == args
 
 
+@pytest.mark.parametrize(
+    ("scopes", "tail", "args"),
+    [
+        (None, " ORDER BY created_at, id LIMIT $2", ("0151 2345", 3)),
+        (["a"], " AND scope = ANY($3) ORDER BY created_at, id LIMIT $2", ("0151 2345", 3, ["a"])),
+    ],
+    ids=["every-scope", "scoped"],
+)
+async def test_find_value_joins_both_texts_and_maps_the_rows(
+    scopes: list[str] | None, tail: str, args: tuple[object, ...]
+) -> None:
+    db = FakeDatabase(rows=[_FOUND])
+    found = await PgVectorMemoryStore(db).find_value("0151 2345", limit=3, scopes=scopes)
+    assert [record.text for record in found] == ["card 4242"]
+    sql, sent = db.calls[0]
+    joined = "lower(regexp_replace({}, '[ ./-]', '', 'g'))"
+    assert sql.endswith(
+        f"WHERE {joined.format('$1')} <> ''"
+        f" AND strpos({joined.format('text')}, {joined.format('$1')}) > 0{tail}"
+    )
+    assert sent == args
+
+
+async def test_find_value_wraps_a_backend_error_and_a_malformed_row() -> None:
+    with pytest.raises(MemoryStoreError, match="finding memories by text"):
+        await PgVectorMemoryStore(FakeDatabase(fail=OSError("gone"))).find_value("4242", limit=3)
+    with pytest.raises(MemoryDataError, match="text search result"):
+        await PgVectorMemoryStore(FakeDatabase(rows=[{"id": "m-1"}])).find_value("4242", limit=3)
+
+
 async def test_find_text_wraps_a_backend_error() -> None:
     db = FakeDatabase(fail=asyncpg.PostgresError("boom"))
     with pytest.raises(MemoryStoreError, match="finding memories by text") as excinfo:
@@ -469,6 +499,7 @@ def _operations(store: PgVectorMemoryStore) -> dict[str, Callable[[], Awaitable[
         "delete ids": lambda: store.delete_ids(["m-1"]),
         "delete written by": lambda: store.delete_written_by("s"),
         "find text": lambda: store.find_text("hi", limit=1),
+        "find value": lambda: store.find_value("hi", limit=1, scopes=["s"]),
     }
 
 
@@ -495,6 +526,7 @@ async def _ended(db: HangingDatabase, call: Awaitable[object]) -> asyncio.Future
         "delete tainted",
         "delete ids",
         "find text",
+        "find value",
     ],
 )
 async def test_a_hung_server_fails_as_unavailable_after_the_bound(operation: str) -> None:

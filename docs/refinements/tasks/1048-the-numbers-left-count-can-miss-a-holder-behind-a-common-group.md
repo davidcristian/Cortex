@@ -1,8 +1,6 @@
 # The numbers left count can miss a holder behind a common group
 
-**Status:** open, waiting for its trigger
-**Trigger:** a memory store with more than 20 rows sharing one four character group of a value a
-forget deleted, such as `2026` or `1234`.
+**Status:** done 2026-11-10
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
 
@@ -27,3 +25,7 @@ This is a reading of the code, not reproduced: no store tonight holds 20 rows sh
 ## History
 
 - 2026-11-08: filed by the night's audit slot, from a reading of `value_searches` and its callers.
+- 2026-11-10: done with task 1042, before its trigger fired. `_holding` searches once per deleted
+  digit run with `find_value`, so a row competes for the limit only when its text holds the whole
+  run once separators are removed, not one group of it. A test with 25 rows holding `1234` and
+  `5678` and a holder `06 1234 5678` failed before the change and passes after it.

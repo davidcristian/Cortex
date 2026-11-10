@@ -72,6 +72,15 @@ class MemoryStore(Protocol):
         """
         ...
 
+    async def find_value(
+        self, value: str, *, limit: int, scopes: Sequence[str] | None = None
+    ) -> Sequence[MemoryRecord]:
+        """As ``find_text``, with every space, dot, slash and hyphen removed from both texts first.
+
+        A ``value`` with nothing left after that finds no memory.
+        """
+        ...
+
     async def count_tainted(self, *, scopes: Sequence[str] | None = None) -> int:
         """How many tainted memories ``scopes`` holds (all scopes when None)."""
         ...

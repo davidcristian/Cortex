@@ -285,6 +285,13 @@ class FailingMemoryStore:
         msg = "pgvector is down"
         raise MemoryStoreError(msg)
 
+    async def find_value(
+        self, value: str, *, limit: int, scopes: Sequence[str] | None = None
+    ) -> Sequence[MemoryRecord]:
+        del value, limit, scopes
+        msg = "pgvector is down"
+        raise MemoryStoreError(msg)
+
 
 class UndecodableMemoryStore(FailingMemoryStore):
     """A MemoryStore whose delete_written_by answers with a reply this repo cannot read."""

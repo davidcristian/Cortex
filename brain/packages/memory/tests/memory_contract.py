@@ -366,6 +366,44 @@ async def check_find_text_returns_the_rows_containing_the_text_oldest_first(
     assert await store.find_text("passport", limit=10, scopes=[scope]) == ()
 
 
+async def check_find_value_matches_the_text_with_its_separators_removed(
+    under_test: MemoryStoreUnderTest,
+) -> None:
+    """``find_value`` drops spaces, dots, slashes and hyphens from both texts, case ignored."""
+    store = under_test.store
+    scope = f"contract-value-{uuid4()}"
+    other = f"contract-value-other-{uuid4()}"
+    spaced = make_record("my phone is 0151 2345 6789", (1.0, 0.0, 0.0), scope=scope, at=_AT - _HOUR)
+    short = make_record("Your PHONE is 015 123 456 789", (1.0, 0.0, 0.0), scope=scope, at=_AT)
+    longer = make_record("account 0151/234-5678.90", (1.0, 0.0, 0.0), scope=scope, at=_AT + _HOUR)
+    lettered = make_record("door code AB-12 cd", (1.0, 0.0, 0.0), scope=scope)
+    elsewhere = make_record("015.123.456.789", (1.0, 0.0, 0.0), scope=other, at=_AT + 2 * _HOUR)
+    for record in (
+        spaced,
+        short,
+        longer,
+        lettered,
+        elsewhere,
+        make_record("tab 0151\t2345\t6789", (1.0, 0.0, 0.0), scope=scope),
+        make_record("fax 015 123 999 000", (1.0, 0.0, 0.0), scope=scope),
+    ):
+        await store.add(record)
+    found = await store.find_value("015123456789", limit=10, scopes=[scope])
+    assert [record.id for record in found] == [spaced.id, short.id, longer.id]
+    assert found[1] == short
+    spelled = await store.find_value("0151 2345-6789", limit=10, scopes=[scope, other])
+    assert [record.id for record in spelled] == [spaced.id, short.id, longer.id, elsewhere.id]
+    assert [r.id for r in await store.find_value("015123456789", limit=1, scopes=[scope])] == [
+        spaced.id
+    ]
+    assert [r.id for r in await store.find_value("ab12CD", limit=10, scopes=[scope])] == [
+        lettered.id
+    ]
+    assert len(await store.find_value("015123456789", limit=10)) >= 4
+    assert await store.find_value(" ./-", limit=10, scopes=[scope]) == ()
+    assert await store.find_value("", limit=10, scopes=[scope]) == ()
+
+
 async def check_a_lost_backend_crosses_the_port_as_memory_store_error(
     under_test: MemoryStoreUnderTest,
 ) -> None:
@@ -385,6 +423,7 @@ async def check_a_lost_backend_crosses_the_port_as_memory_store_error(
     await _refuses_typed(lambda: store.delete_ids(["contract-gone"]), "delete_ids")
     await _refuses_typed(lambda: store.delete_written_by("contract-gone"), "delete_written_by")
     await _refuses_typed(lambda: store.find_text("after", limit=5, scopes=[scope]), "find_text")
+    await _refuses_typed(lambda: store.find_value("after", limit=5, scopes=[scope]), "find_value")
 
 
 ALL_CHECKS: Sequence[Check] = (
@@ -408,4 +447,5 @@ ALL_CHECKS: Sequence[Check] = (
     check_delete_written_by_removes_only_that_sessions_rows,
     check_add_refuses_a_record_whose_recalled_memory_was_deleted_by_id,
     check_find_text_returns_the_rows_containing_the_text_oldest_first,
+    check_find_value_matches_the_text_with_its_separators_removed,
 )

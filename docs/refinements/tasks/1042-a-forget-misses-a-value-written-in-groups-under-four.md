@@ -1,9 +1,8 @@
 # A forget misses a value written in groups under four characters
 
-**Status:** open, needs a port change first
+**Status:** done 2026-11-10
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-08
 
 `value_searches` in `memory_values.py` finds the rows that restate a value through `find_text`,
 which matches text literally, by the value as written, by its letters and digits alone and by each
@@ -29,3 +28,9 @@ for a destructive card, but no `NUMBERS_LEFT_NOTE` tells the person it remains.
   level (`SCRATCH/slot7/probe.py`): rows "my phone number is 0151 2345 6789" and "Your phone is
   015 123 456 789", call text `phone number` or `0151 2345 6789`: the card lists 1 row, and the
   result says no exchange contains that text with `numbers_left` false.
+- 2026-11-10: done. `MemoryStore.find_value` matches a value against each row's text with spaces,
+  dots, slashes and hyphens removed from both, case ignored, and a value with nothing left finds no
+  row; the fake, `PgVectorMemoryStore` and the test doubles implement it, and its check in
+  `memory_contract.py` passed on the fake and live on the night's stack Postgres. `_repeating` and
+  `_holding` search by it in place of `value_searches`, which is removed, and `_repeats` and the
+  digit run filter still drop a longer value. This also closed task 1048.

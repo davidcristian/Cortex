@@ -7,6 +7,7 @@ from collections.abc import Sequence
 from cortex_core.embed_input import EMBED_INPUT_CHARS
 from cortex_core.errors import EmbedderError, MemoryStoreError
 from cortex_core.memory import MemoryRecord, ScoredMemory
+from cortex_core.memory_values import joined
 from cortex_core.ranking import RecallAudit
 
 # Under the 32 bytes of a sha256 digest, so no byte is reused and distinct texts get distinct
@@ -102,6 +103,18 @@ class InMemoryMemoryStore:
         self._guard()
         needle = text.lower()
         found = [record for record in self._in_scopes(scopes) if needle in record.text.lower()]
+        found.sort(key=lambda record: (record.at, record.id))
+        return tuple(found[:limit])
+
+    async def find_value(
+        self, value: str, *, limit: int, scopes: Sequence[str] | None = None
+    ) -> Sequence[MemoryRecord]:
+        """As ``find_text``, with every space, dot, slash and hyphen removed from both texts."""
+        self._guard()
+        needle = joined(value)
+        found = [
+            record for record in self._in_scopes(scopes) if needle and needle in joined(record.text)
+        ]
         found.sort(key=lambda record: (record.at, record.id))
         return tuple(found[:limit])
 

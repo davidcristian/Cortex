@@ -129,6 +129,12 @@ class RecordingMemoryStore:
         del text, limit, scopes
         raise AssertionError
 
+    async def find_value(
+        self, value: str, *, limit: int, scopes: Sequence[str] | None = None
+    ) -> Sequence[MemoryRecord]:
+        del value, limit, scopes
+        raise AssertionError
+
 
 def test_clamp_title_passes_a_short_title_through_unchanged() -> None:
     assert clamp_title("Everything about cats") == "Everything about cats"

@@ -54,6 +54,9 @@ business logic and no state beyond the injected pool (the one hard rule).
 - `find_text(text, *, limit, scopes=None)` is a `SELECT` of the record columns `WHERE
   strpos(lower(text), lower($1)) > 0`, with the scope filter `search` uses, `ORDER BY created_at,
   id LIMIT $2`. No index serves it, so it scans the table; only a forget calls it.
+- `find_value(value, *, limit, scopes=None)` is the same `SELECT` comparing
+  `lower(regexp_replace(text, '[ ./-]', '', 'g'))` with the value treated the same way, and
+  matching nothing when the value is empty after that.
 - `delete_written_by(session_id)` is `DELETE FROM memories WHERE id IN (SELECT id FROM memories
   WHERE session_id = $1 ORDER BY id FOR UPDATE)`, served by `memories_session_idx`, one pass,
   counted and locked in id order as `delete_ids` is. The session-delete cascade calls it.
@@ -194,7 +197,7 @@ similarity ranking.
   `MemoryStoreUnderTest`, the implementation plus an awaited `break_backend`, so the port's failure
   channel is checked where its values are: the eleventh check breaks the backend and requires each
   verb (`add`, `search`, `count_candidates`, `count_tainted`, `delete_scope`, `delete_tainted`,
-  `delete_ids`, `delete_written_by`, `find_text`) to raise
+  `delete_ids`, `delete_written_by`, `find_text`, `find_value`) to raise
   `MemoryStoreError`, not the driver's exception nor `MemoryDataError`, since an outage misread as
   a data defect would fail the very turn the degradation exists to save. The other direction is
   deliberately not a shared check: the in-memory twin decodes nothing, so only the implementation

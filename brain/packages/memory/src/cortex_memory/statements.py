@@ -23,6 +23,15 @@ FIND = (
 )
 FIND_ALL = f"{FIND} ORDER BY created_at, id LIMIT $2"
 FIND_SCOPED = f"{FIND} AND scope = ANY($3) ORDER BY created_at, id LIMIT $2"
+# The separators are the ones cortex_core.memory_values.joined removes, so the fake finds the same.
+FIND_VALUE = (
+    "SELECT id, text, embedding::text AS embedding, scope, tainted, created_at, session_id"
+    " FROM memories WHERE lower(regexp_replace($1, '[ ./-]', '', 'g')) <> ''"
+    " AND strpos(lower(regexp_replace(text, '[ ./-]', '', 'g')),"
+    " lower(regexp_replace($1, '[ ./-]', '', 'g'))) > 0"
+)
+FIND_VALUE_ALL = f"{FIND_VALUE} ORDER BY created_at, id LIMIT $2"
+FIND_VALUE_SCOPED = f"{FIND_VALUE} AND scope = ANY($3) ORDER BY created_at, id LIMIT $2"
 COUNT_ALL = "SELECT count(*) AS total FROM memories"
 COUNT_SCOPED = f"{COUNT_ALL} WHERE scope = ANY($1)"
 COUNT_TAINTED = f"{COUNT_ALL} WHERE tainted"

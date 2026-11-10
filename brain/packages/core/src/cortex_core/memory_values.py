@@ -97,7 +97,6 @@ def code_runs(text: str) -> dict[str, str]:
     return {key: form for key, form in runs if named or not _dated(_SEPARATOR.split(form))}
 
 
-def value_searches(key: str, form: str) -> tuple[str, ...]:
-    """The texts that find each row writing ``key`` with a group of four or more characters."""
-    windows = (key[start : start + _MIN_DIGITS] for start in range(len(key) - _MIN_DIGITS + 1))
-    return tuple(dict.fromkeys((form, key, *windows)))
+def joined(text: str) -> str:
+    """``text`` in lower case with every separator a value's groups can have removed."""
+    return _SEPARATOR.sub("", text).lower()

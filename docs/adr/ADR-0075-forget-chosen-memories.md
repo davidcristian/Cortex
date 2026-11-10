@@ -37,10 +37,11 @@ that removes exactly those rows and holds against a turn in flight. This record 
 4. **`MemoryStore.find_text(text, *, limit, scopes=None)` finds the rows that hold a fact by a
    literal match**: the rows whose text contains `text`, case ignored, oldest first and then by
    id, at most `limit`. The pgvector statement is `strpos(lower(text), lower($1)) > 0` with the
-   scope filter `search` uses. A literal match is checkable: a row holds the named text or it does
-   not, so a card can say why each listed row was chosen. Both implementations lower case with
-   their own rules, which agree on ASCII; that the database collation agrees with Python on other
-   letters is an assumption no test checks.
+   scope filter `search` uses. `find_value(value, *, limit, scopes=None)` is the same match with
+   every space, dot, slash and hyphen removed from both texts, and a value with nothing left finds
+   no row. A literal match is checkable, so a card can say why each listed row was chosen. Both
+   implementations lower case with their own rules, which agree on ASCII; that the database
+   collation agrees with Python on other letters is an assumption no test checks.
 5. **The built-in `forget_memories` (`ForgetChosenTool`) is the one caller.** It takes one `text`:
    the value when the model knows it, and otherwise one word from the request that names it, such
    as `passport`, because a model told to pass only the value asked the person to type it. A
@@ -61,10 +62,9 @@ that removes exactly those rows and holds against a turn in flight. This record 
    code in full, never a part of one. A run with fewer than four digits, a year alone or in a date,
    a time such as `18h30` and an amount beside a currency sign or word is no value, since rows
    about other facts share them. A text that is itself a value lists each other row holding that
-   value. Since `find_text` matches text literally, those rows are found by the value as written,
-   by its letters and digits alone and by each four consecutive characters of them, so a row writing the value
-   with other separators is listed, and one writing it only in groups under four characters is not
-   found and stays, which keeps rows when unsure. A recall reply restates a
+   value. `find_value` finds those rows by the value's letters and digits, so a row writing it
+   with any separators or groups (`015 123 456 789`) is listed, and the whole value filter drops a
+   row where they are part of a longer value. A recall reply restates a
    value in other words (`The code for your gym locker is 5819.`), so a forget of `gym locker code`
    left its row and a new chat recalled the value
    ([readings](../readings/forget-value-repeats.md)). A forget that deletes nothing whatever the answer (no
@@ -76,7 +76,7 @@ that removes exactly those rows and holds against a turn in flight. This record 
    was shown is never deleted unseen. The ids live in the brain process only between the card and
    the answer to it, the same span the dispatcher holds the call. After the delete it searches again
    and reports any row still matching, so the reply never claims a fact is gone while a row holds
-   it. When no row matches, it also counts, by the same searches, the remaining rows that hold a run of four or more
+   it. When no row matches, it also counts, by `find_value`, the remaining rows that hold a run of four or more
    digits a row deleted in the turn held, compared by digits so separators do not matter, a year
    or a date only from a row that names a code or a number, since unrelated facts share years,
    and never a row a clause of the person's message asking to keep names, or any row when that
@@ -229,8 +229,8 @@ that removes exactly those rows and holds against a turn in flight. This record 
   reaches every copy holding the text, and the value search a copy that restates a whole value
   beside a word of the text. A copy holding the value with no such word stays, and the result does not
   report it.
-- `find_text` scans `memories` row by row, since no index serves a substring match; it runs only
-  when a person asks for a forget, never on a turn's recall.
+- `find_text` and `find_value` scan `memories` row by row, since no index serves a substring
+  match; they run only when a person asks for a forget, never on a turn's recall.
 
 ## Alternatives rejected
 

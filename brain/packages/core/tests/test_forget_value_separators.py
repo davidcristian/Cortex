@@ -10,11 +10,11 @@ from cortex_core import (
     MemoryRecord,
     ToolCall,
 )
-from cortex_core.memory_values import value_searches
 
 _AT = datetime(2026, 11, 8, 4, 0, 0, tzinfo=UTC)
 _SPACED = "User: Remember that my phone number is 0151 2345 6789.\nAssistant: Noted."
 _JOINED = "User: Call my phone at 015123456789 later.\nAssistant: Ok."
+_SHORT = "User: My phone?\nAssistant: Your phone is 015 123 456 789."
 _HELD = "remembered exchanges that contain that text, but 1 other remembered exchanges still hold"
 
 
@@ -139,9 +139,89 @@ async def test_a_restatement_with_no_word_of_the_text_stays_and_is_counted() -> 
     assert left == ["bare"]
 
 
-def test_the_searches_reach_every_group_of_four_characters() -> None:
-    assert value_searches("a12b34", "A12B-34") == ("A12B-34", "a12b34", "a12b", "12b3", "2b34")
-    assert value_searches("7731", "7731") == ("7731",)
+@pytest.mark.parametrize("text", ["phone number", "0151 2345 6789"])
+async def test_a_number_restated_in_groups_under_four_is_listed_and_deleted(text: str) -> None:
+    lines, said, left = await _forget(text, _record("asked", _SPACED), _record("short", _SHORT, 1))
+    assert lines[2:] == [
+        "Listed because they also hold 0151 2345 6789:",
+        "- User: My phone? Assistant: Your phone is 015 123 456 789.",
+    ]
+    assert said.startswith("forgot 2 remembered exchanges;")
+    assert left == []
+
+
+@pytest.mark.parametrize(
+    "near",
+    [
+        "User: Remember Anna's phone, 015 123 456 999.\nAssistant: Noted, Anna's phone.",
+        "User: My phone account is 015 123 456 7890.\nAssistant: Noted.",
+        "User: My phone account is 1 015 123 456 789.\nAssistant: Noted.",
+    ],
+)
+@pytest.mark.parametrize("text", ["phone number", "0151 2345 6789"])
+async def test_a_near_miss_in_groups_under_four_stays_and_is_not_counted(
+    near: str, text: str
+) -> None:
+    lines, said, left = await _forget(text, _record("asked", _SPACED), _record("near", near, 1))
+    assert len(lines) == 2
+    assert left == ["near"]
+    assert said.startswith("forgot 1 remembered exchanges")
+    assert _HELD not in said
+
+
+@pytest.mark.parametrize("text", ["phone number", "0151 2345 6789"])
+async def test_a_longer_code_holding_the_digits_stays_and_its_digits_are_counted(
+    text: str,
+) -> None:
+    near = "User: My phone room is 015 123 456 789b.\nAssistant: Noted."
+    lines, said, left = await _forget(text, _record("asked", _SPACED), _record("near", near, 1))
+    assert len(lines) == 2
+    assert left == ["near"]
+    assert _HELD in said
+
+
+async def test_a_restatement_in_groups_under_four_with_no_word_is_counted() -> None:
+    bare = "User: And the other one?\nAssistant: 015 123 456 789."
+    lines, said, left = await _forget(
+        "phone number", _record("asked", _SPACED), _record("bare", bare, 1)
+    )
+    assert len(lines) == 2
+    assert _HELD in said
+    assert left == ["bare"]
+
+
+async def test_a_holder_behind_groups_many_rows_share_is_counted() -> None:
+    noise = [
+        _record(f"n{i:02}", f"User: Locker {i}: 1234, gym 5678.\nAssistant: Noted.", i)
+        for i in range(25)
+    ]
+    asked = "User: Remember my phone number 0612345678.\nAssistant: Noted."
+    bare = "User: And again?\nAssistant: 06 1234 5678."
+    lines, said, left = await _forget(
+        "phone number", *noise, _record("asked", asked, 30), _record("bare", bare, 31)
+    )
+    assert len(lines) == 2
+    assert _HELD in said
+    assert "bare" in left
+
+
+async def test_a_value_named_in_other_groups_than_every_row_matches_nothing() -> None:
+    store = InMemoryMemoryStore()
+    await store.add(_record("short", _SHORT))
+    tool = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
+    assert await tool.card(_call("0151 2345 6789")) is None
+    result = await tool.invoke(_call("0151 2345 6789"))
+    assert (result.matched_nothing, result.forgot) == (True, 0)
+
+
+async def test_a_forget_listing_a_row_in_groups_under_four_has_matched_something() -> None:
+    store = InMemoryMemoryStore()
+    for record in (_record("asked", _SPACED), _record("short", _SHORT, 1)):
+        await store.add(record)
+    tool = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
+    await tool.card(_call("0151 2345 6789"))
+    result = await tool.invoke(_call("0151 2345 6789"))
+    assert (result.matched_nothing, result.forgot) == (False, 2)
 
 
 async def test_a_long_restatement_is_cut_around_its_own_form() -> None:

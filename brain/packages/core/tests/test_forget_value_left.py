@@ -146,13 +146,13 @@ class _FailingAfterDelete(InMemoryMemoryStore):
         self.deleted = True
         return await super().delete_ids(ids)
 
-    async def find_text(
-        self, text: str, *, limit: int, scopes: Sequence[str] | None = None
+    async def find_value(
+        self, value: str, *, limit: int, scopes: Sequence[str] | None = None
     ) -> Sequence[MemoryRecord]:
-        if self.deleted and text == "7731":
+        if self.deleted and value == "7731":
             msg = "pgvector is down"
             raise MemoryStoreError(msg)
-        return await super().find_text(text, limit=limit, scopes=scopes)
+        return await super().find_value(value, limit=limit, scopes=scopes)
 
 
 async def test_a_store_failure_while_counting_the_numbers_left_is_reported() -> None:
