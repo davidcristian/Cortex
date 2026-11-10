@@ -55,7 +55,7 @@ the old value, the approved card deleted the seed row and the turn stayed out of
 held either value, while the reply said "I've updated that" with only the forget count note
 (task 1110). In c3 draw 1 the turn read a directory listing, stored nothing, and the reply `I'll make
 sure to remember that your sister's name is Hannah, not Anna.` got no unkept note, since
-`claims_kept` does not read `I'll make sure to remember` (task 1111). In c1 draw 4 the question
+`claims_kept` did not read `I'll make sure to remember`; it reads it now. In c1 draw 4 the question
 `What is my bike lock code?` in a new chat called `forget_memories`, which matched nothing (task
 1112). Driver `draw.sh`, records `rows.jsonl` and logs `draw-c1.log`, `draw-c2.log`, `draw-c3.log`
 in `/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot4/`.

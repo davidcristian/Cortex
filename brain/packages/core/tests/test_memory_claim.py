@@ -97,6 +97,11 @@ CLAIMS = [
     "Understood. I'll make sure to keep your vegetarian preference in mind for any recipes.",
     "I will make sure to keep that in mind.",
     "I'll also make sure to save that to my memory.",
+    "Got it. I'll make sure to remember that your sister's name is Hannah, not Anna.",
+    "I will make sure to remember your locker code.",
+    "I'll make sure I remember that.",
+    "I'll be sure to remember that.",
+    "If you want, I'll make sure to remember it.",
 ]
 
 NOT_CLAIMS = [
@@ -201,6 +206,12 @@ NOT_CLAIMS = [
     "Should I make sure to keep this in mind?",
     "Got it, your locker code is 8426.",
     "Make sure to keep that in mind.",
+    "Make sure to remember it yourself.",
+    "Should I make sure to remember it?",
+    "I'll make sure not to remember that.",
+    "I'll make sure I don't remember it.",
+    "I can't make sure to remember it.",
+    "I'll make sure you remember it.",
 ]
 
 

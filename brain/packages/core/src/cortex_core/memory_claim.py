@@ -24,7 +24,7 @@ _HAVE = rf"(?<!\bas\s)\bI(?:\s+have|['\u2019]ve)?\s+{_ADVERB}"
 _WILL = rf"(?<!\bas\s)\bI(?:\s+will|['\u2019]ll)\s+{_ADVERB}"
 _NOTED = re.compile(
     rf"{_HAVE}(?:noted|remembered|memori[sz]ed|made\s+a\s+note)\b(?!\s+(?:above|below|earlier))"
-    rf"|{_WILL}(?:remember|memori[sz]e|make\s+a\s+note)\b"
+    rf"|{_WILL}(?:make\s+sure\s+(?:to|I)\s+|be\s+sure\s+to\s+)?(?:remember|memori[sz]e|make\s+a\s+note)\b"
     rf"|{_WILL}note\b(?!\s+that\s+(?!(?:down|you|your)\b)\w)",
     re.IGNORECASE,
 )

@@ -29,5 +29,5 @@ is not a rate.
 - 2026-11-10: left open. Rows and a rule were written in
   [the readings](../../readings/correction-keeps-old-value.md) before 18 draws of x8 and two other
   `X, not Y` corrections; 2 of 18 kept the seed row and said updated or replacing, under the rule's
-  3, so no note was built. The same draws filed tasks 1110, 1111 and 1112. An update claim reader
+  3, so no note was built. The same draws filed tasks 1110 and 1112. An update claim reader
   built for task 1110 can serve this form too.
