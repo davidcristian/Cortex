@@ -34,3 +34,8 @@ for a destructive card, but no `NUMBERS_LEFT_NOTE` tells the person it remains.
   `memory_contract.py` passed on the fake and live on the night's stack Postgres. `_repeating` and
   `_holding` search by it in place of `value_searches`, which is removed, and `_repeats` and the
   digit run filter still drop a longer value. This also closed task 1048.
+- 2026-11-10: six draws of the neighbouring flows on the stack brain built with the change, in
+  [the readings](../../readings/forget-value-short-groups.md): the value search listed the
+  `015 123 456 789` row in all four draws naming the other form, and no row holding another
+  number in any draw. The text match listed a longer number in 2 of 2 draws of one flow, filed as
+  task 1113.
