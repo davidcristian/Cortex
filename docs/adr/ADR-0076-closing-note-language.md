@@ -37,6 +37,9 @@ Three ways to write the note in the right language were compared.
    a capitalized word beside another inside a sentence (`Las Vegas`) are names and do not count,
    except a word German capitalizes anywhere (`Uhr`, `Morgen`, the polite `Sie`), so
    `Termin Montag 9 Uhr` stays German. The `am` of a clock figure such as `9am` counts as English.
+   A message with no lowercase letter also counts its words of four letters or more when two of
+   them are in one language's list, so `RAPPELLE-MOI DEMAIN` is French, while a word of three
+   letters or fewer stays an abbreviation and `CALL BOB MON 9 EST` stays English.
 2. **English is the fallback.** A message with no match, or a tie between two languages, gets the
    English note. English is what every note was before, so a wrong or missing pick shows today's
    text and never a third language.

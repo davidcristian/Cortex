@@ -39,11 +39,23 @@ _ALWAYS_CAPITALIZED = _words("sie uhr morgen")
 _MARKS: Mapping[str, str] = {"es": "¿¡"}
 _WORD = re.compile(r"[^\W\d_]+")
 _ENDS_SENTENCE = ".!?¿¡\n"
+# A word of three letters or fewer in capitals reads as an abbreviation: EST, MON, LOS.
+_LONGEST_ABBREVIATION = 3
 
 
 def _opens_sentence(message: str, start: int) -> bool:
     before = message[:start].rstrip(" \t\"'(")
     return not before or before[-1] in _ENDS_SENTENCE
+
+
+def _capitals(message: str, found: list[re.Match[str]]) -> list[str]:
+    """The long words of a message with no lowercase letter, when two are in one language's list."""
+    if any(char.islower() for char in message):
+        return []
+    long = [m.group().lower() for m in found if len(m.group()) > _LONGEST_ABBREVIATION]
+    if any(sum(word in vocabulary for word in long) > 1 for vocabulary in _WORDS.values()):
+        return long
+    return []
 
 
 def _counted(message: str) -> list[str]:
@@ -64,7 +76,7 @@ def _counted(message: str) -> list[str]:
             and (padded[i] or padded[i + 2])
             and m.group().lower() not in _ALWAYS_CAPITALIZED
         )
-    ]
+    ] + _capitals(message, found)
 
 
 def message_language(message: str) -> str:

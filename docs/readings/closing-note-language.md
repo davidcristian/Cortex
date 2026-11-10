@@ -164,3 +164,21 @@ three words now count beside a capitalized word, while a German article inside a
 log messages and 1,814 readings strings changed none, and four German probes moved from English to
 German. Script
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot20/replay.py`.
+
+## Messages in capitals, 2026-11-10
+
+Skipping every word in capitals left a message written wholly in capitals with no word to count,
+so `RAPPELLE-MOI DEMAIN`, `ERINNERE MICH MORGEN UM 9 UHR`, `RECUÉRDAME MAÑANA` and
+`AMINTEȘTE-MI MÂINE` got the English note. Counting those words again whenever two are in one
+list, the first remedy written down, moves abbreviations off English: `CALL BOB MON 9 EST` reads
+as French and `FLIGHT LOS ANGELES TO LAS VEGAS` as Spanish. A message with no lowercase letter now
+counts only its words of four letters or more, and only when two of them are in one language's
+list; the shorter words stay abbreviations. Near misses that stay English are in
+`test_note_language.py`: one long word (`TAKE CARE`, `DO ME A FAVOR: BOOK LAS VEGAS`) and short
+words only (`CALL BOB 9 EST MONDAY`, `REMIND ME TO CALL MON 9 EST`). Replayed through the old and
+new picker, 29,065 distinct strings of `docs/readings/` (785 with no lowercase letter) and the 46
+distinct driver messages still on disk changed none. A forget in capitals with two German list
+words (`VERGISS BITTE DEN TÜRCODE 7319, ALLES ANDERE BLEIBT.`) now reads as German, so its `DEN`
+no longer names the den row; with one (`VERGISS DEN TÜRCODE 7319, ...`) it still reads as English
+(task 1108). Scripts `replay1071.py`, `probe2.py` and log `replay1071.log` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot1/`.

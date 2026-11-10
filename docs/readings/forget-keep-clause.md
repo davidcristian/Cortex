@@ -143,9 +143,9 @@ texts, and no case changed.
 
 The probes also found a short stem naming unrelated words, a fact named only by a code word such
 as `PIN` naming no row, and a mixed German and English message whose `den` and `hat` named
-nothing, each read by the shape below. Still open: a message in capitals reads as English, so
-German `DEN` names a row (task 1071). No moved forget result text changed in the
-split into `forget_results.py`, and no exemption names either module. Scripts `probe2.py`,
+nothing, each read by the shape below. Still open: a message in capitals with one German list
+word reads as English, so German `DEN` names a row (task 1108). No moved forget result text
+changed in the split into `forget_results.py`, and no exemption names either module. Scripts `probe2.py`,
 `probe4.py`, `probe6.py` and log `replay.log` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot18/`.
 

@@ -1,9 +1,8 @@
 # A message in capitals gets the English note
 
-**Status:** open, actionable
+**Status:** done 2026-11-10
 **Area:** memory
 **Origin:** [ADR-0076](../../adr/ADR-0076-closing-note-language.md)
-**Verified:** 2026-11-09
 
 `message_language` in `note_language.py` skips every word written in capitals, so that `EU` and
 `EST` name no language. A message written wholly in capitals then has no word left to count. Unit
@@ -30,3 +29,9 @@ ADR-0076, and no recorded draw message is written in capitals
   `VERGISS DEN TÜRCODE 7319, ALLES ANDERE BLEIBT.` lists the row `the den alarm code is 7319`
   beside the door row, a row the person asked to keep (`probe2.py` in
   `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot18/`).
+- 2026-11-10: done. The remedy above moved abbreviations off English (`CALL BOB MON 9 EST` read as
+  French), so a message with no lowercase letter now counts only its words of four letters or
+  more, when two are in one language's list. The four messages read as their own language, nine
+  near misses stay English, and the replay changed no recorded string
+  ([the readings](../../readings/closing-note-language.md)). A forget in capitals with one German
+  list word still reads as English: task 1108.

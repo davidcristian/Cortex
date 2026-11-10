@@ -115,3 +115,43 @@ def test_a_word_german_always_capitalizes_counts_beside_a_noun(message: str) -> 
 )
 def test_a_german_article_inside_a_name_stays_skipped(message: str) -> None:
     assert message_language(message) == ENGLISH
+
+
+@pytest.mark.parametrize(
+    ("message", "language"),
+    [
+        ("RAPPELLE-MOI DEMAIN", "fr"),
+        ("MERCI POUR TOUT", "fr"),
+        ("ERINNERE MICH MORGEN UM 9 UHR", "de"),
+        ("RECUÉRDAME MAÑANA", "es"),
+        ("AMINTEȘTE-MI MÂINE", "ro"),
+        ("AMINTEŞTE-MI MÂINE", "ro"),
+        ("¿CUÁNDO?", "es"),
+    ],
+)
+def test_a_message_in_capitals_with_two_long_words_of_a_language_names_it(
+    message: str, language: str
+) -> None:
+    assert message_language(message) == language
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "CALL BOB 9 EST MONDAY",
+        "CALL BOB MON 9 EST",
+        "FLIGHT LOS ANGELES TO LAS VEGAS",
+        "EU MEETING THURSDAY 3PM, SET REMINDER",
+        "WATCH DIE HARD FRIDAY",
+        "DO ME A FAVOR: BOOK LAS VEGAS",
+        "TAKE CARE",
+        "REMIND ME TOMORROW AT 9",
+        "REMIND ME TO CALL MON 9 EST",
+    ],
+)
+def test_short_words_or_one_long_word_in_capitals_keep_english(message: str) -> None:
+    assert message_language(message) == ENGLISH
+
+
+def test_a_lowercase_letter_keeps_words_in_capitals_skipped() -> None:
+    assert message_language("RAPPELLE-MOI DEMAIN, ok") == ENGLISH
