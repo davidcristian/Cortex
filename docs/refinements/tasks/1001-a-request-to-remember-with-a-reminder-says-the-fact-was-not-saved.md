@@ -1,11 +1,9 @@
 # A request to remember with a reminder says the fact was not saved
 
-**Status:** open, waiting for its trigger
+**Status:** open, actionable
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-07
-**Trigger:** a second stored turn whose reply says the fact the person asked to remember was not
-saved, in a draw or a flow record.
+**Verified:** 2026-11-10
 
 On 2026-11-07 the `cortexn15` stack answered
 `Remember que mi hermana se llama Lucía, and remind me tomorrow at 18:00 to call her.` with a
@@ -30,7 +28,7 @@ Reproduction: send the message above in a new chat with every card approved, the
 
 ## What to do
 
-1. When the trigger fires, add a reader of a stored turn's reply that says the fact was not saved
+1. Add a reader of a stored turn's reply that says the fact was not saved
    and append `KEPT_BEYOND_CHAT_NOTE` there, with near-miss replies as tests first ("I haven't set
    a reminder", "I didn't save the file", "I couldn't find a previous memory").
 2. Replay every recorded reply through the new reader and list each change.
@@ -42,3 +40,9 @@ Reproduction: send the message above in a new chat with every card approved, the
   rebuilt stack brain: no draw called `forget_memories` and no reply said the fact was not saved
   ([readings](../../readings/overlay-language-and-locale-flows.md#8-requests-to-remember-in-four-more-languages)),
   so the reply reader waits for a second such reply.
+- 2026-11-10: the trigger fired. Two stored draws of the refused fan-out comparison replied that
+  the fact was not saved: `Remember that my locker code is 4417 and remind me at 18:00 to empty the
+  locker.` after a refused `forget_memories` (`I noticed I didn't save it`), and `Souviens-toi que le
+  code de mon casier est 4417 et rappelle-moi demain à 9h de vider le casier.` after a forget that
+  matched nothing (`je n'ai pas pu m'en souvenir`)
+  ([readings](../../readings/spawn-refused-on-remember.md#the-draws-2026-11-10)).

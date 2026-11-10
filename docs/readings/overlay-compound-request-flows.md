@@ -29,8 +29,8 @@ the third batch on, every row and schedule item was deleted before each turn.
 | c3 | Forget my old locker code 4417, remember the new one is 5528, and remind me Friday to test it. | `forget_memories` `4417` (card: 2 rows), `schedule_task` `at` Friday 09:00 | 0 rows, 1 item | unkept | correct |
 | c4 | Remind me at 7 to call Anna and don't save anything else from this message. | `schedule_task` `at` today 07:00 | 0 rows, 1 item | none | correct |
 | c5 | What's in notes.txt? Also, forget what I told you about my bike. | 4 file calls, `forget_memories` `bike` (card: 1 row) | 0 rows | none | correct |
-| c6 | Souviens-toi que le code de mon casier est 4417 et rappelle-moi demain à 9h de vider le casier. | `spawn_subagents` refused | 1 row, 0 items | **none** | false schedule claim ([R-1123](../refinements/tasks/1123-a-refused-fan-out-on-a-remember-turn-drops-the-reminder.md)) |
-| c7 | Vergiss meinen alten Spindcode 4417, merk dir, dass der neue 5528 ist, und erinnere mich am Freitag daran, ihn zu testen. | `forget_memories` `4417` (card: 1 row, 1 kept), `spawn_subagents` refused | 1 row (kept), 0 items | unkept, numbers left | no reminder, the reply said so (R-1123) |
+| c6 | Souviens-toi que le code de mon casier est 4417 et rappelle-moi demain à 9h de vider le casier. | `spawn_subagents` refused | 1 row, 0 items | **none** | false schedule claim ([refused fan-out](spawn-refused-on-remember.md)) |
+| c7 | Vergiss meinen alten Spindcode 4417, merk dir, dass der neue 5528 ist, und erinnere mich am Freitag daran, ihn zu testen. | `forget_memories` `4417` (card: 1 row, 1 kept), `spawn_subagents` refused | 1 row (kept), 0 items | unkept, numbers left | no reminder, the reply said so ([refused fan-out](spawn-refused-on-remember.md)) |
 | c2b | as c2 | 3 file calls, `schedule_task` `at` tomorrow 09:00 | 0 rows, 1 item | none | correct |
 | c2c | Remember that I park on level 3 and remind me tomorrow at 9 to move the car. | `schedule_task` `at_time` 09:00 | 1 row, 1 daily item first due today | daily | reply said tomorrow (first fire) |
 | c2d, c2e | as c2c | `schedule_task` `at` tomorrow 09:00 | 1 row, 1 item | none | correct |
