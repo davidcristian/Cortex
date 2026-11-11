@@ -23,7 +23,7 @@ from cortex_core.forget_results import (
 )
 from cortex_core.forget_unnamed import KEPT_ALL, KEPT_LINE, KeptRows, asks_to_keep, forgot, unnamed
 from cortex_core.memory import MemoryRecord
-from cortex_core.memory_values import code_runs, digit_runs, short_groups, whole_values
+from cortex_core.memory_values import code_runs, short_groups, undated_runs, whole_values
 from cortex_core.ports import MemoryStore
 from cortex_core.scope import MemoryScope
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
@@ -165,7 +165,7 @@ class ForgetChosenTool:
                 limit=FORGET_CHOSEN_LIMIT + 1,
                 scopes=self._scope.read_scopes(call.stamp.session_id),
             ):
-                held = not runs.isdisjoint(digit_runs(record.text))
+                held = not runs.isdisjoint(undated_runs(record.text))
                 if held and not asks_to_keep(record.text, call.stamp.query):
                     holders.add(record.id)
         return len(holders)

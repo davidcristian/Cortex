@@ -95,3 +95,31 @@ async def test_a_code_stored_in_groups_of_two_digits_is_listed_and_deleted() -> 
     assert card is not None
     assert "Listed because they also hold 4826:" in card
     assert (matched_nothing, left) == (False, [])
+
+
+async def _numbers_left(*rows: str) -> bool | None:
+    store = InMemoryMemoryStore()
+    for index, row in enumerate(rows):
+        await store.add(MemoryRecord(id=f"r{index}", text=row, embedding=(1.0, 0.0), at=_AT))
+    tool = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
+    stamp = TurnStamp(session_id="chat-a", turn_id="t1", query="Forget my PIN 1225.")
+    arguments = {"text": "1225"}
+    call = ToolCall(id="c1", name=FORGET_CHOSEN_TOOL_NAME, arguments=arguments, stamp=stamp)
+    await tool.card(call)
+    return (await tool.invoke(call)).numbers_left
+
+
+@pytest.mark.parametrize(
+    ("other", "left"),
+    [
+        ("User: The Christmas party is on 12/25.\nAssistant: Noted.", False),
+        ("User: The locker code is 44 55.\nAssistant: Noted.", True),
+        ("User: The locker is at 44-55 Main St.\nAssistant: Noted.", False),
+        ("User: Locker 4455 is by the door.\nAssistant: Noted.", True),
+    ],
+)
+async def test_a_date_left_after_a_forget_holds_no_number_it_deleted(
+    *, other: str, left: bool
+) -> None:
+    pin = "User: My PIN is 1225 and my locker is 4455.\nAssistant: Noted."
+    assert await _numbers_left(pin, other) is left

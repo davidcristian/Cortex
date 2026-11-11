@@ -89,7 +89,7 @@ pool down to the hits one turn sees. The turn that calls it is in
   how many were removed and whether any match is left. When none is, it searches the remaining
   rows, by `find_value`, for each run of four or more digits a row deleted in the turn held (`code_runs` in
   `memory_values.py`, compared by digits alone: a year or a date only from a row naming a code or
-  a number, such as `code`, `PIN`, `Nummer`, `código` or `codul`), leaving out a row that `asks_to_keep` (`forget_unnamed.py`) reads a keep clause of the message naming, or every row when that clause holds a word for all or the rest, and when a row holds one the result says how
+  a number, such as `code`, `PIN`, `Nummer`, `código` or `codul`), leaving out a row that `asks_to_keep` (`forget_unnamed.py`) reads a keep clause of the message naming, or every row when that clause holds a word for all or the rest, and a row holding the run only as groups of two digits in a text naming no code (`undated_runs`), and when a row holds one the result says how
   many do and that a forget of the number itself would remove them, without naming it (after rows kept apart, only that they were kept and the value is still remembered), and sets
   `ToolResult.numbers_left`. No text, no match, more than 20 rows
   containing the text or a failed store deletes nothing (a store that fails after `delete_ids` returns an error result saying how many rows were deleted, with `ToolResult.forgot` set): `card` returns `None`, so the dispatcher shows no card and runs the call,
