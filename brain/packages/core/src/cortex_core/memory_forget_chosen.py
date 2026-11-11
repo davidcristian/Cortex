@@ -88,6 +88,7 @@ class ForgetChosenTool:
         self._kept = KeptRows()
         self._spared = KeptRows()
         self._inside = KeptRows()
+        self._longer = KeptRows()
 
     @property
     def result_note(self) -> str:
@@ -211,7 +212,8 @@ class ForgetChosenTool:
             turn = call.stamp.turn_id
             self._kept.keep(turn, {row.id: spared[row.id] for row in kept})
             self._inside.keep(turn, {row.id: spared[row.id] for row in within})
-            self._inside.drop(turn, self._kept.ids(turn))
+            self._longer.keep(turn, {row.id: spared[row.id] for row in far})
+            self._inside.drop(turn, self._kept.ids(turn) | self._longer.ids(turn))
             return (KEPT_ALL if kept else LONGER_ALL if far else INSIDE_ALL), None
         listed = [*found, *(record for record, _, _ in repeats)]
         lines = [f"- {_excerpt(record, _text(call))}" for record in found]
@@ -253,6 +255,7 @@ class ForgetChosenTool:
             kept=self._kept.held(call.stamp.turn_id),
             spared=self._spared.held(call.stamp.turn_id),
             inside=self._inside.held(call.stamp.turn_id),
+            longer=self._longer.held(call.stamp.turn_id),
         )
 
     async def invoke(self, call: ToolCall) -> ToolResult:
@@ -266,7 +269,7 @@ class ForgetChosenTool:
         try:
             removed = await self._store.delete_ids(shown.ids)
             turn = call.stamp.turn_id
-            for rows in (self._kept, self._spared, self._inside):
+            for rows in (self._kept, self._spared, self._inside, self._longer):
                 rows.drop(turn, shown.ids)
             for ledger, texts in (
                 (self._deleted_turns, (*shown.texts, _text(call))),

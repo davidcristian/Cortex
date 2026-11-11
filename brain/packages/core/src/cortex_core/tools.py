@@ -107,6 +107,9 @@ class ToolResult:
     spared: tuple[str, ...] | None = None
     # Set by a forget: excerpts of the rows kept with no card for holding a longer value.
     inside: tuple[str, ...] | None = None
+    # Set by a forget: excerpts of the rows kept with no card for holding the message's value only
+    # inside a longer value.
+    longer: tuple[str, ...] | None = None
     # Set by a forget whose delete fully succeeded: how many rows it deleted.
     forgot: int = 0
     # Set by an edit that ran: whether the item was one time before the edit.

@@ -5,13 +5,35 @@ from collections.abc import Iterable, Sequence
 from cortex_core.forget_inside import inside
 from cortex_core.memory import MemoryRecord
 from cortex_core.memory_values import digit_runs, whole_values
+from cortex_core.note_language import ENGLISH, in_language
 
 LONGER_LINE = "Kept, since they hold the value the user's message names only inside a longer value:"
+LONGER_NOTE = (
+    "\n\n(Still in memory, since the value your message names is in each only as part of a "
+    "longer value:"
+)
+LONGER_NOTES = {
+    "fr": "\n\n(Toujours en mémoire, car la valeur que nomme votre message n'y figure que dans "
+    "une valeur plus longue :",
+    "de": "\n\n(Noch gespeichert, weil der Wert, den Ihre Nachricht nennt, darin nur als Teil "
+    "eines längeren Werts steht:",
+    "es": "\n\n(Todavía en memoria, porque el valor que nombra tu mensaje solo aparece en cada "
+    "uno como parte de un valor más largo:",
+    "ro": "\n\n(Încă în memorie, pentru că valoarea pe care o numește mesajul tău apare în "
+    "fiecare doar ca parte a unei valori mai lungi:",
+}
 LONGER_ALL = (
     "nothing was forgotten: each remembered exchange containing that text holds it, or the value "
     "the user's message names, only inside a longer value, which is a different value, so each "
     "was kept"
 )
+
+
+def longer_note(rows: Iterable[str], language: str = ENGLISH) -> str:
+    """The note closing a reply that names the rows a forget kept for holding the message's value
+    only inside a longer one."""
+    head = in_language(LONGER_NOTE, LONGER_NOTES, language)
+    return "\n".join([head, *(f"- {row}" for row in rows)]) + ")"
 
 
 def _flat(text: str) -> str:

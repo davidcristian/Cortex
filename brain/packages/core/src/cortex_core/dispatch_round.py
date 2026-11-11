@@ -198,6 +198,8 @@ def _note_forget(taint: TaintLedger, result: ToolResult) -> None:
         taint.forget_spared = result.spared
     if result.inside is not None:
         taint.forget_inside = result.inside
+    if result.longer is not None:
+        taint.forget_longer = result.longer
 
 
 async def run_round(

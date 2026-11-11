@@ -42,5 +42,4 @@ the card number, while `015 123 456 789` ends inside the group `7890`, which is 
 - 2026-11-11: done without a draw of the form, as step 2: `longer` in `forget_longer.py` keeps the
   match and the card shows it under `LONGER_LINE`; flows e, w and a forget of what was just said
   still delete their rows ([readings](../../readings/forget-value-short-groups.md)). A row kept
-  this way with no card is named by no closing note, filed as
-  [task 1142](1142-a-row-kept-for-holding-the-message-value-inside-a-longer-one-is-named-by-no-note.md).
+  this way with no card is named after the reply by `longer_note`.

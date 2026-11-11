@@ -28,6 +28,7 @@ from cortex_core import (
     TurnEngine,
 )
 from cortex_core.forget_inside import INSIDE_ALL, INSIDE_NOTE, inside_note
+from cortex_core.forget_longer import LONGER_ALL, LONGER_NOTE, longer_note
 from cortex_core.forget_unfound_claim import UNMATCHED_FORGET_NOTE
 from cortex_core.forget_unnamed import KEPT_ALL, kept_note
 from cortex_core.tools import ConfirmAnswer, ConfirmationRequest, ToolResult, TurnStamp
@@ -150,10 +151,14 @@ class _Clock:
         return _AT + timedelta(minutes=10)
 
 
-async def _turn(texts: Sequence[str], reply: str, query: str = _ASKED) -> str:
+async def _turn(
+    texts: Sequence[str], reply: str, query: str = _ASKED, rows: Sequence[str] = (_ACCOUNT,)
+) -> str:
     store, embedder = InMemoryMemoryStore(), HashEmbedder()
-    vector = tuple(await embedder.embed(_ACCOUNT))
-    await store.add(MemoryRecord(id="account", text=_ACCOUNT, embedding=vector, at=_AT))
+    for index, row in enumerate(rows):
+        vector = tuple(await embedder.embed(row))
+        record_id = "account" if index == 0 else f"row{index}"
+        await store.add(MemoryRecord(id=record_id, text=row, embedding=vector, at=_AT))
     forget = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
     dispatcher = ToolDispatcher(
         CompositeToolRegistry([forget]),
@@ -197,4 +202,34 @@ async def test_a_turn_deleting_the_row_by_a_later_card_shows_no_inside_note() ->
 
 async def test_a_turn_calling_a_longer_value_than_the_message_names_keeps_the_row() -> None:
     shown = await _turn([_LONGER], "I've forgotten that number.", _NAMING)
-    assert shown == "I've forgotten that number." + UNFORGOTTEN_CLAIM_NOTE
+    reply = "I've forgotten that number."
+    assert shown == reply + UNFORGOTTEN_CLAIM_NOTE + longer_note([_SHOWN])
+
+
+async def test_a_turn_keeping_a_row_for_the_message_value_inside_a_longer_one_names_it() -> None:
+    shown = await _turn([_LONGER], "Nothing was deleted.", _NAMING)
+    assert shown == "Nothing was deleted." + longer_note([_SHOWN])
+
+
+async def test_a_turn_deleting_that_row_by_a_later_card_shows_no_longer_note() -> None:
+    shown = await _turn([_LONGER, "phone"], "Deleted it.", _NAMING)
+    assert LONGER_NOTE not in shown
+
+
+async def test_a_row_kept_for_both_reasons_is_named_once_by_the_longer_note() -> None:
+    shown = await _turn([_VALUE, _LONGER], "Nothing was deleted.", _NAMING)
+    assert shown == "Nothing was deleted." + longer_note([_SHOWN])
+
+
+async def test_a_turn_keeping_both_kinds_of_row_names_each_once_in_its_own_note() -> None:
+    shown = await _turn([_LONGER], "Nothing was deleted.", _NAMING, (_ACCOUNT, _FAX))
+    fax = " ".join(_FAX.split())
+    assert shown == "Nothing was deleted." + inside_note([fax]) + longer_note([_SHOWN])
+
+
+async def test_a_forget_keeping_a_row_for_the_message_value_names_it_until_deleted() -> None:
+    tool = await _tool(_record("account", _ACCOUNT))
+    first = await _run(tool, _LONGER, _NAMING)
+    later = await _run(tool, "phone", _NAMING, 1)
+    assert (first.content, first.longer, first.inside) == (f"{LONGER_ALL}.", (_SHOWN,), ())
+    assert (later.forgot, later.longer) == (1, ())

@@ -227,6 +227,7 @@ async def test_a_record_written_before_the_file_and_monthly_marks_reads_as_neith
     del fields["weekly_stored"]
     del fields["cancelled"]
     del fields["forget_inside"]
+    del fields["forget_longer"]
     await client.set("cortex:handoff:t1", json.dumps(fields))
     loaded = await RedisHandoffStore(client).get("t1")
     assert loaded is not None
@@ -239,6 +240,7 @@ async def test_a_record_written_before_the_file_and_monthly_marks_reads_as_neith
     assert loaded.weekly_stored == ()
     assert loaded.cancelled == ()
     assert loaded.forget_inside == ()
+    assert loaded.forget_longer == ()
 
 
 async def test_a_record_keeps_the_ids_its_turn_stored_to_repeat_daily() -> None:
@@ -302,6 +304,15 @@ async def test_a_record_keeps_the_rows_a_forget_kept_for_a_longer_value() -> Non
     loaded = await store.get("t1")
     assert loaded is not None
     assert loaded.forget_inside == held
+
+
+async def test_a_record_keeps_the_rows_a_forget_kept_for_the_message_value() -> None:
+    store = RedisHandoffStore(FakeAsyncRedis(server=FakeServer()))
+    held = ("phone account 015 123 456 7890",)
+    await store.put(replace(handoff_contract.make_record("t1"), forget_longer=held))
+    loaded = await store.get("t1")
+    assert loaded is not None
+    assert (loaded.forget_longer, loaded.forget_inside) == (held, ())
 
 
 async def test_a_record_keeps_the_texts_of_the_items_a_cancel_deleted() -> None:

@@ -29,6 +29,7 @@ from cortex_core.forget_claim import (
 )
 from cortex_core.forget_count_note import forgot_count_note, forgot_note_due
 from cortex_core.forget_inside import inside_note
+from cortex_core.forget_longer import longer_note
 from cortex_core.forget_unfound_claim import (
     DECLINED_FORGET_NOTE,
     DECLINED_FORGET_NOTES,
@@ -156,6 +157,7 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
         (held, in_language(NUMBERS_LEFT_NOTE, NUMBERS_LEFT_NOTES, language)),
         (bool(taint.forget_kept), kept_note(taint.forget_kept, language)),
         (bool(taint.forget_inside), inside_note(taint.forget_inside, language)),
+        (bool(taint.forget_longer), longer_note(taint.forget_longer, language)),
         (bool(taint.old_value), old_value_note(taint.old_value, language)),
         (unfound, said_in(DELETED_UNFOUND_NOTE, DELETED_UNFOUND_NOTES)),
         (missed, said_in(UNMATCHED_FORGET_NOTE, UNMATCHED_FORGET_NOTES)),
