@@ -205,13 +205,13 @@ async def test_a_holder_behind_groups_many_rows_share_is_counted() -> None:
     assert "bare" in left
 
 
-async def test_a_value_named_in_other_groups_than_every_row_matches_nothing() -> None:
+async def test_a_value_named_in_other_groups_than_every_row_lists_them() -> None:
     store = InMemoryMemoryStore()
     await store.add(_record("short", _SHORT))
     tool = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
-    assert await tool.card(_call("0151 2345 6789")) is None
+    assert await tool.card(_call("0151 2345 6789")) is not None
     result = await tool.invoke(_call("0151 2345 6789"))
-    assert (result.matched_nothing, result.forgot) == (True, 0)
+    assert (result.matched_nothing, result.forgot) == (False, 1)
 
 
 async def test_a_forget_listing_a_row_in_groups_under_four_has_matched_something() -> None:

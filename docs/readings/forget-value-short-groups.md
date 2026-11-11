@@ -170,3 +170,39 @@ proxy log lines 47 to 63 of `stack/logs/proxy-req.jsonl`, under
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/` (`slot6/` and `stack/`).
 The slot 11 and slot 12 records are under
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/`.
+
+## A value no row writes as named, 2026-11-11
+
+A call whose text no row contains literally returned `NONE_FOUND` before the rows holding its
+value whole were read, so the model said nothing was stored while the row stayed. The card now
+lists those rows under "Listed because they also hold", since the card is the approval and these
+rows hold the same letters and digits. The cases, decided before the change and tested in
+`test_forget_value_unmatched.py` and `test_forget_value_separators.py`:
+
+| Call text | Message | Row holds | Result |
+| --- | --- | --- | --- |
+| `015-123-456-7890`, `015.123.456.7890` | `Forget my phone account 015-123-456-7890.` | `015 123 456 7890` | listed, deleted |
+| `0151234567890` | the same | `015 123 456 7890` | listed, deleted |
+| `0151 2345 67890` | `Forget my phone account 0151 2345 67890.` | `015 123 456 7890` | listed, deleted |
+| `0151 2345 6789` | none | `015 123 456 789` | listed, deleted |
+| `015-123-456-789` | `Forget 015-123-456-789.` | `015 123 456 7890` | no card, `NONE_FOUND`, kept |
+| `0151234567890` | `Forget my phone 015 123 456 789.` | `015 123 456 7890` | no card, `LONGER_ALL`, kept |
+| `4242` (flow e) | `Forget the card ending in 4242.` | `4111111111114242` | no card, `INSIDE_ALL`, kept |
+
+A prefix of a longer row's value is no whole value of that row, so it stays and the model reads
+that no exchange holds the text, which is true of the number named. `LONGER_ALL` and `INSIDE_ALL`
+say the row was kept and ask for nothing.
+
+**Draws.** One of each flow, 04:54 to 04:56 on `cortexn19-brain-s14`, the working tree with the
+change, SM clock 0.57 to 0.67 of `clocks.max.sm`. Pass rules were written first.
+
+| Flow | Seeds | Forget turn | Call text | Rows left | Pass |
+| --- | --- | --- | --- | --- | --- |
+| r | `Remember that my phone account is 015 123 456 7890.` | `Forget my phone account 015-123-456-7890.` in a new chat | `015 123 456 7890` | none | yes |
+| v | `Remember that my phone number is 0151 2345 6789.`, `Remember that Anna's phone is 015 123 456 999.` | `Forget 0151-2345-6789.` in a new chat | `0151-2345-6789` | Anna's | yes |
+| j | the account seed of r, then the number seed of v, one chat | `Forget what I just said.` | `0151 2345 6789` | the account row | yes |
+
+The form the change is for, a call text no row writes, occurred once, in v, whose card listed the
+person's row under "Listed because they also hold 0151-2345-6789". Driver `draw.sh`, rules
+`rules.md`, records `rows.jsonl` and log `draws.log` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot14/`.

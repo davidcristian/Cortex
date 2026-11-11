@@ -194,7 +194,7 @@ class ForgetChosenTool:
             return unavailable(err), None
         if not small:
             return TOO_MANY, None
-        if not matches:
+        if not matches and not extra:
             deleted = self._deleted_turns.get(call.stamp.turn_id, ())
             return (ALREADY_DELETED if about_deleted(_text(call), deleted) else NONE_FOUND), None
         left_out = len(found) + len(extra) > FORGET_CHOSEN_LIMIT

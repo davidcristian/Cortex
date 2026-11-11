@@ -262,7 +262,7 @@ def test_the_unmatched_note_needs_a_miss_and_no_row_deleted(
 @pytest.mark.parametrize(
     ("row", "texts", "reply"),
     [
-        (_BIKE, ("Fahrradschloss Code 2468",), _NEVER_KEPT),
+        (_BIKE, ("Fahrradschloss Code",), _NEVER_KEPT),
         (_PHONE, ("0699000000",), _NO_OLD),
         (_LOCKER, ("passport number",), "Nothing about a passport was stored."),
         (_LOCKER, ("passport number", "Fahrradschloss"), "Okay."),
