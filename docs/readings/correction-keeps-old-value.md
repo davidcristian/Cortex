@@ -117,3 +117,20 @@ value, when the value is only part of a longer word or number, or when the reply
 claim or a negated one. Live smoke turns on the rebuilt brain, three of flow c1 and three of u3 (the
 c1 seed, then `Update my bike lock code: it is 4862, not 4826.`), check that it reaches a real
 reply; they count no rate, and a smoke turn that claims no update is a null result.
+
+**The smoke turns.** 03:22 to 03:27 on 2026-11-11 on `cortexn19-brain-s10`, the tree with the
+note, SM clock 0.57 to 0.68 of `clocks.max.sm`. Per correction turn:
+
+| Draw | Tools and card | Rows after | Reply | Notes |
+| --- | --- | --- | --- | --- |
+| c1 1 | two file tools, no forget | seed | `I've noted that your bike lock code is 4862, not 4826.` | unkept |
+| c1 2 | none | seed and correction | `OK. I've noted that your bike lock code is **4862**, not 4826.` | none |
+| c1 3 | none | seed and correction | `Got it. I've noted that your bike lock code is 4862, not 4826.` | none |
+| u3 1 | `forget_memories` `4826`, approved | none | `I've updated your bike lock code to 4862.` | unkept, forget count |
+| u3 2 | `forget_memories` `4826`, approved | none | `I've updated your bike lock code to 4862.` | unkept, forget count |
+| u3 3 | none | seed and correction | `I've updated your bike lock code to 4862.` | old value |
+
+The rule holds: u3 3, the one turn that kept the seed row and claimed an update, ends with the
+note naming 4826, and u3 1 and u3 2, whose forget deleted the seed row, end without it. The c1
+turns claim no update and are null results. Driver `draw.sh`, records `rows.jsonl` and log
+`draw.log` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot10/`.
