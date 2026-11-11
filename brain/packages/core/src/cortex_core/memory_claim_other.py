@@ -75,9 +75,14 @@ def _clause(sentence: str, match: re.Match[str]) -> tuple[int, int]:
     return (starts[-1] if starts else 0), (len(sentence) if after is None else after.start())
 
 
+def after_condition(sentence: str, end: int) -> bool:
+    """Whether a condition word such as ``si``, ``wenn`` or ``dacă`` comes before ``end``."""
+    return _CONDITION.search(sentence, 0, end) is not None
+
+
 def stated(sentence: str, match: re.Match[str]) -> bool:
     """Whether ``match`` follows no condition in ``sentence`` and its clause holds no negation."""
-    if _CONDITION.search(sentence, 0, match.start()):
+    if after_condition(sentence, match.start()):
         return False
     start, end = _clause(sentence, match)
     return _NEGATION.search(sentence, start, end) is None

@@ -50,3 +50,26 @@ telling a habit (`toujours`, `souvent`, `parfois`), so `J'oublie souvent mes cl�
 `J'oublie ce que vous venez de mentionner` and lines quoting it, and none was lost; of 388
 distinct draw replies, 8 became 9, the added one that reply. Scripts `replay2.py` and `replay3.py`
 in the run's `slot20` scratch directory.
+
+## A not-stored claim in four other languages, 2026-11-11
+
+`says_not_stored_other` (`forget_unfound_other.py`) reads a not-stored claim in French, German,
+Spanish and Romanian beside the English `says_not_stored`, so `DELETED_UNFOUND_NOTE` shows after
+a delete and a forget that matched nothing. A clause counts when it holds a negation and a find or
+store verb (`n'ai pas trouvé`, `nie gespeichert`, `no encontré`, `nu am găsit`) or a no-record
+form (`aucune trace`, `keinen Eintrag`, `ningún registro`, `nicio înregistrare`). The near misses
+were written first, each in the four languages: a question, a clause after a condition word, a
+found and deleted fact, a delete that held (`n'est plus enregistré`, `nicht mehr gespeichert`,
+`ya no está guardado`, `nu mai este salvat`, `il n'en reste aucune trace`) and a new fact not
+kept (`Votre nouveau numéro n'a pas été enregistré`). French and Spanish keep verbs count only as
+past participles, since the first replay read the idioms `Ne garde pas rancune` and `No guardes
+rencor` as claims.
+
+Every distinct readings string and line (23,300) and the 30 distinct replies in the shared
+stack's proxy log were replayed through the old reader and the new one (either reader): 128
+claims became 130, none was lost, and the proxy replies changed none. The two added are a
+recorded German reply (`nicht dauerhaft gespeichert`, on a turn that deleted nothing, so no note
+was due) and a prose line where an English `had no` and a Spanish `guardado` share a clause. Script
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot4/replay1049.py`,
+log `replay1049.log` beside it.
+

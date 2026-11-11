@@ -31,14 +31,14 @@ safe side; "drops" means a false claim in another language gets no note, the def
 | forget count note | rows deleted and not `says_forgotten` | five | five | adds |
 | `NUMBERS_LEFT_NOTE` | numbers left and `says_forgotten` | five | five | drops |
 | kept rows note, inside note | a forget kept rows | five | no text reader | none |
-| `DELETED_UNFOUND_NOTE` | a delete, an unmatched call and `says_not_stored` | five | English | drops |
+| `DELETED_UNFOUND_NOTE` | a delete, an unmatched call and a not-stored claim | five | five | drops |
 | `UNMATCHED_FORGET_NOTE` | an unmatched forget and nothing deleted | five | no text reader | none |
 | `DECLINED_FORGET_NOTE` | a denied forget card and not `names_still_held` | five | five | adds |
 | `UNREAD_FOLDERS_NOTE` | `claims_folders` on an untainted file question | five | English | drops |
 | `UNSEARCHED_FILES_NOTE` | a claim of searched files with no file call | five | English | drops |
 
 Three notes stay English because they fill English words into their text, task R-1136. The
-readers that read the reply in English only and drop a note (`claims_yearly`, `says_not_stored`,
+readers that read the reply in English only and drop a note (`claims_yearly`,
 `claims_folders`, the searched-files claim) are task R-1049. On 2026-11-08 every note but
 `STORED_TIME_NOTE`, `DAILY_STORED_NOTE` and `NUMBERS_LEFT_NOTE` was English.
 

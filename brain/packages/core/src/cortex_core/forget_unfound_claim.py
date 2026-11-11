@@ -5,6 +5,7 @@ from collections.abc import Sequence
 
 from cortex_core.conversation import ToolRun
 from cortex_core.forget_claim import deleted_memory
+from cortex_core.forget_unfound_other import says_not_stored_other
 from cortex_core.numbers_left_claim import names_still_held
 
 DECLINED_FORGET_NOTE = (
@@ -104,7 +105,8 @@ def declined_note_due(reply: str, *, declined: bool) -> bool:
 
 def unfound_claim(runs: Sequence[ToolRun], reply: str, *, unmatched: int) -> bool:
     """Whether a forget among ``runs`` deleted rows, one matched nothing, and ``reply`` says so."""
-    return unmatched > 0 and deleted_memory(runs, unmatched) and says_not_stored(reply)
+    said = says_not_stored(reply) or says_not_stored_other(reply)
+    return unmatched > 0 and deleted_memory(runs, unmatched) and said
 
 
 def unmatched_note_due(runs: Sequence[ToolRun], *, unmatched: int, deleted: int) -> bool:
