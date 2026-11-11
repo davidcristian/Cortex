@@ -80,6 +80,8 @@ _MOVED = "edited abc: now due 2026-11-20T10:00:00+00:00"
         "Îți voi aminti mâine la ora 14.",
         "Îți voi aminti la ora 9 dimineața.",
         "Ich erinnere dich morgen um 14.",
+        "Erinnerung gesetzt: um 15.",
+        "Dein Wecker klingelt um 15.",
     ],
 )
 def test_a_clock_figure_am_or_pm_noon_or_midnight_names_a_time_of_day(reply: str) -> None:
@@ -159,6 +161,11 @@ def test_a_clock_figure_am_or_pm_noon_or_midnight_names_a_time_of_day(reply: str
         "Verschieb es um 14 Tage.",
         "Am 14.11 erinnere ich dich.",
         "Ich habe 14 Dateien gefunden.",
+        "Der Preis stieg um 15.",
+        "Die Dosis sinkt um 20.",
+        "Ich erinnere dich morgen. Der Preis stieg um 15.",
+        "Hay que pasar a la 15.",
+        "Vuelve a la 14.",
     ],
 )
 def test_a_reply_with_no_clock_figure_names_no_time_of_day(reply: str) -> None:
