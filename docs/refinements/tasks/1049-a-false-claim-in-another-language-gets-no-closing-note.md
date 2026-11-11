@@ -1,9 +1,8 @@
 # A false claim in another language gets no closing note
 
-**Status:** open, actionable
+**Status:** done 2026-11-11
 **Area:** cross-cutting
 **Origin:** [ADR-0074](../../adr/ADR-0074-replayed-tool-runs.md)
-**Verified:** 2026-11-11
 
 Two readers that decide a closing note read the reply in English only, and each adds its note
 when it finds a claim, so a false claim in French, German, Spanish or Romanian gets no note:
@@ -48,3 +47,8 @@ person's language. The table is in the
   in the four languages beside the English reader; the replay moved 79 claims to 82, all three
   added being recorded messages, and lost none
   ([readings](../../readings/claim-readers-in-other-languages.md#a-yearly-claim-in-four-other-languages-2026-11-11)).
+- 2026-11-11: done, the last two readers. `claims_folders_other` (`file_claim_other.py`) and
+  `asks_files_other` (`file_request.py`) read a folder claim and a file question in the four
+  languages, so `UNREAD_FOLDERS_NOTE` shows, and `access_claim_other.py` reads a no-access or
+  not-found claim, so `UNSEARCHED_FILES_NOTE` shows; the replay lost no claim
+  ([readings](../../readings/claim-readers-in-other-languages.md#a-folder-claim-and-a-no-access-claim-in-four-other-languages-2026-11-11)).

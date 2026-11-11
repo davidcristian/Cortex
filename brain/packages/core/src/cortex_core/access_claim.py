@@ -2,6 +2,7 @@
 
 import re
 
+from cortex_core.access_claim_other import claims_no_access_other, claims_not_found_other
 from cortex_core.untrusted import TaintLedger
 
 UNSEARCHED_FILES_NOTE = (
@@ -58,4 +59,9 @@ def claims_not_found(reply: str) -> bool:
 
 def unsearched_files_claim(taint: TaintLedger, reply: str) -> bool:
     """Whether ``reply`` claims no access or no file found on a turn that refused a file call."""
-    return taint.sidecar_refused and (claims_no_access(reply) or claims_not_found(reply))
+    return taint.sidecar_refused and (
+        claims_no_access(reply)
+        or claims_not_found(reply)
+        or claims_no_access_other(reply)
+        or claims_not_found_other(reply)
+    )

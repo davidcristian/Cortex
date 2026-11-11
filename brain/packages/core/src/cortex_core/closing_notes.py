@@ -20,6 +20,7 @@ from cortex_core.file_claim import (
     UNREAD_FOLDERS_NOTES,
     unread_folders_claim,
 )
+from cortex_core.file_claim_other import unread_folders_claim_other
 from cortex_core.forget_claim import (
     UNFORGOTTEN_CLAIM_NOTE,
     UNFORGOTTEN_CLAIM_NOTES,
@@ -114,7 +115,9 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
     )
     counted = forgot_note_due(taint.forget_deleted, reply) and not unfound
     held = numbers_left_claim(reply, left=taint.forget_numbers_left, counted=counted)
-    unread = unread_folders_claim(taint, query, reply)
+    unread = unread_folders_claim(taint, query, reply) or unread_folders_claim_other(
+        taint, query, reply
+    )
     unsearched = unsearched_files_claim(taint, reply)
     language = message_language(query)
     said_in = partial(in_language, language=language)

@@ -1,9 +1,9 @@
 """Close a reply that lists folders on a file question no tool output answered."""
 
 import re
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
-from cortex_core.file_request import asks_files
+from cortex_core.file_request import asks_files, asks_files_other
 from cortex_core.untrusted import TaintLedger
 
 UNREAD_FOLDERS_NOTE = (
@@ -60,7 +60,18 @@ def _entries(lines: Sequence[str]) -> list[str]:
     return found
 
 
-def _names_one(sentence: str, following: Sequence[str], query: str) -> bool:
+def _heads_folders(heading: str) -> bool:
+    """Whether ``heading`` names folders, paths or files in English."""
+    return _FOLDERS.search(heading) is not None
+
+
+def names_one(
+    sentence: str,
+    following: Sequence[str],
+    query: str,
+    *,
+    heads: Callable[[str], bool] = _heads_folders,
+) -> bool:
     """Whether ``sentence``, or the list under it, names a path or folder ``query`` does not."""
     if any(_untyped(path, query) for path in _PATH.findall(sentence)):
         return True
@@ -68,7 +79,7 @@ def _names_one(sentence: str, following: Sequence[str], query: str) -> bool:
     if not colon:
         return False
     listed = [rest] if rest.strip() else _entries(following)
-    folders = _FOLDERS.search(heading) is not None
+    folders = heads(heading)
     return any(
         (folders or _PATH.search(entry) is not None) and _untyped(entry, query) for entry in listed
     )
@@ -83,15 +94,24 @@ def _says_it_reaches(sentence: str) -> bool:
     )
 
 
+def statements(reply: str) -> list[str]:
+    """The sentences and lines of ``reply`` outside code, each holding text."""
+    return [line for line in _SENTENCE_END.split(_CODE.sub("", reply)) if line.strip()]
+
+
 def claims_folders(reply: str, *, query: str) -> bool:
     """Whether a statement in ``reply`` says it reaches a folder ``query`` does not name."""
-    lines = [line for line in _SENTENCE_END.split(_CODE.sub("", reply)) if line.strip()]
+    lines = statements(reply)
     return any(
-        _says_it_reaches(line) and _names_one(line, lines[index + 1 :], query)
+        _says_it_reaches(line) and names_one(line, lines[index + 1 :], query)
         for index, line in enumerate(lines)
     )
 
 
 def unread_folders_claim(taint: TaintLedger, query: str, reply: str) -> bool:
     """Whether ``reply`` lists folders on a turn that asks about files and read no tool output."""
-    return not taint.tainted and asks_files(query) and claims_folders(reply, query=query)
+    return (
+        not taint.tainted
+        and (asks_files(query) or asks_files_other(query))
+        and claims_folders(reply, query=query)
+    )

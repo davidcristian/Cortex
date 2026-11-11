@@ -85,3 +85,25 @@ lost none; the three added are recorded person's messages (`Recuérdame cada añ
 el cumpleaños de Ana.`, `Erinnere mich jedes Jahr am 4. März [...]`), and the 30 proxy replies
 changed none. Script `replay_yearly.py` and log `replay_yearly.log` beside the one above.
 
+
+## A folder claim and a no-access claim in four other languages, 2026-11-11
+
+`claims_folders_other` (`file_claim_other.py`) reads a reach statement (`j'ai accès`, `je peux
+lire`, `ich habe Zugriff`, `ich kann [...] lesen`, `puedo leer`, `tengo acceso`, `pot citi`, `am
+acces`) beside a path or above a list of folders the message does not name, and
+`asks_files_other` (`file_request.py`) reads the file question (`dossiers`, `Ordner`, `carpetas`,
+`fișiere` with an ask word or a question mark), so `UNREAD_FOLDERS_NOTE` shows. `access_claim_other.py`
+reads a no-access claim (`pas d'accès`, `keinen Zugriff`, `no tengo acceso`, `nu am acces`) and a
+not-found claim (`je ne trouve pas`, `nicht gefunden`, `no encontré`, `nu am găsit`), so
+`UNSEARCHED_FILES_NOTE` shows after a refused file call. The near misses were written first in
+each language: a question, a condition, a negated reach, an example (`par exemple`), a kind of
+file (`types de fichiers`, `Dateiformate`), a remember request and a reason (`je ne vois pas
+pourquoi`, `ich sehe keinen Grund`, `no veo por qué`, `nu văd de ce`, `je ne trouve pas que`).
+
+Replayed as above over 23,362 readings strings and the 30 proxy replies, with an empty message
+for the folder reader: folder claims stayed at 1, no-access and not-found claims moved from 73 to
+77, all four added being phrases of this file's own prose, and file questions stayed at 317 after
+a first replay read 8 English lines (`folder listing`) through a Romanian `folder` and a `list`
+stem, which were narrowed. None was lost and the proxy replies changed none. Script
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot5/replay_files.py`,
+log `replay_files.log` beside it.
