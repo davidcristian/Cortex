@@ -19,6 +19,7 @@ from cortex_core.handoff_view import (
     weekly_refused_calls,
     yearly_refused_calls,
 )
+from cortex_core.memory_old_value import hold_old_value
 from cortex_core.output_channels import open_output_channels
 from cortex_core.ports import Clock, InferenceBackend, SessionStore
 from cortex_core.schedule_claim import said_by_person
@@ -167,6 +168,9 @@ class BrainPhase:
             await events.aclose()
         earlier = cortex_runs(stored, record)
         if failure is None:
+            await hold_old_value(
+                self._caps, taint, query=query, reply="".join(parts), session_id=record.session_id
+            )
             notes = limit_notes(
                 stops,
                 log.runs,

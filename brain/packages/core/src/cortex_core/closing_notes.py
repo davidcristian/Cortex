@@ -48,6 +48,7 @@ from cortex_core.memory_claim import (
     memory_withheld,
     unkept_note_due,
 )
+from cortex_core.memory_old_value import old_value_note
 from cortex_core.note_language import in_language, message_language
 from cortex_core.numbers_left_claim import (
     NUMBERS_LEFT_NOTE,
@@ -155,6 +156,7 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
         (held, in_language(NUMBERS_LEFT_NOTE, NUMBERS_LEFT_NOTES, language)),
         (bool(taint.forget_kept), kept_note(taint.forget_kept, language)),
         (bool(taint.forget_inside), inside_note(taint.forget_inside, language)),
+        (bool(taint.old_value), old_value_note(taint.old_value, language)),
         (unfound, said_in(DELETED_UNFOUND_NOTE, DELETED_UNFOUND_NOTES)),
         (missed, said_in(UNMATCHED_FORGET_NOTE, UNMATCHED_FORGET_NOTES)),
         (

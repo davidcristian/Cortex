@@ -22,6 +22,7 @@ from cortex_core.events import TurnCompleted, TurnEvent
 from cortex_core.handoff import EscalationRefs
 from cortex_core.handoff_wait import wait_out_handoff
 from cortex_core.images import ImagePart
+from cortex_core.memory_old_value import hold_old_value
 from cortex_core.output_channels import open_output_channels
 from cortex_core.ports import Clock, InferenceBackend, SessionStore
 from cortex_core.routing import RoutingHints, Tier, route_turn
@@ -203,6 +204,8 @@ class TurnEngine:
         # After the channels flush and before the text is joined, so the note comes under the
         # whole reply and what is saved is what was shown.
         if not overflowed:
+            reply = "".join(parts)
+            await hold_old_value(self._caps, taint, query=text, reply=reply, session_id=session_id)
             notes = limit_notes(
                 stops,
                 log.runs,

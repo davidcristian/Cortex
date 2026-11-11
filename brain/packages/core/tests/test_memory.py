@@ -155,7 +155,7 @@ def test_the_recaller_deletes_only_a_memory_it_was_handed_so_no_turn_can_choose_
     # deleted meanwhile. If another delete verb is added here, work out the taint path first.
     assert not hasattr(MemoryRecaller, "delete_scope")
     turn_facing = {name for name in vars(MemoryRecaller) if not name.startswith("_")}
-    assert turn_facing == {"record", "recall", "discard", "recalls_across_chats"}
+    assert turn_facing == {"record", "recall", "discard", "find_value", "recalls_across_chats"}
 
 
 class _SpyDeleteStore(InMemoryMemoryStore):

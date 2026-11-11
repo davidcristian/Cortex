@@ -99,3 +99,21 @@ u2 2 searched files until the round cap and replied nothing
 ([R-1116](../refinements/tasks/1116-an-update-of-a-stored-value-can-search-files-until-the-round-cap.md)).
 Every `s7-*` row is deleted. Driver `draw.sh`, records `rows.jsonl`, logs `draw-u1.log` and
 `draw-u2.log` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot7/`.
+
+## The old value note, rule written 2026-11-11 before it was built
+
+The form of the 2026-11-10 draws stays at 2 of 18, so this section draws no rate. Each firing
+misleads the person, so the note is built for when it occurs. The brain appends it after a typed
+check: the reply says a value was updated, changed, corrected or replaced (`claims_updated`, or
+its French, German, Spanish and Romanian forms), no `forget_memories` call of the turn deleted a
+row, the message names an old value (`X, not Y`, `from Y to X`, `Y is wrong`, and `X, pas Y`,
+`X, nicht Y`, `X, no Y`, `X, nu Y`), and a stored row holds that value as a whole value. The note
+names the value, says a later chat can still recall it and that nothing was deleted, and tells the
+person to ask in a message of its own if they want it gone, which asks the model for nothing.
+
+**Pass rule.** It ships when the unit and engine tests show: every such turn ends with the note
+in the message's language; no turn ends with it when a forget deleted a row, when no row holds the
+value, when the value is only part of a longer word or number, or when the reply makes no update
+claim or a negated one. Live smoke turns on the rebuilt brain, three of flow c1 and three of u3 (the
+c1 seed, then `Update my bike lock code: it is 4862, not 4826.`), check that it reaches a real
+reply; they count no rate, and a smoke turn that claims no update is a null result.

@@ -174,6 +174,8 @@ class TaintLedger:
     weekly_stored: tuple[tuple[str, str], ...] = ()
     # The stored texts of the items the successful ``cancel_scheduled`` calls of this turn deleted.
     cancelled: tuple[str, ...] = ()
+    # A value the message names as old or wrong that a stored row still holds, else empty.
+    old_value: str = ""
     untrusted_urls: set[str] = field(default_factory=set[str])
     sources: tuple[Provenance, ...] = ()
     # The tainted memories this turn recalled: its record is stored only while they all exist.

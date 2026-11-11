@@ -71,6 +71,13 @@ class MemoryRecaller:
         """Delete ``memory``, stored for a chat that was deleted while it was written."""
         await self._store.delete_ids([memory.id])
 
+    async def find_value(
+        self, value: str, *, session_id: str, limit: int
+    ) -> Sequence[MemoryRecord]:
+        """The first ``limit`` memories the chat can recall that hold ``value``."""
+        scopes = self._scope.read_scopes(session_id)
+        return await self._store.find_value(value, limit=limit, scopes=scopes)
+
     async def recall(
         self, query: str, *, k: int, session_id: str, turn_id: str
     ) -> Sequence[ScoredMemory]:

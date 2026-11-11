@@ -1,9 +1,8 @@
 # A correction of a stored value says "updated" and keeps the old row
 
-**Status:** open, actionable
+**Status:** done 2026-11-11
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-10
 
 Flow x8 of [the readings](../../readings/overlay-corrections-flows.md), every card approved: one
 chat stored `Remember that my bike lock code is 4826.`; a second chat sent `My bike lock code is
@@ -31,3 +30,9 @@ is not a rate.
   `X, not Y` corrections; 2 of 18 kept the seed row and said updated or replacing, under the rule's
   3, so no note was built. The same draws filed task 1112. `claims_updated`
   (`memory_claim_update.py`) reads a bare update claim and can serve this form too.
+- 2026-11-11: done. The form stays rare, but each firing misleads the person, so a note the
+  brain appends was built under a pass rule written first in
+  [the readings](../../readings/correction-keeps-old-value.md): on a reply claiming an update
+  in one of five languages, with no forget that deleted a row, while a row the chat can recall
+  holds the old value the message names, `old_value_note` (`memory_old_value.py`) names the
+  value, says nothing was deleted and that the person can ask to forget it.
