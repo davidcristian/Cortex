@@ -30,7 +30,13 @@ _NEGATIONS = (
 )
 # Wide on purpose: a message read wrongly here keeps the tool, as every turn did before this check.
 _CAN_RETRACT = re.compile(rf"{RETRACT_WORDS}|{_NEGATIONS}|(?![a-z])[^\W\d_]", re.IGNORECASE)
-_RETRACTS = re.compile(RETRACT_WORDS, re.IGNORECASE)
+# Narrower than RETRACT_WORDS, since a reply often says "don't", "no" or "changes".
+_ABOUT_FORGETTING = re.compile(
+    r"\b(?:rid|unlearn\w*|no\s+longer|any\s?more|gone|take\s+back|out\s+of\s+(?:your|memory)|bin"
+    r"|scrub\w*|ditch\w*|scrap\w*|toss\w*|trash\w*|expung\w+|shred\w*|unsav\w*|unremember\w*"
+    r"|unstor\w*|let\s+go|retract\w*|revok\w+|withdraw\w*)\b",
+    re.IGNORECASE,
+)
 _NAMES_FORGETTING = re.compile(
     r"\b(?:forg[eo]t|delet|eras|remov|wip(?:e|es|ed|ing)\b|clear|drop|discard|purg|vergiss|vergess"
     r"|vergeet|l[oö]sch|loesch|gel[oö]sch|geloesch|entfern|oubli|effac|olvid|borr|uit|[șşs]ters|[șşs]terg|supprim"
@@ -69,7 +75,8 @@ def forget_unrequested(query: str, last_reply: str = "", earlier: str = "") -> f
     if _CAN_RETRACT.search(query) or _misspells_forgetting(query):
         return frozenset()
     if any(
-        _RETRACTS.search(text) or _NAMES_FORGETTING.search(text) for text in (last_reply, earlier)
+        _ABOUT_FORGETTING.search(text) or _NAMES_FORGETTING.search(text)
+        for text in (last_reply, earlier)
     ):
         return frozenset()
     return frozenset({FORGET_CHOSEN_TOOL_NAME})

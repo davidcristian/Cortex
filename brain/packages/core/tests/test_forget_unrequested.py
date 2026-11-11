@@ -129,3 +129,32 @@ def test_an_answer_to_a_question_about_an_earlier_forget_keeps_the_forget_tool()
 def test_an_answer_to_a_question_about_an_earlier_message_with_no_forget_refuses() -> None:
     reply = "You have two numbers stored, 0712 and 0713. Which one do you mean?"
     assert forget_unrequested("The first one.", reply, "What is my phone number?") == _REFUSED
+
+
+@pytest.mark.parametrize(
+    "last_reply",
+    [
+        "I don't have your bike lock code in my memory.",
+        "Got it. Let me know if anything changes.",
+        "I have no record of that.",
+        "Your old code was 4826; I've updated it to 4862.",
+        "I can't find a bike lock code in my notes.",
+    ],
+)
+@pytest.mark.parametrize(
+    "query",
+    [
+        "What is my bike lock code?",
+        "Can you note that Anna likes plants?",
+        "Remember that my wifi password is hunter22.",
+    ],
+)
+def test_a_reply_with_a_negation_or_a_change_word_still_refuses_the_forget_tool(
+    query: str, last_reply: str
+) -> None:
+    assert forget_unrequested(query, last_reply) == _REFUSED
+
+
+@pytest.mark.parametrize("earlier", ["Remember to buy milk.", "I used to live in Bonn."])
+def test_an_earlier_message_with_no_forget_still_refuses_the_forget_tool(earlier: str) -> None:
+    assert forget_unrequested("What is my bike lock code?", "Noted.", earlier) == _REFUSED

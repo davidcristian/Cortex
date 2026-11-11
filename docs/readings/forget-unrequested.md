@@ -54,8 +54,15 @@ my address out of memory.`, `Bin that note.`, `Yes, do it.` after `Do you want m
 the note about your old address?`, `And my email too.` after `Done. I no longer have your phone
 number.`, and `The first one.` after a reply asking which number, in a chat whose earlier message
 asked to forget. The reader now also keeps the tool on a word one letter from a forget word, on
-those two phrases, and on a last reply or the message it answered that holds any retracting word.
-The replay above, run again on the new reader with no last reply, refuses 20 of the 94 recorded
-user messages as before, and the same 7 of the 15 that called `forget_memories`, none asking to
-forget. Log `replay.log` in
+those two phrases, and on a last reply or the message it answered that names forgetting or a
+phrase for it. The replay above, run again on the new reader with no last reply, refuses 20 of
+the 94 recorded user messages as before, and the same 7 of the 15 that called
+`forget_memories`, none asking to forget. Log `replay.log` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot18/`.
+
+Read with every retracting word, the last reply kept the tool on `What is my bike lock code?`
+after `I don't have your bike lock code in my memory.`, so it reads no bare negation or change
+word. Over the 126 distinct recorded message, last reply and earlier message triples, the
+narrower read refuses 4 more, all questions about a reminder, none of the 20 that called
+`forget_memories`, and keeps none the wider read refused. Log `replay.log` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot20/`.
