@@ -46,3 +46,16 @@ no note. The call is rarer than slot 15's 6 of 12, a separate figure the rule do
 Every question draw read the notes file and said the code is not in it. Driver `draw.sh`, log
 `draw.log`, rows `rows.jsonl`, proxy chats `n19s16-p-*` and `n19s16-q-*`, in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot16/`.
+
+## Audit, 2026-11-11
+
+Unit calls refused real forget requests: the typos `forgt`, `frget`, `foget` and `delte`, `Take
+my address out of memory.`, `Bin that note.`, `Yes, do it.` after `Do you want me to get rid of
+the note about your old address?`, `And my email too.` after `Done. I no longer have your phone
+number.`, and `The first one.` after a reply asking which number, in a chat whose earlier message
+asked to forget. The reader now also keeps the tool on a word one letter from a forget word, on
+those two phrases, and on a last reply or the message it answered that holds any retracting word.
+The replay above, run again on the new reader with no last reply, refuses 20 of the 94 recorded
+user messages as before, and the same 7 of the 15 that called `forget_memories`, none asking to
+forget. Log `replay.log` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot18/`.

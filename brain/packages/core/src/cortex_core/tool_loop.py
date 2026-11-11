@@ -84,6 +84,16 @@ def _last_reply(working: Sequence[Message]) -> str:
     return next((m.text for m in reversed(working) if m.role is Role.ASSISTANT), "")
 
 
+def _earlier_ask(working: Sequence[Message]) -> str:
+    """The text of the person's message the last assistant message answered, empty when none."""
+    replied = False
+    for message in reversed(working):
+        replied = replied or message.role is Role.ASSISTANT
+        if replied and message.role is Role.USER:
+            return message.text
+    return ""
+
+
 async def _turn_tools(
     context: ToolLoopContext, working: Sequence[Message]
 ) -> tuple[Sequence[ToolSpec], Mapping[str, ToolSpec], frozenset[str], frozenset[str]]:
@@ -99,7 +109,7 @@ async def _turn_tools(
     offered = tuple(spec for spec in specs if spec.name not in withheld)
     last_reply = _last_reply(working)
     forget = unasked_forget(context.query, last_reply)
-    unrequested = forget_unrequested(context.query, last_reply) - forget
+    unrequested = forget_unrequested(context.query, last_reply, _earlier_ask(working)) - forget
     refused = left_out | unasked_sidecar_tools(context.query, specs) | forget | unrequested
     return offered, {s.name: s for s in specs}, refused, unrequested
 

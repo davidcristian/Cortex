@@ -41,5 +41,6 @@ The cause is shared, so build for it rather than drawing the question again.
   rule. Left open, verified, for lack of slot time.
 - 2026-11-11: done. `forget_unrequested` refuses the call by name as `FORGET_UNREQUESTED` on a
   message with no word that can retract something, no negation in the five languages and no
-  letter outside English, unless the last reply names forgetting; the turn is recorded and gets no
+  letter outside English, unless a word one letter from a forget word, the last reply or the
+  message it answered can retract something; the turn is recorded and gets no
   note about deleting ([readings](../../readings/forget-unrequested.md)).

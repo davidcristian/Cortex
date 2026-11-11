@@ -18,7 +18,7 @@ RETRACT_WORDS = (
     r"|nuk\w+|kill\w*|destroy\w*|shred\w*|dump\w*|expung\w+|overwrit\w+|cancel\w*|scratch\w*"
     r"|strik\w+|cross\w*|thr[eo]w\w*|dispos\w+|blank\w*|reset\w*|clean\w*|updat\w+|chang\w+"
     r"|correct\w*|instead|earlier|prior|obsolete|stale|gone|nevermind|unsav\w*|unremember\w*"
-    r"|unstor\w*|let\s+go|go\s+away|out\s+of\s+your|used\s+to|must\s+go|remember\s+to"
+    r"|unstor\w*|let\s+go|go\s+away|out\s+of\s+(?:your|memory)|used\s+to|must\s+go|remember\s+to|bin"
     r"|vergiss\w*|vergess\w*|vergeet|loesch\w*|entfern\w*|verwijder\w*|oubli\w*|effac\w+|olvid\w*"
     r"|borr\w+|dimentic\w*|uit\w*|[șşs]terg\w*|supprim\w*|elimin\w*|l[oö]sch\w*)\b"
     r"|n['\u2019]t\b"
@@ -30,6 +30,7 @@ _NEGATIONS = (
 )
 # Wide on purpose: a message read wrongly here keeps the tool, as every turn did before this check.
 _CAN_RETRACT = re.compile(rf"{RETRACT_WORDS}|{_NEGATIONS}|(?![a-z])[^\W\d_]", re.IGNORECASE)
+_RETRACTS = re.compile(RETRACT_WORDS, re.IGNORECASE)
 _NAMES_FORGETTING = re.compile(
     r"\b(?:forg[eo]t|delet|eras|remov|wip(?:e|es|ed|ing)\b|clear|drop|discard|purg|vergiss|vergess"
     r"|vergeet|l[oö]sch|loesch|gel[oö]sch|geloesch|entfern|oubli|effac|olvid|borr|uit|[șşs]ters|[șşs]terg|supprim"
@@ -38,11 +39,37 @@ _NAMES_FORGETTING = re.compile(
 )
 
 
-def forget_unrequested(query: str, last_reply: str = "") -> frozenset[str]:
+_LETTERS = re.compile(r"[a-z]{4,}", re.IGNORECASE)
+_TYPO_OF = ("forget", "forgot", "delete", "remove", "erase", "unlearn")
+
+
+def _one_typo(word: str, target: str) -> bool:
+    """Whether ``word`` is ``target`` with one letter dropped, added, changed or two swapped."""
+    if abs(len(word) - len(target)) > 1:
+        return False
+    first = next(
+        (i for i, pair in enumerate(zip(word, target, strict=False)) if len(set(pair)) > 1), None
+    )
+    if first is None:
+        return True
+    rest, aim = word[first:], target[first:]
+    swapped = rest[:2] == aim[1::-1] and rest[2:] == aim[2:]
+    return swapped or rest[1:] in {aim, aim[1:]} or rest == aim[1:]
+
+
+def _misspells_forgetting(text: str) -> bool:
+    return any(_one_typo(w.lower(), t) for w in _LETTERS.findall(text) for t in _TYPO_OF)
+
+
+def forget_unrequested(query: str, last_reply: str = "", earlier: str = "") -> frozenset[str]:
     """The forget tool, refused by name on a ``query`` with no word that can retract something.
 
-    ``last_reply`` is the chat's last assistant message, which the query can be answering.
+    ``last_reply`` is the chat's last assistant message and ``earlier`` the message it answered.
     """
-    if _CAN_RETRACT.search(query) or _NAMES_FORGETTING.search(last_reply):
+    if _CAN_RETRACT.search(query) or _misspells_forgetting(query):
+        return frozenset()
+    if any(
+        _RETRACTS.search(text) or _NAMES_FORGETTING.search(text) for text in (last_reply, earlier)
+    ):
         return frozenset()
     return frozenset({FORGET_CHOSEN_TOOL_NAME})

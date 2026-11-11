@@ -77,3 +77,55 @@ def test_a_message_after_a_reply_that_names_forgetting_keeps_the_forget_tool(
 
 def test_a_message_after_a_reply_that_names_no_forgetting_refuses_the_forget_tool() -> None:
     assert forget_unrequested("And my address too.", "Your code is 4862.") == _REFUSED
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "forgt my phone number",
+        "frget my phone number",
+        "foget my phone number",
+        "fogret my phone number",
+        "delte my phone number",
+        "delet my phone number",
+        "ERSE MY ADDRESS",
+        "Take my address out of memory.",
+        "Bin that note.",
+    ],
+)
+def test_a_misspelled_forget_or_a_phrase_for_one_keeps_the_forget_tool(query: str) -> None:
+    assert forget_unrequested(query) == frozenset()
+
+
+@pytest.mark.parametrize(
+    "query",
+    ["Remember the delta format I renewed.", "What did I fret about at the forum?"],
+)
+def test_a_word_two_letters_from_a_forget_word_refuses_the_forget_tool(query: str) -> None:
+    assert forget_unrequested(query) == _REFUSED
+
+
+@pytest.mark.parametrize(
+    ("query", "last_reply"),
+    [
+        ("Yes, do it.", "Do you want me to get rid of the note about your old address?"),
+        ("Yes.", "Should I unlearn that?"),
+        ("And my email too.", "Done. I no longer have your phone number."),
+        ("And my email too.", "Done, your phone number is gone."),
+        ("And the address as well.", "I won't remember your phone number anymore."),
+    ],
+)
+def test_a_message_after_a_reply_with_a_retracting_word_keeps_the_forget_tool(
+    query: str, last_reply: str
+) -> None:
+    assert forget_unrequested(query, last_reply) == frozenset()
+
+
+def test_an_answer_to_a_question_about_an_earlier_forget_keeps_the_forget_tool() -> None:
+    reply = "You have two numbers stored, 0712 and 0713. Which one do you mean?"
+    assert forget_unrequested("The first one.", reply, "Forget my phone number.") == frozenset()
+
+
+def test_an_answer_to_a_question_about_an_earlier_message_with_no_forget_refuses() -> None:
+    reply = "You have two numbers stored, 0712 and 0713. Which one do you mean?"
+    assert forget_unrequested("The first one.", reply, "What is my phone number?") == _REFUSED

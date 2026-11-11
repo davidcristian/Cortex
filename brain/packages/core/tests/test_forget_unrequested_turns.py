@@ -115,3 +115,50 @@ async def test_a_reply_after_an_unrequested_forget_gets_only_a_true_note(
 async def test_a_forget_on_a_message_that_asks_to_forget_still_runs() -> None:
     ran, details, _shown = await _turn("Forget my bike lock code.", "Done.")
     assert (ran, details) == ([FORGET_CHOSEN_TOOL_NAME], ["done"])
+
+
+class _Script:
+    def __init__(self, rounds: Sequence[Sequence[InferenceEvent]]) -> None:
+        self._rounds = list(rounds)
+
+    async def stream(
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
+    ) -> AsyncIterator[InferenceEvent]:
+        del model, messages, tools, schema, bounds
+        for event in self._rounds.pop(0):
+            yield event
+
+
+async def _answer(first: str, second: str) -> list[str]:
+    ran: list[str] = []
+
+    async def forget(arguments: Mapping[str, object]) -> str:
+        del arguments
+        ran.append(FORGET_CHOSEN_TOOL_NAME)
+        return "done"
+
+    spec = ToolSpec(name=FORGET_CHOSEN_TOOL_NAME, description="", parameters={})
+    registry = InMemoryToolRegistry({FORGET_CHOSEN_TOOL_NAME: (spec, forget)})
+    tools = ToolDispatcher(registry, RecordingAuditSink(), TickingClock())
+    asked = [TextChunk("You have two numbers stored. Which one do you mean?")]
+    backend = _Script([asked, [_CALL], [TextChunk("Done.")]])
+    engine = TurnEngine(
+        InMemorySessionStore(), backend, TickingClock(), capabilities=TurnCapabilities(tools=tools)
+    )
+    for turn_id, query in (("t1", first), ("t2", second)):
+        _events = [event async for event in engine.handle_turn("s", query, turn_id=turn_id)]
+    return ran
+
+
+async def test_an_answer_to_a_question_about_a_forget_runs_the_forget() -> None:
+    assert await _answer("Forget my phone number.", "The first one.") == [FORGET_CHOSEN_TOOL_NAME]
+
+
+async def test_an_answer_to_a_question_about_a_lookup_refuses_the_forget() -> None:
+    assert await _answer("What is my phone number?", "The first one.") == []
