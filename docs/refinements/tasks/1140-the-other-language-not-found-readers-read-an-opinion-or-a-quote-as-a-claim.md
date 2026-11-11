@@ -27,6 +27,16 @@ with an object and an adjective) and a quote of someone else's words need a read
 than more excluded words, since `je ne trouve pas votre numéro` is a claim. The phrases saying
 what is meant is unclear (`je ne vois pas ce que vous voulez dire`) were excluded the same night.
 
+Both readers act only in narrow turns: `unsearched_files_claim` (`access_claim.py`) after a refused
+file call, and `unfound_claim` (`forget_unfound_claim.py`) after a forget that matched nothing
+beside one that deleted rows. A replay on 2026-11-11 of 7,452 strings (the backticked spans of
+`docs/readings/` and every distinct reply in tonight's proxy log, French, German, Spanish and
+Romanian chats included) found no proxy reply matching either reader. Of 6 not found and 11 not
+stored matches, all in readings, one is a quote only (a table cell holding `"nicht dauerhaft
+gespeichert"`). `je ne trouve pas que` matches the not stored reader and not the not found reader,
+which excludes `que` after the verb. Narrowing either reader moves it off its safe side, so a
+build should first show such a note reaching a person on a turn that needed none.
+
 ## What to do
 
 1. Write the rows above as near misses, beside claims of the same verbs (`Je ne trouve pas votre
@@ -39,3 +49,5 @@ what is meant is unclear (`je ne vois pas ce que vous voulez dire`) were exclude
 
 - 2026-11-11: filed from the first audit of the other-language readers; reproduced with a unit
   call of each reader.
+- 2026-11-11: replayed the readings and the proxy log through both readers, with no proxy
+  reply matching; left open.
