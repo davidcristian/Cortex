@@ -31,6 +31,10 @@ _KEEP = re.compile(
     r"keep(?:s|ing)?|kept|behalt\w*|behält|bleib\w*|garde[rz]?|conserv(?:e[rsz]?|ons|a[rs]?|en)"
     r"|guard(?:a[rs]?|e[ns]?)|mant[eé]n(?:er|ga[ns]?|l[oa]s?)?|p[ăa]str\w*"
 )
+# No word that can also mean minus or less, such as "moins", "menos" or "mai puțin".
+_EXCEPT = frozenset(
+    _WORD.findall("except excluding sauf hormis excepté außer ausgenommen excepto salvo exceptând")
+)
 _NOT = frozenset({"not", "t", "never", "nicht", "nie", "pas", "ne", "jamais", "no", "nunca", "nu"})
 _LEAD = frozenset(
     {"but", "and", "yet", "do", "don", "is", "isn", "s", "aber", "und", "mais", "et", "pero", "dar"}
@@ -146,12 +150,12 @@ def _clauses(query: str) -> list[list[str]]:
 
 
 def _opens_keep(clause: list[str], at: int) -> bool:
-    """Whether ``clause`` asks to keep from ``at``: a keep verb or a leading negation."""
+    """Whether ``clause`` asks to keep from ``at``: a keep verb, an except or a leading negation."""
     token = clause[at]
     if _KEEP.fullmatch(token):
         return _NOT.isdisjoint(clause[max(0, at - 2) : at])
     if token not in _NOT or (at and clause[at - 1] not in _LEAD):
-        return False
+        return token in _EXCEPT
     # "my do not disturb code" names a fact rather than asking to keep one.
     if at > 1 and clause[at - 2] in _NAMING:
         return False
@@ -182,7 +186,7 @@ def _split(query: str, language: str) -> tuple[set[str], set[str], set[str] | No
     function = FUNCTION.get(language, frozenset())
     named = _words(forget, function) | _stems(forget)
     kept = _words(keep) | _stems(keep) | _kinds(keep)
-    kept = {word for word in kept - named - _kinds(forget) if not _KEEP.fullmatch(word)}
+    kept = {word for word in kept - named - _kinds(forget) - _EXCEPT if not _KEEP.fullmatch(word)}
     listed = (named or _kinds(forget)) if keep_tokens else None
     return named, kept, listed, bool(_stems(forget))
 

@@ -79,7 +79,7 @@ never a reading of what the tree does now.
 - **[R-1109](tasks/1109-the-no-match-forget-result-tells-the-model-to-say-nothing-was-stored.md)** The no-match forget result tells the model to say nothing was stored (memory). Its claim was checked against the code on 2026-11-10.
 - **[R-1140](tasks/1140-the-other-language-not-found-readers-read-an-opinion-or-a-quote-as-a-claim.md)** The other-language not found readers read an opinion or a quote as a claim (cross-cutting). Its claim was checked against the code on 2026-11-11.
 - **[R-1146](tasks/1146-a-recall-question-memory-cannot-answer-searches-the-file-sidecar.md)** A recall question memory cannot answer searches the file sidecar (memory). Its claim was checked against the code on 2026-11-11.
-- **[R-1148](tasks/1148-a-forget-sparing-a-row-after-except-lists-that-row-and-keeps-the-other.md)** A forget sparing a row after except lists that row and keeps the other (memory). Its claim was checked against the code on 2026-11-11.
+- **[R-1149](tasks/1149-a-forget-sparing-a-row-after-everything-but-lists-that-row.md)** A forget sparing a row after everything but lists that row (memory). Its claim was checked against the code on 2026-11-11.
 
 ### Actionable, once a port changes (1)
 
@@ -623,7 +623,7 @@ never a reading of what the tree does now.
 - [R-1120](tasks/1120-a-correction-naming-an-old-value-is-stored-when-no-forget-deleted-it.md) A correction naming an old value is stored when no forget deleted it. declined 2026-11-11.
 - [R-1129](tasks/1129-a-question-asking-to-note-a-fact-is-not-read-as-a-request-to-remember.md) A question asking to note a fact is not read as a request to remember. done 2026-11-11.
 - [R-1146](tasks/1146-a-recall-question-memory-cannot-answer-searches-the-file-sidecar.md) A recall question memory cannot answer searches the file sidecar. open, actionable.
-- [R-1148](tasks/1148-a-forget-sparing-a-row-after-except-lists-that-row-and-keeps-the-other.md) A forget sparing a row after except lists that row and keeps the other. open, actionable.
+- [R-1149](tasks/1149-a-forget-sparing-a-row-after-everything-but-lists-that-row.md) A forget sparing a row after everything but lists that row. open, actionable.
 
 ### orchestrator
 
