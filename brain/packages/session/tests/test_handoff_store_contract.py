@@ -324,11 +324,34 @@ async def test_a_record_keeps_each_rule_on_chosen_weekdays_and_its_days() -> Non
 
 async def test_a_record_keeps_each_repeat_first_firing_before_the_named_day() -> None:
     store = RedisHandoffStore(FakeAsyncRedis(server=FakeServer()))
-    held = (("abc", "2026-11-10T09:00", "today"),)
+    held = (("abc", "2026-11-10T09:00", 0),)
     await store.put(replace(handoff_contract.make_record("t1"), early_first_fire=held))
     loaded = await store.get("t1")
     assert loaded is not None
     assert loaded.early_first_fire == held
+
+
+async def test_a_record_holding_english_day_words_reads_them_as_day_counts() -> None:
+    client = FakeAsyncRedis(server=FakeServer())
+    fields = cast("dict[str, Any]", json.loads(encode_record(handoff_contract.make_record("t1"))))
+    fields["early_first_fire"] = [
+        ["a", "2026-11-10T09:00", "today"],
+        ["b", "2026-11-11T09:00", "tomorrow"],
+        ["c", "2026-11-13T09:00", "in 3 days"],
+    ]
+    await client.set("cortex:handoff:t1", json.dumps(fields))
+    loaded = await RedisHandoffStore(client).get("t1")
+    assert loaded is not None
+    assert [days for _, _, days in loaded.early_first_fire] == [0, 1, 3]
+
+
+async def test_a_record_holding_an_unknown_day_word_is_corrupt() -> None:
+    client = FakeAsyncRedis(server=FakeServer())
+    fields = cast("dict[str, Any]", json.loads(encode_record(handoff_contract.make_record("t1"))))
+    fields["early_first_fire"] = [["a", "2026-11-10T09:00", "soon"]]
+    await client.set("cortex:handoff:t1", json.dumps(fields))
+    with pytest.raises(HandoffStoreError, match="corrupt handoff record at 'cortex:handoff:t1'"):
+        await RedisHandoffStore(client).get("t1")
 
 
 async def test_a_record_keeps_the_rows_its_forgets_kept() -> None:

@@ -96,9 +96,12 @@ def weekday_off_dates(held: tuple[tuple[str, str], ...]) -> tuple[str, ...]:
     return tuple(dict.fromkeys(stored for _, stored in held))
 
 
+def weekday_name(day: date, language: str) -> str:
+    """The name of the weekday of ``day`` in the note ``language``, else in English."""
+    return _DAY_NAMES.get(language, WEEKDAY_NAMES)[day.weekday()]
+
+
 def weekday_off_note(stored: str, language: str) -> str:
     """The note naming the weekday and date of the ``stored`` ISO date, in ``language``."""
-    day = date.fromisoformat(stored)
-    names = _DAY_NAMES.get(language, WEEKDAY_NAMES)
     text = WEEKDAY_OFF_NOTES.get(language, WEEKDAY_OFF_NOTE)
-    return text.format(day=names[day.weekday()], date=stored)
+    return text.format(day=weekday_name(date.fromisoformat(stored), language), date=stored)

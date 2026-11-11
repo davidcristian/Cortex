@@ -223,7 +223,7 @@ def test_a_turn_holding_a_rule_closes_with_its_note_after_the_first_fire_note() 
     parts = ["I'll remind you tomorrow at 9:00 AM to move the car."]
     first = FIRST_FIRE_NOTE.format(when="today", day="Tuesday", date="2026-11-10", time="09:00")
     taint = TaintLedger(
-        early_first_fire=(("abc", "2026-11-10T09:00", "today"),),
+        early_first_fire=(("abc", "2026-11-10T09:00", 0),),
         weekly_stored=(("abc", "Tuesday"),),
     )
     list(limit_notes(StopLedger(), (), parts, caps=TurnCapabilities(), taint=taint, query=_CAR))

@@ -21,6 +21,18 @@ def record_key(handoff_id: str) -> str:
     return f"cortex:handoff:{handoff_id}"
 
 
+_DAY_WORDS = {"today": 0, "tomorrow": 1}
+
+
+def _days(value: int | str) -> int:
+    """The days after today of a first fire, also from a record that held its English day word."""
+    if isinstance(value, int):
+        return value
+    if value in _DAY_WORDS:
+        return _DAY_WORDS[value]
+    return int(value.removeprefix("in ").removesuffix(" days"))
+
+
 # Holds the id of the one non-terminal record: there is one GPU, so at most one swap runs at a
 # time. Every write maintains it and ``active()`` reads it.
 ACTIVE_KEY = "cortex:handoff:active"
@@ -151,7 +163,8 @@ def decode_record(raw: bytes | str, handoff_id: str) -> HandoffRecord:
             once_after_weekly=fields.get("once_after_weekly", False),
             weekday_off=tuple((item, day) for item, day in fields.get("weekday_off", ())),
             early_first_fire=tuple(
-                (item, first, when) for item, first, when in fields.get("early_first_fire", ())
+                (item, first, _days(days))
+                for item, first, days in fields.get("early_first_fire", ())
             ),
             weekly_stored=tuple((item, days) for item, days in fields.get("weekly_stored", ())),
             cancelled=tuple(fields.get("cancelled", ())),

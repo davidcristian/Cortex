@@ -3,16 +3,35 @@
 import re
 from datetime import date, datetime, timedelta, tzinfo
 
+from cortex_core.note_language import ENGLISH, in_language
 from cortex_core.schedule_tools import SCHEDULE_TOOL_NAME
 from cortex_core.schedule_verbs import EDIT_SCHEDULED_TOOL_NAME
-from cortex_core.schedule_weekday import changes_due, item_of
-from cortex_core.schedule_weekly import WEEKDAY_NAMES, one_named_weekday
+from cortex_core.schedule_weekday import changes_due, item_of, weekday_name
+from cortex_core.schedule_weekly import one_named_weekday
 from cortex_core.tools import ToolCall, ToolResult
 
 FIRST_FIRE_NOTE = (
     "\n\n(A reminder set or changed in this turn first fires {when}, {day} {date} at {time}. Ask "
     "to change its first day if you meant a later one.)"
 )
+FIRST_FIRE_NOTES = {
+    "fr": "\n\n(Un rappel créé ou modifié ici se déclenche pour la première fois {when}, {day} "
+    "{date} à {time}. Demandez à modifier son premier jour si vous pensiez à un jour ultérieur.)",
+    "de": "\n\n(Eine hier erstellte oder geänderte Erinnerung meldet sich zum ersten Mal {when}, "
+    "{day}, {date} um {time}. Bitten Sie um eine Änderung des ersten Tages, wenn Sie einen "
+    "späteren meinten.)",
+    "es": "\n\n(Un recordatorio creado o cambiado aquí suena por primera vez {when}, el {day} "
+    "{date} a {las} {time}. Pide cambiar su primer día si te referías a uno posterior.)",
+    "ro": "\n\n(Un memento creat sau modificat aici sună prima dată {when}, {day}, {date} la ora "
+    "{time}. Cere să-i fie schimbată prima zi dacă te gândeai la una mai târzie.)",
+}
+_DAY_WORDS = {
+    ENGLISH: ("today", "tomorrow", "in {days} days"),
+    "fr": ("aujourd'hui", "demain", "dans {days} jours"),
+    "de": ("heute", "morgen", "in {days} Tagen"),
+    "es": ("hoy", "mañana", "dentro de {days} días"),
+    "ro": ("azi", "mâine", "peste {days} zile"),
+}
 
 _AFTER_TOMORROW = re.compile(
     r"\b(?:day\s+after\s+tomorrow|apr[eè]s-demain|übermorgen|pasado\s+mañana|poim[âa]ine)\b",
@@ -52,25 +71,23 @@ def _repeats(call: ToolCall) -> bool:
 
 def early_first_fire(
     call: ToolCall, result: ToolResult, query: str, now: datetime, tz: tzinfo
-) -> tuple[str, str]:
-    """The local ``YYYY-MM-DDTHH:MM`` and day word of a repeat ``call`` stored or re-timed that
-    first fires before the day ``query`` names; empty strings when none or on that day or later.
+) -> tuple[str, int]:
+    """The local ``YYYY-MM-DDTHH:MM`` and days from today of a repeat ``call`` stored or re-timed
+    that first fires before the day ``query`` names; ``("", 0)`` when none or on that day or later.
     """
     found = _DUE.search(result.content)
     if result.is_error or not _repeats(call) or found is None:
-        return "", ""
+        return "", 0
     try:
         first = datetime.fromisoformat(found.group(1))
     except ValueError:
-        return "", ""
+        return "", 0
     first = (first if first.tzinfo is not None else first.replace(tzinfo=tz)).astimezone(tz)
     today = now.astimezone(tz).date()
     ahead = days_named(query, today)
     if not ahead or first.date() >= today + timedelta(days=ahead):
-        return "", ""
-    days = (first.date() - today).days
-    when = "today" if days == 0 else "tomorrow" if days == 1 else f"in {days} days"
-    return first.isoformat(timespec="minutes")[:16], when
+        return "", 0
+    return first.isoformat(timespec="minutes")[:16], (first.date() - today).days
 
 
 def early_first_fire_after(
@@ -79,27 +96,37 @@ def early_first_fire_after(
     query: str,
     now: datetime,
     tz: tzinfo,
-    held: tuple[tuple[str, str, str], ...],
-) -> tuple[tuple[str, str, str], ...]:
-    """The item id, first fire and day word triples the notes name after ``call``, from ``held``.
+    held: tuple[tuple[str, str, int], ...],
+) -> tuple[tuple[str, str, int], ...]:
+    """The item id, first fire and day count triples the notes name after ``call``, from ``held``.
 
     A store first firing early adds its item; a change to an item's due time drops its triple.
     """
     if result.is_error:
         return held
     kept = tuple(each for each in held if not changes_due(call, each[0], _KEPT_BY_EDIT))
-    first, when = early_first_fire(call, result, query, now, tz)
-    return (*kept, (item_of(call, result), first, when)) if first else kept
+    first, days = early_first_fire(call, result, query, now, tz)
+    return (*kept, (item_of(call, result), first, days)) if first else kept
 
 
-def early_first_fire_notes(held: tuple[tuple[str, str, str], ...]) -> tuple[str, ...]:
-    """One note per distinct first fire in ``held``, in the order the items were stored."""
+def day_word(days: int, language: str) -> str:
+    """The words naming the day ``days`` after today in the note ``language``, else in English."""
+    today, tomorrow, later = _DAY_WORDS.get(language, _DAY_WORDS[ENGLISH])
+    return today if days == 0 else tomorrow if days == 1 else later.format(days=days)
+
+
+def early_first_fire_notes(
+    held: tuple[tuple[str, str, int], ...], language: str = ENGLISH
+) -> tuple[str, ...]:
+    """One note per distinct first fire in ``held`` in ``language``, in the order of the stores."""
+    note = in_language(FIRST_FIRE_NOTE, FIRST_FIRE_NOTES, language)
     return tuple(
-        FIRST_FIRE_NOTE.format(
-            when=when,
-            day=WEEKDAY_NAMES[date.fromisoformat(first[:10]).weekday()],
+        note.format(
+            when=day_word(days, language),
+            day=weekday_name(date.fromisoformat(first[:10]), language),
             date=first[:10],
             time=first[11:16],
+            las="la" if first[11:13] == "01" else "las",
         )
-        for first, when in dict.fromkeys((first, when) for _, first, when in held)
+        for first, days in dict.fromkeys((first, days) for _, first, days in held)
     )

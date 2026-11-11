@@ -114,7 +114,7 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
         *cancelled_notes(made, taint.cancelled, language),
         *quoted_stored_notes(made, query, daily=bool(taint.daily_stored), time=taint.stored_time),
         *(weekday_off_note(day, language) for day in weekday_off_dates(taint.weekday_off)),
-        *early_first_fire_notes(taint.early_first_fire),
+        *early_first_fire_notes(taint.early_first_fire, language),
         *weekly_stored_notes(taint.weekly_stored, reply),
     ):
         yield from append_note(parts, note)

@@ -168,8 +168,8 @@ class TaintLedger:
     once_after_weekly: bool = False
     # The item id and ISO date of each one-time item stored a day off the weekday the message names.
     weekday_off: tuple[tuple[str, str], ...] = ()
-    # The item id, local first fire and day word of each repeat first firing before the named day.
-    early_first_fire: tuple[tuple[str, str, str], ...] = ()
+    # The item id, local first fire and days after today of each repeat firing before the named day.
+    early_first_fire: tuple[tuple[str, str, int], ...] = ()
     # The item id and weekday names of each rule on chosen weekdays a ``schedule_task`` call stored.
     weekly_stored: tuple[tuple[str, str], ...] = ()
     # The stored texts of the items the successful ``cancel_scheduled`` calls of this turn deleted.

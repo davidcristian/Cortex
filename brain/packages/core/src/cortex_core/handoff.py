@@ -68,7 +68,7 @@ class HandoffRecord:
     made_repeating: tuple[str, ...] = ()
     once_after_weekly: bool = False
     weekday_off: tuple[tuple[str, str], ...] = ()
-    early_first_fire: tuple[tuple[str, str, str], ...] = ()
+    early_first_fire: tuple[tuple[str, str, int], ...] = ()
     weekly_stored: tuple[tuple[str, str], ...] = ()
     cancelled: tuple[str, ...] = ()
 

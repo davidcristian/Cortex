@@ -158,3 +158,16 @@ the old and new reader, 388 distinct draw replies from tonight's and last night'
 differently in 21, each naming an every-day phrase, which now reads as no weekly repeat; none
 read newly as weekly. No live row was drawn. `replay.py` and `mut.py` are in the
 run's `slot20` scratch directory.
+
+## The note in the message's language, 2026-11-11
+
+The build writes `FIRST_FIRE_NOTE` in the language `message_language` picks and stores the first
+fire's day count instead of its English day word. Row R3 was drawn three times on the cortex tier
+through the working tree's brain, SM clock 1800 and 2235 of a 3090 maximum. Draw 1 stored a daily
+rule first firing today, and both the daily note and the first fire note closed the French reply
+in French (`aujourd'hui, mercredi 2026-11-11 à 09:00`). Draw 3, after the stores were emptied,
+stored one time tomorrow and showed no note, as none was due. Draw 2 ran on the stores draw 1
+left, called no tool and claimed the reminder, so `UNSCHEDULED_CLAIM_NOTE` showed in English, the
+general case of [R-999](../refinements/tasks/999-a-note-the-brain-appends-is-english-under-a-reply-in-another-language.md). Rows
+`rows.jsonl` and `fr1.log` to `fr3.log` are in the run's `slot3` scratch directory; every
+memory row and schedule item the draws stored was deleted.

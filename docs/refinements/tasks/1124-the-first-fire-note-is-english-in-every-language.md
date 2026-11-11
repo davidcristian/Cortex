@@ -1,9 +1,8 @@
 # The first fire note is English in every language
 
-**Status:** open, actionable
+**Status:** done 2026-11-11
 **Area:** scheduling
 **Origin:** [ADR-0076](../../adr/ADR-0076-closing-note-language.md)
-**Verified:** 2026-11-10
 
 `FIRST_FIRE_NOTE` (`brain/packages/core/src/cortex_core/schedule_first_fire.py`) names the first
 fire of a repeat that fires before the day the person's message names. It has English text only,
@@ -35,3 +34,10 @@ the day word, `{day}` the weekday from `_DAY_NAMES` in `schedule_weekday.py`.
 ## History
 
 - 2026-11-10: filed from the first fire note, which was built with English text only.
+- 2026-11-11: done. `TaintLedger.early_first_fire` holds the day count, and the handoff codec
+  reads the English day word of an older record as its count. `FIRST_FIRE_NOTES` and `day_word`
+  write the note and its day words in the language `message_language` picks. The wording follows
+  `STORED_TIME_NOTES`: `créé ou modifié ici` and its forms for "set or changed in this turn", the
+  Spanish `el` before the weekday and `la` before one o'clock, and German `meldet sich` for
+  "fires". One French draw that stored a daily rule first firing today showed the French note
+  ([readings](../../readings/schedule-daily-first-fire.md#the-note-in-the-messages-language-2026-11-11)).
