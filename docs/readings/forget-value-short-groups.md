@@ -150,8 +150,23 @@ delete is deleted.
 
 Record `slot11/draws.log` under the scratchpad below.
 
+### The note naming a row kept for the message's value, 2026-11-11
+
+The brain now appends `longer_note` after the reply, naming the rows a call with no card kept
+under `LONGER_ALL`; a row also kept under `INSIDE_ALL` that turn is named only there. Smoke turns,
+one draw each, 04:24 to 04:25 on `cortexn19-brain-s12` (the working tree with the change), SM
+clock 0.71 of `clocks.max.sm`: `Remember that my phone account is 015 123 456 7890.` then
+`Forget my phone 015 123 456 789.`
+
+| Chat | Forget calls | Closing note | Account row |
+| --- | --- | --- | --- |
+| l1 | one, returning `INSIDE_ALL` | `inside_note`, naming the row | kept |
+| l2 | two, one returning `LONGER_ALL` | `longer_note` alone, naming the row once | kept |
+
+Record `slot12/smoke.log` under the scratchpad below.
+
 Driver `draw.sh <flow> <draw>`, candidate driver `cand-o.sh`, records `rows.jsonl` and `cand.jsonl`,
 proxy log lines 47 to 63 of `stack/logs/proxy-req.jsonl`, under
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/` (`slot6/` and `stack/`).
-The slot 11 record is under
+The slot 11 and slot 12 records are under
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/`.
