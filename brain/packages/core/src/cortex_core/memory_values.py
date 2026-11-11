@@ -72,6 +72,13 @@ def digit_runs(text: str) -> dict[str, str]:
     return runs
 
 
+def short_groups(form: str, text: str) -> bool:
+    """Whether ``form`` is groups of two digits at most in a ``text`` that names no code."""
+    groups = _SEPARATOR.split(form)
+    short = all(group.isdigit() and len(group) <= _DATE_PART_DIGITS for group in groups)
+    return short and _CODE_WORD.search(text) is None
+
+
 def code_word(word: str) -> bool:
     """Whether ``word`` names a kind of value, such as a code, a number or a password."""
     return _CODE_WORD.fullmatch(word) is not None

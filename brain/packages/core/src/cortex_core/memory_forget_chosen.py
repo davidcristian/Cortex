@@ -23,7 +23,7 @@ from cortex_core.forget_results import (
 )
 from cortex_core.forget_unnamed import KEPT_ALL, KEPT_LINE, KeptRows, asks_to_keep, forgot, unnamed
 from cortex_core.memory import MemoryRecord
-from cortex_core.memory_values import code_runs, digit_runs, whole_values
+from cortex_core.memory_values import code_runs, digit_runs, short_groups, whole_values
 from cortex_core.ports import MemoryStore
 from cortex_core.scope import MemoryScope
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
@@ -60,9 +60,11 @@ def _values(records: Sequence[MemoryRecord]) -> dict[str, str]:
 
 
 def _repeats(record: MemoryRecord, key: str, words: set[str]) -> bool:
-    """Whether ``record`` holds the whole value ``key`` and a word of ``words``, if any."""
+    """Whether ``record`` holds the whole value ``key``, not as a date, and a word of ``words``."""
     tokens = {token.lower() for token in _TOKEN.findall(record.text)}
-    return key in whole_values(record.text) and (not words or not tokens.isdisjoint(words))
+    own = whole_values(record.text).get(key)
+    held = own is not None and not short_groups(own, record.text)
+    return held and (not words or not tokens.isdisjoint(words))
 
 
 @dataclass(frozen=True)

@@ -71,3 +71,27 @@ async def test_a_value_inside_a_longer_row_value_keeps_the_row_with_no_card(
     assert card is None
     assert content == f"{said}."
     assert (unmatched, left) == (said == NONE_FOUND, ["row"])
+
+
+@pytest.mark.parametrize(
+    ("text", "row"),
+    [
+        ("1225", "User: The Christmas party is on 12/25.\nAssistant: Noted."),
+        ("48-26", "User: Dentist appointment on 4/8/26.\nAssistant: Noted."),
+        ("1030", "User: The meeting is at 10.30.\nAssistant: Noted."),
+        ("1234", "User: We had 12 34 year olds.\nAssistant: Noted."),
+    ],
+)
+async def test_a_code_against_a_date_a_time_or_small_numbers_lists_nothing(
+    text: str, row: str
+) -> None:
+    card, said, matched_nothing, left = await _forget(text, f"Forget the code {text}.", row)
+    assert (card, said.startswith(NONE_FOUND), matched_nothing, left) == (None, True, True, ["row"])
+
+
+async def test_a_code_stored_in_groups_of_two_digits_is_listed_and_deleted() -> None:
+    row = "User: My door code is 48 26.\nAssistant: Noted."
+    card, _said, matched_nothing, left = await _forget("4826", "Forget the code 4826.", row)
+    assert card is not None
+    assert "Listed because they also hold 4826:" in card
+    assert (matched_nothing, left) == (False, [])
