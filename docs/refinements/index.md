@@ -78,7 +78,7 @@ never a reading of what the tree does now.
 - **[R-1005](tasks/1005-a-recall-question-that-finds-no-value-loops-in-its-thinking.md)** A recall question that finds no value loops in its thinking (inference). Its claim was checked against the code on 2026-11-07.
 - **[R-1057](tasks/1057-a-romanian-reminder-reply-holds-a-broken-word.md)** A Romanian reminder reply holds a broken word (inference). Its claim was checked against the code on 2026-11-08.
 - **[R-1109](tasks/1109-the-no-match-forget-result-tells-the-model-to-say-nothing-was-stored.md)** The no-match forget result tells the model to say nothing was stored (memory). Its claim was checked against the code on 2026-11-10.
-- **[R-1112](tasks/1112-a-question-in-a-new-chat-called-forget-memories.md)** A question in a new chat called forget_memories (memory). Its claim was checked against the code on 2026-11-10.
+- **[R-1112](tasks/1112-a-question-in-a-new-chat-called-forget-memories.md)** A question in a new chat called forget_memories (memory). Its claim was checked against the code on 2026-11-11.
 - **[R-1116](tasks/1116-an-update-of-a-stored-value-can-search-files-until-the-round-cap.md)** An update of a stored value can search files until the round cap (memory). Its claim was checked against the code on 2026-11-10.
 - **[R-1140](tasks/1140-the-other-language-not-found-readers-read-an-opinion-or-a-quote-as-a-claim.md)** The other-language not found readers read an opinion or a quote as a claim (cross-cutting). Its claim was checked against the code on 2026-11-11.
 

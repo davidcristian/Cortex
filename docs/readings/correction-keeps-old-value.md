@@ -179,3 +179,24 @@ either turn, both replies said `I've noted that your bike lock code is 4862, not
 ended with the note naming 4826: 2 of 2. In the second the model also called
 `list_allowed_directories`, the correction row was not stored, and the unkept note came first.
 Driver `smoke.sh`, rule `smoke-rule.md`, log `smoke.log` in the slot 14 scratchpad directory above.
+
+## The question in a new chat, 2026-11-11
+
+Drawn for [R-1112](../refinements/tasks/1112-a-question-in-a-new-chat-called-forget-memories.md),
+which asks whether c1 draw 4's `forget_memories` call on `What is my bike lock code?` repeats.
+05:15 to 05:27 on `cortexn19-brain-s15base`, built from the tree at the run's last commit before
+slot 15, SM clock 0.57 of `clocks.max.sm` at each end. Every question turn denied any card, and
+the proxy recorded every model request, so a forget call is counted from the responses.
+
+| Condition | Draws | `forget_memories` calls | Other calls on the question |
+| --- | --- | --- | --- |
+| no row | 6 | 0 | file tools in 6 of 6, each reply saying no file names the code |
+| one row, `Remember that my bike lock code is 4729.` in another chat | 6 | 0 | none, 6 of 6 answered 4729 |
+| flow c1: seed, then the correction in a second chat | 6 | 0 | none, 5 of 6 answered 4862, 1 answered 4826 |
+
+The call did not repeat in 18. The same call on a message with no forget word did repeat on
+`Can you note that Anna likes plants?`, in 6 of 12 draws, each matching nothing
+([readings](question-asking-to-note.md#the-draws-2026-11-11)). Driver `draw1112.sh` and
+`draw1112c.sh`, logs `draw1112.log`, `draw1112c.log`, `rows1112.jsonl`, proxy chats
+`n19s15-q-*` and `n19s15-c-*`, in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot15/`.
