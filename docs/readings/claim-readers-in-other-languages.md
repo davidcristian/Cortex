@@ -98,7 +98,10 @@ not-found claim (`je ne trouve pas`, `nicht gefunden`, `no encontré`, `nu am g�
 `UNSEARCHED_FILES_NOTE` shows after a refused file call. The near misses were written first in
 each language: a question, a condition, a negated reach, an example (`par exemple`), a kind of
 file (`types de fichiers`, `Dateiformate`), a remember request and a reason (`je ne vois pas
-pourquoi`, `ich sehe keinen Grund`, `no veo por qué`, `nu văd de ce`, `je ne trouve pas que`).
+pourquoi`, `ich sehe keinen Grund`, `no veo por qué`, `nu văd de ce`, `je ne trouve pas que`), and a phrase saying what is meant is unclear (`je ne
+vois pas ce que vous voulez dire`, `no veo lo que quieres decir`, `nu văd ce vrei să spui`) or
+`no veo la hora`. That last group was added after the first audit; its replay over 25,969
+readings strings and proxy replies kept 8 not-found claims at 8.
 
 Replayed as above over 23,362 readings strings and the 30 proxy replies, with an empty message
 for the folder reader: folder claims stayed at 1, no-access and not-found claims moved from 73 to

@@ -34,6 +34,11 @@ NEAR_MISSES = [
     "Nu văd de ce ar fi o problemă.",
     "Nu văd niciun motiv să schimb asta.",
     "Am acces la folderul pe care l-ai numit.",
+    "Je ne vois pas ce que vous voulez dire.",
+    "Je ne vois pas ce que tu veux dire par là.",
+    "No veo lo que quieres decir.",
+    "No veo la hora de verte.",
+    "Nu văd ce vrei să spui.",
 ]
 
 NO_ACCESS = [
@@ -58,6 +63,10 @@ NOT_FOUND = [
     "No he encontrado el archivo.",
     "Nu găsesc foaia de buget.",
     "Nu am găsit niciun fișier cu acest nume.",
+    "Je ne vois pas ce que vous cherchez dans vos fichiers.",
+    "Je ne trouve pas ce que vous voulez dans le dossier.",
+    "No encuentro lo que buscas.",
+    "Nu văd ce fișier ai numit.",
 ]
 
 

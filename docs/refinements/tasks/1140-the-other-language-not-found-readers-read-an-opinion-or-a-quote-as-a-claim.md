@@ -1,0 +1,41 @@
+# The other-language not found readers read an opinion or a quote as a claim
+
+**Status:** open, actionable
+**Area:** cross-cutting
+**Origin:** [ADR-0074](../../adr/ADR-0074-replayed-tool-runs.md)
+**Verified:** 2026-11-11
+
+`claims_not_found_other` (`access_claim_other.py`) and `says_not_stored_other`
+(`forget_unfound_other.py`) read a find verb with a negation. Called on each sentence below in the
+brain venv on 2026-11-11, both return true (the first column is the not-found reader, the second
+the not-stored reader), though no sentence says a file or a fact was not found:
+
+| Sentence | Not found | Not stored |
+| --- | --- | --- |
+| `Je ne trouve pas ça drôle.` | 1 | 1 |
+| `Je ne trouve pas cette idée mauvaise.` | 1 | 1 |
+| `Ich finde das nicht gut.` | 0 | 1 |
+| `Ich finde nichts Schlimmes daran.` | 1 | 1 |
+| `No encuentro las palabras para agradecerte.` | 1 | 1 |
+| `Nu găsesc cuvintele potrivite.` | 1 | 1 |
+| `Il m'a écrit : « je ne trouve pas mes clés ».` | 1 | 1 |
+| `Er schrieb: „Ich habe nichts gefunden.“` | 1 | 1 |
+| `Ella dijo: «no encuentro mis llaves».` | 1 | 1 |
+
+Each shows a note that was not needed, the readers' safe side. An opinion (`trouver` or `finden`
+with an object and an adjective) and a quote of someone else's words need a reader shape rather
+than more excluded words, since `je ne trouve pas votre numéro` is a claim. The phrases saying
+what is meant is unclear (`je ne vois pas ce que vous voulez dire`) were excluded the same night.
+
+## What to do
+
+1. Write the rows above as near misses, beside claims of the same verbs (`Je ne trouve pas votre
+   fichier.`, `Ich finde die Datei nicht.`).
+2. Decide whether a quoted span (`« »`, `„ “`, `" "`) is read at all, using the quote reader in
+   `schedule_quoted.py`, and whether an adjective after the object marks an opinion.
+3. Replay `docs/readings/` and the proxy logs through the old and new readers.
+
+## History
+
+- 2026-11-11: filed from the first audit of the other-language readers; reproduced with a unit
+  call of each reader.

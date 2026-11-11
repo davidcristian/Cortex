@@ -35,7 +35,11 @@ _NOT_FOUND = re.compile(
     r"|inconv[ée]nient|objection|n[ée]cessit[ée]|que|qu['\u2019]|dass|grund|sinn|problem|warum"
     r"|wieso|weshalb|wie"
     r"|notwendigkeit|anlass|por\s+qu[ée]|c[óo]mo|raz[óo]n|motivo|necesidad|sentido|inconveniente"
-    r"|de\s+ce|cum|motiv\w*|rost\w*|nevoi\w*|problem\w*)(?!\w))",
+    r"|de\s+ce|cum|motiv\w*|rost\w*|nevoi\w*|problem\w*)(?!\w))"
+    # "Je ne vois pas ce que vous voulez dire" says what is meant is unclear, and "no veo la hora"
+    # says the person cannot wait.
+    r"(?!\s+(?:ce\s+que\s+(?:vous\s+voulez|tu\s+veux)\s+dire|lo\s+que\s+quier\w*\s+decir"
+    r"|la\s+hora\s+de|ce\s+(?:vrei|vre[țţ]i|vrea)\s+s[ăa]\s+spu\w*)(?!\w))",
     re.IGNORECASE,
 )
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
