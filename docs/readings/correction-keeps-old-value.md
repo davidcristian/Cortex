@@ -156,3 +156,18 @@ noted that your bike lock code is 4862, not 4826.` ended without the note. In c1
 both rows stayed, and the same reply ended with the note naming 4826, the form itself. Driver
 `smoke.sh`, log `smoke.log` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot11/`.
+
+## The old value reader by its shape, 2026-11-11
+
+The reader read a verb (`Da, nu știu.`), a clause (`not because I wanted to`) and a question
+(`Is my code 4862, not 4826?`) as old values after the same night's narrowing. Since the note
+calls a stored row outdated, the reader now counts an old value only when it is a number or a
+capitalized word that is not a common word, and skips every sentence ending in `?`. A lower case
+word (`Mi color es azul, no verde.`) is no longer read, which shows no note: the reader's safe side.
+
+Replayed through the old and new reader (`replay.py`): of 80 distinct user texts in the night's
+proxy log, 10 change, the question `So my plant reminder now goes off at 9:30 instead of 9:00,
+right?` and nine ranking prompts quoting it, each losing `9:00`; old reader 19 texts naming a
+value, new 9. Of 2,338 backticked texts in `docs/readings/`, 1 changes, `Retiens-le, pas
+l'autre.` losing `l'autre`; old 15, new 14. No text gains a value. Script in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot14/`.

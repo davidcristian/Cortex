@@ -53,7 +53,9 @@ _UPDATED = "I've updated that for you. Your bike lock code is 4862."
         ("Change the dentist from 9:00 to 10:00.", ("9:00",)),
         ("I moved from Berlin to Paris.", ("Berlin",)),
         ("My code is 4862, no 4826.", ("4826",)),
-        ("Mi color es azul, no verde.", ("verde",)),
+        ("Este 4417, nu 4471.", ("4471",)),
+        ("It is 4862, not 4826.", ("4826",)),
+        ("Is it 4862? It is 4862, not 4826.", ("4826",)),
     ],
 )
 def test_a_correction_names_its_old_value(message: str, values: tuple[str, ...]) -> None:
@@ -78,6 +80,13 @@ def test_a_correction_names_its_old_value(message: str, values: tuple[str, ...])
         "Remember the movie runs from 9 to 11.",
         "Ok, no problem, remember my code is 4862.",
         "Remember my code is 4862. Thanks, no rush.",
+        "Da, nu știu.",
+        "I moved last year, not because I wanted to.",
+        "Is my code 4862, not 4826?",
+        "Mi color es azul, no verde.",
+        "Was it changed from 9:00 to 10:00?",
+        "Ok, not Monday?",
+        "Is my code 4862, not 4826? Just checking.",
     ],
 )
 def test_a_message_naming_no_old_value_names_none(message: str) -> None:

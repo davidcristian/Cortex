@@ -8,7 +8,7 @@ from cortex_core.memory_claim import claims_kept
 from cortex_core.memory_claim_other import claims_kept_other, stated
 from cortex_core.memory_claim_update import claims_updated
 from cortex_core.memory_values import joined
-from cortex_core.note_language import ENGLISH, in_language, message_language
+from cortex_core.note_language import in_language
 from cortex_core.turn_context import TurnCapabilities
 from cortex_core.untrusted import TaintLedger
 
@@ -87,14 +87,15 @@ def claims_changed(reply: str) -> bool:
 def corrected_values(message: str) -> tuple[str, ...]:
     """The values ``message`` names as old or wrong, in the order it names them."""
     found: list[str] = []
-    english = message_language(message) == ENGLISH
-    for match in _OLD.finditer(message):
-        value = next(group for group in match.groups() if group is not None)
-        # "Ok, no problem" names no old value in English, while "4862, no 4826" does.
-        if english and match.group(2) is not None and _NAMED_VALUE.fullmatch(value) is None:
+    for sentence in _SENTENCE_END.split(message):
+        if sentence.rstrip().endswith("?"):
             continue
-        if value.split()[0].lower() not in _FUNCTION and value not in found:
-            found.append(value)
+        for match in _OLD.finditer(sentence):
+            value = next(group for group in match.groups() if group is not None)
+            # The note calls a stored row outdated, so only a number or a capitalized name counts.
+            named = _NAMED_VALUE.fullmatch(value) is not None
+            if named and value.lower() not in _FUNCTION and value not in found:
+                found.append(value)
     return tuple(found)
 
 
