@@ -15,7 +15,7 @@ safe side; "drops" means a false claim in another language gets no note, the def
 | Note | Due when | Text | Reader languages | A missed form |
 | --- | --- | --- | --- | --- |
 | `REPLY_CAPPED_NOTE` | the reply hit its token cap | five | no text reader | none |
-| `ROUNDS_SPENT_NOTE` | the turn spent its tool rounds | English | no text reader | none |
+| `ROUNDS_SPENT_NOTE` | the turn spent its tool rounds | five | no text reader | none |
 | `REPEATED_LINE_NOTE` | the repeat watch ended the reply | five | no text reader | none |
 | `UNSCHEDULED_CLAIM_NOTE` | a schedule claim and no scheduling call succeeded | five | five | drops |
 | `MONTHLY_STORED_NOTE` | a monthly store and a yearly claim | five | five | drops |
@@ -23,8 +23,8 @@ safe side; "drops" means a false claim in another language gets no note, the def
 | `DAILY_STORED_NOTE`, `MADE_REPEATING_NOTE` | a daily store and not `names_repeat` | five | five | adds |
 | `ONCE_STORED_NOTE` | a one-time store after a refused weekly call | five | no text reader | none |
 | `CANCELLED_NOTE`, `WEEKDAY_OFF_NOTE`, `FIRST_FIRE_NOTE` | a store or cancel of the turn | five | no text reader | none |
-| `QUOTED_STORED_NOTE` | a store from quoted words only | English | message, five | not measured |
-| `WEEKLY_STORED_NOTE` | a weekly store and not `names_repeat` | English | five | adds |
+| `QUOTED_STORED_NOTE` | a store from quoted words only | five | message, five | not measured |
+| `WEEKLY_STORED_NOTE` | a weekly store and not `names_repeat` | five | five | adds |
 | `UNKEPT_CLAIM_NOTE` | memory withheld and a keep claim, or `asks_kept` of the message | five | five | drops |
 | `KEPT_BEYOND_CHAT_NOTE` | a shared store and `claims_chat_only` | five | five | drops |
 | `UNFORGOTTEN_CLAIM_NOTE` | a forget claim and nothing deleted, or a refused forget and not `claims_kept` or `names_removal` | five | five, refused branch English | drops, except `claims_kept`, which adds |
@@ -37,8 +37,7 @@ safe side; "drops" means a false claim in another language gets no note, the def
 | `UNREAD_FOLDERS_NOTE` | `claims_folders` on an untainted file question | five | five | drops |
 | `UNSEARCHED_FILES_NOTE` | a claim of searched files with no file call | five | five | drops |
 
-Three notes stay English because they fill English words into their text, task R-1136. On
-2026-11-08 every note but
+On 2026-11-08 every note but
 `STORED_TIME_NOTE`, `DAILY_STORED_NOTE` and `NUMBERS_LEFT_NOTE` was English.
 
 ## How often each note shows

@@ -47,10 +47,10 @@ Three ways to write the note in the right language were compared.
    beside it (`STORED_TIME_NOTES` beside `STORED_TIME_NOTE`); `in_language(english, others,
    language)` returns the English text for a language the mapping does not have. The readers that
    decide whether a note is due are unchanged.
-4. **Every note `limit_notes` appends has a mapping** except three that fill English text into
-   their own: `ROUNDS_SPENT_NOTE` (tool names), `QUOTED_STORED_NOTE` (a repeat and a time) and
-   `WEEKLY_STORED_NOTE` (weekday names). Those three stay English until each gets its mapping;
-   that work is task R-1136.
+4. **Every note `limit_notes` appends has a mapping**, and a note that fills words into its text
+   writes them in the same language: `ROUNDS_SPENT_NOTE` its runs sentence (`runs_said`), with
+   tool names as the tools name themselves, `QUOTED_STORED_NOTE` the repeat and the time, and
+   `WEEKLY_STORED_NOTE` the weekday names joined by the language's word for "and".
 5. **A translated note states the same fact and the same next step as the English one**, in the
    form of address the model used in the recorded replies: `vous` in French, `Sie` in German, `tú`
    in Spanish and `tu` in Romanian.

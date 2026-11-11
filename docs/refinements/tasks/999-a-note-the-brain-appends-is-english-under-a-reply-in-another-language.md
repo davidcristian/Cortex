@@ -52,5 +52,5 @@ another language and adds nothing.
 - 2026-11-11: done. The [readings](../../readings/closing-note-language.md#the-notes-and-their-readers-2026-11-11)
   table now names each note's own language. Twelve more notes got a mapping beside their English
   constant (`UNSCHEDULED_CLAIM_NOTES`, `UNKEPT_CLAIM_NOTES`, `REPLY_CAPPED_NOTES` and the rest),
-  tested in `test_closing_note_languages.py`. What is left is filed: the three notes that fill
-  English words into their text are task R-1136, and the readers that drop a note are R-1049.
+  tested in `test_closing_note_languages.py`, and the three that fill words into their text
+  write those words in the same language. The readers that drop a note are R-1049.

@@ -2,10 +2,12 @@
 
 import re
 
+from cortex_core.note_language import ENGLISH, in_language
 from cortex_core.schedule_daily import REMINDER_WORD, STORED_ID, names_repeat
 from cortex_core.schedule_day_args import SELECTOR_KEYS, parse_on_days
 from cortex_core.schedule_tools import DAILY_NOTE, SCHEDULE_TOOL_NAME
 from cortex_core.schedule_verbs import CANCEL_SCHEDULED_TOOL_NAME, EDIT_SCHEDULED_TOOL_NAME
+from cortex_core.schedule_weekday import DAY_NAMES
 from cortex_core.schedule_weekly import WEEKDAY_NAMES
 from cortex_core.tools import ToolCall, ToolResult
 
@@ -13,6 +15,17 @@ WEEKLY_STORED_NOTE = (
     "\n\n(A reminder set in this turn repeats every {days}. Ask to make it one time if you meant "
     "only once.)"
 )
+WEEKLY_STORED_NOTES = {
+    "fr": "\n\n(Un rappel créé ici se répète chaque {days}. Demandez à le rendre unique si vous "
+    "le vouliez une seule fois.)",
+    "de": "\n\n(Eine hier erstellte Erinnerung wiederholt sich jeden {days}. Bitten Sie darum, "
+    "sie einmalig zu machen, wenn Sie sie nur einmal wollten.)",
+    "es": "\n\n(Un recordatorio creado aquí se repite cada {days}. Pide que sea de una sola vez "
+    "si lo querías solo una vez.)",
+    "ro": "\n\n(Un memento creat aici se repetă în fiecare {days}. Cere să fie o singură dată "
+    "dacă îl voiai doar o dată.)",
+}
+_AND = {ENGLISH: "and", "fr": "et", "de": "und", "es": "y", "ro": "și"}
 
 _DAYS = r"(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|weekday|weekend)"
 _DE = r"(?:montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag|werktag)"
@@ -57,8 +70,20 @@ def _day_names(value: object) -> str:
     days = parse_on_days(value)
     if isinstance(days, str) or len(days) == len(WEEKDAY_NAMES):
         return ""
-    names = [WEEKDAY_NAMES[day] for day in sorted(days)]
-    return names[0] if len(names) == 1 else f"{', '.join(names[:-1])} and {names[-1]}"
+    return _joined([WEEKDAY_NAMES[day] for day in sorted(days)], ENGLISH)
+
+
+def _joined(names: list[str], language: str) -> str:
+    """``names`` joined by commas and the word for "and" in ``language``."""
+    return names[0] if len(names) == 1 else f"{', '.join(names[:-1])} {_AND[language]} {names[-1]}"
+
+
+def _days_in(days: str, language: str) -> str:
+    """``days``, English weekday names as ``_day_names`` joins them, written in ``language``."""
+    names = re.split(r", | and ", days)
+    if language not in DAY_NAMES or not set(names) <= set(WEEKDAY_NAMES):
+        return days
+    return _joined([DAY_NAMES[language][WEEKDAY_NAMES.index(name)] for name in names], language)
 
 
 def _moved_days(call: ToolCall) -> str:
@@ -89,8 +114,12 @@ def weekly_after(
     return tuple(each for each in held if not ended or each[0] != call.arguments.get("id"))
 
 
-def weekly_stored_notes(held: tuple[tuple[str, str], ...], reply: str) -> tuple[str, ...]:
+def weekly_stored_notes(
+    held: tuple[tuple[str, str], ...], reply: str, language: str = ENGLISH
+) -> tuple[str, ...]:
     """One note per distinct weekday set in ``held``, or none when ``reply`` states a repeat."""
     if names_repeat(reply, _WEEKLY, daily=False):
         return ()
-    return tuple(WEEKLY_STORED_NOTE.format(days=days) for days in dict.fromkeys(d for _, d in held))
+    note = in_language(WEEKLY_STORED_NOTE, WEEKLY_STORED_NOTES, language)
+    distinct = dict.fromkeys(d for _, d in held)
+    return tuple(note.format(days=_days_in(days, language)) for days in distinct)

@@ -24,7 +24,7 @@ WEEKDAY_OFF_NOTES = {
     "ro": "\n\n(Un memento creat aici este pentru {day}, {date}. Cere să fie mutat dacă te gândeai "
     "la altă zi.)",
 }
-_DAY_NAMES = {
+DAY_NAMES = {
     "fr": ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"),
     "de": ("Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"),
     "es": ("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"),
@@ -98,7 +98,7 @@ def weekday_off_dates(held: tuple[tuple[str, str], ...]) -> tuple[str, ...]:
 
 def weekday_name(day: date, language: str) -> str:
     """The name of the weekday of ``day`` in the note ``language``, else in English."""
-    return _DAY_NAMES.get(language, WEEKDAY_NAMES)[day.weekday()]
+    return DAY_NAMES.get(language, WEEKDAY_NAMES)[day.weekday()]
 
 
 def weekday_off_note(stored: str, language: str) -> str:

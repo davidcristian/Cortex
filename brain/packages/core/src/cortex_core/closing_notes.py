@@ -122,7 +122,7 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
     language = message_language(query)
     said_in = partial(in_language, language=language)
     yield from cap_note(stops, parts, language)
-    yield from rounds_note(stops, runs, parts)
+    yield from rounds_note(stops, runs, parts, language)
     yield from repeat_note(stops, parts, language)
     if claimed:
         yield from append_note(parts, said_in(UNSCHEDULED_CLAIM_NOTE, UNSCHEDULED_CLAIM_NOTES))
@@ -140,10 +140,12 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
         yield from append_note(parts, said_in(ONCE_STORED_NOTE, ONCE_STORED_NOTES))
     for note in (
         *cancelled_notes(made, taint.cancelled, language),
-        *quoted_stored_notes(made, query, daily=bool(taint.daily_stored), time=taint.stored_time),
+        *quoted_stored_notes(
+            made, query, daily=bool(taint.daily_stored), time=taint.stored_time, language=language
+        ),
         *(weekday_off_note(day, language) for day in weekday_off_dates(taint.weekday_off)),
         *early_first_fire_notes(taint.early_first_fire, language),
-        *weekly_stored_notes(taint.weekly_stored, reply),
+        *weekly_stored_notes(taint.weekly_stored, reply, language),
     ):
         yield from append_note(parts, note)
     for due, note in (

@@ -21,6 +21,7 @@ from cortex_core.note_language import ENGLISH, in_language
 from cortex_core.output_channels import ThinkingChannel
 from cortex_core.ports_stores import SessionStore
 from cortex_core.repeat_watch import REPEATED_LINE_NOTE, REPEATED_LINE_NOTES, RepeatWatch
+from cortex_core.rounds_languages import ROUNDS_SPENT_NOTES, runs_said
 from cortex_core.stops import StopLedger
 from cortex_core.tool_loop import MAX_TOOL_STEPS
 from cortex_core.tool_replay import runs_line
@@ -111,13 +112,17 @@ def cap_note(stops: StopLedger, parts: list[str], language: str = ENGLISH) -> It
 
 
 def rounds_note(
-    stops: StopLedger, runs: Sequence[ToolRun], parts: list[str]
+    stops: StopLedger, runs: Sequence[ToolRun], parts: list[str], language: str = ENGLISH
 ) -> Iterator[TurnEvent]:
     """Say so when the tool loop ran out of rounds, naming each tool the turn ran."""
     if not stops.out_of_rounds:
         return
-    listed = f"{runs_line(runs)}." if runs else NO_TOOL_RAN
-    yield from append_note(parts, ROUNDS_SPENT_NOTE.format(rounds=MAX_TOOL_STEPS, runs=listed))
+    if language in ROUNDS_SPENT_NOTES:
+        listed = runs_said(runs, language)
+    else:
+        listed = f"{runs_line(runs)}." if runs else NO_TOOL_RAN
+    note = in_language(ROUNDS_SPENT_NOTE, ROUNDS_SPENT_NOTES, language)
+    yield from append_note(parts, note.format(rounds=MAX_TOOL_STEPS, runs=listed))
 
 
 def repeat_note(
