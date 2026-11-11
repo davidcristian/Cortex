@@ -17,18 +17,18 @@ from cortex_core.schedule_verbs import (
 from cortex_core.tools import ToolCall
 
 UNSCHEDULED_CLAIM_NOTE = (
-    "\n\n(Nothing was scheduled in this turn: no scheduling call in it succeeded. Ask again to "
-    "schedule it.)"
+    "\n\n(No call in this turn scheduled, edited or snoozed anything. Ask to have your "
+    "reminders listed to see what is stored.)"
 )
 UNSCHEDULED_CLAIM_NOTES = {
-    "fr": "\n\n(Rien n'a été programmé ici : aucun appel de programmation n'a réussi. "
-    "Redemandez-le pour le programmer.)",
-    "de": "\n\n(Hier wurde nichts geplant: kein Aufruf zum Planen war erfolgreich. Bitten Sie "
-    "erneut darum, um es zu planen.)",
-    "es": "\n\n(Aquí no se programó nada: ninguna llamada de programación tuvo éxito. Pídelo de "
-    "nuevo para programarlo.)",
-    "ro": "\n\n(Nu s-a programat nimic aici: niciun apel de programare nu a reușit. Cere din "
-    "nou pentru a-l programa.)",
+    "fr": "\n\n(Aucun appel ici n'a programmé, modifié ou reporté quoi que ce soit. Demandez "
+    "la liste de vos rappels pour voir ce qui est enregistré.)",
+    "de": "\n\n(Kein Aufruf hier hat etwas geplant, bearbeitet oder verschoben. Bitten Sie um "
+    "die Liste Ihrer Erinnerungen, um zu sehen, was gespeichert ist.)",
+    "es": "\n\n(Ninguna llamada aquí programó, editó ni pospuso nada. Pide la lista de tus "
+    "recordatorios para ver lo que está guardado.)",
+    "ro": "\n\n(Niciun apel de aici nu a programat, modificat sau amânat nimic. Cere lista "
+    "mementourilor pentru a vedea ce este salvat.)",
 }
 
 LISTED_UNCHANGED_NOTE = (

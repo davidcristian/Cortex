@@ -17,7 +17,7 @@ safe side; "drops" means a false claim in another language gets no note, the def
 | `REPLY_CAPPED_NOTE` | the reply hit its token cap | five | no text reader | none |
 | `ROUNDS_SPENT_NOTE` | the turn spent its tool rounds | five | no text reader | none |
 | `REPEATED_LINE_NOTE` | the repeat watch ended the reply | five | no text reader | none |
-| `UNSCHEDULED_CLAIM_NOTE` | a schedule claim and no scheduling call succeeded | five | five | drops |
+| `UNSCHEDULED_CLAIM_NOTE` | a schedule claim and no scheduling call succeeded; asks for a list, not a second store | five | five | drops |
 | `LISTED_UNCHANGED_NOTE` | the same, after a `list_scheduled` call and no `cancel_scheduled` call succeeded | five | five | drops |
 | `MONTHLY_STORED_NOTE` | a monthly store and a yearly claim | five | five | drops |
 | `STORED_TIME_NOTE` | a stored time and not `names_time_of_day` | five | five, no bare hour up to 12 | adds |

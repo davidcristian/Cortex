@@ -141,6 +141,34 @@ status asks after the move, one in the same chat and one in `n19s7-b`, called `l
 and answered `Your plant reminder is set to go off today at 9:30 AM.` with no note. Two more
 asks in `n19s7-a` called no tool and answered from the chat (`Your plant reminder is now set to
 go off at 9:30 AM every day.`), and closed with `UNSCHEDULED_CLAIM_NOTE`, which asks to schedule
-again; that form is filed as
-[R-1139](../refinements/tasks/1139-a-status-answered-from-the-chat-gets-the-note-asking-to-schedule-again.md).
+again; the next section changes that note.
 Scratch logs: `smoke.log` and `smoke2.log` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot7/`.
+
+## The claim note pointing to a list, 2026-11-11
+
+A status question answered from the chat with no call, after an earlier turn moved the reminder,
+ended with `UNSCHEDULED_CLAIM_NOTE`, whose last sentence asked to schedule again. Two shapes were
+weighed. Reading the earlier turns' runs needs the session's runs in `limit_notes`, and cannot tell
+a status reply from a false claim about a new reminder in a chat that stored one before. Changing
+the note's text reads nothing else, and was chosen: it now says no call in this turn scheduled,
+edited or snoozed anything, and asks for a list of the reminders, in five languages. That is true
+on every turn the note reaches, a cancel included, under a false claim and under a status reply,
+so a false claim is still told and no turn is asked for a second store. `LISTED_UNCHANGED_NOTE`
+still closes a turn whose list call succeeded.
+
+The 57 distinct proxy turns of tonight through the old and new code: the reader is unchanged and
+kept 3 claims at 3, 2 of them status questions answered from the chat and 1 a French reply saying
+a reminder was already scheduled with no call. The old note asked to schedule again on 3, the new
+on 0.
+
+At 02:51 local the working tree ran as `cortexn19-brain-head` through `cortexn19-proxy`, SM clock
+0.57 to 0.73 of `clocks.max.sm`. Chat `n19s8-a` stored the daily plant reminder at 9:00 and moved
+it to 9:30 with `list_scheduled` and `edit_scheduled`. The two asks above, twice each, and four
+more status asks drew 8 turns: 7 called `list_scheduled` and closed with `LISTED_UNCHANGED_NOTE`,
+and 1 called no tool and answered `I've already moved the reminder for you, and it's all set for
+9:30 every day.` with no note, since the reader reads no claim after `already`
+([R-1141](../refinements/tasks/1141-a-claim-with-already-before-its-verb-reads-as-no-claim.md)).
+No draw reached the new text. The change ships on the rule written before the draws, which
+preferred a note change so the note still shows, and a turn test through the engine shows the new text
+closing a reply. Scratch logs: `draw.log` and `draw2.log` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot8/`.

@@ -305,19 +305,27 @@ def test_a_claim_after_a_list_that_succeeded_gets_the_note_asking_for_nothing_ne
     assert "Ask" not in LISTED_UNCHANGED_NOTE
 
 
-def test_a_claim_after_no_list_or_a_failed_one_gets_the_note_asking_to_schedule() -> None:
+def test_a_claim_after_no_list_or_a_failed_one_gets_the_note_pointing_to_a_list() -> None:
     failed = ToolRun(name=LIST_SCHEDULED_TOOL_NAME, ok=False)
     other = ToolRun(name="read_text_file", ok=True)
     assert unscheduled_claim_note((failed, other), "en") == UNSCHEDULED_CLAIM_NOTE
     assert unscheduled_claim_note((), "de") == UNSCHEDULED_CLAIM_NOTES["de"]
 
 
-def test_a_claim_after_a_list_and_a_cancel_gets_the_note_asking_to_schedule() -> None:
+def test_a_claim_after_a_list_and_a_cancel_gets_the_note_pointing_to_a_list() -> None:
     listed = ToolRun(name=LIST_SCHEDULED_TOOL_NAME, ok=True)
     cancelled = ToolRun(name=CANCEL_SCHEDULED_TOOL_NAME, ok=True)
     assert unscheduled_claim_note((listed, cancelled), "en") == UNSCHEDULED_CLAIM_NOTE
     refused = ToolRun(name=CANCEL_SCHEDULED_TOOL_NAME, ok=False)
     assert unscheduled_claim_note((listed, refused), "en") == LISTED_UNCHANGED_NOTE
+
+
+def test_the_unscheduled_note_points_to_a_list_and_never_asks_to_schedule_again() -> None:
+    notes = (UNSCHEDULED_CLAIM_NOTE, *UNSCHEDULED_CLAIM_NOTES.values())
+    for note, word in zip(notes, ("listed", "liste", "Liste", "lista", "lista"), strict=True):
+        assert word in note
+    for asked in ("Ask again", "Redemandez", "erneut", "de nuevo", "din nou"):
+        assert all(asked not in note for note in notes)
 
 
 def test_a_refused_scheduling_call_or_another_tool_leaves_the_claim() -> None:

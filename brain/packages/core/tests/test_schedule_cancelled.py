@@ -32,6 +32,7 @@ from cortex_core.schedule_cancelled import (
     cancelled_after,
     cancelled_notes,
 )
+from cortex_core.schedule_claim import UNSCHEDULED_CLAIM_NOTE
 from cortex_core.schedule_tools import SCHEDULE_TOOL_NAME
 from cortex_core.schedule_verbs import (
     CANCEL_SCHEDULED_TOOL_NAME,
@@ -132,8 +133,8 @@ def test_a_turn_whose_only_change_was_a_cancel_names_the_deleted_item(
 
 def test_a_reply_claiming_an_update_also_keeps_the_unscheduled_claim_note() -> None:
     closed = _closed((_LISTED, _CANCEL), (_PLANTS,), "I've updated your plant reminder.")
-    assert "(Nothing was scheduled in this turn" in closed
-    assert closed.index("(Nothing was scheduled") < closed.index(CANCELLED_NOTE.strip())
+    assert UNSCHEDULED_CLAIM_NOTE in closed
+    assert closed.index(UNSCHEDULED_CLAIM_NOTE) < closed.index(CANCELLED_NOTE.strip())
 
 
 @pytest.mark.parametrize(

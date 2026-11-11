@@ -84,8 +84,8 @@ never a reading of what the tree does now.
 - **[R-1116](tasks/1116-an-update-of-a-stored-value-can-search-files-until-the-round-cap.md)** An update of a stored value can search files until the round cap (memory). Its claim was checked against the code on 2026-11-10.
 - **[R-1120](tasks/1120-a-correction-naming-an-old-value-is-stored-when-no-forget-deleted-it.md)** A correction naming an old value is stored when no forget deleted it (memory). Its claim was checked against the code on 2026-11-10.
 - **[R-1129](tasks/1129-a-question-asking-to-note-a-fact-is-not-read-as-a-request-to-remember.md)** A question asking to note a fact is not read as a request to remember (memory). Its claim was checked against the code on 2026-11-10.
-- **[R-1139](tasks/1139-a-status-answered-from-the-chat-gets-the-note-asking-to-schedule-again.md)** A status answered from the chat gets the note asking to schedule again (scheduling). Its claim was checked against the code on 2026-11-11.
 - **[R-1140](tasks/1140-the-other-language-not-found-readers-read-an-opinion-or-a-quote-as-a-claim.md)** The other-language not found readers read an opinion or a quote as a claim (cross-cutting). Its claim was checked against the code on 2026-11-11.
+- **[R-1141](tasks/1141-a-claim-with-already-before-its-verb-reads-as-no-claim.md)** A claim with already before its verb reads as no claim (scheduling). Its claim was checked against the code on 2026-11-11.
 
 ### Actionable, once a port changes (1)
 
@@ -939,7 +939,7 @@ never a reading of what the tree does now.
 - [R-1124](tasks/1124-the-first-fire-note-is-english-in-every-language.md) The first fire note is English in every language. done 2026-11-11.
 - [R-1131](tasks/1131-a-change-answered-by-a-cancel-alone-does-not-name-the-deleted-reminder.md) A change answered by a cancel alone does not name the deleted reminder. done 2026-11-11.
 - [R-1134](tasks/1134-a-reply-saying-it-updated-a-reminder-named-only-by-a-pronoun-gets-no-note.md) A reply saying it updated a reminder named only by a pronoun gets no note. done 2026-11-11.
-- [R-1139](tasks/1139-a-status-answered-from-the-chat-gets-the-note-asking-to-schedule-again.md) A status answered from the chat gets the note asking to schedule again. open, actionable.
+- [R-1141](tasks/1141-a-claim-with-already-before-its-verb-reads-as-no-claim.md) A claim with already before its verb reads as no claim. open, actionable.
 
 ### session-history
 
