@@ -36,6 +36,14 @@ def inside_note(rows: Iterable[str], language: str = ENGLISH) -> str:
     return "\n".join([head, *(f"- {row}" for row in rows)]) + ")"
 
 
+def forgot_within(removed: int, inner: int) -> str:
+    """What a delete forgot when ``inner`` rows left hold its text only inside a longer value."""
+    return (
+        f"forgot {removed} remembered exchanges; {inner} other remembered exchanges contain that "
+        "text only inside a longer value, which is a different value, so they were kept"
+    )
+
+
 def _bounded(text: str) -> re.Pattern[str] | None:
     """A search for ``text`` that no letter or digit touches at an end whose word holds a digit."""
     head, tail = _HEAD.search(text), _TAIL.search(text)

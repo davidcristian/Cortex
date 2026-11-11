@@ -237,3 +237,13 @@ async def test_a_later_value_call_keeps_the_fact_once_the_labelled_one_was_delet
 async def test_a_row_deleted_in_another_turn_names_no_fact_for_this_one() -> None:
     said, left = await _two_calls([("gym", _GYM), ("shed", _SHED)], ("t1", "t2"))
     assert (said, left) == (f"{forgot(1, 0, 0)}.", [])
+
+
+async def test_a_row_asked_to_keep_beside_an_inside_row_gets_the_kept_result() -> None:
+    pin = "User: My PIN is 55210.\nAssistant: Noted."
+    query = "Forget my gym locker number but keep the shed padlock code."
+    rows = (("gym", _GYM), ("shed", _SHED), ("pin", pin))
+    _, said, numbers_left, left = await _forget("5521", query, *rows)
+    assert said == f"{forgot(1, 0, 1)}."
+    assert "asks to keep them" in said
+    assert (numbers_left, left) == (False, ["pin", "shed"])

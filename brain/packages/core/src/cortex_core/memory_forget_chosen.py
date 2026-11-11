@@ -279,8 +279,8 @@ class ForgetChosenTool:
                 while len(ledger) > _PENDING_CALLS:
                     del ledger[next(iter(ledger))]
             now = await self._found(call)
-            apart = shown.kept | shown.far | inside(now, _text(call))
-            left = [row for row in now if row.id not in apart]
+            inner = inside(now, _text(call)) - shown.kept - shown.far
+            left = [row for row in now if row.id not in inner | shown.kept | shown.far]
             holding = 0 if left or shown.left_out else await self._holding(call)
         except MemoryStoreError as err:
             return replace(self._result(call, failed_during(removed, err)), forgot=removed)
@@ -291,7 +291,7 @@ class ForgetChosenTool:
         elif shown.far:
             said = beside(removed, len(shown.far))
         else:
-            said = forgot(removed, holding, len(shown.kept))
+            said = forgot(removed, holding, len(shown.kept), len(inner))
         error = bool(left) or shown.left_out
         result = self._result(call, said, error=error, holding=None if error else holding)
         return replace(result, forgot=removed)

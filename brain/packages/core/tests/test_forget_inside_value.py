@@ -50,7 +50,10 @@ async def test_the_value_lists_its_own_row_and_keeps_a_row_holding_a_longer_numb
         INSIDE_LINE,
         "- User: Remember that my phone account is 015 123 456 7890. Assistant: Noted.",
     ]
-    assert said == "forgot 1 remembered exchanges; no remembered exchange contains that text now."
+    assert said == (
+        "forgot 1 remembered exchanges; 1 other remembered exchanges contain that text only "
+        "inside a longer value, which is a different value, so they were kept."
+    )
     assert left == ["account"]
 
 
@@ -186,3 +189,13 @@ def test_a_value_glued_at_the_start_is_kept_while_the_same_text_elsewhere_is_not
     glued = _record("glued", "User: Codes 94417 and 4417x.\nAssistant: Noted.")
     both = _record("both", "User: Codes 94417 and 4417.\nAssistant: Noted.")
     assert inside([glued, both], "4417") == {"glued"}
+
+
+async def test_a_delete_leaving_an_inside_row_and_a_held_number_says_the_number_stays() -> None:
+    card = "User: My card is 4242, it expires 0928.\nAssistant: Noted."
+    pin = "User: My PIN is 42420.\nAssistant: Noted."
+    expiry = "User: The expiry is 0928.\nAssistant: Noted."
+    rows = (_record("card", card), _record("pin", pin, 1), _record("expiry", expiry, 2))
+    _, said, left = await _forget("4242", *rows)
+    assert said.startswith("forgot 1 remembered exchanges that contain that text, but 1 other")
+    assert left == ["expiry", "pin"]
