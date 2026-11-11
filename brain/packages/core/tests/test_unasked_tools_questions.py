@@ -49,6 +49,8 @@ def test_a_question_asking_to_note_a_fact_refuses_every_sidecar_tool(query: str)
         "Can you note that Anna likes plants, then look at the docs?",
         'Anna said: "remind me at 8". Can you note that she likes plants?',
         "Can you tell me if I asked you to note that Anna likes plants?",
+        "Can you note that my notes are in C:\\Users\\me\\notes?",
+        "Remember that my notes are in D:\\notes.",
     ],
 )
 def test_a_question_that_is_no_plain_request_to_note_keeps_every_sidecar_tool(

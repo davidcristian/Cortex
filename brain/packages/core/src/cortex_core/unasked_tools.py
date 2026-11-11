@@ -30,7 +30,7 @@ _ASKED = {SET_VOLUME_TOOL_NAME: _SOUND, SCHEDULE_TOOL_NAME: _REMINDER}
 # A question, a second sentence, a path, a link or a named source can need a sidecar tool. A message
 # read wrongly here keeps its tools offered, and a file call then keeps the turn out of memory.
 _SOURCE = re.compile(
-    r"\?|[.!]\s+\S|/\w|\b\w+\.[a-z]{1,5}\b"
+    r"\?|[.!]\s+\S|[/\\]\w|\b\w+\.[a-z]{1,5}\b"
     r"|\b(?:what|which|where|whether|who|how|files?|folders?|director(?:y|ies)|documents?|docs?"
     r"|contents?|pdfs?|attach(?:ed|ments?)|e-?mails?|mail|inbox|web"
     r"|websites?|wiki|internet|online|pages?|links?|look|find|check|open|fetch|download(?:s|ed)?"
