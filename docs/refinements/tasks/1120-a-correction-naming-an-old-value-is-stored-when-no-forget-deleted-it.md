@@ -1,9 +1,8 @@
 # A correction naming an old value is stored when no forget deleted it
 
-**Status:** open, actionable
+**Status:** declined 2026-11-11
 **Area:** memory
 **Origin:** [ADR-0019](../../adr/ADR-0019-tainted-memory-recording.md)
-**Verified:** 2026-11-10
 
 `asks_not_kept` (`memory_request.py`) reads none of these messages as asking to drop the old
 value, while `asks_kept` reads each as a request to remember (unit calls, 2026-11-10):
@@ -33,3 +32,9 @@ reason: the call's text in these forms is the old value, so the change would sto
 ## History
 
 - 2026-11-10: filed from the unit check of a remember turn whose forget kept only longer values.
+- 2026-11-11: declined at step 1. A correction asks to remember the new value; withholding it
+  would lose that value, while the stored exchange keeps the old one only as the value named
+  wrong, and a seed row already held it. `asks_not_kept` reads requests not to keep, and a
+  correction is none. When a row still holds the old value as a fact, the note task 1062 built
+  names it and how to forget it, and a row naming it as old does not count. A request that
+  also asks to forget the old value calls `forget_memories`, which withholds the turn.
