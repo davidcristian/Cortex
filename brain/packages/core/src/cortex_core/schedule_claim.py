@@ -107,11 +107,24 @@ _TIME_OF_DAY = re.compile(
     r"|\b\d{1,2}(?:[.:]\d{2})? ?Uhr\b"
     # An hour written with h only after a word for a point in time, since "dure 2h30" is a duration.
     r"|\b(?:à|vers|dès|(?:demain|aujourd['\u2019]hui),?|um|gegen|a\s+las|at)"
-    r"\s+\d{1,2} ?h(?: ?[0-5]\d)?\b(?!\s*de\b)"
+    r"\s+\**\d{1,2} ?h(?: ?[0-5]\d)?\b(?!\s*de\b)"
     # "réglé pour 2h" may be a duration, so after pour only an hour from 13 or a part of the day.
-    r"|\b(?:réglé|programmé|prévu|fixé|enregistré|noté)e?s?\s+pour\s+"
-    r"(?:(?:1[3-9]|2[0-3]) ?h(?: ?[0-5]\d)?\b(?!\s*de\b)"
-    r"|\d{1,2} ?h(?: ?[0-5]\d)?\s+(?:du\s+(?:matin|soir)|de\s+l['\u2019]après-midi)\b)",
+    r"|\b(?:réglé|programmé|prévu|fixé|enregistré|noté)e?s?\s+pour\s+\**"
+    r"(?:(?:1[3-9]|2[0-3]) ?h(?: ?[0-5]\d)?\b(?!\s*de\b)|\d{1,2} ?h ?00\b(?!\s*de\b)"
+    r"|\d{1,2} ?h(?: ?[0-5]\d)?\s+(?:du\s+(?:matin|soir)|de\s+l['\u2019]après-midi)\b)"
+    # A bare hour up to 12 names no half of the day, as "at 9" does not.
+    r"|\ba\s+las?\s+(?:(?:1[3-9]|2[0-3])\b(?![.,]\d)(?=\s*(?:[.,;:!)*]|$|horas?\b|y\s))"
+    r"|\d{1,2}\s+(?:de\s+la\s+(?:mañana|tarde|noche|madrugada)|del\s+mediod[íi]a)\b)"
+    r"|\bla\s+ora\s+(?:(?:1[3-9]|2[0-3])\b(?![.,]\d)(?!\s+din\b)"
+    r"|\d{1,2}\s+(?:diminea[țţ]a|seara|dup[ăa]-amiaza|noaptea)\b)"
+    r"|\bum\s+(?:1[3-9]|2[0-3])\b(?![.,]\d)(?=\s*(?:[.,;:!)]|$))",
+    re.IGNORECASE,
+)
+# "à 9h de vider" names a time only after a verb of reminding, since "à 2h de route" is a distance.
+_REMIND_AT = re.compile(
+    r"\brappel(?:le\w*|er|ez|ons)\b[^.!?\n]*?\b(?:à|vers|dès)\s+\**\d{1,2} ?h(?: ?[0-5]\d)?\**"
+    r"\s+de\s+(?:\w+(?:er|ir)|prendre|faire|mettre|lire|écrire|dire|rendre|répondre|attendre"
+    r"|boire)\b",
     re.IGNORECASE,
 )
 _DUE = re.compile(r"\bdue \d{4}-\d{2}-\d{2}T(\d{2}:\d{2})")
@@ -182,7 +195,7 @@ def unscheduled_claim(runs: Sequence[ToolRun], reply: str, said: Sequence[str] =
 
 def names_time_of_day(reply: str) -> bool:
     """Whether ``reply`` names a time of day: a clock figure, am or pm, noon or midnight."""
-    return _TIME_OF_DAY.search(reply) is not None
+    return _TIME_OF_DAY.search(reply) is not None or _REMIND_AT.search(reply) is not None
 
 
 def stored_time(call: ToolCall, result: str) -> str:

@@ -53,5 +53,4 @@ another language and adds nothing.
   table now names each note's own language. Twelve more notes got a mapping beside their English
   constant (`UNSCHEDULED_CLAIM_NOTES`, `UNKEPT_CLAIM_NOTES`, `REPLY_CAPPED_NOTES` and the rest),
   tested in `test_closing_note_languages.py`. What is left is filed: the three notes that fill
-  English words into their text are task R-1136, the readers that drop a note are R-1049, and the
-  stored time reader that adds an unneeded one is R-1137.
+  English words into their text are task R-1136, and the readers that drop a note are R-1049.

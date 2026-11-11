@@ -64,7 +64,7 @@ Of 18 compound turns (c1 to c7, c2b to c2e, c6b, c6c, f1 to f3, s1, s2):
   a direct call once.
 - **Notes**: 0 turns with two notes that contradict each other. Two notes were true and not
   needed: the time note after `demain à 9h de vider` (c6b) and after `**9h00**` (f1), since
-  `names_time_of_day` reads neither as a time ([R-999](../refinements/tasks/999-a-note-the-brain-appends-is-english-under-a-reply-in-another-language.md)).
+  `names_time_of_day` then read neither as a time; it reads both now ([R-999](../refinements/tasks/999-a-note-the-brain-appends-is-english-under-a-reply-in-another-language.md)).
   c3 and c7 ended with the English `UNKEPT_CLAIM_NOTE`, c7 under a German reply (R-999).
 
 ## The French claim with an object pronoun

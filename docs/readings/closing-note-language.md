@@ -19,7 +19,7 @@ safe side; "drops" means a false claim in another language gets no note, the def
 | `REPEATED_LINE_NOTE` | the repeat watch ended the reply | five | no text reader | none |
 | `UNSCHEDULED_CLAIM_NOTE` | a schedule claim and no scheduling call succeeded | five | five | drops |
 | `MONTHLY_STORED_NOTE` | a monthly store and a yearly claim | five | five | drops |
-| `STORED_TIME_NOTE` | a stored time and not `names_time_of_day` | five | English and clock forms of three | adds |
+| `STORED_TIME_NOTE` | a stored time and not `names_time_of_day` | five | five, no bare hour up to 12 | adds |
 | `DAILY_STORED_NOTE`, `MADE_REPEATING_NOTE` | a daily store and not `names_repeat` | five | five | adds |
 | `ONCE_STORED_NOTE` | a one-time store after a refused weekly call | five | no text reader | none |
 | `CANCELLED_NOTE`, `WEEKDAY_OFF_NOTE`, `FIRST_FIRE_NOTE` | a store or cancel of the turn | five | no text reader | none |

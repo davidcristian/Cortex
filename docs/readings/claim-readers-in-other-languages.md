@@ -107,3 +107,20 @@ a first replay read 8 English lines (`folder listing`) through a Romanian `folde
 stem, which were narrowed. None was lost and the proxy replies changed none. Script
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot5/replay_files.py`,
 log `replay_files.log` beside it.
+
+## The stored time reader in four other languages, 2026-11-11
+
+`names_time_of_day` adds `STORED_TIME_NOTE` when it reads no time, so a form it misses shows a
+note the reply did not need. It now reads an hour after `rappeler` and `à` before `de` and a verb
+(`rappelle-moi demain à 9h de vider le casier`), a bold hour (`à **9h**`, `prévu pour **9h00**`),
+an hour from 13 or before a part of the day after `a las` or `a la` (`a las 22`, `a las 10 de la
+mañana`) and after `la ora` (`la ora 14`, `la ora 9 dimineața`), and `um 14` at a clause end. A
+bare hour up to 12 (`a las 10`, `la ora 9`, `um 9`) stays unread, as English `at 9` does, since it
+names no half of the day and the note then names the stored one. The near misses were written
+first: a distance (`à 2h de voiture`, `à 9h de chantier`), a timer (`réglé pour 2h30`), a count
+(`a las 14 personas`, `las 10 tareas`, `um 14 Prozent`, `um 14 Tage`), a date (`am 14.11`) and a
+lesson (`ora 14 din program`). Replayed through the old and new reader, 23,410 readings strings
+moved from 754 times to 764 and lost none; the ten added are recorded French and Romanian messages
+naming a time (`Rappelle-moi à 18h de sortir les poubelles`, `Amintește-mi la ora 18`). The 30
+proxy replies changed none. Script `replay_time.py` and log `replay_time.log` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot5/`.
