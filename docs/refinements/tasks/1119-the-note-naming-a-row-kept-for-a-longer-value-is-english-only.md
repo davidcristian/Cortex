@@ -1,9 +1,8 @@
 # The note naming a row kept for a longer value is English only
 
-**Status:** open, actionable
+**Status:** done 2026-11-11
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-10
 
 `inside_note` (`forget_inside.py`) names the rows a `forget_memories` call with no card kept
 because each holds the call's text only inside a longer value. Its header `INSIDE_NOTE` is English
@@ -30,3 +29,7 @@ here, beside the general case of task 999.
 
 - 2026-11-10: filed when the brain started appending the note after a forget whose only match
   holds a longer value.
+- 2026-11-11: done. `INSIDE_NOTES` beside `INSIDE_NOTE` and a `language` argument on
+  `inside_note`, picked by `message_language` as `kept_note` is. The Spanish and Romanian headers
+  gained `en cada uno` and `în fiecare` for the English "in each", and the Romanian one names the
+  call `un apel de uitare`, like the call in the other three languages, rather than a request.

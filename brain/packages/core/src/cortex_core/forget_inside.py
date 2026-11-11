@@ -4,6 +4,7 @@ import re
 from collections.abc import Iterable, Sequence
 
 from cortex_core.memory import MemoryRecord
+from cortex_core.note_language import ENGLISH, in_language
 
 _HEAD = re.compile(r"\A[^\W_]+")
 _TAIL = re.compile(r"[^\W_]+\Z")
@@ -17,11 +18,22 @@ INSIDE_NOTE = (
     "\n\n(Still in memory, since the text a forget call searched for is in each only as part of a "
     "longer value:"
 )
+INSIDE_NOTES = {
+    "fr": "\n\n(Toujours en mémoire, car le texte qu'un appel d'oubli recherchait n'y figure que "
+    "dans une valeur plus longue :",
+    "de": "\n\n(Noch gespeichert, weil der Text, nach dem ein Aufruf zum Vergessen suchte, darin "
+    "nur als Teil eines längeren Werts steht:",
+    "es": "\n\n(Todavía en memoria, porque el texto que buscaba una llamada de olvido solo aparece "
+    "en cada uno como parte de un valor más largo:",
+    "ro": "\n\n(Încă în memorie, pentru că textul căutat de un apel de uitare apare în fiecare "
+    "doar ca parte a unei valori mai lungi:",
+}
 
 
-def inside_note(rows: Iterable[str]) -> str:
+def inside_note(rows: Iterable[str], language: str = ENGLISH) -> str:
     """The note closing a reply that names the rows a forget kept for holding a longer value."""
-    return "\n".join([INSIDE_NOTE, *(f"- {row}" for row in rows)]) + ")"
+    head = in_language(INSIDE_NOTE, INSIDE_NOTES, language)
+    return "\n".join([head, *(f"- {row}" for row in rows)]) + ")"
 
 
 def _bounded(text: str) -> re.Pattern[str] | None:

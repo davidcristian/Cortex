@@ -125,7 +125,7 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
         (counted, forgot_count_note(taint.forget_deleted, language)),
         (held, in_language(NUMBERS_LEFT_NOTE, NUMBERS_LEFT_NOTES, language)),
         (bool(taint.forget_kept), kept_note(taint.forget_kept, language)),
-        (bool(taint.forget_inside), inside_note(taint.forget_inside)),
+        (bool(taint.forget_inside), inside_note(taint.forget_inside, language)),
         (unfound, DELETED_UNFOUND_NOTE),
         (missed, UNMATCHED_FORGET_NOTE),
         (
