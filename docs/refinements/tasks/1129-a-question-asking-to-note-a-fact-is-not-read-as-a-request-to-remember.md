@@ -1,9 +1,8 @@
 # A question asking to note a fact is not read as a request to remember
 
-**Status:** open, actionable
+**Status:** done 2026-11-11
 **Area:** memory
 **Origin:** [ADR-0013](../../adr/ADR-0013-untrusted-content.md)
-**Verified:** 2026-11-10
 
 On 2026-11-10 at 06:32 local, chat `s17-m5` on the shared stack sent `Anna said: "remind me every
 day at 8 to water the plants". Can you note that she likes plants?`. The cortex called
@@ -38,3 +37,13 @@ file tool on the question form, while the statement form has the refusal
 - 2026-11-10: premise checked: `asks_kept` reads neither `Can you note that she likes plants?`
   nor `Could you remember that Anna likes plants?`; the remedy is corrected to a separate reader,
   since `asks_kept` also decides storage. Left open for lack of slot time.
+- 2026-11-11: done. `_ASKS_TO_NOTE` (`unasked_tools.py`) reads one question of `can`,
+  `could`, `would` or `will you`, then `note`, `remember` or `keep in mind`, `that` and a
+  subject, and only `unasked_sidecar_tools` reads it, over the words after `that`; `asks_kept`
+  is unchanged. Near misses are tests, and 0 of 6,177 recorded strings change. Drawn 6 times
+  on each build, no file call ran on the new one (2 refused, both rows kept), while forget
+  calls lost the fact in 6 of 12, the cause of
+  [R-1112](1112-a-question-in-a-new-chat-called-forget-memories.md)
+  ([readings](../../readings/question-asking-to-note.md)). The origin message, a quote and
+  then the question, still keeps every tool through its second sentence, the reader's safe
+  direction.

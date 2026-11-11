@@ -107,6 +107,14 @@ _FORGETTING = re.compile(
     re.IGNORECASE,
 )
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
+# "Can you note that Anna likes plants?" asks to remember, and its question mark asks for no
+# source. A subject follows "that", since "remember that restaurant we liked?" asks to recall.
+_ASKS_TO_NOTE = re.compile(
+    r"^\W*(?:please\W+)?(?:can|could|would|will)\s+you\s+(?:please\s+)?"
+    r"(?:note|remember|keep\s+in\s+mind)\s+that\s+(?P<fact>(?:(?:i|we|he|she|they|it|my|our|his"
+    r"|her|their|the)\b|(?-i:[A-Z]))[\w'\u2019-]*(?:\s+[^\s?]+){2,}?)\s*\??\s*$",
+    re.IGNORECASE,
+)
 
 
 def _asks_a_source(query: str, sidecar: Sequence[ToolSpec]) -> bool:
@@ -133,7 +141,9 @@ def unasked_tools(query: str) -> frozenset[str]:
 def unasked_sidecar_tools(query: str, specs: Sequence[ToolSpec]) -> frozenset[str]:
     """The sidecar tools, and the tools that call them, refused by name on a request to remember."""
     sidecar = [spec for spec in specs if spec.sidecar or spec.calls_sidecar]
-    if not asks_kept(query) or _asks_a_source(query, sidecar):
+    question = _ASKS_TO_NOTE.match(query)
+    text = query if question is None else question["fact"]
+    if (question is None and not asks_kept(query)) or _asks_a_source(text, sidecar):
         return frozenset()
     return frozenset(spec.name for spec in sidecar)
 
