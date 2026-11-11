@@ -1,9 +1,8 @@
 # A request to remember with a reminder says the fact was not saved
 
-**Status:** open, actionable
+**Status:** done 2026-11-11
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-10
 
 On 2026-11-07 the `cortexn15` stack answered
 `Remember que mi hermana se llama Lucía, and remind me tomorrow at 18:00 to call her.` with a
@@ -46,3 +45,12 @@ Reproduction: send the message above in a new chat with every card approved, the
   code de mon casier est 4417 et rappelle-moi demain à 9h de vider le casier.` after a forget that
   matched nothing (`je n'ai pas pu m'en souvenir`)
   ([readings](../../readings/spawn-refused-on-remember.md#the-draws-2026-11-10)).
+- 2026-11-11: done. `claims_unsaved` (`unsaved_claim.py`) reads a clause of a statement saying the
+  fact was not saved, stored, kept or noted, in English and the four other note languages, unless
+  the clause names a file, a folder, a change or a reminder, and `limit_notes` appends
+  `KEPT_BEYOND_CHAT_NOTE` on a turn memory stores under a scope every chat reads, where the note
+  is true. The three near misses and nine more are tests. Over 86 recorded replies of the
+  `cortexn19` proxy log it reads none; over 7,583 backticked readings strings it reads 36, among
+  them the reproduction's reply, `nicht dauerhaft gespeichert` and `n'a pas été enregistré`, and
+  the chat-only reader reads none of the 36. Tonight's forget refusal leaves the reproduction as
+  it was: `unasked_forget` still refuses nothing on the message with `Lucía`.

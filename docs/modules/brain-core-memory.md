@@ -160,7 +160,7 @@ pool down to the hits one turn sees. The turn that calls it is in
   French, German, Spanish and Romanian a keep verb and a chat phrase ("mientras dure esta
   conversación") count in either order, and "pour le chat" (the cat) does not. On a turn memory stores under a scope that `recalls_across_chats`, `limit_notes`
   then appends `KEPT_BEYOND_CHAT_NOTE`, since every later chat recalls the exchange
-  ([readings](../readings/remember-request-tool-search.md)); under `SessionMemoryScope` none shows.
+  ([readings](../readings/remember-request-tool-search.md)); under `SessionMemoryScope` none shows. The note also shows when `claims_unsaved(reply)` (`unsaved_claim.py`) reads a clause of a statement saying the fact was not saved, stored, kept or noted ("I haven't saved it", "it was not stored", `n'a pas été enregistré`, `nicht gespeichert`, `no lo he guardado`, `nu l-am salvat`), unless the clause names a file, a folder, a change or a reminder. Its safe direction is that the note shows, and the note is true on every turn it reaches.
 - `unread_folders_claim(taint, query, reply)` (`file_claim.py`) is true on an untainted turn whose
   `query` `asks_files` when `claims_folders(reply, query=query)` finds a statement with no condition
   ("if", "once", "such as") that says "I can read" or "access", "I have access" or "I am allowed to",

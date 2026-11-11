@@ -78,6 +78,7 @@ from cortex_core.schedule_yearly_other import claims_yearly_other
 from cortex_core.stops import StopLedger
 from cortex_core.turn_context import TurnCapabilities
 from cortex_core.turn_output import append_note, cap_note, repeat_note, rounds_note
+from cortex_core.unsaved_claim import claims_unsaved
 from cortex_core.untrusted import TaintLedger
 
 
@@ -106,7 +107,7 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
         or (stops.out_of_rounds and states_value(query))
     )
     shared = caps.memory is not None and caps.memory.recalls_across_chats
-    stored = shared and not withheld and claims_chat_only(reply)
+    stored = shared and not withheld and (claims_chat_only(reply) or claims_unsaved(reply))
     # A refused call deleted nothing, and no reader names every way to claim it did. A reply saying
     # it kept the fact and naming no removal is the common end of a plain request to remember.
     unforgotten = unforgotten_claim(made, reply, unmatched=taint.forget_unmatched) or (

@@ -36,6 +36,7 @@ from cortex_core import (
     claims_kept,
     memory_withheld,
 )
+from cortex_core.chat_only_claim import KEPT_BEYOND_CHAT_NOTE
 from cortex_core.unasked_tools import unasked_forget
 
 _START = datetime(2026, 10, 29, 3, 0, tzinfo=UTC)
@@ -821,7 +822,7 @@ async def test_a_turn_that_makes_no_call_stores_nothing_when_its_message_asks_no
     *, query: str, stored: int
 ) -> None:
     shown, _sessions, store = await _turn([[TextChunk("I will not save it.")]], query=query)
-    assert shown == "I will not save it."
+    assert shown == "I will not save it." + (KEPT_BEYOND_CHAT_NOTE if stored else "")
     assert await _stored(store) == stored
 
 
