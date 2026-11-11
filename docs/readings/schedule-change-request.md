@@ -181,7 +181,10 @@ in the passive forms of `claims_kept`, `claims_updated` and `claims_forgotten`, 
 `está ya` and Romanian `a fost deja` or `este deja` in `claims_scheduled_other`; French and German
 already allowed any adverb there. A question, a negation and a reminder the person already has
 still read as no claim. An English condition (`If I've already scheduled it`) reads as a claim, as
-it did without `already`, which shows the note, whose text is true on any turn it reaches.
+it did without `already`, which shows the note, whose text is true on any turn it reaches. A
+condition word before the verb is not read as making a sentence no claim, since `If you need to
+change it, it is already scheduled for 9:00.` claims a schedule after its `if` clause; a note
+shown under `If it is already scheduled, I can move it.` is the reader's safe side.
 
 Replay through the old and new readers, the HEAD tree against the working tree: of the 72
 distinct proxy turns of tonight, 1 changed, the `n19s8-a` status reply above, now a claim on a
