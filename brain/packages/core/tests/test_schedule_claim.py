@@ -4,7 +4,9 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from cortex_core import (
+    CANCEL_SCHEDULED_TOOL_NAME,
     EDIT_SCHEDULED_TOOL_NAME,
+    LIST_SCHEDULED_TOOL_NAME,
     REPLY_CAPPED_NOTE,
     SCHEDULE_TOOL_NAME,
     SNOOZE_SCHEDULED_TOOL_NAME,
@@ -33,6 +35,12 @@ from cortex_core import (
     claims_scheduled,
     said_by_person,
     unscheduled_claim,
+)
+from cortex_core.schedule_claim import (
+    LISTED_UNCHANGED_NOTE,
+    LISTED_UNCHANGED_NOTES,
+    UNSCHEDULED_CLAIM_NOTES,
+    unscheduled_claim_note,
 )
 
 _START = datetime(2026, 10, 13, 9, 0, tzinfo=UTC)
@@ -129,6 +137,7 @@ def test_a_claim_on_a_later_line_is_found() -> None:
 
 
 _MOVE = "Move my plant reminder to 9:30."
+_NOTED = "Remember that my reminder app is TickTick, update my notes about it"
 
 
 @pytest.mark.parametrize(
@@ -141,6 +150,8 @@ _MOVE = "Move my plant reminder to 9:30."
         ("Done, I've changed them to 9:30.", ("Move my two plant reminders to 9:30.",)),
         ("It is now set to 9:30.", (_MOVE,)),
         ("I've updated it to 9:30.", ("My alarm code is now 5528.", _MOVE)),
+        ("I've updated it to 9:30 in your schedule.", (_MOVE,)),
+        ("I've updated it in your schedule.", (_MOVE,)),
     ],
 )
 def test_an_update_of_a_pronoun_names_the_reminder_named_before_it(
@@ -166,6 +177,10 @@ def test_an_update_of_a_pronoun_names_the_reminder_named_before_it(
         ("I haven't moved it yet.", (_MOVE,)),
         ("I have not updated it.", (_MOVE,)),
         ("I couldn't change it to 9:30.", (_MOVE,)),
+        ("I've updated it in memory.", (_NOTED,)),
+        ("I've updated it in your notes.", (_NOTED,)),
+        ("I've updated it in the file.", (_NOTED,)),
+        ("Done, I've changed it in your long term memory.", (_NOTED,)),
     ],
 )
 def test_an_update_of_a_pronoun_with_no_reminder_before_it_or_no_claim_is_not_one(
@@ -281,6 +296,28 @@ def test_only_the_person_s_own_messages_are_what_they_said() -> None:
 def test_a_scheduling_call_that_succeeded_clears_the_claim(name: str) -> None:
     runs = (ToolRun(name="read_text_file", ok=True), ToolRun(name=name, ok=True))
     assert not unscheduled_claim(runs, "I've scheduled it.")
+
+
+def test_a_claim_after_a_list_that_succeeded_gets_the_note_asking_for_nothing_new() -> None:
+    listed = ToolRun(name=LIST_SCHEDULED_TOOL_NAME, ok=True)
+    assert unscheduled_claim_note((listed,), "en") == LISTED_UNCHANGED_NOTE
+    assert unscheduled_claim_note((listed,), "fr") == LISTED_UNCHANGED_NOTES["fr"]
+    assert "Ask" not in LISTED_UNCHANGED_NOTE
+
+
+def test_a_claim_after_no_list_or_a_failed_one_gets_the_note_asking_to_schedule() -> None:
+    failed = ToolRun(name=LIST_SCHEDULED_TOOL_NAME, ok=False)
+    other = ToolRun(name="read_text_file", ok=True)
+    assert unscheduled_claim_note((failed, other), "en") == UNSCHEDULED_CLAIM_NOTE
+    assert unscheduled_claim_note((), "de") == UNSCHEDULED_CLAIM_NOTES["de"]
+
+
+def test_a_claim_after_a_list_and_a_cancel_gets_the_note_asking_to_schedule() -> None:
+    listed = ToolRun(name=LIST_SCHEDULED_TOOL_NAME, ok=True)
+    cancelled = ToolRun(name=CANCEL_SCHEDULED_TOOL_NAME, ok=True)
+    assert unscheduled_claim_note((listed, cancelled), "en") == UNSCHEDULED_CLAIM_NOTE
+    refused = ToolRun(name=CANCEL_SCHEDULED_TOOL_NAME, ok=False)
+    assert unscheduled_claim_note((listed, refused), "en") == LISTED_UNCHANGED_NOTE
 
 
 def test_a_refused_scheduling_call_or_another_tool_leaves_the_claim() -> None:

@@ -58,12 +58,11 @@ from cortex_core.schedule_cancelled import cancelled_notes
 from cortex_core.schedule_claim import (
     MONTHLY_STORED_NOTE,
     MONTHLY_STORED_NOTES,
-    UNSCHEDULED_CLAIM_NOTE,
-    UNSCHEDULED_CLAIM_NOTES,
     claims_yearly,
     names_time_of_day,
     stored_time_note,
     unscheduled_claim,
+    unscheduled_claim_note,
 )
 from cortex_core.schedule_daily import DAILY_STORED_NOTE, DAILY_STORED_NOTES, names_repeat
 from cortex_core.schedule_first_fire import early_first_fire_notes
@@ -125,7 +124,7 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
     yield from rounds_note(stops, runs, parts, language)
     yield from repeat_note(stops, parts, language)
     if claimed:
-        yield from append_note(parts, said_in(UNSCHEDULED_CLAIM_NOTE, UNSCHEDULED_CLAIM_NOTES))
+        yield from append_note(parts, unscheduled_claim_note(made, language))
     if taint.monthly_stored and (claims_yearly(reply) or claims_yearly_other(reply)):
         yield from append_note(parts, said_in(MONTHLY_STORED_NOTE, MONTHLY_STORED_NOTES))
     if taint.stored_time and not names_time_of_day(reply):

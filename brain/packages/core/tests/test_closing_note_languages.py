@@ -4,6 +4,7 @@ import pytest
 
 from cortex_core import (
     FORGET_CHOSEN_TOOL_NAME,
+    LIST_SCHEDULED_TOOL_NAME,
     SCHEDULE_TOOL_NAME,
     DecodeStop,
     HashEmbedder,
@@ -29,6 +30,8 @@ from cortex_core.forget_unfound_claim import (
 from cortex_core.memory_claim import UNKEPT_CLAIM_NOTE, UNKEPT_CLAIM_NOTES
 from cortex_core.repeat_watch import REPEATED_LINE_NOTE, REPEATED_LINE_NOTES
 from cortex_core.schedule_claim import (
+    LISTED_UNCHANGED_NOTE,
+    LISTED_UNCHANGED_NOTES,
     MONTHLY_STORED_NOTE,
     MONTHLY_STORED_NOTES,
     UNSCHEDULED_CLAIM_NOTE,
@@ -88,6 +91,13 @@ _CASES = {
         UNSCHEDULED_CLAIM_NOTES,
         "OK. I've set a reminder for you every year on March 19th.",
         (),
+        TaintLedger(),
+    ),
+    "listed": _Case(
+        LISTED_UNCHANGED_NOTE,
+        LISTED_UNCHANGED_NOTES,
+        "Your dentist reminder now goes off at 9:30.",
+        (ToolRun(name=LIST_SCHEDULED_TOOL_NAME, ok=True),),
         TaintLedger(),
     ),
     "unkept": _Case(

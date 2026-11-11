@@ -116,3 +116,31 @@ tonight's two slots with their chat's messages and of 7,357 backticked strings o
 ships.** A reply describing a change made in an earlier turn with `now`, such as `Your alarm now
 goes off at 7:00.` after a list alone, reads as a claim, as `is now set for` already did. The
 replay is `replay1134.py` in the slot 1 scratch directory, run with the reader before the change.
+
+## The note after a list and a memory place, 2026-11-11
+
+The first audit of the forms above found two replies with no scheduling call that end with
+`UNSCHEDULED_CLAIM_NOTE`, whose last sentence asks for a store of a reminder already stored: a
+status read after `list_scheduled` (`Your dentist reminder now goes off at 9:30.`) and a memory
+update read through the pronoun form (`I've updated it in memory.`). Two changes followed, with
+no draw first, since each is right whatever the count:
+
+- `unscheduled_claim_note` picks `LISTED_UNCHANGED_NOTE` when a `list_scheduled` call of the
+  turn succeeded and no `cancel_scheduled` call did. It says no call changed the schedule and asks for nothing, in five languages.
+- The pronoun form reads no claim when its sentence names memory, notes or a file as the place
+  (`_KEPT_PLACE`). Four near misses (`in memory`, `in your notes`, `in the file`, `in your long
+  term memory`) were claims under the old reader and are none under the new; `I've updated it to
+  9:30 in your schedule.` and `I've updated it in your schedule.` stay claims, and every earlier test passes.
+
+The replay through the old and new reader: 25,985 strings of `docs/readings/` kept 53 claims at
+53; the 56 distinct proxy turns of tonight, the smoke below included, kept 3 claims at 3, none after a list; slot 1's 32
+draw rows kept 32 at 32. At 02:30 local the working tree ran as `cortexn19-brain-head` through
+`cortexn19-proxy`, SM clock 0.58 to 0.66 of `clocks.max.sm`. Chat `n19s7-a` stored a daily
+plant reminder at 9:00 and moved it to 9:30 with `list_scheduled` and `edit_scheduled`. Two
+status asks after the move, one in the same chat and one in `n19s7-b`, called `list_scheduled`
+and answered `Your plant reminder is set to go off today at 9:30 AM.` with no note. Two more
+asks in `n19s7-a` called no tool and answered from the chat (`Your plant reminder is now set to
+go off at 9:30 AM every day.`), and closed with `UNSCHEDULED_CLAIM_NOTE`, which asks to schedule
+again; that form is filed as
+[R-1139](../refinements/tasks/1139-a-status-answered-from-the-chat-gets-the-note-asking-to-schedule-again.md).
+Scratch logs: `smoke.log` and `smoke2.log` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot7/`.

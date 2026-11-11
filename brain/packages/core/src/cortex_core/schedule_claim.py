@@ -8,8 +8,12 @@ from cortex_core.conversation import Message, Role, ToolRun
 from cortex_core.memory_claim_update import claims_updated
 from cortex_core.note_language import in_language
 from cortex_core.schedule_claim_other import claims_scheduled_other
-from cortex_core.schedule_tools import SCHEDULE_TOOL_NAME
-from cortex_core.schedule_verbs import EDIT_SCHEDULED_TOOL_NAME, SNOOZE_SCHEDULED_TOOL_NAME
+from cortex_core.schedule_tools import LIST_SCHEDULED_TOOL_NAME, SCHEDULE_TOOL_NAME
+from cortex_core.schedule_verbs import (
+    CANCEL_SCHEDULED_TOOL_NAME,
+    EDIT_SCHEDULED_TOOL_NAME,
+    SNOOZE_SCHEDULED_TOOL_NAME,
+)
 from cortex_core.tools import ToolCall
 
 UNSCHEDULED_CLAIM_NOTE = (
@@ -25,6 +29,20 @@ UNSCHEDULED_CLAIM_NOTES = {
     "nuevo para programarlo.)",
     "ro": "\n\n(Nu s-a programat nimic aici: niciun apel de programare nu a reușit. Cere din "
     "nou pentru a-l programa.)",
+}
+
+LISTED_UNCHANGED_NOTE = (
+    "\n\n(No call in this turn changed the schedule: the reminders were read as they are stored.)"
+)
+LISTED_UNCHANGED_NOTES = {
+    "fr": "\n\n(Aucun appel ici n'a modifié la programmation : les rappels ont été lus tels "
+    "qu'ils sont enregistrés.)",
+    "de": "\n\n(Kein Aufruf hier hat die Planung geändert: Die Erinnerungen wurden so gelesen, "
+    "wie sie gespeichert sind.)",
+    "es": "\n\n(Ninguna llamada aquí cambió la programación: los recordatorios se leyeron tal "
+    "como están guardados.)",
+    "ro": "\n\n(Niciun apel de aici nu a schimbat programarea: mementourile au fost citite așa "
+    "cum sunt salvate.)",
 }
 
 MONTHLY_STORED_NOTE = (
@@ -90,6 +108,11 @@ _UPDATED_PRONOUN = re.compile(
     r"(?:it|them|(?:(?:your|the)\s+(?:\S+\s+)?)?one)\b",
     re.IGNORECASE,
 )
+# "I've updated it in memory" names where a fact the person keeps was updated.
+_KEPT_PLACE = re.compile(
+    r"\b(?:in|to|into)\s+(?:(?:your|my|the)\s+)?(?:\w+\s+){0,2}(?:memory|memories|notes?|file)\b",
+    re.IGNORECASE,
+)
 # "Your 9:00 reminder now goes off at 9:30" gives a new time with no verb of change.
 _NOW_FIRES = re.compile(
     r"\bnow\s+(?:go(?:es)?\s+off|fires?|rings?|sounds?)\b|\bis\s+now\s+(?:at|for)\b",
@@ -148,8 +171,10 @@ def _claim(sentence: str, before: str, *, echoed: bool) -> bool:
     if named and _SET.search(sentence) is not None:
         return True
     updated = _MOVED.search(sentence) is not None or claims_updated(sentence)
-    named_before = _UPDATED_PRONOUN.search(sentence) is not None and (
-        _UPDATED_ITEM.search(before) is not None
+    named_before = (
+        _UPDATED_PRONOUN.search(sentence) is not None
+        and _UPDATED_ITEM.search(before) is not None
+        and _KEPT_PLACE.search(sentence) is None
     )
     if updated and (named_before or _names(sentence, before, _UPDATED_ITEM)):
         return True
@@ -197,6 +222,14 @@ def unscheduled_claim(runs: Sequence[ToolRun], reply: str, said: Sequence[str] =
     if any(run.ok and run.name in SCHEDULING_TOOLS for run in runs):
         return False
     return claims_scheduled(reply, said=said) or claims_scheduled_other(reply)
+
+
+def unscheduled_claim_note(runs: Sequence[ToolRun], language: str) -> str:
+    """The note for an unscheduled claim; after a list and no cancel it asks for nothing new."""
+    done = {run.name for run in runs if run.ok}
+    if LIST_SCHEDULED_TOOL_NAME in done and CANCEL_SCHEDULED_TOOL_NAME not in done:
+        return in_language(LISTED_UNCHANGED_NOTE, LISTED_UNCHANGED_NOTES, language)
+    return in_language(UNSCHEDULED_CLAIM_NOTE, UNSCHEDULED_CLAIM_NOTES, language)
 
 
 def names_time_of_day(reply: str) -> bool:
