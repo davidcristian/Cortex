@@ -65,7 +65,8 @@ _THEN_NOTED = re.compile(
     re.IGNORECASE,
 )
 _PASSIVE = re.compile(
-    r"\b(?:has|have)\s+been\s+(?:noted|remembered)\b(?!\s+(?:by|that)\b)", re.IGNORECASE
+    r"\b(?:has|have)\s+(?:already\s+)?been\s+(?:noted|remembered)\b(?!\s+(?:by|that)\b)",
+    re.IGNORECASE,
 )
 # A fact is updated to a value; a script is updated to do something, and a reminder is not memory.
 _UPDATED = re.compile(

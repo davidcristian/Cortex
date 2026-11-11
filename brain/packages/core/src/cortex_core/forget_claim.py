@@ -31,7 +31,7 @@ _OTHER_SUBJECT = r"\b(?:you|he|she|they|we|who)\b"
 _AFTER_A_VERB = rf"{_I_HAVE}(?!(?:not|never)\b)\w+\b(?:(?!{_OTHER_SUBJECT})[^:;])*?{_AND}"
 _DONE = (
     rf"(?:\bI(?:\s+have|['\u2019]ve)?\s+{_ADVERB}|{_AFTER_A_VERB}"
-    rf"|\b(?:has\s+been|have\s+been|was|were|is\s+now)\s+{_ADVERB})"
+    rf"|\b(?:(?:has|have)\s+(?:already\s+)?been|was|were|is\s+now)\s+{_ADVERB})"
 )
 _MEMORY = r"\b(?:memor(?:y|ies)|my\s+(?:notes|records))\b(?![.\-/\\]\w)"
 _DELETED = r"(?:removed|deleted|erased|wiped|cleared|purged|discarded|dropped)\b"

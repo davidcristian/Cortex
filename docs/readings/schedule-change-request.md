@@ -166,9 +166,25 @@ At 02:51 local the working tree ran as `cortexn19-brain-head` through `cortexn19
 it to 9:30 with `list_scheduled` and `edit_scheduled`. The two asks above, twice each, and four
 more status asks drew 8 turns: 7 called `list_scheduled` and closed with `LISTED_UNCHANGED_NOTE`,
 and 1 called no tool and answered `I've already moved the reminder for you, and it's all set for
-9:30 every day.` with no note, since the reader reads no claim after `already`
-([R-1141](../refinements/tasks/1141-a-claim-with-already-before-its-verb-reads-as-no-claim.md)).
+9:30 every day.` with no note, since the reader then read no claim after `already` (next section).
 No draw reached the new text. The change ships on the rule written before the draws, which
 preferred a note change so the note still shows, and a turn test through the engine shows the new text
 closing a reply. Scratch logs: `draw.log` and `draw2.log` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot8/`.
+
+## A claim with already before its verb, 2026-11-11
+
+`claims_scheduled` read no claim in `I've already scheduled it.` or `The reminder is already set
+for 9:30.`, so a false claim of that form on a turn with no scheduling call got no note. It now
+reads `already` before the verb and `is already` or `has already been` before it. The same gap was
+in the passive forms of `claims_kept`, `claims_updated` and `claims_forgotten`, and in Spanish
+`está ya` and Romanian `a fost deja` or `este deja` in `claims_scheduled_other`; French and German
+already allowed any adverb there. A question, a negation and a reminder the person already has
+still read as no claim. An English condition (`If I've already scheduled it`) reads as a claim, as
+it did without `already`, which shows the note, whose text is true on any turn it reaches.
+
+Replay through the old and new readers, the HEAD tree against the working tree: of the 72
+distinct proxy turns of tonight, 1 changed, the `n19s8-a` status reply above, now a claim on a
+turn with no call. Of 4074 backticked or quoted texts in `docs/readings/`, 9 hold one of the
+adverbs and none changed in any of the six readers. Scratch:
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot9/compare.log`.

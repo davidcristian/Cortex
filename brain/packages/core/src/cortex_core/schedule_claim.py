@@ -86,9 +86,9 @@ SCHEDULING_TOOLS = frozenset(
     {SCHEDULE_TOOL_NAME, EDIT_SCHEDULED_TOOL_NAME, SNOOZE_SCHEDULED_TOOL_NAME}
 )
 
-_ADVERB = r"(?:(?:now|just|also|successfully)\s+)?"
+_ADVERB = r"(?:(?:now|just|also|already|successfully)\s+)?"
 _FIRST_PERSON = rf"\bI(?:\s+have|['\u2019]ve)?\s+{_ADVERB}"
-_PASSIVE = rf"\b(?:has\s+been|have\s+been|is\s+now)\s+{_ADVERB}"
+_PASSIVE = rf"\b(?:(?:has|have)\s+(?:already\s+)?been|is\s+(?:now|already))\s+{_ADVERB}"
 _DONE = rf"(?:{_FIRST_PERSON}|{_PASSIVE})"
 _SCHEDULED = re.compile(rf"{_DONE}scheduled\b", re.IGNORECASE)
 _SET = re.compile(rf"{_DONE}(?:set|created|added|booked)\b", re.IGNORECASE)

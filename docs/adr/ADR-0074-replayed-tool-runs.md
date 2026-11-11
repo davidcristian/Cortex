@@ -70,9 +70,10 @@ wrote on a tainted turn can hold injected text or a link the output guardrail re
    `schedule_task`, `edit_scheduled` or `snooze_scheduled` succeeded, and `claims_scheduled`
    finds a statement in the model's text, read before any other note, saying something was
    scheduled. That is "I scheduled", "I've scheduled" or "I have scheduled", or "has been", "have
-   been" or "is now" before "scheduled", or the same forms with "set", "created", "added" or
-   "booked" in a sentence that names a reminder, a task, an alarm or the schedule. A question, a
-   future or offered form, a negated one and a stored item described do not match.
+   been", "is now" or "is already" before "scheduled", or the same forms with "set", "created",
+   "added" or "booked" in a sentence that names a reminder, a task, an alarm or the schedule;
+   "already", "now", "just" or "also" may stand before the verb. A question, a future or offered
+   form, a negated one and a stored item described do not match.
    `claims_scheduled_other` (`cortex_core/schedule_claim_other.py`) reads the same claims in French,
    German, Spanish and Romanian, a noted or saved item counting beside a word for a reminder, and
    a question, a claim after a condition word and a negated clause do not count. A sentence

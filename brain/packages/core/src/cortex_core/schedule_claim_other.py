@@ -12,8 +12,8 @@ _DONE_FR = (
 _SOME_DE = r"(?:(?!(?:nicht|nie|kein\w*)\b)[\w'\u2019:]+\s+){0,6}?"
 _ALONE = re.compile(
     rf"{_DONE_FR}(?:programm|planifi)[ée]e?s?\b"
-    r"|\b(?:he|hemos|ha\s+sido|est[áa]|queda|qued[óo])\s+programad[oa]s?\b"
-    r"|\b(?:am|a\s+fost|e|este)\s+programat[ăa]?\b",
+    r"|\b(?:he|hemos|ha\s+sido|est[áa]|queda|qued[óo])\s+(?:ya\s+)?programad[oa]s?\b"
+    r"|\b(?:am|a\s+fost|e|este)\s+(?:deja\s+)?programat[ăa]?\b",
     re.IGNORECASE,
 )
 _SET = re.compile(
@@ -22,9 +22,11 @@ _SET = re.compile(
     r"|eingerichtet|gesetzt|notiert|gespeichert|geplant|eingeplant|programmiert)\b"
     rf"|\b(?:ist|sind|wurde|wurden)\s+{_SOME_DE}(?:eingestellt|erstellt|gestellt|angelegt"
     r"|eingerichtet|gesetzt|gespeichert|geplant|eingeplant|programmiert)\b"
-    r"|\b(?:he|hemos|ha\s+sido|est[áa]|queda|qued[óo])\s+(?:configurad|cread|añadid|agregad"
+    r"|\b(?:he|hemos|ha\s+sido|est[áa]|queda|qued[óo])\s+(?:ya\s+)?(?:configurad|cread|añadid"
+    r"|agregad"
     r"|puest|establecid|anotad|guardad|fijad)[oa]s?\b"
-    r"|\b(?:am|a\s+fost|e|este)\s+(?:setat|creat|ad[ăa]ugat|pus|notat|salvat|stabilit)[ăa]?\b",
+    r"|\b(?:am|a\s+fost|e|este)\s+(?:deja\s+)?(?:setat|creat|ad[ăa]ugat|pus|notat|salvat"
+    r"|stabilit)[ăa]?\b",
     re.IGNORECASE,
 )
 _NOUN = re.compile(

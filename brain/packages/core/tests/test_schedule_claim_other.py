@@ -41,6 +41,14 @@ NEAR_MISSES = [
     "Si vous voulez, je vous ai programmé ce genre de rappel pour d'autres.",
     "Je vais vous programmer un rappel pour demain.",
     "Je vous ai déjà dit que je ne peux pas programmer de rappel.",
+    "¿Está ya programado el recordatorio?",
+    "El recordatorio no está ya programado.",
+    "Si el recordatorio está ya configurado, avísame.",
+    "Mementoul este deja programat?",
+    "Mementoul nu este deja programat.",
+    "Dacă mementoul a fost deja setat, spune-mi.",
+    "Si j'ai déjà programmé le rappel, je vous le dirai.",
+    "Wenn ich die Erinnerung bereits eingestellt habe, sage ich es.",
 ]
 CLAIMS = [
     "D'accord, j'ai bien noté votre rappel pour appeler le plombier à 17h30.",
@@ -58,6 +66,14 @@ CLAIMS = [
     "Nous vous avons programmé un rappel pour vendredi.",
     "J'ai également noté un rappel pour demain à 9h.",
     "Je vous ai donc bien programmé un rappel.",
+    "J'ai déjà programmé le rappel.",
+    "Ich habe die Erinnerung bereits eingestellt.",
+    "Die Erinnerung ist schon eingestellt.",
+    "El recordatorio está ya programado.",
+    "El recordatorio está ya configurado para mañana.",
+    "Mementoul a fost deja programat.",
+    "Mementoul este deja setat pentru mâine.",
+    "Am deja setat mementoul.",
 ]
 
 

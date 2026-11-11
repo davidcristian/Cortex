@@ -69,6 +69,8 @@ CLAIMS = [
     "I've noted that your phone number is now 0699000000 and have removed your previous number "
     "from my records.",
     "I've updated my records to reflect your new number and removed any mention of your old one.",
+    "It has already been deleted from my memory.",
+    "Your PIN has already been forgotten.",
 ]
 
 NOT_CLAIMS = [
@@ -97,6 +99,8 @@ NOT_CLAIMS = [
     "We discussed your code and noted that you have forgotten the old one.",
     "I've updated my records and removed the reminder.",
     "I have updated my records and have not removed anything.",
+    "Has it already been removed from my memory?",
+    "Nothing has already been deleted from my memory.",
 ]
 
 

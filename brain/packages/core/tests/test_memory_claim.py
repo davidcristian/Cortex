@@ -44,6 +44,8 @@ _NOTED = "I've noted that your locker code is 7319."
 CLAIMS = [
     _NOTED,
     "I have noted your card number: 4242 4242 4242 4242.",
+    "It has already been noted.",
+    "Your locker code has already been remembered.",
     "I've remembered that your brother's name is Luca.",
     "OK. I'll remember that your card number is 4242 4242 4242 4242.",
     "I will keep this in mind for our future conversations.",
@@ -108,6 +110,8 @@ NOT_CLAIMS = [
     "",
     "I couldn't remember your locker code because the action was declined.",
     "I didn't save that card number because it was declined.",
+    "Has it already been noted?",
+    "It has already been noted by critics that the film is long.",
     "I'm sorry, I wasn't able to remember your card number.",
     "I have not noted anything.",
     "I've not noted the code.",

@@ -75,6 +75,13 @@ CLAIMS = [
     "Your reminder time has been updated to 9:30.",
     "I've updated the plant reminder message.",
     "I've moved your alarm settings to 7:00.",
+    "I've already scheduled it.",
+    "I already set that reminder.",
+    "I have already moved the reminder for you.",
+    "I've already moved the reminder for you, and it's all set for 9:30 every day.",
+    "The reminder is already set for 9:30.",
+    "The reminder has already been scheduled.",
+    "Your reminder has already been updated to 9:30.",
 ]
 
 NOT_CLAIMS = [
@@ -115,6 +122,14 @@ NOT_CLAIMS = [
     "Your alarm system password has been changed.",
     "I've updated your alarm company's number.",
     "I've updated your reminder preferences: mornings only.",
+    "Have you already scheduled it?",
+    "Is the reminder already set?",
+    "I haven't already scheduled it.",
+    "I have not already set a reminder.",
+    "The reminder is not already set.",
+    "That is the reminder you already have.",
+    "You already set a reminder for 9:00.",
+    "I already told you the reminder is at 9:30.",
 ]
 
 

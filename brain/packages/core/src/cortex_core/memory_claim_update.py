@@ -5,7 +5,7 @@ import re
 _UPDATE = re.compile(
     r"(?<!\bas\s)\bI(?:\s+have|['\u2019]ve)?\s+(?:(?:now|just|also|already)\s+)?"
     r"(?:updated|changed|corrected|replaced|amended)\b"
-    r"|\b(?:has|have)\s+(?:now\s+)?been\s+(?:updated|changed|corrected|replaced)\b",
+    r"|\b(?:has|have)\s+(?:now\s+|already\s+)?been\s+(?:updated|changed|corrected|replaced)\b",
     re.IGNORECASE,
 )
 _OPENING = re.compile(

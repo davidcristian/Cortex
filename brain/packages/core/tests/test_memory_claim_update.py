@@ -32,6 +32,8 @@ UPDATED = [
     "I've updated it, is that right?",
     "I've updated it to no longer include 4826.",
     "I've updated that, and I haven't changed anything else.",
+    "Your address has already been updated.",
+    "It has already been changed to 4862.",
 ]
 
 NOT_UPDATED = [
@@ -50,6 +52,8 @@ NOT_UPDATED = [
     "As I updated you earlier, the code is 4826.",
     "Updated?",
     "The file was updated yesterday.",
+    "Has your address already been updated?",
+    "Your code hasn't already been changed.",
 ]
 
 
