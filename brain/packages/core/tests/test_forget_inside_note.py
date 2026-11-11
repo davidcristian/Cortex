@@ -40,6 +40,7 @@ _VALUE = "015 123 456 789"
 _LONGER = "015 123 456 7890"
 _ASKED = f"Forget {_VALUE}."
 _NAMING = f"Forget my phone {_VALUE}."
+_WHOLE = f"Forget my phone account {_LONGER}."
 
 
 def _record(record_id: str, text: str, minutes: int = 0) -> MemoryRecord:
@@ -108,8 +109,8 @@ async def test_a_row_an_earlier_call_kept_unnamed_is_not_named_again() -> None:
 
 async def test_a_row_a_later_card_deletes_leaves_the_note() -> None:
     tool = await _tool(_record("account", _ACCOUNT))
-    first = await _run(tool, _VALUE, _NAMING)
-    later = await _run(tool, _LONGER, _NAMING, 1)
+    first = await _run(tool, _VALUE, _WHOLE)
+    later = await _run(tool, _LONGER, _WHOLE, 1)
     assert first.inside == (_SHOWN,)
     assert (later.forgot, later.inside) == (1, ())
 
@@ -190,5 +191,10 @@ async def test_a_turn_calling_the_longer_value_after_names_the_row_only_as_kept(
 
 
 async def test_a_turn_deleting_the_row_by_a_later_card_shows_no_inside_note() -> None:
-    shown = await _turn([_VALUE, _LONGER], "Deleted it.", _NAMING)
+    shown = await _turn([_VALUE, _LONGER], "Deleted it.", _WHOLE)
     assert INSIDE_NOTE not in shown
+
+
+async def test_a_turn_calling_a_longer_value_than_the_message_names_keeps_the_row() -> None:
+    shown = await _turn([_LONGER], "I've forgotten that number.", _NAMING)
+    assert shown == "I've forgotten that number." + UNFORGOTTEN_CLAIM_NOTE

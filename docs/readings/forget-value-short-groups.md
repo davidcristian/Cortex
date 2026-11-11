@@ -130,6 +130,28 @@ call matched Anna's row; the forget card now also reports the rows a keep clause
 ([readings](closing-note-language.md#a-keep-claim-naming-a-row-still-stored-2026-11-10)).
 Record `slot9/draws.log`, under the scratchpad named below.
 
+### A call naming a longer number than the message, 2026-11-11
+
+The card now keeps a match when the call's text names a value the message lacks and the match
+holds every value the message names only inside a longer value (`longer` in `forget_longer.py`).
+The unit and engine tests in `test_forget_longer_value.py` and `test_forget_inside_note.py` cover
+the form of [task 1115](../refinements/tasks/1115-a-forget-of-a-value-can-call-the-longer-number-recalled-beside-it.md)
+without a draw. Flow e and flow b were written as tests before the change and pass on both builds.
+
+Neighbouring flows, one draw each, 03:42 to 03:44 on `cortexn19-brain-s11` (the working tree with
+the change), SM clock 0.57 of `clocks.max.sm`. A draw passes when every row its message asks to
+delete is deleted.
+
+| Flow | Call text | Rows left | Pass |
+| --- | --- | --- | --- |
+| e, a card by its end | `4242 4242 4242 4242` | none | yes |
+| w, a value named alone | `015 123 456 789` | the account row | yes |
+| s, `Remember that my locker code is 3141.` then `Forget what I just said.` | `locker code is 3141` | none | yes |
+
+Record `slot11/draws.log` under the scratchpad below.
+
 Driver `draw.sh <flow> <draw>`, candidate driver `cand-o.sh`, records `rows.jsonl` and `cand.jsonl`,
 proxy log lines 47 to 63 of `stack/logs/proxy-req.jsonl`, under
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/` (`slot6/` and `stack/`).
+The slot 11 record is under
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/`.

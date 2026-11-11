@@ -1,6 +1,7 @@
 """The texts a ``forget_memories`` call returns, which the model reads before it replies."""
 
 from cortex_core.errors import MemoryStoreError
+from cortex_core.memory_values import whole_values
 
 FORGET_CHOSEN_LIMIT = 20
 
@@ -58,4 +59,18 @@ def unlisted(removed: int) -> str:
         f"forgot {removed} remembered exchanges that contain that text, but more exchanges "
         "also hold its value and were not listed, since a card lists at most "
         f"{FORGET_CHOSEN_LIMIT}, so the value is not forgotten"
+    )
+
+
+def _flat(text: str) -> str:
+    """``text`` in lower case with every run of white space one space."""
+    return " ".join(text.lower().split())
+
+
+def about_deleted(text: str, deleted: tuple[str, ...]) -> bool:
+    """Whether ``text`` names what a deleted row or the text that deleted it held."""
+    asked, keys = _flat(text), whole_values(text).keys()
+    return any(
+        asked in _flat(held) or _flat(held) in asked or not keys.isdisjoint(whole_values(held))
+        for held in deleted
     )

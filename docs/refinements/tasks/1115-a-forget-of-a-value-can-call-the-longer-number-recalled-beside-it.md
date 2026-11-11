@@ -1,9 +1,8 @@
 # A forget of a value can call the longer number recalled beside it
 
-**Status:** open, actionable
+**Status:** done 2026-11-11
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-10
 
 With only `Remember that my phone account is 015 123 456 7890.` stored, `Forget 015 123 456 789.`
 made the model call `forget_memories` with `015 123 456 7890`, a number the message does not name,
@@ -40,3 +39,8 @@ the card number, while `015 123 456 789` ends inside the group `7890`, which is 
 - 2026-11-10: filed from the flow o draws of the text match change.
 - 2026-11-10: the assumed listing confirmed at unit level, the refusal found not to reach it, and
   the remedy rewritten so a card by its end (flow e) still deletes.
+- 2026-11-11: done without a draw of the form, as step 2: `longer` in `forget_longer.py` keeps the
+  match and the card shows it under `LONGER_LINE`; flows e, w and a forget of what was just said
+  still delete their rows ([readings](../../readings/forget-value-short-groups.md)). A row kept
+  this way with no card is named by no closing note, filed as
+  [task 1142](1142-a-row-kept-for-holding-the-message-value-inside-a-longer-one-is-named-by-no-note.md).

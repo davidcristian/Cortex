@@ -7,6 +7,7 @@ from dataclasses import dataclass, replace
 from cortex_core.errors import MemoryStoreError
 from cortex_core.forget_inside import INSIDE_ALL, INSIDE_LINE, inside
 from cortex_core.forget_keep_named import keep_named
+from cortex_core.forget_longer import LONGER_ALL, beside, longer, longer_lines
 from cortex_core.forget_results import (
     ALREADY_DELETED,
     FORGET_CHOSEN_LIMIT,
@@ -14,6 +15,7 @@ from cortex_core.forget_results import (
     LEFT_OUT_LINE,
     NONE_FOUND,
     TOO_MANY,
+    about_deleted,
     failed_during,
     outlasted,
     unavailable,
@@ -48,11 +50,6 @@ def _excerpt(record: MemoryRecord, text: str) -> str:
     return ("..." if start else "") + flat[start:end] + ("..." if end < len(flat) else "")
 
 
-def _flat(text: str) -> str:
-    """``text`` in lower case with every run of white space one space."""
-    return " ".join(text.lower().split())
-
-
 def _values(records: Sequence[MemoryRecord]) -> dict[str, str]:
     """The whole values of ``records``, such as a code or a phone number, in order."""
     values: dict[str, str] = {}
@@ -68,15 +65,6 @@ def _repeats(record: MemoryRecord, key: str, words: set[str]) -> bool:
     return key in whole_values(record.text) and (not words or not tokens.isdisjoint(words))
 
 
-def _about(text: str, deleted: tuple[str, ...]) -> bool:
-    """Whether ``text`` names what a deleted row or the text that deleted it held."""
-    asked, keys = _flat(text), whole_values(text).keys()
-    return any(
-        asked in _flat(held) or _flat(held) in asked or not keys.isdisjoint(whole_values(held))
-        for held in deleted
-    )
-
-
 @dataclass(frozen=True)
 class _Chosen:
     """The rows a card listed by id and text, whether rows holding a value stayed, the rows kept."""
@@ -85,6 +73,7 @@ class _Chosen:
     texts: tuple[str, ...]
     left_out: bool
     kept: frozenset[str] = frozenset()
+    far: frozenset[str] = frozenset()
 
 
 class ForgetChosenTool:
@@ -206,22 +195,24 @@ class ForgetChosenTool:
             return TOO_MANY, None
         if not matches:
             deleted = self._deleted_turns.get(call.stamp.turn_id, ())
-            return (ALREADY_DELETED if _about(_text(call), deleted) else NONE_FOUND), None
+            return (ALREADY_DELETED if about_deleted(_text(call), deleted) else NONE_FOUND), None
         left_out = len(found) + len(extra) > FORGET_CHOSEN_LIMIT
         rows = [*found, *(row for row, _, _ in extra)]
         deleted = self._deleted_rows.get(call.stamp.turn_id, ())
         kept = unnamed(rows, _text(call), call.stamp.query, deleted, call.stamp.session_id)
         held = {record.id for record in kept}
-        spared = {row.id: _excerpt(row, _text(call)) for row in (*kept, *within)}
+        far = [row for row in longer(rows, _text(call), call.stamp.query) if row.id not in held]
+        spared = {row.id: _excerpt(row, _text(call)) for row in (*kept, *within, *far)}
         self._spared.keep(call.stamp.turn_id, {**named, **spared})
-        found = [record for record in found if record.id not in held]
-        repeats = [] if left_out else [row for row in extra if row[0].id not in held]
+        skip = held | {row.id for row in far}
+        found = [record for record in found if record.id not in skip]
+        repeats = [] if left_out else [row for row in extra if row[0].id not in skip]
         if not found and not repeats:
             turn = call.stamp.turn_id
             self._kept.keep(turn, {row.id: spared[row.id] for row in kept})
             self._inside.keep(turn, {row.id: spared[row.id] for row in within})
             self._inside.drop(turn, self._kept.ids(turn))
-            return (KEPT_ALL if kept else INSIDE_ALL), None
+            return (KEPT_ALL if kept else LONGER_ALL if far else INSIDE_ALL), None
         listed = [*found, *(record for record, _, _ in repeats)]
         lines = [f"- {_excerpt(record, _text(call))}" for record in found]
         for form in dict.fromkeys(form for _, form, _ in repeats):
@@ -234,9 +225,8 @@ class ForgetChosenTool:
         if kept:
             lines.extend([KEPT_LINE, *(f"- {_excerpt(record, _text(call))}" for record in kept)])
         if within:
-            lines.extend(
-                [INSIDE_LINE, *(f"- {_excerpt(record, _text(call))}" for record in within)]
-            )
+            lines.extend([INSIDE_LINE, *(f"- {_excerpt(row, _text(call))}" for row in within)])
+        lines.extend(longer_lines(_excerpt(row, _text(call)) for row in far))
         card = "\n".join(
             [f"Deletes for good, with no undo, these {len(listed)} remembered exchanges:", *lines]
         )
@@ -245,6 +235,7 @@ class ForgetChosenTool:
             tuple(record.text for record in listed),
             left_out,
             frozenset(held),
+            frozenset(row.id for row in far),
         )
         return chosen, card
 
@@ -285,7 +276,8 @@ class ForgetChosenTool:
                 while len(ledger) > _PENDING_CALLS:
                     del ledger[next(iter(ledger))]
             now = await self._found(call)
-            left = [row for row in now if row.id not in shown.kept | inside(now, _text(call))]
+            apart = shown.kept | shown.far | inside(now, _text(call))
+            left = [row for row in now if row.id not in apart]
             holding = 0 if left or shown.left_out else await self._holding(call)
         except MemoryStoreError as err:
             return replace(self._result(call, failed_during(removed, err)), forgot=removed)
@@ -293,6 +285,8 @@ class ForgetChosenTool:
             said = outlasted(removed, len(left))
         elif shown.left_out:
             said = unlisted(removed)
+        elif shown.far:
+            said = beside(removed, len(shown.far))
         else:
             said = forgot(removed, holding, len(shown.kept))
         error = bool(left) or shown.left_out
