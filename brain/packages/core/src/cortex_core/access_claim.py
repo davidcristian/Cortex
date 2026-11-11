@@ -8,6 +8,16 @@ UNSEARCHED_FILES_NOTE = (
     "\n\n(No file was searched in this turn, since the message asked only to remember. Name the "
     "file in a new message to have it read.)"
 )
+UNSEARCHED_FILES_NOTES = {
+    "fr": "\n\n(Aucun fichier n'a été cherché ici, car le message demandait seulement de "
+    "retenir. Nommez le fichier dans un nouveau message pour le faire lire.)",
+    "de": "\n\n(Hier wurde keine Datei durchsucht, da die Nachricht nur ums Merken bat. Nennen "
+    "Sie die Datei in einer neuen Nachricht, damit sie gelesen wird.)",
+    "es": "\n\n(Aquí no se buscó en ningún archivo, porque el mensaje solo pedía recordar. "
+    "Nombra el archivo en un mensaje nuevo para que se lea.)",
+    "ro": "\n\n(Nu s-a căutat în niciun fișier aici, pentru că mesajul cerea doar să fie "
+    "reținut ceva. Numește fișierul într-un mesaj nou pentru a fi citit.)",
+}
 
 _NO_ACCESS = re.compile(
     r"\b(?:(?:don['\u2019]?t|do\s+not|doesn['\u2019]?t|does\s+not)\s+have\s+(?:any\s+)?access"

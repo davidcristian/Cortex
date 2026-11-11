@@ -16,7 +16,7 @@ from cortex_core import (
 )
 from cortex_core.closing_notes import limit_notes
 from cortex_core.forget_unfound_claim import UNMATCHED_FORGET_NOTE
-from cortex_core.memory_claim import unkept_note_due
+from cortex_core.memory_claim import UNKEPT_CLAIM_NOTES, unkept_note_due
 from cortex_core.stops import StopLedger
 
 _NEW_VALUE = "Note that my phone number is now 0699000000, and delete the old one."
@@ -134,7 +134,8 @@ def test_a_turn_without_memory_shows_no_note_on_a_request_to_remember() -> None:
 def test_a_request_to_remember_beside_a_request_not_to_keep_shows_the_note(
     *, query: str, reply: str
 ) -> None:
-    assert _shown(TaintLedger(), (), query, reply=reply) == reply + UNKEPT_CLAIM_NOTE
+    note = UNKEPT_CLAIM_NOTES["de"] if query.startswith("Merk") else UNKEPT_CLAIM_NOTE
+    assert _shown(TaintLedger(), (), query, reply=reply) == reply + note
 
 
 @pytest.mark.parametrize(

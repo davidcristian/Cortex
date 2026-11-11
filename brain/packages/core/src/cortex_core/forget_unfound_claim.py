@@ -26,12 +26,43 @@ DELETED_UNFOUND_NOTE = (
     "remembered exchange holding its text. What the reply above calls not stored or not found may "
     "be among the deleted exchanges, rather than never stored.)"
 )
+DELETED_UNFOUND_NOTES = {
+    "fr": "\n\n(Un appel d'oubli a supprimé ici des échanges mémorisés, et un autre appel n'a "
+    "trouvé aucun échange mémorisé contenant son texte. Ce que la réponse ci-dessus dit non "
+    "enregistré ou introuvable peut faire partie des échanges supprimés, plutôt que n'avoir "
+    "jamais été enregistré.)",
+    "de": "\n\n(Ein Aufruf zum Vergessen hat hier gespeicherte Unterhaltungen gelöscht, und ein "
+    "anderer Aufruf hat keine gespeicherte Unterhaltung mit seinem Text gefunden. Was die Antwort "
+    "oben als nicht gespeichert oder nicht gefunden bezeichnet, kann unter den gelöschten "
+    "Unterhaltungen sein, statt nie gespeichert worden zu sein.)",
+    "es": "\n\n(Una llamada de olvido borró aquí intercambios guardados, y otra llamada no "
+    "encontró ningún intercambio guardado con su texto. Lo que la respuesta de arriba llama no "
+    "guardado o no encontrado puede estar entre los intercambios borrados, en vez de no haberse "
+    "guardado nunca.)",
+    "ro": "\n\n(Un apel de uitare a șters aici schimburi memorate, iar un alt apel nu a găsit "
+    "niciun schimb memorat care să conțină textul său. Ce răspunsul de mai sus numește nememorat "
+    "sau negăsit poate fi printre schimburile șterse, în loc să nu fi fost memorat niciodată.)",
+}
 
 UNMATCHED_FORGET_NOTE = (
     "\n\n(Nothing was deleted from memory in this turn. A forget call in it searched for an exact "
     "text that no remembered exchange contains, so any remembered exchange that states the same "
     "fact in other words is still stored.)"
 )
+UNMATCHED_FORGET_NOTES = {
+    "fr": "\n\n(Rien n'a été supprimé de la mémoire ici. Un appel d'oubli a cherché un texte "
+    "exact qu'aucun échange mémorisé ne contient, donc un échange mémorisé qui dit la même chose "
+    "en d'autres mots est toujours enregistré.)",
+    "de": "\n\n(Hier wurde nichts aus dem Gedächtnis gelöscht. Ein Aufruf zum Vergessen suchte "
+    "nach einem genauen Text, den keine gespeicherte Unterhaltung enthält, daher ist eine "
+    "gespeicherte Unterhaltung, die dasselbe mit anderen Worten sagt, noch gespeichert.)",
+    "es": "\n\n(Aquí no se borró nada de la memoria. Una llamada de olvido buscó un texto "
+    "exacto que ningún intercambio guardado contiene, así que un intercambio guardado que dice lo "
+    "mismo con otras palabras sigue guardado.)",
+    "ro": "\n\n(Nu s-a șters nimic din memorie aici. Un apel de uitare a căutat un text exact "
+    "pe care niciun schimb memorat nu îl conține, așa că un schimb memorat care spune același "
+    "lucru în alte cuvinte este încă în memorie.)",
+}
 
 # "No other records of it remain" says the delete held, unless the clause names finding or storing
 # or the sentence says the person never told it.

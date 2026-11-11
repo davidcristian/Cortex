@@ -1,9 +1,8 @@
 # A note the brain appends is English under a reply in another language
 
-**Status:** open, actionable
+**Status:** done 2026-11-11
 **Area:** cross-cutting
 **Origin:** [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md)
-**Verified:** 2026-11-10
 
 Every note `limit_notes` in `closing_notes.py` appends is a fixed English sentence, and the readers
 that decide whether one is due (`names_time_of_day`, `claims_scheduled`, `claims_yearly`,
@@ -50,3 +49,9 @@ another language and adds nothing.
   `UNKEPT_CLAIM_NOTE`, and showed `STORED_TIME_NOTE` after French replies naming `demain à 9h de
   vider` and `**9h00**`, which `names_time_of_day` reads as no time
   ([readings](../../readings/overlay-compound-request-flows.md#counts)).
+- 2026-11-11: done. The [readings](../../readings/closing-note-language.md#the-notes-and-their-readers-2026-11-11)
+  table now names each note's own language. Twelve more notes got a mapping beside their English
+  constant (`UNSCHEDULED_CLAIM_NOTES`, `UNKEPT_CLAIM_NOTES`, `REPLY_CAPPED_NOTES` and the rest),
+  tested in `test_closing_note_languages.py`. What is left is filed: the three notes that fill
+  English words into their text are task R-1136, the readers that drop a note are R-1049, and the
+  stored time reader that adds an unneeded one is R-1137.

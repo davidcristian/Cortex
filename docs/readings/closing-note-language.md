@@ -5,32 +5,42 @@ reply, which reader decides each one, what a reply form that reader misses in Fr
 Spanish or Romanian does, and how the note's own language is picked. The decision is
 [ADR-0076](../adr/ADR-0076-closing-note-language.md).
 
-## The notes and their readers, 2026-11-08
+## The notes and their readers, 2026-11-11
 
-Read from the code at `00785a16e` plus the chat-only reader of the commit after it. "Adds" means a
-missed form shows a note the reply did not need, the safe side; "drops" means a false claim in
-another language gets no note, the defect.
+Read from the code at the commit that translates the claim notes. "Text" is the note's own
+language: "five" means a mapping beside the English constant, picked by `message_language` from
+the person's message. "Adds" means a missed reply form shows a note the reply did not need, the
+safe side; "drops" means a false claim in another language gets no note, the defect.
 
-| Note | Due when | Reader languages | A missed form |
-| --- | --- | --- | --- |
-| `REPLY_CAPPED_NOTE` | the reply hit its token cap | no text reader | none |
-| `ROUNDS_SPENT_NOTE` | the turn spent its tool rounds | no text reader | none |
-| `REPEATED_LINE_NOTE` | the repeat watch ended the reply | no text reader | none |
-| `UNSCHEDULED_CLAIM_NOTE` | `claims_scheduled` and no scheduling call succeeded | English | drops |
-| `MONTHLY_STORED_NOTE` | a monthly store and `claims_yearly` | English | drops |
-| `STORED_TIME_NOTE` | a stored time and not `names_time_of_day` | English, French `17h30`, German `Uhr`, Spanish `a las` | adds |
-| `DAILY_STORED_NOTE` | a daily store and not `names_repeat` | five | adds |
-| `ONCE_STORED_NOTE` | a one-time store after a refused weekly call | no text reader | none |
-| `UNKEPT_CLAIM_NOTE` | memory withheld and `claims_kept`, or `asks_kept` of the message | reply English, message five | drops when the message is not read |
-| `KEPT_BEYOND_CHAT_NOTE` | a shared store and `claims_chat_only` | five | drops |
-| `UNFORGOTTEN_CLAIM_NOTE` | `claims_forgotten` and nothing deleted, or a refused forget and not `claims_kept` or `names_removal` | English | drops, except the refused branch's `claims_kept`, which adds |
-| `NUMBERS_LEFT_NOTE` | numbers left and `says_forgotten` | five | drops |
-| `DELETED_UNFOUND_NOTE` | a delete, an unmatched call and `says_not_stored` | English | drops |
-| `DECLINED_FORGET_NOTE` | a denied forget card and not `names_still_held` | reply English, note five | adds |
-| `UNREAD_FOLDERS_NOTE` | `claims_folders` on an untainted file question | English | drops |
-| `UNSEARCHED_FILES_NOTE` | a claim of searched files with no file call | English | drops |
+| Note | Due when | Text | Reader languages | A missed form |
+| --- | --- | --- | --- | --- |
+| `REPLY_CAPPED_NOTE` | the reply hit its token cap | five | no text reader | none |
+| `ROUNDS_SPENT_NOTE` | the turn spent its tool rounds | English | no text reader | none |
+| `REPEATED_LINE_NOTE` | the repeat watch ended the reply | five | no text reader | none |
+| `UNSCHEDULED_CLAIM_NOTE` | a schedule claim and no scheduling call succeeded | five | five | drops |
+| `MONTHLY_STORED_NOTE` | a monthly store and `claims_yearly` | five | English | drops |
+| `STORED_TIME_NOTE` | a stored time and not `names_time_of_day` | five | English and clock forms of three | adds |
+| `DAILY_STORED_NOTE`, `MADE_REPEATING_NOTE` | a daily store and not `names_repeat` | five | five | adds |
+| `ONCE_STORED_NOTE` | a one-time store after a refused weekly call | five | no text reader | none |
+| `CANCELLED_NOTE`, `WEEKDAY_OFF_NOTE`, `FIRST_FIRE_NOTE` | a store or cancel of the turn | five | no text reader | none |
+| `QUOTED_STORED_NOTE` | a store from quoted words only | English | message, five | not measured |
+| `WEEKLY_STORED_NOTE` | a weekly store and not `names_repeat` | English | five | adds |
+| `UNKEPT_CLAIM_NOTE` | memory withheld and a keep claim, or `asks_kept` of the message | five | five | drops |
+| `KEPT_BEYOND_CHAT_NOTE` | a shared store and `claims_chat_only` | five | five | drops |
+| `UNFORGOTTEN_CLAIM_NOTE` | a forget claim and nothing deleted, or a refused forget and not `claims_kept` or `names_removal` | five | five, refused branch English | drops, except `claims_kept`, which adds |
+| forget count note | rows deleted and not `says_forgotten` | five | five | adds |
+| `NUMBERS_LEFT_NOTE` | numbers left and `says_forgotten` | five | five | drops |
+| kept rows note, inside note | a forget kept rows | five | no text reader | none |
+| `DELETED_UNFOUND_NOTE` | a delete, an unmatched call and `says_not_stored` | five | English | drops |
+| `UNMATCHED_FORGET_NOTE` | an unmatched forget and nothing deleted | five | no text reader | none |
+| `DECLINED_FORGET_NOTE` | a denied forget card and not `names_still_held` | five | five | adds |
+| `UNREAD_FOLDERS_NOTE` | `claims_folders` on an untainted file question | five | English | drops |
+| `UNSEARCHED_FILES_NOTE` | a claim of searched files with no file call | five | English | drops |
 
-The seven readers that read the reply in English and drop a note are one task, R-1049.
+Three notes stay English because they fill English words into their text, task R-1136. The
+readers that read the reply in English only and drop a note (`claims_yearly`, `says_not_stored`,
+`claims_folders`, the searched-files claim) are task R-1049. On 2026-11-08 every note but
+`STORED_TIME_NOTE`, `DAILY_STORED_NOTE` and `NUMBERS_LEFT_NOTE` was English.
 
 ## How often each note shows
 

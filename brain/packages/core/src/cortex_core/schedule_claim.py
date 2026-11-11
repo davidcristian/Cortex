@@ -16,11 +16,31 @@ UNSCHEDULED_CLAIM_NOTE = (
     "\n\n(Nothing was scheduled in this turn: no scheduling call in it succeeded. Ask again to "
     "schedule it.)"
 )
+UNSCHEDULED_CLAIM_NOTES = {
+    "fr": "\n\n(Rien n'a été programmé ici : aucun appel de programmation n'a réussi. "
+    "Redemandez-le pour le programmer.)",
+    "de": "\n\n(Hier wurde nichts geplant: kein Aufruf zum Planen war erfolgreich. Bitten Sie "
+    "erneut darum, um es zu planen.)",
+    "es": "\n\n(Aquí no se programó nada: ninguna llamada de programación tuvo éxito. Pídelo de "
+    "nuevo para programarlo.)",
+    "ro": "\n\n(Nu s-a programat nimic aici: niciun apel de programare nu a reușit. Cere din "
+    "nou pentru a-l programa.)",
+}
 
 MONTHLY_STORED_NOTE = (
     "\n\n(A reminder set in this turn repeats on that day of every month, not once a year. Ask "
     "to change it if you meant once a year.)"
 )
+MONTHLY_STORED_NOTES = {
+    "fr": "\n\n(Un rappel créé ici se répète ce jour-là chaque mois, pas une fois par an. "
+    "Demandez à le changer si vous le vouliez une fois par an.)",
+    "de": "\n\n(Eine hier erstellte Erinnerung wiederholt sich an diesem Tag jeden Monat, nicht "
+    "einmal im Jahr. Bitten Sie darum, sie zu ändern, wenn Sie sie einmal im Jahr wollten.)",
+    "es": "\n\n(Un recordatorio creado aquí se repite ese día de cada mes, no una vez al año. "
+    "Pide que se cambie si lo querías una vez al año.)",
+    "ro": "\n\n(Un memento creat aici se repetă în acea zi a fiecărei luni, nu o dată pe an. "
+    "Cere să fie schimbat dacă îl voiai o dată pe an.)",
+}
 
 STORED_TIME_NOTE = (
     "\n\n(A reminder set or changed in this turn is at {time}. Ask to change it if you meant "

@@ -2,7 +2,7 @@
 
 Each closing note reader below reads a claim in French, German, Spanish and Romanian beside its
 English reader, so the note shows when the claim is false. The table of every note and its reader
-is in [the closing note readings](closing-note-language.md#the-notes-and-their-readers-2026-11-08).
+is in [the closing note readings](closing-note-language.md#the-notes-and-their-readers-2026-11-11).
 
 ## A schedule claim in four other languages, 2026-11-10
 

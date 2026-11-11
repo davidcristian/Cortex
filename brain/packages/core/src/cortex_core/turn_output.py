@@ -17,9 +17,10 @@ from cortex_core.guardrail import OutputFilter
 from cortex_core.loop_events import ReasoningDelta, StepOutcome, ToolStep
 from cortex_core.memory_claim import memory_withheld
 from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
+from cortex_core.note_language import ENGLISH, in_language
 from cortex_core.output_channels import ThinkingChannel
 from cortex_core.ports_stores import SessionStore
-from cortex_core.repeat_watch import REPEATED_LINE_NOTE, RepeatWatch
+from cortex_core.repeat_watch import REPEATED_LINE_NOTE, REPEATED_LINE_NOTES, RepeatWatch
 from cortex_core.stops import StopLedger
 from cortex_core.tool_loop import MAX_TOOL_STEPS
 from cortex_core.tool_replay import runs_line
@@ -40,6 +41,16 @@ REPLY_CAPPED_NOTE = (
     "\n\n(This answer stopped at the machine's length limit, so it is cut off rather than "
     "finished. Ask again, or ask for a shorter answer.)"
 )
+REPLY_CAPPED_NOTES = {
+    "fr": "\n\n(Cette réponse s'est arrêtée à la limite de longueur de la machine, elle est donc "
+    "coupée et non terminée. Redemandez, ou demandez une réponse plus courte.)",
+    "de": "\n\n(Diese Antwort endete an der Längengrenze der Maschine, sie ist also abgeschnitten "
+    "und nicht fertig. Fragen Sie erneut, oder bitten Sie um eine kürzere Antwort.)",
+    "es": "\n\n(Esta respuesta se detuvo en el límite de longitud de la máquina, así que está "
+    "cortada y no terminada. Pregunta de nuevo, o pide una respuesta más corta.)",
+    "ro": "\n\n(Acest răspuns s-a oprit la limita de lungime a mașinii, așa că este tăiat și nu "
+    "terminat. Întreabă din nou sau cere un răspuns mai scurt.)",
+}
 
 ROUNDS_SPENT_NOTE = (
     "\n\n(I stopped after {rounds} rounds of tool calls, the most one answer may use, and did not "
@@ -92,11 +103,11 @@ def append_note(parts: list[str], note: str) -> Iterator[TurnEvent]:
     yield TextDelta(text=placed)
 
 
-def cap_note(stops: StopLedger, parts: list[str]) -> Iterator[TurnEvent]:
+def cap_note(stops: StopLedger, parts: list[str], language: str = ENGLISH) -> Iterator[TurnEvent]:
     """Say so when one of this turn's completions was cut, appending the note to ``parts``."""
     if not stops.capped:
         return
-    yield from append_note(parts, REPLY_CAPPED_NOTE)
+    yield from append_note(parts, in_language(REPLY_CAPPED_NOTE, REPLY_CAPPED_NOTES, language))
 
 
 def rounds_note(
@@ -109,11 +120,13 @@ def rounds_note(
     yield from append_note(parts, ROUNDS_SPENT_NOTE.format(rounds=MAX_TOOL_STEPS, runs=listed))
 
 
-def repeat_note(stops: StopLedger, parts: list[str]) -> Iterator[TurnEvent]:
+def repeat_note(
+    stops: StopLedger, parts: list[str], language: str = ENGLISH
+) -> Iterator[TurnEvent]:
     """Say so when the turn ended its reply because the reply repeated one line."""
     if not stops.repeated:
         return
-    yield from append_note(parts, REPEATED_LINE_NOTE)
+    yield from append_note(parts, in_language(REPEATED_LINE_NOTE, REPEATED_LINE_NOTES, language))
 
 
 def unreadable_call_note(stops: StopLedger, parts: list[str]) -> Iterator[TurnEvent]:

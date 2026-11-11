@@ -19,6 +19,16 @@ ONCE_STORED_NOTE = (
     "\n\n(A reminder set in this turn is for one day only. Ask to make it weekly if you meant "
     "every week.)"
 )
+ONCE_STORED_NOTES = {
+    "fr": "\n\n(Un rappel créé ici ne vaut que pour un seul jour. Demandez à le rendre "
+    "hebdomadaire si vous le vouliez chaque semaine.)",
+    "de": "\n\n(Eine hier erstellte Erinnerung gilt nur für einen Tag. Bitten Sie darum, sie "
+    "wöchentlich zu machen, wenn Sie sie jede Woche wollten.)",
+    "es": "\n\n(Un recordatorio creado aquí es solo para un día. Pide que sea semanal si lo "
+    "querías cada semana.)",
+    "ro": "\n\n(Un memento creat aici este doar pentru o singură zi. Cere să fie săptămânal "
+    "dacă îl voiai în fiecare săptămână.)",
+}
 
 WEEKDAY_NAMES = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 _WEEKDAYS = (

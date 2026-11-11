@@ -10,6 +10,17 @@ UNREAD_FOLDERS_NOTE = (
     "\n\n(No file was read in this turn, so the folders and files named above were not checked "
     "and may not exist. Ask again to have them listed.)"
 )
+UNREAD_FOLDERS_NOTES = {
+    "fr": "\n\n(Aucun fichier n'a été lu ici, donc les dossiers et fichiers nommés ci-dessus "
+    "n'ont pas été vérifiés et peuvent ne pas exister. Redemandez pour les faire lister.)",
+    "de": "\n\n(Hier wurde keine Datei gelesen, daher wurden die oben genannten Ordner und "
+    "Dateien nicht geprüft und existieren vielleicht nicht. Bitten Sie erneut darum, sie "
+    "aufzulisten.)",
+    "es": "\n\n(Aquí no se leyó ningún archivo, así que las carpetas y archivos nombrados "
+    "arriba no se comprobaron y puede que no existan. Pídelo de nuevo para que se listen.)",
+    "ro": "\n\n(Nu s-a citit niciun fișier aici, așa că folderele și fișierele numite mai sus "
+    "nu au fost verificate și s-ar putea să nu existe. Cere din nou pentru a fi listate.)",
+}
 
 # A fence, or a span holding a space, is a command: its paths say nothing of what the cortex reads.
 _CODE = re.compile(r"```.*?(?:```|\Z)|`[^`\n]*\s[^`\n]*`", re.DOTALL)

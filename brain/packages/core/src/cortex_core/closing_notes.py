@@ -1,20 +1,40 @@
 """The notes a turn that ended without an error closes with."""
 
 from collections.abc import Iterator, Sequence
+from functools import partial
 
-from cortex_core.access_claim import UNSEARCHED_FILES_NOTE, unsearched_files_claim
-from cortex_core.chat_only_claim import KEPT_BEYOND_CHAT_NOTE, claims_chat_only
+from cortex_core.access_claim import (
+    UNSEARCHED_FILES_NOTE,
+    UNSEARCHED_FILES_NOTES,
+    unsearched_files_claim,
+)
+from cortex_core.chat_only_claim import (
+    KEPT_BEYOND_CHAT_NOTE,
+    KEPT_BEYOND_CHAT_NOTES,
+    claims_chat_only,
+)
 from cortex_core.conversation import ToolRun
 from cortex_core.events import TurnEvent
-from cortex_core.file_claim import UNREAD_FOLDERS_NOTE, unread_folders_claim
-from cortex_core.forget_claim import UNFORGOTTEN_CLAIM_NOTE, names_removal, unforgotten_claim
+from cortex_core.file_claim import (
+    UNREAD_FOLDERS_NOTE,
+    UNREAD_FOLDERS_NOTES,
+    unread_folders_claim,
+)
+from cortex_core.forget_claim import (
+    UNFORGOTTEN_CLAIM_NOTE,
+    UNFORGOTTEN_CLAIM_NOTES,
+    names_removal,
+    unforgotten_claim,
+)
 from cortex_core.forget_count_note import forgot_count_note, forgot_note_due
 from cortex_core.forget_inside import inside_note
 from cortex_core.forget_unfound_claim import (
     DECLINED_FORGET_NOTE,
     DECLINED_FORGET_NOTES,
     DELETED_UNFOUND_NOTE,
+    DELETED_UNFOUND_NOTES,
     UNMATCHED_FORGET_NOTE,
+    UNMATCHED_FORGET_NOTES,
     declined_note_due,
     unfound_claim,
     unmatched_note_due,
@@ -22,6 +42,7 @@ from cortex_core.forget_unfound_claim import (
 from cortex_core.forget_unnamed import kept_note
 from cortex_core.memory_claim import (
     UNKEPT_CLAIM_NOTE,
+    UNKEPT_CLAIM_NOTES,
     claims_kept,
     memory_withheld,
     unkept_note_due,
@@ -35,7 +56,9 @@ from cortex_core.numbers_left_claim import (
 from cortex_core.schedule_cancelled import cancelled_notes
 from cortex_core.schedule_claim import (
     MONTHLY_STORED_NOTE,
+    MONTHLY_STORED_NOTES,
     UNSCHEDULED_CLAIM_NOTE,
+    UNSCHEDULED_CLAIM_NOTES,
     claims_yearly,
     names_time_of_day,
     stored_time_note,
@@ -46,7 +69,7 @@ from cortex_core.schedule_first_fire import early_first_fire_notes
 from cortex_core.schedule_made_repeating import MADE_REPEATING_NOTE, MADE_REPEATING_NOTES
 from cortex_core.schedule_quoted import quoted_stored_notes
 from cortex_core.schedule_weekday import weekday_off_dates, weekday_off_note
-from cortex_core.schedule_weekly import ONCE_STORED_NOTE
+from cortex_core.schedule_weekly import ONCE_STORED_NOTE, ONCE_STORED_NOTES
 from cortex_core.schedule_weekly_stored import weekly_stored_notes
 from cortex_core.stops import StopLedger
 from cortex_core.turn_context import TurnCapabilities
@@ -92,14 +115,15 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
     held = numbers_left_claim(reply, left=taint.forget_numbers_left, counted=counted)
     unread = unread_folders_claim(taint, query, reply)
     unsearched = unsearched_files_claim(taint, reply)
-    yield from cap_note(stops, parts)
-    yield from rounds_note(stops, runs, parts)
-    yield from repeat_note(stops, parts)
     language = message_language(query)
+    said_in = partial(in_language, language=language)
+    yield from cap_note(stops, parts, language)
+    yield from rounds_note(stops, runs, parts)
+    yield from repeat_note(stops, parts, language)
     if claimed:
-        yield from append_note(parts, UNSCHEDULED_CLAIM_NOTE)
+        yield from append_note(parts, said_in(UNSCHEDULED_CLAIM_NOTE, UNSCHEDULED_CLAIM_NOTES))
     if taint.monthly_stored and claims_yearly(reply):
-        yield from append_note(parts, MONTHLY_STORED_NOTE)
+        yield from append_note(parts, said_in(MONTHLY_STORED_NOTE, MONTHLY_STORED_NOTES))
     if taint.stored_time and not names_time_of_day(reply):
         yield from append_note(parts, stored_time_note(taint.stored_time, language))
     if taint.daily_stored and not names_repeat(reply):
@@ -109,7 +133,7 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
             parts, in_language(MADE_REPEATING_NOTE, MADE_REPEATING_NOTES, language)
         )
     if taint.once_after_weekly:
-        yield from append_note(parts, ONCE_STORED_NOTE)
+        yield from append_note(parts, said_in(ONCE_STORED_NOTE, ONCE_STORED_NOTES))
     for note in (
         *cancelled_notes(made, taint.cancelled, language),
         *quoted_stored_notes(made, query, daily=bool(taint.daily_stored), time=taint.stored_time),
@@ -119,21 +143,21 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
     ):
         yield from append_note(parts, note)
     for due, note in (
-        (unkept, UNKEPT_CLAIM_NOTE),
-        (stored, KEPT_BEYOND_CHAT_NOTE),
-        (unforgotten, UNFORGOTTEN_CLAIM_NOTE),
+        (unkept, said_in(UNKEPT_CLAIM_NOTE, UNKEPT_CLAIM_NOTES)),
+        (stored, said_in(KEPT_BEYOND_CHAT_NOTE, KEPT_BEYOND_CHAT_NOTES)),
+        (unforgotten, said_in(UNFORGOTTEN_CLAIM_NOTE, UNFORGOTTEN_CLAIM_NOTES)),
         (counted, forgot_count_note(taint.forget_deleted, language)),
         (held, in_language(NUMBERS_LEFT_NOTE, NUMBERS_LEFT_NOTES, language)),
         (bool(taint.forget_kept), kept_note(taint.forget_kept, language)),
         (bool(taint.forget_inside), inside_note(taint.forget_inside, language)),
-        (unfound, DELETED_UNFOUND_NOTE),
-        (missed, UNMATCHED_FORGET_NOTE),
+        (unfound, said_in(DELETED_UNFOUND_NOTE, DELETED_UNFOUND_NOTES)),
+        (missed, said_in(UNMATCHED_FORGET_NOTE, UNMATCHED_FORGET_NOTES)),
         (
             declined_note_due(reply, declined=taint.forget_declined),
             in_language(DECLINED_FORGET_NOTE, DECLINED_FORGET_NOTES, language),
         ),
-        (unread, UNREAD_FOLDERS_NOTE),
-        (unsearched, UNSEARCHED_FILES_NOTE),
+        (unread, said_in(UNREAD_FOLDERS_NOTE, UNREAD_FOLDERS_NOTES)),
+        (unsearched, said_in(UNSEARCHED_FILES_NOTE, UNSEARCHED_FILES_NOTES)),
     ):
         if due:
             yield from append_note(parts, note)

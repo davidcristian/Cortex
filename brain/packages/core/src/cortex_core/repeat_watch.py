@@ -3,12 +3,22 @@
 import re
 from collections import deque
 
-__all__ = ["REPEATED_LINE_NOTE", "RepeatWatch"]
+__all__ = ["REPEATED_LINE_NOTE", "REPEATED_LINE_NOTES", "RepeatWatch"]
 
 REPEATED_LINE_NOTE = (
     "\n\n(I stopped this answer because it started repeating the same line, so it is unfinished. "
     "Ask again, or ask in other words.)"
 )
+REPEATED_LINE_NOTES = {
+    "fr": "\n\n(J'ai arrêté cette réponse parce qu'elle commençait à répéter la même ligne, elle "
+    "est donc inachevée. Redemandez, ou demandez-le autrement.)",
+    "de": "\n\n(Ich habe diese Antwort beendet, weil sie anfing, dieselbe Zeile zu wiederholen, "
+    "sie ist also unvollständig. Fragen Sie erneut, oder fragen Sie mit anderen Worten.)",
+    "es": "\n\n(Detuve esta respuesta porque empezó a repetir la misma línea, así que está sin "
+    "terminar. Pregunta de nuevo, o pregúntalo con otras palabras.)",
+    "ro": "\n\n(Am oprit acest răspuns pentru că începuse să repete același rând, așa că este "
+    "neterminat. Întreabă din nou sau întreabă în alte cuvinte.)",
+}
 
 # The shape the reply loop readings judged: three back to back copies of a block of one to four
 # lines with a counted line the message lacks. A count of copies in the message raises the three to

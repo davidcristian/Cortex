@@ -12,6 +12,16 @@ UNFORGOTTEN_CLAIM_NOTE = (
     "\n\n(Nothing was forgotten in this turn: no forget call in it deleted a memory. Ask again to "
     "forget it, in a message of its own.)"
 )
+UNFORGOTTEN_CLAIM_NOTES = {
+    "fr": "\n\n(Rien n'a été oublié ici : aucun appel d'oubli n'a supprimé d'échange mémorisé. "
+    "Redemandez à l'oublier, dans un message à part.)",
+    "de": "\n\n(Hier wurde nichts vergessen: kein Aufruf zum Vergessen hat eine gespeicherte "
+    "Unterhaltung gelöscht. Bitten Sie in einer eigenen Nachricht erneut darum, es zu vergessen.)",
+    "es": "\n\n(Aquí no se olvidó nada: ninguna llamada de olvido borró un intercambio "
+    "guardado. Pide de nuevo que se olvide, en un mensaje aparte.)",
+    "ro": "\n\n(Nu s-a uitat nimic aici: niciun apel de uitare nu a șters vreun schimb memorat. "
+    "Cere din nou să fie uitat, într-un mesaj separat.)",
+}
 
 _ADVERB = r"(?:(?:now|just|also|already|successfully)\s+)?"
 _I_HAVE = rf"\bI(?:\s+have|['\u2019]ve)\s+{_ADVERB}"

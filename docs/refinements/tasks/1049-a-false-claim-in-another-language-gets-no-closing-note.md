@@ -10,7 +10,7 @@ when it finds a claim, so a false claim in French, German, Spanish or Romanian g
 `claims_yearly` (`MONTHLY_STORED_NOTE`),
 `says_not_stored` (`DELETED_UNFOUND_NOTE`), `claims_folders` (`UNREAD_FOLDERS_NOTE`) and the
 searched-files claim (`UNSEARCHED_FILES_NOTE`). The table is in the
-[readings](../../readings/closing-note-language.md#the-notes-and-their-readers-2026-11-08).
+[readings](../../readings/closing-note-language.md#the-notes-and-their-readers-2026-11-11).
 
 ## What to do
 

@@ -18,6 +18,16 @@ UNKEPT_CLAIM_NOTE = (
     "\n\n(Nothing in this message was kept in memory. Send anything you want remembered again in "
     "a message of its own.)"
 )
+UNKEPT_CLAIM_NOTES = {
+    "fr": "\n\n(Rien de ce message n'a été gardé en mémoire. Renvoyez ce que vous voulez garder "
+    "en mémoire dans un message à part.)",
+    "de": "\n\n(Nichts aus dieser Nachricht wurde gespeichert. Senden Sie alles, was "
+    "gespeichert werden soll, noch einmal in einer eigenen Nachricht.)",
+    "es": "\n\n(Nada de este mensaje se guardó en memoria. Envía de nuevo lo que quieras que se "
+    "recuerde en un mensaje aparte.)",
+    "ro": "\n\n(Nimic din acest mesaj nu a fost păstrat în memorie. Trimite din nou ce vrei să "
+    "fie reținut, într-un mesaj separat.)",
+}
 
 _ADVERB = r"(?:(?:now|just|also|already)\s+)?"
 # "As I noted" points back at the reply's own text, not at memory.

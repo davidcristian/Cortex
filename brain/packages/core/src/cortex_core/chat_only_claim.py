@@ -6,6 +6,18 @@ KEPT_BEYOND_CHAT_NOTE = (
     "\n\n(This exchange is stored in memory and can be recalled in later chats too, not only in "
     "this one. Ask to forget it if you do not want it kept.)"
 )
+KEPT_BEYOND_CHAT_NOTES = {
+    "fr": "\n\n(Cet échange est enregistré en mémoire et peut être rappelé aussi dans les "
+    "conversations suivantes, pas seulement dans celle-ci. Demandez à l'oublier si vous ne voulez "
+    "pas qu'il soit gardé.)",
+    "de": "\n\n(Diese Unterhaltung ist gespeichert und kann auch in späteren Chats abgerufen "
+    "werden, nicht nur in diesem. Bitten Sie darum, sie zu vergessen, wenn sie nicht gespeichert "
+    "bleiben soll.)",
+    "es": "\n\n(Este intercambio está guardado en memoria y puede recuperarse también en chats "
+    "posteriores, no solo en este. Pide que se olvide si no quieres que se guarde.)",
+    "ro": "\n\n(Acest schimb este memorat și poate fi regăsit și în conversațiile următoare, nu "
+    "doar în aceasta. Cere să fie uitat dacă nu vrei să fie păstrat.)",
+}
 
 _KEEP = (
     r"\b(?:keep|keeping|kept|remember|remembering|remembered|note|noted|hold|holding|retain"
