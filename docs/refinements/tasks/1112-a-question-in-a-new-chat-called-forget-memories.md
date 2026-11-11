@@ -1,9 +1,8 @@
 # A question in a new chat called forget_memories
 
-**Status:** open, actionable
+**Status:** done 2026-11-11
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-11
 
 In c1 draw 4 of [the readings](../../readings/correction-keeps-old-value.md), after a correction turn had deleted the only bike lock row, `What is my bike lock
 code?` in a new chat called `forget_memories` (its text is redacted in the audit log). The call
@@ -40,3 +39,7 @@ The cause is shared, so build for it rather than drawing the question again.
 - 2026-11-11: drawn 18 times without a repeat; the same call on the question asking to note
   a fact in 6 of 12 shows the cause is shared, so What to do is rewritten as a build with its
   rule. Left open, verified, for lack of slot time.
+- 2026-11-11: done. `forget_unrequested` refuses the call by name as `FORGET_UNREQUESTED` on a
+  message with no word that can retract something, no negation in the five languages and no
+  letter outside English, unless the last reply names forgetting; the turn is recorded and gets no
+  note about deleting ([readings](../../readings/forget-unrequested.md)).

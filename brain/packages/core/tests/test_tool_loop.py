@@ -701,7 +701,7 @@ async def test_a_forget_named_in_a_call_marks_the_turn_though_the_call_never_run
     *, names: list[str], budget: int, asked: bool
 ) -> None:
     sink = RecordingAuditSink()
-    context = _context(sink, budget=budget)
+    context = replace(_context(sink, budget=budget), query="Forget my code.")
     await _run(_ScriptedBackend(names), context)
     assert context.taint.forget_asked is asked
     assert all(record.name != FORGET_CHOSEN_TOOL_NAME or not record.ok for record in sink.records)

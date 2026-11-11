@@ -5,6 +5,7 @@ from collections.abc import AsyncGenerator, AsyncIterator, Mapping, Sequence
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch_round import LoopRecord, ToolLoopContext, run_round
 from cortex_core.errors import InferenceError
+from cortex_core.forget_unrequested import forget_unrequested
 from cortex_core.inference import (
     DecodeCadence,
     DecodeStop,
@@ -85,10 +86,10 @@ def _last_reply(working: Sequence[Message]) -> str:
 
 async def _turn_tools(
     context: ToolLoopContext, working: Sequence[Message]
-) -> tuple[Sequence[ToolSpec], Mapping[str, ToolSpec], frozenset[str]]:
-    """The tools offered to the model, every listed spec by name, and those refused by name."""
+) -> tuple[Sequence[ToolSpec], Mapping[str, ToolSpec], frozenset[str], frozenset[str]]:
+    """The tools offered, every listed spec by name, those refused by name, and the unrequested."""
     if context.dispatcher is None:
-        return (), {}, frozenset()
+        return (), {}, frozenset(), frozenset()
     specs = await list_tools(context.dispatcher, context.progress)
     left_out = unasked_tools(context.query)
     withheld = await context.dispatcher.withheld(context.session_id) | left_out
@@ -96,9 +97,11 @@ async def _turn_tools(
     # an unasked tool, its refusal. A sidecar tool stays listed, since a shorter list raised the
     # model's forget calls in one of two comparisons (unasked-tools-listed-on-remember.md).
     offered = tuple(spec for spec in specs if spec.name not in withheld)
-    forget = unasked_forget(context.query, _last_reply(working))
-    refused = left_out | unasked_sidecar_tools(context.query, specs) | forget
-    return offered, {s.name: s for s in specs}, refused
+    last_reply = _last_reply(working)
+    forget = unasked_forget(context.query, last_reply)
+    unrequested = forget_unrequested(context.query, last_reply) - forget
+    refused = left_out | unasked_sidecar_tools(context.query, specs) | forget | unrequested
+    return offered, {s.name: s for s in specs}, refused, unrequested
 
 
 async def stream_tool_loop(
@@ -109,12 +112,13 @@ async def stream_tool_loop(
 ) -> AsyncGenerator[str | ReasoningDelta | ToolStep | StepOutcome, None]:
     """Run the bounded infer↔tool loop over ``working``, yielding each delta, step and outcome."""
     dispatcher = context.dispatcher
-    specs, spec_by_name, unasked = await _turn_tools(context, working)
+    specs, spec_by_name, unasked, unrequested = await _turn_tools(context, working)
     # Per loop rather than per turn: a repeat is redundant only against the ``working`` messages
     # that already hold its answer, and the results share the room of that one request.
     record = LoopRecord(
         room=ResultRoom(context.room_chars, spent=context.results_spent),
         unasked=unasked,
+        unrequested=unrequested,
         yearly_refused=list(context.yearly_refused),
         midnight_refused=list(context.midnight_refused),
         weekly_refused=list(context.weekly_refused),

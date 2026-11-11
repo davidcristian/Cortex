@@ -91,6 +91,8 @@ class LoopRecord:
     room: ResultRoom = field(default_factory=ResultRoom)
     # The tools the person's message did not ask for (``unasked_tools.py``), refused by name.
     unasked: frozenset[str] = frozenset()
+    # Those of them refused because the message holds no word that can retract something.
+    unrequested: frozenset[str] = frozenset()
     # The monthly schedule calls refused for a yearly date; a retry on the same days runs.
     yearly_refused: list[ToolCall] = field(default_factory=list[ToolCall])
     # The 00:00 schedule calls refused once in this turn; a second one runs.
@@ -107,6 +109,8 @@ def _unasked_refusal(
     call: ToolCall, record: LoopRecord, context: ToolLoopContext
 ) -> DispatchRefusal | None:
     """Which reading of the person's message refuses this call, or ``None`` when none does."""
+    if call.name in record.unrequested:
+        return DispatchRefusal.FORGET_UNREQUESTED
     if call.name in record.unasked:
         return DispatchRefusal.UNASKED
     retried = any(same_month_days(call, refused) for refused in record.yearly_refused)

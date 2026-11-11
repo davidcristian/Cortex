@@ -116,7 +116,13 @@ async def _loop(rounds: Sequence[Sequence[ToolCall]], *, approve: bool = True) -
     )
     taint = TaintLedger()
     context = ToolLoopContext(
-        dispatcher=dispatcher, clock=_Clock(), turn_id="t", taint=taint, nonce="n", session_id="s"
+        dispatcher=dispatcher,
+        clock=_Clock(),
+        turn_id="t",
+        taint=taint,
+        nonce="n",
+        session_id="s",
+        query="Forget it.",
     )
     working = [Message(role=Role.USER, text="remember it", at=_AT, turn_id="t")]
     async for _ in stream_tool_loop(_RoundsBackend(rounds), "m", working, context):
@@ -316,7 +322,8 @@ async def test_a_refused_forget_ends_with_the_note_unless_it_was_refused_as_unas
     refusal: DispatchRefusal,
 ) -> None:
     result = await _Rig().dispatcher.dispatch(_forget("Fiat"), refusal=refusal)
-    assert (FORGET_NOT_KEPT_NOTE in result.content) is (refusal is not DispatchRefusal.UNASKED)
+    kept = (DispatchRefusal.UNASKED, DispatchRefusal.FORGET_UNREQUESTED)
+    assert (FORGET_NOT_KEPT_NOTE in result.content) is (refusal not in kept)
 
 
 @pytest.mark.parametrize(

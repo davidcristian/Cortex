@@ -97,16 +97,21 @@ async def test_a_card_nobody_can_answer_ends_with_the_note() -> None:
     assert result.content == f"{UNANSWERED_MSG} {_NOTE}"
 
 
+_KEPT = (DispatchRefusal.UNASKED, DispatchRefusal.FORGET_UNREQUESTED)
+
+
 @pytest.mark.parametrize(
-    "refusal", [refusal for refusal in DispatchRefusal if refusal is not DispatchRefusal.UNASKED]
+    "refusal", [refusal for refusal in DispatchRefusal if refusal not in _KEPT]
 )
 async def test_a_call_refused_before_it_ran_ends_with_the_note(refusal: DispatchRefusal) -> None:
     result = await _dispatcher(RecordingAuditSink()).dispatch(_call(), refusal=refusal)
     assert result.content == f"{refusal.message} {_NOTE}"
 
 
-async def test_a_call_refused_as_unasked_has_no_note_since_its_turn_is_kept() -> None:
-    refusal = DispatchRefusal.UNASKED
+@pytest.mark.parametrize("refusal", _KEPT)
+async def test_a_call_refused_as_unasked_has_no_note_since_its_turn_is_kept(
+    refusal: DispatchRefusal,
+) -> None:
     result = await _dispatcher(RecordingAuditSink()).dispatch(_call(), refusal=refusal)
     assert result.content == refusal.message
 
