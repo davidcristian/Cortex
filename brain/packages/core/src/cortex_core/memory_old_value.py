@@ -8,7 +8,7 @@ from cortex_core.memory_claim import claims_kept
 from cortex_core.memory_claim_other import claims_kept_other, stated
 from cortex_core.memory_claim_update import claims_updated
 from cortex_core.memory_values import joined
-from cortex_core.note_language import in_language
+from cortex_core.note_language import ENGLISH, in_language, message_language
 from cortex_core.turn_context import TurnCapabilities
 from cortex_core.untrusted import TaintLedger
 
@@ -34,14 +34,20 @@ OLD_VALUE_NOTES = {
 }
 
 _LIMIT = 8
-_PART = r"[^\W_](?:[\w'\u2019-]|[./](?=\w))*"
+_PART = r"[^\W_](?:[\w'\u2019-]|[./](?=\w)|(?<=\d):(?=\d))*"
 _WORDS = rf"{_PART}(?:\s+{_PART}){{0,3}}"
-_NAMED = r"(?:\d+(?:[ ./-]\d+)*|(?-i:[A-Z])[\w'\u2019-]*)"
+_NAMED = r"(?:\d+(?:[ ./:-]\d+)*|(?-i:[A-Z])[\w'\u2019-]*)"
+_NAMED_VALUE = re.compile(_NAMED)
 _END = r"\s*(?=[,.;:!?)]|$)"
+# "from Berlin to Paris" names a route or a range unless a verb of change comes before it.
+_CHANGE = (
+    r"\b(?:chang(?:e[ds]?|ing)|updat(?:e[ds]?|ing)|correct(?:s|ed|ing)?|switch(?:e[ds]|ing)?"
+    r"|mov(?:e[ds]?|ing)|edit(?:s|ed|ing)?)\b[^.!?\n]*?"
+)
 _OLD = re.compile(
-    rf",\s*(?:not|pas|nicht|no|nu)\s+({_WORDS}){_END}"
+    rf",\s*(?:not|pas|nicht)\s+({_WORDS}){_END}|,\s*(?:no|nu)\s+({_WORDS}){_END}"
     rf"|\b(?:instead\s+of|no\s+longer)\s+({_WORDS}){_END}"
-    rf"|\bfrom\s+({_NAMED})\s+to\s|\breplace\s+({_NAMED})\s+with\s"
+    rf"|{_CHANGE}\bfrom\s+({_NAMED})\s+to\s|\breplace\s+({_NAMED})\s+with\s"
     rf"|(?<![\w'\u2019])({_NAMED})\s+(?:is|was)\s+(?:wrong|incorrect|outdated|out\s+of\s+date)\b",
     re.IGNORECASE | re.MULTILINE,
 )
@@ -81,8 +87,12 @@ def claims_changed(reply: str) -> bool:
 def corrected_values(message: str) -> tuple[str, ...]:
     """The values ``message`` names as old or wrong, in the order it names them."""
     found: list[str] = []
+    english = message_language(message) == ENGLISH
     for match in _OLD.finditer(message):
         value = next(group for group in match.groups() if group is not None)
+        # "Ok, no problem" names no old value in English, while "4862, no 4826" does.
+        if english and match.group(2) is not None and _NAMED_VALUE.fullmatch(value) is None:
+            continue
         if value.split()[0].lower() not in _FUNCTION and value not in found:
             found.append(value)
     return tuple(found)

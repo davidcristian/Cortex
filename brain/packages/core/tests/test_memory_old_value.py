@@ -49,6 +49,11 @@ _UPDATED = "I've updated that for you. Your bike lock code is 4862."
         ("Mein Code ist 4862, nicht 4826.", ("4826",)),
         ("Mi código es 4862, no 4826.", ("4826",)),
         ("Codul meu este 4862, nu 4826.", ("4826",)),
+        ("Move my dentist to 10:00, not 9:00.", ("9:00",)),
+        ("Change the dentist from 9:00 to 10:00.", ("9:00",)),
+        ("I moved from Berlin to Paris.", ("Berlin",)),
+        ("My code is 4862, no 4826.", ("4826",)),
+        ("Mi color es azul, no verde.", ("verde",)),
     ],
 )
 def test_a_correction_names_its_old_value(message: str, values: tuple[str, ...]) -> None:
@@ -67,6 +72,12 @@ def test_a_correction_names_its_old_value(message: str, values: tuple[str, ...])
         "The code is wrong, it is 4862.",
         "Move it from tomorrow to Friday.",
         "My code is 4862 not 4826.",
+        "Remember I work from 9 to 5.",
+        "Remember I fly from Berlin to Paris on Friday.",
+        "Remember my trip is from 12.03 to 15.03.",
+        "Remember the movie runs from 9 to 11.",
+        "Ok, no problem, remember my code is 4862.",
+        "Remember my code is 4862. Thanks, no rush.",
     ],
 )
 def test_a_message_naming_no_old_value_names_none(message: str) -> None:
@@ -87,6 +98,9 @@ def test_a_value_named_twice_is_named_once() -> None:
         ("User: my code is 48261", "4826", False),
         ("User: my code is 14826", "4826", False),
         ("User: my code is 4826.", "4826", True),
+        ("User: my dentist is at 9:00.", "9:00", True),
+        ("User: my locker is number 9.", "9:00", False),
+        ("User: my dentist is at 19:00.", "9:00", False),
     ],
 )
 def test_a_row_holds_a_value_only_whole(text: str, value: str, *, held: bool) -> None:
@@ -178,6 +192,19 @@ async def test_a_reply_asking_restating_or_after_a_delete_names_no_old_value(
 ) -> None:
     _, caps = await _rig(_SEED)
     assert await _held(caps, TaintLedger(forget_deleted=deleted), _CORRECTION, reply) == ""
+
+
+@pytest.mark.parametrize(
+    ("query", "held"),
+    [
+        ("Remember I fly from Berlin to Paris on Friday.", ""),
+        ("Move my dentist to 10:00, not 9:00.", ""),
+        ("I moved from Berlin to Paris.", "Berlin"),
+    ],
+)
+async def test_a_route_or_a_clock_time_names_no_unrelated_row(query: str, held: str) -> None:
+    _, caps = await _rig("User: I live in Berlin.\nAssistant: Noted.", "User: My locker is 9.")
+    assert await _held(caps, TaintLedger(), query, "Noted, I've updated that.") == held
 
 
 async def test_a_row_naming_the_value_as_wrong_does_not_hold_it() -> None:
