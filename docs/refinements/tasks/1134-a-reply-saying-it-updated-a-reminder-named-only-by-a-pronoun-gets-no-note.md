@@ -36,3 +36,6 @@ shown the form yet.
   before the first; 14 near misses keep no claim, and the replay added none
   ([readings](../../readings/schedule-change-request.md#the-draws-2026-11-11)). The reply with no
   update verb is read by `_fires_now` in the same file, built the same night.
+- 2026-11-11: the first audit of this change filed
+  [1138](1138-the-unscheduled-claim-note-shows-under-a-reminder-status-or-a-memory-update.md): the
+  note shows under a status read of a reminder and under a memory update.
