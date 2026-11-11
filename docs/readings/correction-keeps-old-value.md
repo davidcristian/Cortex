@@ -148,3 +148,11 @@ it noted or will remember the value, in English or another of the four languages
 note while a stored row holds the old value; no turn ends with it when a forget deleted a row, or
 when the reply only asks to note the value (`Should I note 4862 as your code?`), says it noted
 nothing, or restates the value with no claim (`Your code is 4862.`).
+
+**The smoke turns.** 03:58 to 03:59 on 2026-11-11, two of flow c1 on `cortexn19-brain-s11`, the
+tree with the widened condition, SM clock 0.57 of `clocks.max.sm`. In c1 1 the model called
+`forget_memories` with `4826`, the approved card deleted the seed row, and the reply `Got it. I've
+noted that your bike lock code is 4862, not 4826.` ended without the note. In c1 2 no forget ran,
+both rows stayed, and the same reply ended with the note naming 4826, the form itself. Driver
+`smoke.sh`, log `smoke.log` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot11/`.
