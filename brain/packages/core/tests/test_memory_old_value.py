@@ -150,6 +150,36 @@ async def test_no_old_value_is_named_unless_every_condition_holds(
     assert await _held(caps, TaintLedger(forget_deleted=deleted), query, reply) == ""
 
 
+@pytest.mark.parametrize(
+    "reply",
+    [
+        "Noted, your bike lock code is 4862.",
+        "OK. I've noted that your bike lock code is **4862**, not 4826.",
+        "I'll remember that your code is 4862.",
+        "C'est noté, votre code est 4862.",
+    ],
+)
+async def test_a_kept_claim_while_a_row_holds_the_old_value_names_it(reply: str) -> None:
+    _, caps = await _rig(_SEED, f"User: {_CORRECTION}\nAssistant: {reply}")
+    assert await _held(caps, TaintLedger(), _CORRECTION, reply) == "4826"
+
+
+@pytest.mark.parametrize(
+    ("reply", "deleted"),
+    [
+        ("Should I note 4862 as your code?", 0),
+        ("I have not noted anything.", 0),
+        ("Your code is 4862.", 0),
+        ("Noted, your bike lock code is 4862.", 1),
+    ],
+)
+async def test_a_reply_asking_restating_or_after_a_delete_names_no_old_value(
+    reply: str, deleted: int
+) -> None:
+    _, caps = await _rig(_SEED)
+    assert await _held(caps, TaintLedger(forget_deleted=deleted), _CORRECTION, reply) == ""
+
+
 async def test_a_row_naming_the_value_as_wrong_does_not_hold_it() -> None:
     _, caps = await _rig(f"User: {_CORRECTION}\nAssistant: Noted.")
     assert await _held(caps, TaintLedger(), _CORRECTION, _UPDATED) == ""
@@ -199,3 +229,14 @@ async def test_a_french_correction_turn_ends_with_the_french_note() -> None:
     events = engine.handle_turn("s", "Mon code est 4862, pas 4826.", turn_id="t")
     reply = "".join([event.text async for event in events if isinstance(event, TextDelta)])
     assert reply.endswith(old_value_note("4826", "fr"))
+
+
+async def test_a_correction_turn_claiming_it_noted_the_value_ends_with_the_note() -> None:
+    _, caps = await _rig(_SEED)
+    noted = "Noted, your bike lock code is 4862."
+    backend = ScriptedInferenceBackend([[TextChunk(noted)]])
+    engine = TurnEngine(InMemorySessionStore(), backend, SystemClock(), capabilities=caps)
+    events = engine.handle_turn("s", _CORRECTION, turn_id="t")
+    reply = "".join([event.text async for event in events if isinstance(event, TextDelta)])
+    assert reply.startswith(noted)
+    assert old_value_note("4826", "en") in reply

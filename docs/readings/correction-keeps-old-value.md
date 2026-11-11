@@ -134,3 +134,17 @@ The rule holds: u3 3, the one turn that kept the seed row and claimed an update,
 note naming 4826, and u3 1 and u3 2, whose forget deleted the seed row, end without it. The c1
 turns claim no update and are null results. Driver `draw.sh`, records `rows.jsonl` and log
 `draw.log` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot10/`.
+
+## A kept claim on a correction, rule written 2026-11-11 before it was built
+
+In c1 2 and c1 3 above, the reply said it noted the new value (`claims_kept`), both rows stayed
+stored, and no note was appended, since the note needed an update claim. The form occurred in 2
+of the 3 c1 smoke turns; that count decides nothing. The note's text states only that a stored
+row holds the old value and that nothing was deleted, so it is true on any reply. The condition
+widens to a reply that `claims_kept` or `claims_kept_other` reads as a kept claim.
+
+**Pass rule.** It ships when the unit and engine tests show: a correction turn whose reply says
+it noted or will remember the value, in English or another of the four languages, ends with the
+note while a stored row holds the old value; no turn ends with it when a forget deleted a row, or
+when the reply only asks to note the value (`Should I note 4862 as your code?`), says it noted
+nothing, or restates the value with no claim (`Your code is 4862.`).

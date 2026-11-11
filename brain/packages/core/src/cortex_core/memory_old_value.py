@@ -1,10 +1,11 @@
-"""Close a reply saying a value was updated while a remembered exchange still holds the old one."""
+"""Close a reply saying a value was updated or noted while a stored row still holds the old one."""
 
 import re
 
 from cortex_core.errors import MemoryStoreError
 from cortex_core.forget_languages import FUNCTION
-from cortex_core.memory_claim_other import stated
+from cortex_core.memory_claim import claims_kept
+from cortex_core.memory_claim_other import claims_kept_other, stated
 from cortex_core.memory_claim_update import claims_updated
 from cortex_core.memory_values import joined
 from cortex_core.note_language import in_language
@@ -98,7 +99,8 @@ async def hold_old_value(
     caps: TurnCapabilities, taint: TaintLedger, *, query: str, reply: str, session_id: str
 ) -> None:
     """Set ``taint.old_value`` to a value ``query`` corrects that a stored row still holds."""
-    if caps.memory is None or taint.forget_deleted or not claims_changed(reply):
+    claimed = claims_changed(reply) or claims_kept(reply) or claims_kept_other(reply)
+    if caps.memory is None or taint.forget_deleted or not claimed:
         return
     for value in corrected_values(query):
         try:
