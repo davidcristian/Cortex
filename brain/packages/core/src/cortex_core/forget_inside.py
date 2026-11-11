@@ -4,10 +4,12 @@ import re
 from collections.abc import Iterable, Sequence
 
 from cortex_core.memory import MemoryRecord
+from cortex_core.memory_values import joined, value_spans
 from cortex_core.note_language import ENGLISH, in_language
 
 _HEAD = re.compile(r"\A[^\W_]+")
 _TAIL = re.compile(r"[^\W_]+\Z")
+_KIND = re.compile(r"\b(?:cards?|accounts?|ibans?)\b", re.IGNORECASE)
 
 INSIDE_LINE = "Kept, since they hold that text only inside a longer value:"
 INSIDE_ALL = (
@@ -55,9 +57,34 @@ def _bounded(text: str) -> re.Pattern[str] | None:
     return re.compile(f"{lead}{re.escape(text)}{trail}", re.IGNORECASE)
 
 
-def inside(records: Sequence[MemoryRecord], text: str) -> frozenset[str]:
-    """The ids of ``records`` holding ``text`` only inside a longer value, never on its own."""
+def _part(record: str, place: tuple[int, int], query: str) -> bool:
+    """Whether ``place`` of ``record`` is in a longer value ``query`` lacks, not its last group."""
+    start, end = place
+    piece = record[start:end]
+    for low, high in value_spans(record):
+        last = end == high and not record[start - 1].isalnum() and joined(piece) == piece.lower()
+        named = joined(record[low:high]) in joined(query)
+        if low <= start and end <= high and place != (low, high) and not last and not named:
+            return True
+    return False
+
+
+def _grouped(record: str, text: str, query: str) -> bool:
+    """Whether ``record`` holds ``text`` only in longer values of a kind ``query`` does not name."""
+    search = re.compile(r"\s+".join(map(re.escape, text.split())), re.IGNORECASE)
+    places = [found.span() for found in search.finditer(record)]
+    return _KIND.search(query) is None and all(_part(record, place, query) for place in places)
+
+
+def inside(records: Sequence[MemoryRecord], text: str, query: str = "") -> frozenset[str]:
+    """The ids of ``records`` holding ``text`` only inside a longer value, never on its own,
+    or, given the message ``query``, only as groups of a longer value it does not name."""
     pattern = _bounded(text)
     if pattern is None:
         return frozenset()
-    return frozenset(record.id for record in records if pattern.search(record.text) is None)
+    return frozenset(
+        record.id
+        for record in records
+        if pattern.search(record.text) is None
+        or (bool(query) and _grouped(record.text, text, query))
+    )

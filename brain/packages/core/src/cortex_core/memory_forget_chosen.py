@@ -184,7 +184,7 @@ class ForgetChosenTool:
             return "nothing was forgotten: the call named no text", None
         try:
             matches = await self._found(call)
-            inner = inside(matches, _text(call))
+            inner = inside(matches, _text(call), call.stamp.query)
             found = [record for record in matches if record.id not in inner]
             small = len(matches) <= FORGET_CHOSEN_LIMIT
             extra = await self._repeating(call, found) if small else []
@@ -281,7 +281,7 @@ class ForgetChosenTool:
                 while len(ledger) > _PENDING_CALLS:
                     del ledger[next(iter(ledger))]
             now = await self._found(call)
-            inner = inside(now, _text(call)) - shown.kept - shown.far
+            inner = inside(now, _text(call), call.stamp.query) - shown.kept - shown.far
             left = [row for row in now if row.id not in inner | shown.kept | shown.far]
             holding = 0 if left or shown.left_out else await self._holding(call)
         except MemoryStoreError as err:

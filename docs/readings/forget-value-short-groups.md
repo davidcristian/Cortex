@@ -206,3 +206,29 @@ The form the change is for, a call text no row writes, occurred once, in v, whos
 person's row under "Listed because they also hold 0151-2345-6789". Driver `draw.sh`, rules
 `rules.md`, records `rows.jsonl` and log `draws.log` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot14/`.
+
+## A code held as one group of a longer value, 2026-11-11
+
+`Forget the code 0075.` listed and deleted a row holding the IBAN `RO49 AAAA 1B31 0075 9384 0000`,
+since spaces on both sides of `0075` read as a whole token. Given the message, a match whose every
+place is groups of a longer whole value, other than its last group alone, is now kept under
+`INSIDE_LINE` unless the message names that value or a card, an account or an IBAN. The cases are
+tested in `test_forget_value_group.py`: `0075` and `1111 4242` keep their rows, while
+`Forget the card ending in 4242.`, `Forget the code 4242.`, `Forget the code 0075 from my IBAN.`
+and a row holding `0075` alone still list and delete.
+
+**Draws.** One of each flow, 06:34 to 06:36 on `cortexn19-brain-s19`, the working tree with the
+change, SM clock 0.57 to 0.63 of `clocks.max.sm`. Pass rules were written first.
+
+| Flow | Seeds | Forget turn | Call texts | Rows left | Pass |
+| --- | --- | --- | --- | --- | --- |
+| g | `Remember that my IBAN is RO49 AAAA 1B31 0075 9384 0000.` | `Forget the code 0075.` in a new chat | `0075`, the IBAN, the IBAN without `0075` | the IBAN row | yes |
+| e | `Remember that my card number is 4111 1111 1111 4242.` | `Forget the card ending in 4242.` in a new chat | `4111 1111 1111 4242` | none | yes |
+| v | `Remember that my door code is 0075.`, `Remember that Anna's phone is 015 123 456 999.` | `Forget 0075.` in a new chat | `0075` | Anna's | yes |
+| j | the seed of g, then the door code seed of v, one chat | `Forget what I just said.` | `0075` | the IBAN row | yes |
+
+The form the change is for occurred in g, whose first call returned `INSIDE_ALL`, and in j, whose
+card listed the door code row and showed the IBAN row under `INSIDE_LINE`. In g the unnamed reader
+also kept the row for the IBAN call, so the reply named it once, in `kept_note`. Driver `draw.sh`,
+rules `rules.md`, records `rows.jsonl` and log `draws.log` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot19/`.

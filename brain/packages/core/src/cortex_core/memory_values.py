@@ -1,6 +1,7 @@
 """Read the whole values a text holds, such as a phone number or a code, as a person writes them."""
 
 import re
+from collections.abc import Iterator
 
 _GROUP = r"\b(?=[^\W_]*\d)[^\W_]+"
 _RUN = re.compile(rf"{_GROUP}(?:[ ./-]{_GROUP})*")
@@ -44,22 +45,32 @@ def _dated(groups: list[str]) -> bool:
     return long_groups == 1 and any(_is_year(group) for group in groups)
 
 
-def whole_values(text: str) -> dict[str, str]:
-    """Each whole value of ``text`` by its letters and digits in lower case, mapped to its form."""
-    values: dict[str, str] = {}
+def _wholes(text: str) -> Iterator[re.Match[str]]:
+    """The places of ``text`` holding a whole value, not a date, a time or an amount."""
     for match in _RUN.finditer(text):
         groups = _SEPARATOR.split(match.group())
-        key = "".join(groups).lower()
         if (
-            sum(char.isdigit() for char in key) < _MIN_DIGITS
+            sum(char.isdigit() for char in "".join(groups)) < _MIN_DIGITS
             or _dated(groups)
             or any(_TIME.fullmatch(group) for group in groups)
             or _UNIT_AFTER.match(text, match.end())
             or _UNIT_BEFORE.search(text[max(match.start() - 2, 0) : match.start()])
         ):
             continue
-        values.setdefault(key, match.group())
+        yield match
+
+
+def whole_values(text: str) -> dict[str, str]:
+    """Each whole value of ``text`` by its letters and digits in lower case, mapped to its form."""
+    values: dict[str, str] = {}
+    for match in _wholes(text):
+        values.setdefault(joined(match.group()), match.group())
     return values
+
+
+def value_spans(text: str) -> list[tuple[int, int]]:
+    """The start and end of each whole value of ``text``."""
+    return [match.span() for match in _wholes(text)]
 
 
 def digit_runs(text: str) -> dict[str, str]:
