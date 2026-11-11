@@ -47,6 +47,7 @@ from cortex_core.memory_claim import (
     UNKEPT_CLAIM_NOTES,
     claims_kept,
     memory_withheld,
+    states_value,
     unkept_note_due,
 )
 from cortex_core.memory_old_value import old_value_note
@@ -100,8 +101,9 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
     made = (*earlier, *runs)
     claimed = unscheduled_claim(made, reply, said)
     withheld = memory_withheld(caps, taint, made, query=query)
-    unkept = withheld and unkept_note_due(
-        query, reply, taint.forget_spared, forget_called=taint.forget_calls > 0
+    unkept = withheld and (
+        unkept_note_due(query, reply, taint.forget_spared, forget_called=taint.forget_calls > 0)
+        or (stops.out_of_rounds and states_value(query))
     )
     shared = caps.memory is not None and caps.memory.recalls_across_chats
     stored = shared and not withheld and claims_chat_only(reply)

@@ -17,6 +17,7 @@ from cortex_core import (
     REDACTED_LINK,
     REPLY_CAPPED_NOTE,
     SECURITY_PREAMBLE,
+    UNKEPT_CLAIM_NOTE,
     UNREADABLE_CALL_NOTE,
     CharBudgetHistoryWindow,
     CompositeToolRegistry,
@@ -879,6 +880,49 @@ async def test_a_turn_that_spends_every_round_keeps_the_note_it_showed() -> None
     (hit,) = await recaller.recall("go", k=1, session_id="s", turn_id="t")
     runs = ", ".join(["read (succeeded)"] * 8)
     assert hit.record.text == f"User: go\nTools run: {runs}\nAssistant: {_SPENT_REPLY}"
+
+
+async def _spent(message: str, *, record_tainted: bool) -> tuple[str, MemoryRecaller]:
+    recaller = MemoryRecaller(InMemoryMemoryStore(), HashEmbedder(), SystemClock())
+    rounds = [
+        [ToolCall(id=f"c{n}", name="read", arguments={"path": f"/n{n}"})]
+        for n in range(MAX_TOOL_STEPS)
+    ]
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        ScriptedToolBackend(rounds),
+        TickingClock(),
+        capabilities=TurnCapabilities(
+            tools=_read_dispatcher(RecordingAuditSink()),
+            memory=recaller,
+            record_tainted_memory=record_tainted,
+        ),
+    )
+    events = await _collect(engine.handle_turn("s", message, turn_id="t-1"))
+    completed = events[-1]
+    assert isinstance(completed, TurnCompleted)
+    return completed.full_text, recaller
+
+
+_UPDATE = "Update my gym locker number: it is 5512, not 5521."
+
+
+async def test_a_spent_turn_on_a_value_memory_does_not_keep_says_nothing_was_kept() -> None:
+    text, recaller = await _spent(_UPDATE, record_tainted=False)
+    assert text == _SPENT_REPLY + UNKEPT_CLAIM_NOTE
+    assert await recaller.recall(_UPDATE, k=1, session_id="s", turn_id="t") == ()
+
+
+@pytest.mark.parametrize(
+    ("message", "record_tainted"),
+    [(_UPDATE, True), ("go", False), ("Is my gym locker number 5512?", False)],
+    ids=["stored", "no-value", "question"],
+)
+async def test_a_spent_turn_that_is_stored_or_names_no_value_gets_no_unkept_note(
+    *, message: str, record_tainted: bool
+) -> None:
+    text, _ = await _spent(message, record_tainted=record_tainted)
+    assert text == _SPENT_REPLY
 
 
 async def test_a_turn_whose_every_call_was_refused_says_no_tool_ran() -> None:

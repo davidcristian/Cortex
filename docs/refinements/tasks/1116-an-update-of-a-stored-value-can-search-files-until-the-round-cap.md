@@ -1,9 +1,8 @@
 # An update of a stored value can search files until the round cap
 
-**Status:** open, actionable
+**Status:** done 2026-11-11
 **Area:** memory
 **Origin:** [ADR-0019](../../adr/ADR-0019-tainted-memory-recording.md)
-**Verified:** 2026-11-10
 
 In u2 draw 2 of [the readings](../../readings/correction-keeps-old-value.md), `Update my gym locker
 number: it is 5512, not 5521.` called `list_allowed_directories`, `search_files`, `list_directory`,
@@ -23,3 +22,8 @@ draw 1 also called a file tool and a subagent before replying.
 ## History
 
 - 2026-11-10: filed from u2 draw 2 in [the readings](../../readings/correction-keeps-old-value.md).
+- 2026-11-11: done without the eight draws, since file calls on memory messages already recur in
+  the proxy log ([R-1146](1146-a-recall-question-memory-cannot-answer-searches-the-file-sidecar.md)). A turn memory does not keep that ran out of rounds on a statement
+  holding a value of four digits or more (`states_value`, `memory_claim.py`) now ends with
+  `UNKEPT_CLAIM_NOTE` after the round cap note; engine tests cover the u2 message, a stored turn,
+  a message with no value and a question. Filed R-1146 for the file calls themselves.

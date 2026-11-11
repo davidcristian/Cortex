@@ -153,7 +153,7 @@ pool down to the hits one turn sees. The turn that calls it is in
   that point at text rather than memory: "as I noted", "noted above", "I will note that" before a
   clause that is not about "you", "has been noted by" or "that", a file name such as `memory.txt`,
   and a bare "Noted" past the reply's first line, which is a line read back from a file. With
-  memory off the check is false and no note shows.
+  memory off the check is false and no note shows. A turn that ran out of rounds (`StopLedger.out_of_rounds`) on a statement holding a value of four digits or more (`states_value`, `memory_claim.py`) also shows the note, since its reply is the round cap note alone.
 - `claims_chat_only(reply)` (`chat_only_claim.py`) is true when a statement, not a question, says
   something is kept, remembered or noted "for", "during", "in", "while" or "until the end of" this
   or our chat, conversation or session, and names no later or future one and no "not just"; in

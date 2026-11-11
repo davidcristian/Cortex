@@ -164,7 +164,7 @@ across turns (a recalled memory).
    ([ADR-0025](ADR-0025-scheduling-reminders.md)), or when the message asks to remember and does
    not also ask not to keep, or a clause of a statement asks to remember and does not itself ask
    not to keep, whatever the reply says, so a request beside a forget or a put off decision about something else shows it ([replay](../readings/chat-only-limit-words.md#a-request-to-remember-in-a-clause-beside-a-request-not-to-keep-2026-11-10)),
-   ([readings](../readings/claim-reader-replays.md#the-note-on-every-withheld-request-to-remember-rows-and-the-rule-2026-10-31)). The two cannot disagree,
+   ([readings](../readings/claim-reader-replays.md#the-note-on-every-withheld-request-to-remember-rows-and-the-rule-2026-10-31)), or when the turn ran out of rounds on a statement holding a value of four digits or more (`states_value`), whose reply is the round cap note alone ([readings](../readings/correction-keeps-old-value.md)). The two cannot disagree,
    since both read the one check. A request to remember takes such a path by itself: the cortex
    called a file sidecar tool or `forget_memories` for it, and the reply said the fact was noted
    in most of those draws, with or without a note on the call's result

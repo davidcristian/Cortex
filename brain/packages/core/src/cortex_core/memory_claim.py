@@ -11,6 +11,7 @@ from cortex_core.memory_claim_update import claims_updated
 from cortex_core.memory_forget import FORGET_UNTRUSTED_TOOL_NAME
 from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
 from cortex_core.memory_request import asks_kept, asks_not_kept
+from cortex_core.memory_values import digit_runs
 from cortex_core.turn_context import TurnCapabilities
 from cortex_core.untrusted import TaintLedger
 
@@ -150,6 +151,14 @@ def unkept_note_due(
     )
     claimed = claimed or (forget_called and claims_updated(reply))
     return claimed or (asks_kept(query) and not asks_not_kept(query)) or _asks_kept_beside(query)
+
+
+def states_value(query: str) -> bool:
+    """Whether a statement in ``query`` holds a value, a code or a number of four digits or more."""
+    return any(
+        not sentence.rstrip().endswith("?") and digit_runs(sentence)
+        for sentence in _SENTENCE_END.split(query)
+    )
 
 
 def _asks_kept_beside(query: str) -> bool:
