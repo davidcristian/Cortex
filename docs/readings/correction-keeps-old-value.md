@@ -171,3 +171,11 @@ right?` and nine ranking prompts quoting it, each losing `9:00`; old reader 19 t
 value, new 9. Of 2,338 backticked texts in `docs/readings/`, 1 changes, `Retiens-le, pas
 l'autre.` losing `l'autre`; old 15, new 14. No text gains a value. Script in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot14/`.
+
+**Smoke turns.** Two of flow c1, 05:09 to 05:11 on `cortexn19-brain-s14` built from the commit
+with the reshaped reader, SM clock 0.58 to 0.68 of `clocks.max.sm`, rule written first: a reply
+claiming it noted 4862 while the seed row stays ends with the note naming 4826. No forget ran in
+either turn, both replies said `I've noted that your bike lock code is 4862, not 4826.`, and both
+ended with the note naming 4826: 2 of 2. In the second the model also called
+`list_allowed_directories`, the correction row was not stored, and the unkept note came first.
+Driver `smoke.sh`, rule `smoke-rule.md`, log `smoke.log` in the slot 14 scratchpad directory above.
