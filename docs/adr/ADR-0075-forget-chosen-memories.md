@@ -111,10 +111,10 @@ that removes exactly those rows and holds against a turn in flight. This record 
    all` keeps the rows. A message naming the value beside a label deleted the second
    fact in 6 of 8 draws; a message whose words name no stored fact asks for every row, unless a
    compound code word such as `passcode` names a fact no row holds. When a clause asks to keep
-   (a keep verb form not negated, a word for except such as `except`, `sauf` or `außer`, or a
-   negation that opens the clause or follows `but` with no naming word such as `my` before that),
-   a matched row is deleted only when a whole word outside the clause names it and no word of the
-   clause does, so a misread keeps the row ([readings](../readings/forget-keep-clause.md)). The result
+   (a keep verb form not negated, a word for except such as `except`, `sauf` or `außer`, `but`
+   after a word for all, or a negation that opens the clause or follows `but` with no naming word
+   such as `my` before it), a matched row is deleted only when a whole word outside the clause
+   names it and no word of the clause does, so a misread keeps the row ([readings](../readings/forget-keep-clause.md)). The result
    of that delete says the rows were kept and the value is still remembered, and never that a
    forget of the value would remove them
    ([readings](../readings/forget-shared-number.md#a-first-call-by-value-that-lists-another-fact-rows-and-rule-2026-11-09)).

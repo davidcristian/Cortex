@@ -20,8 +20,8 @@ row and listed the shed row, the reverse of the request.
 
 A clause asks to keep from a keep verb that no negation precedes within two words (`keep`,
 `garde`, `behalte`, `guarda`, `păstrează` and their verb forms, never a noun such as `guardian`,
-`keepsake`, `conservatory` or `mantenimiento`), from a word for except
-([below](#a-word-for-except-2026-11-11)), or from a negation such as `not`, `n't`, `pas`,
+`keepsake`, `conservatory` or `mantenimiento`), from a word for except or `but` after a word for
+all ([forget-keep-except.md](forget-keep-except.md)), or from a negation such as `not`, `n't`, `pas`,
 `nicht`, `no` or `nu` that opens the clause or follows `but`, `and`, `do`, `is`, `mais`, `aber`,
 `pero` or `dar`, unless a keep verb follows it or a naming word (`the`, `a`, `my`, `your` and the
 other possessives) comes before that word, as in `my do not disturb PIN`. The clause ends at its mark or at a forget verb
@@ -218,23 +218,4 @@ other 9 are readings sentences quoting a French or German forget beside English 
 Script `replay.py` and log `replay.log` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot4/`.
 
-## A word for except, 2026-11-11
-
-Unit calls over two rows holding 4242, `User: My card is 4111 1111 1111 4242.` and
-`User: Code 4242.`, with the call text `4242`. Before, `Forget the code 4242 except the card.` and
-`Forget everything except my card.` opened no keep clause: the reader named the card row by `card`
-and kept only the code row, so the card listed the row the person asked to keep. A clause now also
-opens at `except`, `excluding`, `sauf`, `hormis`, `excepté`, `außer`, `ausgenommen`, `excepto`,
-`salvo` and `exceptând`, and that word names no fact to keep. Both messages now keep both rows and
-show no card, the same as `Forget the code 4242, keep the card.` and `... but not my card.`, since
-`code` names any code and no whole word outside the clause names a row. `Forget my bike code 4242
-except the card.` lists only the bike row. `moins`, `menos` and `mai puțin` open no clause, since
-each can also mean minus or less; the Romanian `cu excepția` and `în afară de` and an ASCII
-`ausser` are left out, as is `everything but my card`, which still lists the card row (task 1149).
-`exception` and `excepted` open no clause. The tests are `test_forget_keep_except.py`.
-
-Replay: 541 distinct forget strings (the user messages of the night's recording proxy log and every
-backticked forget string in `docs/readings/` and the task files) over seven rows holding the
-string's last number, with that number and `code` as call texts. 4 cases from 2 strings changed,
-both the messages above, and none keeps fewer rows. Script `replay.py` and log `replay.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot21/`.
+A word for except, and `but` after a word for all, are in [forget-keep-except.md](forget-keep-except.md).

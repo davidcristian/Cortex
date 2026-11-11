@@ -1,9 +1,8 @@
 # A forget sparing a row after everything but lists that row
 
-**Status:** open, actionable
+**Status:** done 2026-11-12
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-11
 
 A forget that spares a row with `but` after a word for all lists that row on the destructive card.
 A unit call on 2026-11-11 with two rows, `User: My card is 4111 1111 1111 4242.` and
@@ -25,4 +24,9 @@ rows. `Forget all but my card.` reads the same way.
 ## History
 
 - 2026-11-11: filed while closing the `except` keep clause, with the unit call above
-  ([readings](../../readings/forget-keep-clause.md#a-word-for-except-2026-11-11)).
+  ([readings](../../readings/forget-keep-except.md#a-word-for-except-2026-11-11)).
+- 2026-11-12: done. `but` right after a word for all now opens a keep clause (`_BUT` in
+  `forget_unnamed.py`), and a `but` after any other word or a clause mark opens none. A replay of
+  995 recorded forget strings changed 15 cases from the 3 target strings, none keeping fewer rows;
+  the live neighbouring flows drew no regression, and the `but` forms made no call, filed as task
+  1150 ([readings](../../readings/forget-keep-except.md#but-after-a-word-for-all-2026-11-12)).

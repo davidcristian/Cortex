@@ -35,6 +35,8 @@ _KEEP = re.compile(
 _EXCEPT = frozenset(
     _WORD.findall("except excluding sauf hormis excepté außer ausgenommen excepto salvo exceptând")
 )
+# Too common a word to open a keep clause alone, so only after a word for all: "all but".
+_BUT = frozenset({"but"})
 _NOT = frozenset({"not", "t", "never", "nicht", "nie", "pas", "ne", "jamais", "no", "nunca", "nu"})
 _LEAD = frozenset(
     {"but", "and", "yet", "do", "don", "is", "isn", "s", "aber", "und", "mais", "et", "pero", "dar"}
@@ -50,8 +52,6 @@ KEPT_ALL = (
     "nothing was forgotten: each remembered exchange holding that value is about something the "
     "user's message does not name or asks to keep, so each was kept"
 )
-
-
 KEPT_NOTE = (
     "\n\n(Still in memory, since your message names none of their words or asks to keep them:"
 )
@@ -150,12 +150,12 @@ def _clauses(query: str) -> list[list[str]]:
 
 
 def _opens_keep(clause: list[str], at: int) -> bool:
-    """Whether ``clause`` asks to keep from ``at``: a keep verb, an except or a leading negation."""
+    """Whether ``clause`` asks to keep from ``at``: a keep verb, except, all but, or a negation."""
     token = clause[at]
     if _KEEP.fullmatch(token):
         return _NOT.isdisjoint(clause[max(0, at - 2) : at])
     if token not in _NOT or (at and clause[at - 1] not in _LEAD):
-        return token in _EXCEPT
+        return token in _EXCEPT or (token in _BUT and at > 0 and clause[at - 1] in _EVERY)
     # "my do not disturb code" names a fact rather than asking to keep one.
     if at > 1 and clause[at - 2] in _NAMING:
         return False

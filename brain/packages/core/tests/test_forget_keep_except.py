@@ -122,3 +122,45 @@ async def test_a_card_lists_the_row_before_except_and_keeps_the_row_after_it() -
 @pytest.mark.parametrize("word", ["except", "excluding", "sauf", "außer", "excepto"])
 def test_an_except_word_names_no_fact_to_keep(word: str) -> None:
     assert keep_words(f"Forget my bike lock code 7319 {word} the shed one.") == {"shed"}
+
+
+@pytest.mark.parametrize(
+    "query",
+    ["Forget everything but my card.", "Forget all but my card.", "Forget them all but my card."],
+)
+def test_but_after_a_word_for_all_keeps_the_row_it_names(query: str) -> None:
+    assert (_kept("4242", query, _CARD, _CODE), keep_words(query)) == (["card", "code"], {"card"})
+
+
+@pytest.mark.parametrize(
+    ("query", "kept"),
+    [
+        ("Forget my card 4242, but quickly.", ["code"]),
+        ("Forget all of my card 4242, but quickly.", ["code"]),
+        ("Forget everything, but my card first.", ["code"]),
+        ("Forget all my card numbers but quickly.", ["code"]),
+        ("Forget it but quickly.", ["code"]),
+        ("Forget it, but quickly and all.", ["code"]),
+        ("Forget 4242 but do it now.", []),
+    ],
+)
+def test_a_but_after_no_word_for_all_opens_no_keep_clause(query: str, kept: list[str]) -> None:
+    assert (_kept("4242", query, _CARD, _CODE), keep_words(query)) == (kept, set())
+
+
+def test_a_keep_verb_after_but_still_lists_the_row_before_it() -> None:
+    query = "Forget my card, but keep it short."
+    assert (_kept("4242", query, _CARD, _CODE), keep_words(query)) == (["code"], {"short"})
+
+
+async def test_a_forget_of_everything_but_the_card_deletes_no_row() -> None:
+    store = InMemoryMemoryStore()
+    for record in (_CARD, _CODE):
+        await store.add(record)
+    tool = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
+    stamp = TurnStamp(turn_id="t1", query="Forget everything but my card.")
+    call = ToolCall(id="c1", name=FORGET_CHOSEN_TOOL_NAME, arguments={"text": "4242"}, stamp=stamp)
+    card = await tool.card(call)
+    await tool.invoke(call)
+    hits = await store.search((1.0, 0.0), k=10)
+    assert (card, sorted(hit.record.id for hit in hits)) == (None, ["card", "code"])
