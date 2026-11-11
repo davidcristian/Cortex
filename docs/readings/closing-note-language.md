@@ -18,7 +18,7 @@ safe side; "drops" means a false claim in another language gets no note, the def
 | `ROUNDS_SPENT_NOTE` | the turn spent its tool rounds | English | no text reader | none |
 | `REPEATED_LINE_NOTE` | the repeat watch ended the reply | five | no text reader | none |
 | `UNSCHEDULED_CLAIM_NOTE` | a schedule claim and no scheduling call succeeded | five | five | drops |
-| `MONTHLY_STORED_NOTE` | a monthly store and `claims_yearly` | five | English | drops |
+| `MONTHLY_STORED_NOTE` | a monthly store and a yearly claim | five | five | drops |
 | `STORED_TIME_NOTE` | a stored time and not `names_time_of_day` | five | English and clock forms of three | adds |
 | `DAILY_STORED_NOTE`, `MADE_REPEATING_NOTE` | a daily store and not `names_repeat` | five | five | adds |
 | `ONCE_STORED_NOTE` | a one-time store after a refused weekly call | five | no text reader | none |
@@ -38,8 +38,8 @@ safe side; "drops" means a false claim in another language gets no note, the def
 | `UNSEARCHED_FILES_NOTE` | a claim of searched files with no file call | five | English | drops |
 
 Three notes stay English because they fill English words into their text, task R-1136. The
-readers that read the reply in English only and drop a note (`claims_yearly`,
-`claims_folders`, the searched-files claim) are task R-1049. On 2026-11-08 every note but
+readers that read the reply in English only and drop a note (`claims_folders`
+and the searched-files claim) are task R-1049. On 2026-11-08 every note but
 `STORED_TIME_NOTE`, `DAILY_STORED_NOTE` and `NUMBERS_LEFT_NOTE` was English.
 
 ## How often each note shows

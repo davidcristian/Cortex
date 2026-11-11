@@ -71,6 +71,7 @@ from cortex_core.schedule_quoted import quoted_stored_notes
 from cortex_core.schedule_weekday import weekday_off_dates, weekday_off_note
 from cortex_core.schedule_weekly import ONCE_STORED_NOTE, ONCE_STORED_NOTES
 from cortex_core.schedule_weekly_stored import weekly_stored_notes
+from cortex_core.schedule_yearly_other import claims_yearly_other
 from cortex_core.stops import StopLedger
 from cortex_core.turn_context import TurnCapabilities
 from cortex_core.turn_output import append_note, cap_note, repeat_note, rounds_note
@@ -122,7 +123,7 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
     yield from repeat_note(stops, parts, language)
     if claimed:
         yield from append_note(parts, said_in(UNSCHEDULED_CLAIM_NOTE, UNSCHEDULED_CLAIM_NOTES))
-    if taint.monthly_stored and claims_yearly(reply):
+    if taint.monthly_stored and (claims_yearly(reply) or claims_yearly_other(reply)):
         yield from append_note(parts, said_in(MONTHLY_STORED_NOTE, MONTHLY_STORED_NOTES))
     if taint.stored_time and not names_time_of_day(reply):
         yield from append_note(parts, stored_time_note(taint.stored_time, language))

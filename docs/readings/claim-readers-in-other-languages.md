@@ -73,3 +73,15 @@ was due) and a prose line where an English `had no` and a Spanish `guardado` sha
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot4/replay1049.py`,
 log `replay1049.log` beside it.
 
+## A yearly claim in four other languages, 2026-11-11
+
+`claims_yearly_other` (`schedule_yearly_other.py`) reads a yearly repeat (`chaque année`, `tous
+les ans`, `jedes Jahr`, `jährlich`, `cada año`, `todos los años`, `în fiecare an`, `anual`) in a
+reply that names no month, beside the English `claims_yearly`, so `MONTHLY_STORED_NOTE` shows
+after a monthly store. The near misses were written first in each language: a question, a
+condition, a negated clause and a reply naming the month; French `mes` (my) and Romanian `luni`
+(Monday) name no month. Replayed as above, 23,340 readings strings moved from 79 claims to 82 and
+lost none; the three added are recorded person's messages (`Recuérdame cada año el 12 de octubre
+el cumpleaños de Ana.`, `Erinnere mich jedes Jahr am 4. März [...]`), and the 30 proxy replies
+changed none. Script `replay_yearly.py` and log `replay_yearly.log` beside the one above.
+
