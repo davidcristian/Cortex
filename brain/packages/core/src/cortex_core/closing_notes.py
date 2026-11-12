@@ -119,7 +119,7 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
         taint.forget_refused and (not claims_kept(reply) or names_removal(reply))
     )
     unfound = unfound_claim(made, reply, unmatched=taint.forget_unmatched)
-    uncalled = not unforgotten and not taint.old_value and uncalled_note_due(query, made)
+    uncalled = not unforgotten and not taint.old_value and uncalled_note_due(query, made, runs)
     missed = unmatched_note_due(
         made, unmatched=taint.forget_unmatched, deleted=taint.forget_deleted
     )

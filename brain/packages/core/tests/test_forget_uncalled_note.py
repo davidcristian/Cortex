@@ -9,6 +9,7 @@ from cortex_core import (
     TurnCapabilities,
 )
 from cortex_core.closing_notes import limit_notes
+from cortex_core.escalate import ESCALATE_TOOL_NAME
 from cortex_core.forget_claim import UNFORGOTTEN_CLAIM_NOTE, claims_forgotten
 from cortex_core.forget_uncalled import (
     UNCALLED_FORGET_NOTE,
@@ -182,6 +183,36 @@ def test_a_forget_call_before_a_handoff_counts_as_a_call() -> None:
     )
     list(notes)
     assert UNCALLED_FORGET_NOTE not in "".join(parts)
+
+
+_HANDING = "I am handing this to the deep model, which will forget your gym code."
+
+
+def test_a_reply_handing_the_forget_to_the_deep_model_gets_no_note() -> None:
+    runs = (ToolRun(ESCALATE_TOOL_NAME, ok=True),)
+    assert _closed("Forget my gym code.", _HANDING, runs) == _HANDING
+
+
+def test_a_reply_whose_handoff_was_declined_gets_the_note() -> None:
+    runs = (ToolRun(ESCALATE_TOOL_NAME, ok=False),)
+    assert _closed("Forget my gym code.", _HANDING, runs) == _HANDING + UNCALLED_FORGET_NOTE
+
+
+def test_the_deep_model_reply_with_no_forget_call_after_a_handoff_gets_the_note() -> None:
+    parts = ["I could not find it."]
+    earlier = (ToolRun(ESCALATE_TOOL_NAME, ok=True),)
+    caps, taint = TurnCapabilities(), TaintLedger()
+    notes = limit_notes(
+        StopLedger(),
+        (),
+        parts,
+        caps=caps,
+        taint=taint,
+        query="Forget my gym code.",
+        earlier=earlier,
+    )
+    list(notes)
+    assert "".join(parts) == "I could not find it." + UNCALLED_FORGET_NOTE
 
 
 def test_a_reply_saying_it_forgot_gets_only_the_note_that_nothing_was_forgotten() -> None:

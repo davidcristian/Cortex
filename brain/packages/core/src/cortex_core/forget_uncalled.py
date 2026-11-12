@@ -4,6 +4,7 @@ import re
 from collections.abc import Sequence
 
 from cortex_core.conversation import ToolRun
+from cortex_core.escalate import ESCALATE_TOOL_NAME
 from cortex_core.forget_unnamed import asks_to_forget_keeping
 from cortex_core.memory_forget import FORGET_UNTRUSTED_TOOL_NAME
 from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
@@ -26,11 +27,13 @@ _DELETE = re.compile(
 )
 
 
-def uncalled_note_due(query: str, runs: Sequence[ToolRun]) -> bool:
-    """Whether ``query`` asks to forget and no run of ``runs``, the calls that ran, is a forget."""
+def uncalled_note_due(query: str, made: Sequence[ToolRun], runs: Sequence[ToolRun] = ()) -> bool:
+    """Whether ``query`` asks to forget and no run of ``made``, the calls that ran, is a forget,
+    unless ``runs``, this reply's own calls, hand the turn to the deep model, which ends it."""
     asked = (
         asks_to_forget(query)
         or asks_to_forget_keeping(query)
         or (asks_kept(query) and _DELETE.search(query) is not None)
     )
-    return asked and all(run.name not in _FORGET_TOOLS for run in runs)
+    handed = any(run.name == ESCALATE_TOOL_NAME and run.ok for run in runs)
+    return asked and not handed and all(run.name not in _FORGET_TOOLS for run in made)
