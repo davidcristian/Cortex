@@ -16,6 +16,11 @@ Leaving the tool out of the list would save that round, but leaving `set_volume`
 ([listed tools](../../readings/unasked-tools-listed-on-remember.md)), so a shorter list can move
 other calls.
 
+The 94 of 135 belong to the `cortexn20` stack, whose requests to remember hold no recall block
+and list five tools: its start build and the tool specs of 2026-11-07 call on 14 and 18 of 20
+draws, and a recalled row holding the fact lowers it to 2 of 10
+([separation](../../readings/forget-calls-on-remember-rise.md)). The rows below run on that stack.
+
 ## What to do
 
 1. Before any draw, write rows and a rule into
