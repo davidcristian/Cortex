@@ -193,9 +193,25 @@ The Romanian verbs `uita` and `scoate` take `ț` in the second person (`să uiț
 which the lists' `uit` and `scoa[st]` did not read, so `Amintește-ți să uiți codul meu de la sală.`
 and `Ține minte să scoți codul meu din listă.` had the tool refused. The lists now read `ui[tț]`
 and `scoți`. Replayed over the same 203 turns and 28,863 strings, the change alters no result of
-`forget_unrequested`, `unasked_tools` or `unasked_forget`. A request to remember in the four
-languages that names removal by a word outside the lists still has the tool refused
-([task 1169](../refinements/tasks/1169-a-removal-word-outside-the-lists-in-a-request-to-remember-refuses-the-forget-tool.md)).
+`forget_unrequested`, `unasked_tools` or `unasked_forget`.
+
+A request to remember that names removal by a word outside the lists still had the tool refused
+(`Ține minte să arunci codul.`, `Merk dir, den Code wegzuwerfen.`, `Souviens-toi : jette mon
+code.`). The four languages' letters are now read only on a request that `asks_kept_fact_other`
+reads as one stated fact: the request opens the message after any thanks, `que`, `dass` or `că`
+follows the remember verb, and no second clause or sentence follows the fact. Any other request
+to remember in those languages keeps the tool, since a colon, `să`, `de` or `zu` with a verb, or
+a second clause can ask for an action, and no list can name every verb for one. None of the 81
+recorded messages that `asks_kept_other` reads had such a form: each was `k1` to `k4` or a
+recall prompt quoting one. Replayed through the start build, the reader before this change and
+this one over 203 turns and 28,901 strings, no turn changed from the reader before, and 122
+strings now keep the tool and none is newly refused. Those 122 are requests to remember an
+object, a fact after a colon or a comma with no `dass`, a fact beside a second clause or
+sentence, a remember verb after the fact, and stored row texts opening with `User:`. Of the 22
+strings refused that the start build kept, 21 state one fact or are part of such a request, and `Recuerda que remuevas mi
+código.` asks for an action with `que` and a subjunctive ([task 1171](../refinements/tasks/1171-a-request-to-remember-with-que-and-a-subjunctive-refuses-the-forget-tool.md)). Scripts: `kept_other.py` and
+`headdiff.py` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/d2003893-7ebe-4ec3-ad1c-e92980017fd3/scratchpad/slot17/`,
+with `diff3.py` of slot 14.
 
 On `s12lang`, SM clock 0.57 of `clocks.max.sm`, proxy lines 1060 to 1143:
 

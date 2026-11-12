@@ -73,15 +73,40 @@ def test_a_letter_outside_english_or_a_word_that_can_retract_keeps_the_forget_to
         "Merk dir, dass mein Hund Bello heißt.",
         "Recuerda que mi color favorito es el verde.",
         "Ține minte că numărul apartamentului meu este 42.",
-        "Souviens-toi que ma sœur s'appelle Claire et rappelle-moi demain à 18h de l'appeler.",
-        "Merk dir, dass das Treffen am Montag stattfindet und mein anderer Hund Rex heißt.",
-        "Recuerda que mi código del gimnasio es 4242, quizá lo necesite.",
         "Reține că mașina mea este o Dacia albastră.",
         "Merci. Souviens-toi que mon vélo est bleu.",
+        "Merk dir, dass ich den Code weggeworfen habe.",
+        "Ține minte că am aruncat codul.",
+        "Souviens-toi que j'ai jeté mon vieux code.",
+        "Recuerda que tiré mi código.",
+        "Recuerda que remuevas mi código.",
     ],
 )
 def test_a_request_to_remember_in_a_read_language_refuses_the_forget_tool(query: str) -> None:
     assert forget_unrequested(query) == _REFUSED
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Ține minte să arunci codul.",
+        "Ține minte să cumperi pâine.",
+        "Merk dir, den Code wegzuwerfen.",
+        "Merk dir: weg mit meinem alten Code.",
+        "Souviens-toi : jette mon code.",
+        "Souviens-toi de jeter mon code.",
+        "Retiens mon code et jette l'ancien.",
+        "Jette mon code. Souviens-toi que mon vélo est bleu.",
+        "Souviens-toi que mon vélo est bleu. Jette mon code.",
+        "Souviens-toi que ma sœur s'appelle Claire et rappelle-moi demain à 18h de l'appeler.",
+        "Merk dir, dass das Treffen am Montag stattfindet und mein anderer Hund Rex heißt.",
+        "Recuerda que mi código del gimnasio es 4242, quizá lo necesite.",
+    ],
+)
+def test_a_request_to_remember_that_states_no_fact_alone_keeps_the_forget_tool(
+    query: str,
+) -> None:
+    assert forget_unrequested(query) == frozenset()
 
 
 @pytest.mark.parametrize(

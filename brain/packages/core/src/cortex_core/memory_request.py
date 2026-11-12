@@ -191,6 +191,10 @@ _ACTION = re.compile(
     re.IGNORECASE,
 )
 _THE_MESSAGE = re.compile(_MESSAGE, re.IGNORECASE)
+# `que`, `dass` or `că` after the remember verb opens a stated fact. A colon or a verb there can
+# ask for an action instead ("Merk dir: weg mit", "să arunci"), so neither opens one.
+_FACT_AFTER = re.compile(r"\W*(?:(?:que|dass|c[ăa])\b|qu['\u2019])", re.IGNORECASE)
+_FACT_IN = re.compile(r"(?:\b(?:que|dass|c[ăa])\s*|\bqu['\u2019])$", re.IGNORECASE)
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
 
 
@@ -240,6 +244,25 @@ def asks_kept(query: str) -> bool:
 def asks_kept_other(query: str) -> bool:
     """Whether a sentence of ``query`` asks to remember in French, German, Spanish or Romanian."""
     return any(_REMEMBER_OTHER.search(sentence) for sentence in _SENTENCE_END.split(query))
+
+
+def asks_kept_fact_other(query: str) -> bool:
+    """Whether ``query`` opens with a request to remember one stated fact in the four languages."""
+    offset = 0
+    for sentence in _SENTENCE_END.split(query):
+        start = query.find(sentence, offset)
+        offset = start + len(sentence)
+        found = _REMEMBER_OTHER.search(sentence)
+        if found is None:
+            continue
+        rest = query[start + found.end() :]
+        opener = _FACT_AFTER.match(rest)
+        if opener is None and _FACT_IN.search(found.group()) is None:
+            return False
+        fact = _THANKS.sub("", rest[opener.end() :] if opener else rest)
+        before = _THANKS.sub("", query[: start + found.start()])
+        return re.search(r"\w", before) is None and _SECOND_CLAUSE.search(fact) is None
+    return False
 
 
 def asks_kept_alone(query: str) -> bool:

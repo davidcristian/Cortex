@@ -3,7 +3,7 @@
 import re
 
 from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
-from cortex_core.memory_request import asks_kept_other
+from cortex_core.memory_request import asks_kept_fact_other, asks_kept_other
 
 FORGET_UNREQUESTED_MSG = (
     "REFUSED: the person's message asks to forget nothing, so this call was not run. Do not call "
@@ -44,7 +44,7 @@ _NEGATIONS = (
 # Wide on purpose: a message read wrongly here keeps the tool, as every turn did before this check.
 _CAN_RETRACT = re.compile(rf"{RETRACT_WORDS}|{_NEGATIONS}|(?![a-z])[^\W\d_]", re.IGNORECASE)
 # The letters of English, French, German, Spanish and Romanian. Italian, Portuguese, Catalan and
-# Dutch use them too and the lists do not read those, so only a request to remember names them read.
+# Dutch use them too and the lists do not read those, so only a fact asked kept names them read.
 _READ_LETTERS = "a-zàâæçéèêëîïôœùûüÿäößẞáíñóúășşțţ"
 _CAN_RETRACT_READ = re.compile(
     rf"{RETRACT_WORDS}|{_NEGATIONS}|(?![{_READ_LETTERS}])[^\W\d_]", re.IGNORECASE
@@ -92,7 +92,12 @@ def forget_unrequested(query: str, last_reply: str = "", earlier: str = "") -> f
 
     ``last_reply`` is the chat's last assistant message and ``earlier`` the message it answered.
     """
-    can_retract = _CAN_RETRACT_READ if asks_kept_other(query) else _CAN_RETRACT
+    if asks_kept_fact_other(query):
+        can_retract = _CAN_RETRACT_READ
+    elif asks_kept_other(query):
+        return frozenset()
+    else:
+        can_retract = _CAN_RETRACT
     if can_retract.search(query) or _misspells_forgetting(query):
         return frozenset()
     if any(
