@@ -81,8 +81,8 @@ def test_inside_keeps_a_last_group_only_beside_a_row_holding_the_text_whole() ->
     gym = MemoryRecord(id="gym", text=_GYM, embedding=(1.0, 0.0), at=_AT)
     assert inside([card], "4242", "Forget 4242.") == frozenset()
     assert inside([card, gym], "4242", "Forget 4242.") == {"card"}
-    assert inside([card], "4242", "Forget 4242.", (_GYM,)) == {"card"}
-    assert inside([card], "4242", "", (_GYM,)) == frozenset()
+    assert inside([card], "4242", "Forget 4242.", (gym,)) == {"card"}
+    assert inside([card], "4242", "", (gym,)) == frozenset()
 
 
 async def test_what_was_just_said_lists_the_card_when_the_chat_stored_it_last() -> None:

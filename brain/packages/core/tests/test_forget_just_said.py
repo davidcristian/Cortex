@@ -103,7 +103,8 @@ async def test_the_padlock_the_chat_just_stored_is_kept_on_a_forget_naming_the_g
 
 async def test_a_word_of_a_row_the_turn_deleted_keeps_the_newest_row_of_the_chat() -> None:
     rows = [_record("shed", _SHED, "chat-a", 1)]
-    kept = unnamed(rows, "5521", "Forget my gym locker number.", (_GYM,), "chat-a")
+    gym = _record("gym", _GYM, "chat-a", 0)
+    kept = unnamed(rows, "5521", "Forget my gym locker number.", (gym,), "chat-a")
     assert [record.id for record in kept] == ["shed"]
 
 

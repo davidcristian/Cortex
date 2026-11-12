@@ -85,7 +85,7 @@ def test_a_compound_naming_a_row_deleted_earlier_keeps_the_rows_it_does_not_name
         for i, (name, text) in enumerate(_ROWS)
     )
     query = "Forget the doorcode 7319, keep everything else."
-    kept = unnamed(others, "7319", query, deleted=[door.text])
+    kept = unnamed(others, "7319", query, deleted=[door])
     assert sorted(record.id for record in kept) == ["rad", "shed"]
 
 

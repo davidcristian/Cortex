@@ -105,21 +105,21 @@ def _ends(
     text: str,
     pattern: re.Pattern[str],
     query: str,
-    held: Iterable[str],
+    held: Iterable[MemoryRecord],
     chat: str | None,
 ) -> dict[str, bool]:
     """Whether to keep each row holding ``text`` as a last group: ``query`` asks for all rows only
     with a code word and names no word only it has beside a text holding ``text`` whole, or lacks
-    ``text`` and names words, none its own; never ``chat``'s newest row unless named or ``held``."""
+    ``text`` and names words, none its own; never ``just_said``'s row unless one is named."""
     kinds = any(code_word(word) for word in _WORD.findall(query))
     deleted = tuple(held)
-    texts = (*deleted, *(record.text for record in records))
+    texts = [record.text for record in (*deleted, *records)]
     every = quantifies(query) and not kinds
     holding = [] if every else [row for row in texts if _whole(row, text)]
     beside = {word for row in holding for word in row_words(row)}
     words = row_words(query)
-    named = any(not words.isdisjoint(row_words(record.text)) for record in records)
-    said = None if named or kinds or deleted else just_said(list(records), chat)
+    named = any(not words.isdisjoint(row_words(row)) for row in texts)
+    said = None if named or kinds else just_said(list(records), chat, deleted)
     unasked = bool(_content(query)) and pattern.search(query) is None
     return {
         record.id: record.id != said
@@ -135,12 +135,12 @@ def inside(
     records: Sequence[MemoryRecord],
     text: str,
     query: str = "",
-    held: Iterable[str] = (),
+    held: Iterable[MemoryRecord] = (),
     session_id: str | None = None,
 ) -> frozenset[str]:
     """The ids of ``records`` holding ``text`` only inside a longer value, or, given the message
-    ``query``, only as groups of a longer value it does not name. ``held`` are the texts of rows
-    just deleted and ``session_id`` the calling chat."""
+    ``query``, only as groups of a longer value it does not name. ``held`` are the rows just
+    deleted and ``session_id`` the calling chat."""
     pattern = _bounded(text)
     if pattern is None:
         return frozenset()
@@ -158,7 +158,7 @@ def kept_rows(
     within: Sequence[MemoryRecord],
     text: str,
     stamp: TurnStamp,
-    deleted: Sequence[str],
+    deleted: Sequence[MemoryRecord],
 ) -> list[MemoryRecord]:
     """The ``rows`` ``unnamed`` keeps beside the kept rows ``within``, and each holding ``text``
     whole when one is kept and the message holds ``text`` beside words naming no row."""

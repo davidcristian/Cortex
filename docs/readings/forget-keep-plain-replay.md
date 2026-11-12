@@ -98,5 +98,26 @@ The two call turns sent the value, `gym code` or `code` first and the value seco
   newest, so `Forget my bank details.` keeps the older row on both calls. Read by message, the 1788
   hold two kinds that keep a row the message asked to delete: a message naming the card only in another language, as
   in one call, and `Forget what I just told you.` when the first call deleted the older gym code
-  instead of the card stored last, which then stays and is named in the inside note (task
-  [1161](../refinements/tasks/1161-a-later-forget-call-keeps-the-newest-row-after-an-older-one-is-deleted.md)).
+  instead of the card stored last, which then stays and is named in the inside note. The next
+  section lists that card.
+
+## A later call after an older delete
+
+Taken 2026-11-12 with the same script, strings and row sets, on `504411d98` and on the change that
+followed it. A later call of a turn now applies the newest row exception unless a row of the
+calling chat that an earlier call deleted is newer than the newest match, and reads the words of
+deleted rows as named on the last group keep too.
+
+| Replay | Cases | Changed | Keep more rows | Keep fewer rows |
+| --- | --- | --- | --- | --- |
+| 295 recorded forget strings, one call, six row sets, both chats | 3540 | 0 | 0 | 0 |
+| The same strings, two calls over the four sets of two rows | 7080 | 252 | 0 | 252 |
+| The 548 plain forgets above | 548 | 0 | 0 | 0 |
+| The four forgets of every row | 16 | 0 | 0 | 0 |
+
+Every change is the gym code stored before the card, in the calling chat, with a first call of
+`gym code` or `code` that deleted the gym code. The second call now lists the card, which one call
+of the same message deletes in all 252: 230 where one call deletes only the card and 22 where it
+deletes both. None keeps fewer rows than one call of the message. `Forget what I just told you.`
+still deletes the newest row in every one call case, and `Forget my gym locker.`, which names the
+deleted gym code, still keeps the card on the second call.

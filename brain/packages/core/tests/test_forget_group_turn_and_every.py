@@ -61,9 +61,10 @@ async def test_a_second_call_lists_the_card_a_message_names(
 
 def test_inside_reads_a_deleted_row_holding_the_text_whole_on_the_card() -> None:
     card = MemoryRecord(id="card", text=_CARD, embedding=(1.0, 0.0), at=_AT)
-    assert inside([card], "4242", "Forget my gym code 4242.", (_GYM,)) == {"card"}
+    gym = MemoryRecord(id="gym", text=_GYM, embedding=(1.0, 0.0), at=_AT)
+    assert inside([card], "4242", "Forget my gym code 4242.", (gym,)) == {"card"}
     query = "Forget my gym code and the card ending in 4242."
-    assert inside([card], "4242", query, (_GYM,)) == frozenset()
+    assert inside([card], "4242", query, (gym,)) == frozenset()
 
 
 @pytest.mark.parametrize(

@@ -87,4 +87,4 @@ def test_a_last_group_row_is_kept_only_when_the_message_names_none_of_its_words(
     assert inside([card, gym], "4242", "Forget my gym code.") == {"card"}
     assert inside([account], "4242", "Forget my old phone.") == frozenset()
     assert inside([account], "4242", "Forget my gym code.") == {"account"}
-    assert inside([card], "4242", "Forget my gym code.", (locker,)) == {"card"}
+    assert inside([card], "4242", "Forget my gym code.", (gym,)) == {"card"}

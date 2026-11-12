@@ -131,10 +131,9 @@ def _row_names(text: str) -> set[str]:
     return row_words(text) | _kinds(_PREFIX.sub("\n", text))
 
 
-def _named(rows: list[MemoryRecord], words: set[str], deleted: Iterable[str]) -> bool:
+def _named(rows: list[MemoryRecord], words: set[str], deleted: Iterable[MemoryRecord]) -> bool:
     """Whether a word of ``words`` names a fact of ``rows`` or ``deleted``."""
-    held = (*(record.text for record in rows), *deleted)
-    return any(not words.isdisjoint(row_words(text)) for text in held)
+    return any(not words.isdisjoint(row_words(record.text)) for record in (*rows, *deleted))
 
 
 def _clauses(query: str) -> list[list[str]]:
@@ -223,17 +222,22 @@ def quantifies(query: str) -> bool:
     return False
 
 
-def just_said(rows: list[MemoryRecord], session_id: str | None) -> str | None:
-    """The id of the newest of ``rows`` the chat ``session_id`` stored, if it stored one."""
-    own = [record for record in rows if session_id is not None and record.session_id == session_id]
-    return max(own, key=lambda record: record.at).id if own else None
+def just_said(
+    rows: list[MemoryRecord], session_id: str | None, deleted: Iterable[MemoryRecord] = ()
+) -> str | None:
+    """The id of the newest of ``rows`` the chat ``session_id`` stored, if it stored one and no
+    row it stored in ``deleted``, the rows the turn deleted, is newer."""
+    held = (*rows, *deleted)
+    own = [record for record in held if session_id is not None and record.session_id == session_id]
+    newest = max(own, key=lambda record: record.at).id if own else None
+    return newest if any(record.id == newest for record in rows) else None
 
 
 def unnamed(
     records: Iterable[MemoryRecord],
     text: str,
     query: str,
-    deleted: Iterable[str] = (),
+    deleted: Iterable[MemoryRecord] = (),
     session_id: str | None = None,
 ) -> list[MemoryRecord]:
     """The ``records`` to keep, each a reading of ``query`` in one of its ``readings`` keeps."""
@@ -252,13 +256,13 @@ def _unnamed(
     rows: list[MemoryRecord],
     text: str,
     query: str,
-    deleted: list[str],
+    deleted: list[MemoryRecord],
     session_id: str | None,
     language: str,
 ) -> list[MemoryRecord]:
     """The ``rows`` to keep: with a keep clause, each no whole word outside it names or it names;
     else each whose request holds a value of ``text`` and no word of ``query``, unless it asks
-    for every row, or names nothing, ``deleted`` is empty and ``session_id`` stored the newest."""
+    for every row, or names nothing and is the row ``just_said`` reads beside ``deleted``."""
     words, keep, listed, compound = _split(query, language)
     if listed is not None:
         # A clause asks to keep: delete only a row a whole word names, so a misread keeps it.
@@ -270,7 +274,7 @@ def _unnamed(
     asked, values = _keys(query), _keys(text) - _keys(query) or _keys(text)
     named = compound or _named(rows, words, deleted)
     every = values <= asked and (not named or quantifies(query))
-    said = None if named or deleted else just_said(rows, session_id)
+    said = None if named else just_said(rows, session_id, deleted)
     return [
         record
         for record in rows

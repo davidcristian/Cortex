@@ -70,10 +70,10 @@ def _repeats(record: MemoryRecord, key: str, words: set[str]) -> bool:
 
 @dataclass(frozen=True)
 class _Chosen:
-    """The rows a card listed by id and text, whether rows holding a value stayed, the rows kept."""
+    """The rows a card listed by id and whole, if rows holding a value stayed, and the kept rows."""
 
     ids: tuple[str, ...]
-    texts: tuple[str, ...]
+    rows: tuple[MemoryRecord, ...]
     left_out: bool
     kept: frozenset[str] = frozenset()
     far: frozenset[str] = frozenset()
@@ -87,7 +87,7 @@ class ForgetChosenTool:
         self._scope = scope
         self._shown: dict[str, _Chosen | str] = {}
         self._deleted_turns: dict[str, tuple[str, ...]] = {}
-        self._deleted_rows: dict[str, tuple[str, ...]] = {}
+        self._deleted_rows: dict[str, tuple[MemoryRecord, ...]] = {}
         self._kept = KeptRows()
         self._spared = KeptRows()
         self._inside = KeptRows()
@@ -158,7 +158,7 @@ class ForgetChosenTool:
     async def _holding(self, call: ToolCall) -> int:
         """How many remaining rows not asked to keep hold four or more digits a deleted row held."""
         deleted = self._deleted_rows.get(call.stamp.turn_id, ())
-        runs = {key for text in deleted for key in code_runs(text)}
+        runs = {key for row in deleted for key in code_runs(row.text)}
         holders: set[str] = set()
         for key in runs:
             for record in await self._store.find_value(
@@ -237,7 +237,7 @@ class ForgetChosenTool:
         )
         chosen = _Chosen(
             tuple(record.id for record in listed),
-            tuple(record.text for record in listed),
+            tuple(listed),
             left_out,
             frozenset(held),
             frozenset(row.id for row in far),
@@ -274,15 +274,14 @@ class ForgetChosenTool:
             turn = call.stamp.turn_id
             for rows in (self._kept, self._spared, self._inside, self._longer):
                 rows.drop(turn, shown.ids)
-            for ledger, texts in (
-                (self._deleted_turns, (*shown.texts, _text(call))),
-                (self._deleted_rows, shown.texts),
-            ):
-                ledger[turn] = (*ledger.get(turn, ()), *texts)
+            texts = (*(row.text for row in shown.rows), _text(call))
+            self._deleted_turns[turn] = (*self._deleted_turns.get(turn, ()), *texts)
+            self._deleted_rows[turn] = (*self._deleted_rows.get(turn, ()), *shown.rows)
+            for ledger in (self._deleted_turns, self._deleted_rows):
                 while len(ledger) > _PENDING_CALLS:
                     del ledger[next(iter(ledger))]
             now = await self._found(call)
-            inner = inside(now, _text(call), call.stamp.query, shown.texts) - shown.kept - shown.far
+            inner = inside(now, _text(call), call.stamp.query, shown.rows) - shown.kept - shown.far
             left = [row for row in now if row.id not in inner | shown.kept | shown.far]
             holding = 0 if left or shown.left_out else await self._holding(call)
         except MemoryStoreError as err:
