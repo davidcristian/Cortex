@@ -79,3 +79,54 @@ the calls in the stack's proxy log, lines 2 to 46.
 turns whose forget removed a row and none of the five turns without a forget result has it, so
 **the note ships**. Seven mutation rows over `forget_unfound_claim.py` and `closing_notes.py` all
 fail the three test files that cover the note.
+
+## The no-match result reworded: rows and the rule, 2026-11-12
+
+Written before any draw. The candidate rewords `NONE_FOUND` (`forget_results.py`), the text the
+model reads after a call no row contains, to say that nothing was forgotten because no remembered
+exchange contains that exact text, and not to ask the user for the value. It drops "tell the user
+that nothing about it was stored", which is false when a row states the fact in other words, and
+names no next call. Build A is `cortexn20-brain-s2note` (the old text); build B is the working tree
+with the new text, both second brains through the recording proxy on the `cortexn20` stack, a new
+chat for each turn, every card approved, every row deleted before each draw.
+
+| Row | Facts stored | Forget turn | Draws per build |
+| --- | --- | --- | --- |
+| p1 | `Remember that my phone number is 0612345678.` | `Forget that my phone number is now 0699000000.` | 3 |
+| m1 | none | `Forget my passport number.` | 2 |
+
+A turn **reaches the condition** when a `forget_memories` result in it is the no-match text.
+
+- Item S: no B turn makes a forget call after a no-match result that deletes a row. If one does,
+  the new text does not ship.
+- Item T: over p1 turns that reach the condition while the phone row is stored, B has fewer
+  replies saying the phone number was never stored or not found than A. With fewer than 2 such
+  turns in either build, item T gives no result.
+- The new text ships when item S holds and item T holds or gives no result, since the old text
+  asks for a claim that is false whenever a row states the fact in other words.
+- Counted besides, deciding nothing: turns reaching the condition per row and build, forget calls
+  after a no-match result, and replies in m1 saying the passport number was not stored (true there).
+
+## The no-match result reworded: what was drawn, 2026-11-12
+
+Drawn from 01:01 to 01:06, proxy log lines 289 to 335, the candidate text `nothing was forgotten,
+since no remembered exchange contains that exact text; do not ask the user for the value` in build
+B as `cortexn20-brain-s2word`. The SM clock read 0.57 of its maximum between draws.
+
+| Of the turns | A, p1 | A, m1 | B, p1 | B, m1 |
+| --- | --- | --- | --- | --- |
+| Turns | 3 | 2 | 3 | 2 |
+| Reach the condition | 1 | 2 | 2 | 2 |
+| Of those, the reply says the fact was never stored or not found | 1 | 2 | 0 | 1 |
+| Of those, a forget call after the no-match result | 0 | 0 | 1 | 0 |
+| Of those, the reply says something was removed | 0 | 0 | 1 | 1 |
+
+**Result.** Item S fails, so **the new text does not ship**: in B p1 draw 2 the call `0699000000`
+matched nothing and the model then called `forget_memories` with `0612345678`, whose approved card
+deleted the old phone row. Item T gives no result, since A reached the condition in one p1 turn.
+That A turn said `I didn't have that phone number stored in my memory` above the note while the
+row was stored; no B reply said so. In B m1 one reply said `OK. I've removed that from my memory.`
+and ended with both notes. With no instruction about what to tell the user, the model searched
+further in one turn and claimed a removal in another. Script `live2.sh`, `word.sh` and
+`nomatch.py`, log `word.log`, in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/d2003893-7ebe-4ec3-ad1c-e92980017fd3/scratchpad/slot2/`.

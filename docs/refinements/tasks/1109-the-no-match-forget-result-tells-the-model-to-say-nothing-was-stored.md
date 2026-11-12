@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-10
+**Verified:** 2026-11-12
 
 `_NONE_FOUND` (`forget_results.py`), the result of a `forget_memories` call whose text no row
 contains, tells the model to "tell the user that nothing about it was stored". That is false when a
@@ -17,13 +17,20 @@ is still stored.
 
 ## What to do
 
-1. Write rows and a rule first, with the shipped note as the base: a result text that says only
-   that no remembered exchange contains that exact text and keeps "do not ask the user for the
-   value". The text must not suggest a next forget, since a model-read result that named a next
-   step made the model delete a second fact unasked. Count, per build, replies saying the fact was
-   never stored and calls the model makes after the no-match result.
+1. A text that drops the instruction about what to tell the user does not work: on 2026-11-12
+   `nothing was forgotten, since no remembered exchange contains that exact text; do not ask the
+   user for the value` made a second forget call that deleted the old phone row in 1 of 2 phone
+   turns that reached it, and a false removal claim in 1 of 2 turns about a passport never stored
+   ([readings](../../readings/forget-matched-nothing-note.md#the-no-match-result-reworded-what-was-drawn-2026-11-12)).
+2. Next candidate, with rows and a rule written first on the same p1 and m1 rows: keep an
+   instruction to report, but make it true, such as `tell the user that no remembered exchange
+   contains that exact text`, with "do not ask the user for the value" and no next step. Count
+   per build the replies saying the fact was never stored, forget calls after the no-match
+   result, and removal claims.
 
 ## History
 
 - 2026-11-10: filed from R-969 and R-1061, which the note closed; this is the result text the
   model reads, left unchanged by that fix.
+- 2026-11-12: left open. The reworded text with no instruction to report failed its rule, a
+  forget call after the no-match result deleting a row, so the result text is unchanged.
