@@ -195,3 +195,47 @@ these rows the two builds take the same path, and the miss by one was the draw. 
 could not fail for any other reason, and that it could not find a refused forget request, since each of
 its four messages holds a word the list already read. The check that decides this is the reader's own
 tests, not a row.
+
+## Withholding the refused tool: rows and rule, 2026-11-12
+
+Written before either build was drawn. A refused call costs a round, so a candidate also leaves the
+tools `unasked_forget` names out of the list and still refuses a call to them by name. The rig is
+the `cortexn21` stack at llama-server build 12316 with the tool list of condition F of the
+[separation](forget-calls-on-remember-rise.md#the-body-and-the-sidecar-the-draws-2026-11-12): the
+Linux shell as the body, schedules and the filesystem sidecar, since the rule counts calls to those
+tools. Baseline is the second brain `s2full` (`d545e60f8`); the candidate `s2cand` is it plus the
+change. `unasked_forget` names the tool on every row, so every first request differs between the
+two. Each draw is a new chat with cards approved; the builds are drawn in turn, the first one
+alternating by row.
+
+| Row | Message | Pool at the draw's start | Draws |
+| --- | --- | --- | --- |
+| R01 to R15 | the requests to remember of [the listed tools record](unasked-tools-listed-on-remember.md#rows-and-the-rule-2026-10-31) | empty | 1 on each build |
+| G01 | `Remember that my gym code is 4242.` | one row holding `4242`, written by a real turn on the baseline | 3 on each build |
+
+A draw stores the fact when a row added by its turn holds it. A draw calls a sidecar, schedule or
+volume tool when a model response of the turn in the proxy log names one. The turn time is the
+driver's wall time. The candidate ships when, over its 18 draws against the baseline's 18, it
+stores the fact in no fewer draws, calls a sidecar, schedule or volume tool in no more, and has a
+lower median turn time. Otherwise the tool stays listed and the task is declined with these rows.
+The forget calls of each build are counted beside the rule. Draws stop at 20 minutes.
+
+## Withholding the refused tool: the draws, 2026-11-13
+
+Run log `draw63.jsonl` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/b21ab427-7e2c-4723-9504-d59e434516ce/scratchpad/slot2/`,
+proxy lines 110 to 166, the SM clock at 0.58 of its maximum at the start and the end. No draw
+ended in an error or showed a card.
+
+| Count | Baseline | Candidate |
+| --- | --- | --- |
+| Draws storing the fact | 18 of 18 | 18 of 18 |
+| Draws calling a sidecar, schedule or volume tool | 0 of 18 | 2 of 18 |
+| Draws calling `forget_memories`, each refused | 7 of 18 | 0 of 18 |
+| Median turn time, as a ratio of the baseline's | 1 | 0.68 |
+
+**The second item fails, so the candidate is not shipped** and the tool stays listed. With
+`forget_memories` left out, R03 and R06 called `list_allowed_directories`, which
+`unasked_sidecar_tools` refused by name, so the round a refusal costs moved to another tool. G01
+made no forget call on either build, as a recalled row holding the fact also lowered the calls in
+condition P of the separation.

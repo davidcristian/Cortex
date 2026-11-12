@@ -1,9 +1,8 @@
 # A refused forget call on a request to remember costs a round
 
-**Status:** open, actionable
+**Status:** declined 2026-11-13
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-12
 
 `unasked_forget` (`unasked_tools.py`) refuses `forget_memories` by name on a request to remember
 that only states a fact, and `_turn_tools` (`tool_loop.py`) keeps the tool in the list, so the
@@ -35,3 +34,8 @@ draws, and a recalled row holding the fact lowers it to 2 of 10
 ## History
 
 - 2026-11-12: filed from the replay of the store turns in the `cortexn20` proxy log.
+- 2026-11-13: declined. A candidate that also left out the tools `unasked_forget` names stored the
+  fact as often and had a lower median turn time, but called a sidecar tool on 2 of 18 draws where
+  the baseline called none, so the tool stays listed
+  ([draws](../../readings/forget-refused-on-remember.md#withholding-the-refused-tool-the-draws-2026-11-13)).
+  The rows ran on the full tool list, since task 1165 found the body's tool does not move the rate.
