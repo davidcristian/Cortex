@@ -1,6 +1,7 @@
 """The texts a ``forget_memories`` call returns, which the model reads before it replies."""
 
 from cortex_core.errors import MemoryStoreError
+from cortex_core.forget_inside import forgot_within
 from cortex_core.memory_values import whole_values
 
 FORGET_CHOSEN_LIMIT = 20
@@ -73,4 +74,26 @@ def about_deleted(text: str, deleted: tuple[str, ...]) -> bool:
     return any(
         asked in _flat(held) or _flat(held) in asked or not keys.isdisjoint(whole_values(held))
         for held in deleted
+    )
+
+
+def forgot(removed: int, holding: int, kept: int, inner: int = 0) -> str:
+    """What a delete that left no match forgot; ``holding`` rows hold its numbers, ``kept`` kept,
+    ``inner`` hold its text only inside a longer value."""
+    if kept:
+        return (
+            f"forgot {removed} remembered exchanges; {kept} other remembered exchanges hold the "
+            "same value, and the user's message names none of their words or asks to keep them, "
+            "so they were kept and the value is still remembered"
+        )
+    if not holding and inner:
+        return forgot_within(removed, inner)
+    if not holding:
+        return (
+            f"forgot {removed} remembered exchanges; no remembered exchange contains that text now"
+        )
+    return (
+        f"forgot {removed} remembered exchanges that contain that text, but {holding} other "
+        "remembered exchanges still hold a number a deleted one held, so that number is still "
+        "remembered; a forget of the number itself would remove them"
     )

@@ -82,6 +82,6 @@ Drawn from 00:28 to 00:38 on 2026-11-12, the working tree as `cortexn20-brain-s1
 Every item of the rule holds. In b1 and b2 the change is not reached, since no draw called a forget
 tool: recall ranked only the card row as helping with the message, so the first request named only
 that row, and 7 of the 8 replies said the card was the only memory stored while the gym row was
-stored, with no note (task 1150). The eighth said other memories were cleared and ended with the
+stored, with no note ([forget-keep-no-call.md](forget-keep-no-call.md)). The eighth said other memories were cleared and ended with the
 note that nothing was forgotten. Script `live.sh` and log `live.log` in the slot directory above;
 the stack is described in `stack.md` one directory up.

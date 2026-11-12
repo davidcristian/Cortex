@@ -3,7 +3,6 @@
 import re
 from collections.abc import Iterable, Mapping
 
-from cortex_core.forget_inside import forgot_within
 from cortex_core.forget_languages import FUNCTION, readings
 from cortex_core.memory import MemoryRecord
 from cortex_core.memory_values import code_stem, code_word, digit_runs, kind_word, whole_values
@@ -196,6 +195,11 @@ def keep_words(query: str) -> set[str]:
     return _split(query, message_language(query))[1]
 
 
+def asks_to_forget_keeping(query: str) -> bool:
+    """Whether ``query`` names a forget verb outside a clause asking to keep that names a fact."""
+    return bool(keep_words(query)) and any(_FORGET.fullmatch(token) for token in _parts(query)[0])
+
+
 def asks_to_keep(text: str, query: str) -> bool:
     """Whether a clause of ``query`` asking to keep names a fact of the row ``text``, or all."""
     kept = keep_words(query)
@@ -276,25 +280,3 @@ def _unnamed(
         and not values.isdisjoint(_keys(record.text.split(_REPLY, 1)[0]))
         and words.isdisjoint(row_words(record.text))
     ]
-
-
-def forgot(removed: int, holding: int, kept: int, inner: int = 0) -> str:
-    """What a delete that left no match forgot; ``holding`` rows hold its numbers, ``kept`` kept,
-    ``inner`` hold its text only inside a longer value."""
-    if kept:
-        return (
-            f"forgot {removed} remembered exchanges; {kept} other remembered exchanges hold the "
-            "same value, and the user's message names none of their words or asks to keep them, "
-            "so they were kept and the value is still remembered"
-        )
-    if not holding and inner:
-        return forgot_within(removed, inner)
-    if not holding:
-        return (
-            f"forgot {removed} remembered exchanges; no remembered exchange contains that text now"
-        )
-    return (
-        f"forgot {removed} remembered exchanges that contain that text, but {holding} other "
-        "remembered exchanges still hold a number a deleted one held, so that number is still "
-        "remembered; a forget of the number itself would remove them"
-    )

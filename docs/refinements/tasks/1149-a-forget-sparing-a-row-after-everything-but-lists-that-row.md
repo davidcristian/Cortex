@@ -28,5 +28,6 @@ rows. `Forget all but my card.` reads the same way.
 - 2026-11-12: done. `but` right after a word for all now opens a keep clause (`_BUT` in
   `forget_unnamed.py`), and a `but` after any other word or a clause mark opens none. A replay of
   995 recorded forget strings changed 15 cases from the 3 target strings, none keeping fewer rows;
-  the live neighbouring flows drew no regression, and the `but` forms made no call, filed as task
-  1150 ([readings](../../readings/forget-keep-except.md#but-after-a-word-for-all-2026-11-12)).
+  the live neighbouring flows drew no regression, and the `but` forms made no call, a turn that
+  now ends with `UNCALLED_FORGET_NOTE`
+  ([readings](../../readings/forget-keep-except.md#but-after-a-word-for-all-2026-11-12)).

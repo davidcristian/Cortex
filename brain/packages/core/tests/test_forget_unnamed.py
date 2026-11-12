@@ -10,7 +10,8 @@ from cortex_core import (
     MemoryRecord,
     ToolCall,
 )
-from cortex_core.forget_unnamed import KEPT_ALL, KEPT_LINE, forgot
+from cortex_core.forget_results import forgot
+from cortex_core.forget_unnamed import KEPT_ALL, KEPT_LINE
 from cortex_core.tools import TurnStamp
 
 _AT = datetime(2026, 11, 9, 1, 0, 0, tzinfo=UTC)

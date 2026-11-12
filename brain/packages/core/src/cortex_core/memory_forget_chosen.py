@@ -17,11 +17,12 @@ from cortex_core.forget_results import (
     TOO_MANY,
     about_deleted,
     failed_during,
+    forgot,
     outlasted,
     unavailable,
     unlisted,
 )
-from cortex_core.forget_unnamed import KEPT_ALL, KEPT_LINE, KeptRows, asks_to_keep, forgot, unnamed
+from cortex_core.forget_unnamed import KEPT_ALL, KEPT_LINE, KeptRows, asks_to_keep, unnamed
 from cortex_core.memory import MemoryRecord
 from cortex_core.memory_values import code_runs, short_groups, undated_runs, whole_values
 from cortex_core.ports import MemoryStore
