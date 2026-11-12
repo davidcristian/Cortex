@@ -4,8 +4,10 @@ import re
 from collections.abc import Sequence
 
 from cortex_core.conversation import ToolRun
+from cortex_core.escalate import hands_off
 from cortex_core.forget_claim import deleted_memory
 from cortex_core.forget_unfound_other import says_not_stored_other
+from cortex_core.note_language import in_language
 from cortex_core.numbers_left_claim import names_still_held
 
 DECLINED_FORGET_NOTE = (
@@ -64,6 +66,28 @@ UNMATCHED_FORGET_NOTES = {
     "pe care niciun schimb memorat nu îl conține, așa că un schimb memorat care spune același "
     "lucru în alte cuvinte este încă în memorie.)",
 }
+HANDED_UNMATCHED_NOTE = (
+    "\n\n(Nothing was deleted from memory before the handoff to the deep model. A forget call "
+    "searched for an exact text that no remembered exchange contains, so any remembered exchange "
+    "that states the same fact in other words was still stored at the handoff.)"
+)
+HANDED_UNMATCHED_NOTES = {
+    "fr": "\n\n(Rien n'a été supprimé de la mémoire avant le transfert au modèle profond. Un "
+    "appel d'oubli a cherché un texte exact qu'aucun échange mémorisé ne contient, donc un échange "
+    "mémorisé qui dit la même chose en d'autres mots était toujours enregistré au moment du "
+    "transfert.)",
+    "de": "\n\n(Vor der Übergabe an das tiefe Modell wurde nichts aus dem Gedächtnis gelöscht. "
+    "Ein Aufruf zum Vergessen suchte nach einem genauen Text, den keine gespeicherte Unterhaltung "
+    "enthält, daher war eine gespeicherte Unterhaltung, die dasselbe mit anderen Worten sagt, bei "
+    "der Übergabe noch gespeichert.)",
+    "es": "\n\n(No se borró nada de la memoria antes de pasar la solicitud al modelo profundo. "
+    "Una llamada de olvido buscó un texto exacto que ningún intercambio guardado contiene, así que "
+    "un intercambio guardado que dice lo mismo con otras palabras seguía guardado cuando se pasó "
+    "la solicitud.)",
+    "ro": "\n\n(Nu s-a șters nimic din memorie înainte de predarea către modelul profund. Un apel "
+    "de uitare a căutat un text exact pe care niciun schimb memorat nu îl conține, așa că un "
+    "schimb memorat care spune același lucru în alte cuvinte era încă în memorie la predare.)",
+}
 
 # "No other records of it remain" says the delete held, unless the clause names finding or storing
 # or the sentence says the person never told it.
@@ -115,3 +139,10 @@ def unmatched_note_due(runs: Sequence[ToolRun], *, unmatched: int, deleted: int)
     ``deleted`` counts the rows the turn's ``forget_memories`` calls removed, failed ones included.
     """
     return unmatched > 0 and not deleted and not deleted_memory(runs, unmatched)
+
+
+def unmatched_note(runs: Sequence[ToolRun], language: str) -> str:
+    """The note, said of the time before the handoff when ``runs``, this reply's calls, hand off."""
+    if hands_off(runs):
+        return in_language(HANDED_UNMATCHED_NOTE, HANDED_UNMATCHED_NOTES, language)
+    return in_language(UNMATCHED_FORGET_NOTE, UNMATCHED_FORGET_NOTES, language)

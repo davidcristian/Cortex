@@ -4,7 +4,7 @@ import re
 from collections.abc import Sequence
 
 from cortex_core.conversation import ToolRun
-from cortex_core.escalate import ESCALATE_TOOL_NAME
+from cortex_core.escalate import hands_off
 from cortex_core.forget_unnamed import asks_to_forget_keeping
 from cortex_core.memory_forget import FORGET_UNTRUSTED_TOOL_NAME
 from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
@@ -24,7 +24,7 @@ HANDED_FORGET_NOTE = (
     "call ran.)"
 )
 HANDED_FORGET_NOTES = {
-    "fr": "\n\n(Rien n'a été supprimé de la mémoire avant le passage au modèle profond : "
+    "fr": "\n\n(Rien n'a été supprimé de la mémoire avant le transfert au modèle profond : "
     "aucun appel d'oubli n'a été exécuté.)",
     "de": "\n\n(Vor der Übergabe an das tiefe Modell wurde nichts aus dem Gedächtnis "
     "gelöscht: kein Aufruf zum Vergessen wurde ausgeführt.)",
@@ -54,6 +54,6 @@ def uncalled_note_due(query: str, made: Sequence[ToolRun]) -> bool:
 
 def uncalled_note(runs: Sequence[ToolRun], language: str) -> str:
     """The note, said of the time before the handoff when ``runs``, this reply's calls, hand off."""
-    if any(run.name == ESCALATE_TOOL_NAME and run.ok for run in runs):
+    if hands_off(runs):
         return in_language(HANDED_FORGET_NOTE, HANDED_FORGET_NOTES, language)
     return in_language(UNCALLED_FORGET_NOTE, UNCALLED_FORGET_NOTES, language)

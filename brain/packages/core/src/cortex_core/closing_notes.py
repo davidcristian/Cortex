@@ -21,12 +21,7 @@ from cortex_core.file_claim import (
     unread_folders_claim,
 )
 from cortex_core.file_claim_other import unread_folders_claim_other
-from cortex_core.forget_claim import (
-    UNFORGOTTEN_CLAIM_NOTE,
-    UNFORGOTTEN_CLAIM_NOTES,
-    names_removal,
-    unforgotten_claim,
-)
+from cortex_core.forget_claim import names_removal, unforgotten_claim, unforgotten_note
 from cortex_core.forget_count_note import forgot_count_note, forgot_note_due
 from cortex_core.forget_inside import inside_note
 from cortex_core.forget_longer import longer_note
@@ -36,10 +31,9 @@ from cortex_core.forget_unfound_claim import (
     DECLINED_FORGET_NOTES,
     DELETED_UNFOUND_NOTE,
     DELETED_UNFOUND_NOTES,
-    UNMATCHED_FORGET_NOTE,
-    UNMATCHED_FORGET_NOTES,
     declined_note_due,
     unfound_claim,
+    unmatched_note,
     unmatched_note_due,
 )
 from cortex_core.forget_unnamed import kept_note
@@ -157,7 +151,7 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
     for due, note in (
         (unkept, said_in(UNKEPT_CLAIM_NOTE, UNKEPT_CLAIM_NOTES)),
         (stored, said_in(KEPT_BEYOND_CHAT_NOTE, KEPT_BEYOND_CHAT_NOTES)),
-        (unforgotten, said_in(UNFORGOTTEN_CLAIM_NOTE, UNFORGOTTEN_CLAIM_NOTES)),
+        (unforgotten, unforgotten_note(runs, language)),
         (uncalled, uncalled_note(runs, language)),
         (counted, forgot_count_note(taint.forget_deleted, language)),
         (held, in_language(NUMBERS_LEFT_NOTE, NUMBERS_LEFT_NOTES, language)),
@@ -166,7 +160,7 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
         (bool(taint.forget_longer), longer_note(taint.forget_longer, language)),
         (bool(taint.old_value), old_value_note(taint.old_value, language)),
         (unfound, said_in(DELETED_UNFOUND_NOTE, DELETED_UNFOUND_NOTES)),
-        (missed, said_in(UNMATCHED_FORGET_NOTE, UNMATCHED_FORGET_NOTES)),
+        (missed, unmatched_note(runs, language)),
         (
             declined_note_due(reply, declined=taint.forget_declined),
             in_language(DECLINED_FORGET_NOTE, DECLINED_FORGET_NOTES, language),

@@ -4,9 +4,11 @@ import re
 from collections.abc import Sequence
 
 from cortex_core.conversation import ToolRun
+from cortex_core.escalate import hands_off
 from cortex_core.forget_claim_other import claims_forgotten_other
 from cortex_core.memory_forget import FORGET_UNTRUSTED_TOOL_NAME
 from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
+from cortex_core.note_language import in_language
 
 UNFORGOTTEN_CLAIM_NOTE = (
     "\n\n(Nothing was forgotten in this turn: no forget call in it deleted a memory. Ask again to "
@@ -21,6 +23,20 @@ UNFORGOTTEN_CLAIM_NOTES = {
     "guardado. Pide de nuevo que se olvide, en un mensaje aparte.)",
     "ro": "\n\n(Nu s-a uitat nimic aici: niciun apel de uitare nu a șters vreun schimb memorat. "
     "Cere din nou să fie uitat, într-un mesaj separat.)",
+}
+HANDED_CLAIM_NOTE = (
+    "\n\n(Nothing was forgotten before the handoff to the deep model: no forget call deleted a "
+    "memory.)"
+)
+HANDED_CLAIM_NOTES = {
+    "fr": "\n\n(Rien n'a été oublié avant le transfert au modèle profond : aucun appel d'oubli "
+    "n'a supprimé d'échange mémorisé.)",
+    "de": "\n\n(Vor der Übergabe an das tiefe Modell wurde nichts vergessen: kein Aufruf zum "
+    "Vergessen hat eine gespeicherte Unterhaltung gelöscht.)",
+    "es": "\n\n(No se olvidó nada antes de pasar la solicitud al modelo profundo: ninguna "
+    "llamada de olvido borró un intercambio guardado.)",
+    "ro": "\n\n(Nu s-a uitat nimic înainte de predarea către modelul profund: niciun apel de "
+    "uitare nu a șters vreun schimb memorat.)",
 }
 
 _ADVERB = r"(?:(?:now|just|also|already|successfully)\s+)?"
@@ -113,3 +129,10 @@ def unforgotten_claim(runs: Sequence[ToolRun], reply: str, *, unmatched: int = 0
     """Whether ``reply`` says something was forgotten that no forget call among ``runs`` deleted."""
     claimed = claims_forgotten(reply) or claims_forgotten_other(reply)
     return not deleted_memory(runs, unmatched) and claimed
+
+
+def unforgotten_note(runs: Sequence[ToolRun], language: str) -> str:
+    """The note, said of the time before the handoff when ``runs``, this reply's calls, hand off."""
+    if hands_off(runs):
+        return in_language(HANDED_CLAIM_NOTE, HANDED_CLAIM_NOTES, language)
+    return in_language(UNFORGOTTEN_CLAIM_NOTE, UNFORGOTTEN_CLAIM_NOTES, language)

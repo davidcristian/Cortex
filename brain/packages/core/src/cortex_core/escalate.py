@@ -1,5 +1,8 @@
 """The ``escalate_to_brain`` built-in tool: request the deep-model handoff."""
 
+from collections.abc import Sequence
+
+from cortex_core.conversation import ToolRun
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
 
 ESCALATE_TOOL_NAME = "escalate_to_brain"
@@ -81,6 +84,11 @@ class EscalateToBrainTool:
             return _refusal(call, _ERR_ALREADY_REQUESTED)
         slot.brief = text
         return ToolResult(call_id=call.id, content=ESCALATION_QUEUED_MSG, trust=Trust.TRUSTED)
+
+
+def hands_off(runs: Sequence[ToolRun]) -> bool:
+    """Whether ``runs`` hold an approved ``escalate_to_brain`` run, which hands the turn off."""
+    return any(run.name == ESCALATE_TOOL_NAME and run.ok for run in runs)
 
 
 def _refusal(call: ToolCall, message: str) -> ToolResult:

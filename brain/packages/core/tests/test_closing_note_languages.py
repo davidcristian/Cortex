@@ -19,11 +19,19 @@ from cortex_core import (
 from cortex_core.access_claim import UNSEARCHED_FILES_NOTE, UNSEARCHED_FILES_NOTES
 from cortex_core.chat_only_claim import KEPT_BEYOND_CHAT_NOTE, KEPT_BEYOND_CHAT_NOTES
 from cortex_core.closing_notes import limit_notes
+from cortex_core.escalate import ESCALATE_TOOL_NAME
 from cortex_core.file_claim import UNREAD_FOLDERS_NOTE, UNREAD_FOLDERS_NOTES
-from cortex_core.forget_claim import UNFORGOTTEN_CLAIM_NOTE, UNFORGOTTEN_CLAIM_NOTES
+from cortex_core.forget_claim import (
+    HANDED_CLAIM_NOTE,
+    HANDED_CLAIM_NOTES,
+    UNFORGOTTEN_CLAIM_NOTE,
+    UNFORGOTTEN_CLAIM_NOTES,
+)
 from cortex_core.forget_unfound_claim import (
     DELETED_UNFOUND_NOTE,
     DELETED_UNFOUND_NOTES,
+    HANDED_UNMATCHED_NOTE,
+    HANDED_UNMATCHED_NOTES,
     UNMATCHED_FORGET_NOTE,
     UNMATCHED_FORGET_NOTES,
 )
@@ -55,6 +63,7 @@ class _Case:
 
 _STORED = ToolRun(name=SCHEDULE_TOOL_NAME, ok=True)
 _FORGOT = ToolRun(name=FORGET_CHOSEN_TOOL_NAME, ok=True)
+_HANDED = ToolRun(name=ESCALATE_TOOL_NAME, ok=True)
 _ASKS = {
     "fr": "Qu'y a-t-il dans notes.txt ? Merci beaucoup pour votre aide.",
     "de": "Was ist in notes.txt? Ich danke dir, das ist sehr nett.",
@@ -123,6 +132,13 @@ _CASES = {
         (),
         TaintLedger(),
     ),
+    "unforgotten-handed": _Case(
+        HANDED_CLAIM_NOTE,
+        HANDED_CLAIM_NOTES,
+        "I've forgotten your code.",
+        (_HANDED,),
+        TaintLedger(),
+    ),
     "unfound": _Case(
         DELETED_UNFOUND_NOTE,
         DELETED_UNFOUND_NOTES,
@@ -135,6 +151,14 @@ _CASES = {
         UNMATCHED_FORGET_NOTES,
         "OK.",
         (_FORGOT,),
+        TaintLedger(forget_asked=True, forget_calls=1, forget_unmatched=1),
+        memory=True,
+    ),
+    "unmatched-handed": _Case(
+        HANDED_UNMATCHED_NOTE,
+        HANDED_UNMATCHED_NOTES,
+        "OK.",
+        (_FORGOT, _HANDED),
         TaintLedger(forget_asked=True, forget_calls=1, forget_unmatched=1),
         memory=True,
     ),
