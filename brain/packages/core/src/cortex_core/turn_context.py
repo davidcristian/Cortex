@@ -37,7 +37,8 @@ DEFAULT_RECALL_K = 5
 
 MEMORY_HEADER = (
     "Relevant memories from earlier conversations, each after how long ago it was written. "
-    "When two memories disagree, the newer one is current."
+    "When two memories disagree, the newer one is current. "
+    "A memory may be written in another language; reply in the language of the person's message."
 )
 
 FORGOING_DETAIL = "memory is unavailable, so this turn is answered without earlier notes"

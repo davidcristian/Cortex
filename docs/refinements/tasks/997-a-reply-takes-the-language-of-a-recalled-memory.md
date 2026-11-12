@@ -1,9 +1,8 @@
 # A reply takes the language of a recalled memory
 
-**Status:** open, actionable
+**Status:** done 2026-11-12
 **Area:** memory
 **Origin:** [ADR-0008](../../adr/ADR-0008-memory-v1.md)
-**Verified:** 2026-11-07
 
 A question in English whose recalled memory was written in another language is answered in that
 language. On 2026-11-07 the `cortexn15` stack (gemma-4-12B at context 16,384, llama-server build
@@ -33,3 +32,10 @@ Reproduction: send `Merk dir, dass mein Hund Bello heißt.` in one chat and
 ## History
 
 - 2026-11-07: filed from the language and locale flows on the shared stack.
+- 2026-11-12: done. `MEMORY_HEADER` now says a memory may be written in another language and the
+  reply is in the language of the person's message. On the `cortexn20` stack the base answered 6 of
+  12 English questions in the language of the recalled fact and the build with the sentence 0 of
+  12, with every question in another language answered in its own language on both
+  ([readings](../../readings/recalled-memory-reply-language.md)). The three requests to remember
+  that ran a forget call during the setup are
+  [task 1164](1164-a-request-to-remember-in-another-language-runs-a-forget-call.md).

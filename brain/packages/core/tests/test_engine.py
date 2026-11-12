@@ -1690,6 +1690,7 @@ async def test_recall_renders_trusted_and_tainted_memories_in_separate_sections(
     assert memory_msg.role is Role.SYSTEM
     assert f"{MEMORY_HEADER} {RECALLED_RUNS_NOTE}\n- (3 days ago) I like tea" in memory_msg.text
     assert "When two memories disagree, the newer one is current." in memory_msg.text
+    assert "reply in the language of the person's message." in memory_msg.text
     assert "\nhostile note\n</untrusted-tool-output" in memory_msg.text
     assert "derived from untrusted external content" in memory_msg.text
     assert "untrusted-tool-output id=" in memory_msg.text
