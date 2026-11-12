@@ -12,6 +12,8 @@ from cortex_core.closing_notes import limit_notes
 from cortex_core.escalate import ESCALATE_TOOL_NAME
 from cortex_core.forget_claim import UNFORGOTTEN_CLAIM_NOTE, claims_forgotten
 from cortex_core.forget_uncalled import (
+    HANDED_FORGET_NOTE,
+    HANDED_FORGET_NOTES,
     UNCALLED_FORGET_NOTE,
     UNCALLED_FORGET_NOTES,
     uncalled_note_due,
@@ -188,9 +190,22 @@ def test_a_forget_call_before_a_handoff_counts_as_a_call() -> None:
 _HANDING = "I am handing this to the deep model, which will forget your gym code."
 
 
-def test_a_reply_handing_the_forget_to_the_deep_model_gets_no_note() -> None:
+def test_a_reply_handing_the_forget_to_the_deep_model_gets_the_note_before_the_handoff() -> None:
     runs = (ToolRun(ESCALATE_TOOL_NAME, ok=True),)
-    assert _closed("Forget my gym code.", _HANDING, runs) == _HANDING
+    assert _closed("Forget my gym code.", _HANDING, runs) == _HANDING + HANDED_FORGET_NOTE
+
+
+@pytest.mark.parametrize("language", list(_OTHER_PLAIN))
+def test_the_note_before_a_handoff_is_written_in_the_language_of_the_message(
+    language: str,
+) -> None:
+    runs = (ToolRun(ESCALATE_TOOL_NAME, ok=True),)
+    closed = _closed(_OTHER_PLAIN[language], _HANDING, runs)
+    assert closed == _HANDING + HANDED_FORGET_NOTES[language]
+
+
+def test_the_note_before_a_handoff_stays_true_when_the_deep_model_never_answers() -> None:
+    assert HANDED_FORGET_NOTE.endswith("before the handoff to the deep model: no forget call ran.)")
 
 
 def test_a_reply_whose_handoff_was_declined_gets_the_note() -> None:
@@ -229,9 +244,15 @@ def test_the_note_says_no_forget_call_ran_so_a_refused_call_keeps_it_true() -> N
     assert UNCALLED_FORGET_NOTE.endswith(": no forget call ran.)")
 
 
-def test_each_translated_note_has_the_shape_of_the_english_one() -> None:
-    assert set(UNCALLED_FORGET_NOTES) == {"fr", "de", "es", "ro"}
-    for note in UNCALLED_FORGET_NOTES.values():
+@pytest.mark.parametrize(
+    ("english", "notes"),
+    [(UNCALLED_FORGET_NOTE, UNCALLED_FORGET_NOTES), (HANDED_FORGET_NOTE, HANDED_FORGET_NOTES)],
+)
+def test_each_translated_note_has_the_shape_of_the_english_one(
+    english: str, notes: dict[str, str]
+) -> None:
+    assert set(notes) == {"fr", "de", "es", "ro"}
+    for note in notes.values():
         assert note.startswith("\n\n(")
         assert note.endswith(".)")
-        assert note != UNCALLED_FORGET_NOTE
+        assert note != english
