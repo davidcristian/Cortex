@@ -137,6 +137,6 @@ The SM clock read 0.57 of its maximum between draws.
 Every item of the rule holds. A forget call ran in all 9 forget draws, so the form with no call
 occurred 0 times in 9, and the note's effect on it rests on the unit tests and the replay above.
 The `4242` call in p1 deleted the card row too, which holds `4242` only inside a longer number
-(task 1153). One d1 draw also called `schedule_task`, which failed, on a message asking for no
+([forget-last-group-beside-whole.md](forget-last-group-beside-whole.md)). One d1 draw also called `schedule_task`, which failed, on a message asking for no
 reminder (task 1154). Script `live.sh` and logs `draws.log` and `draws3.log` in the slot directory
 above.

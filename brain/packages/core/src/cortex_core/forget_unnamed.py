@@ -223,7 +223,7 @@ def _quantifies(query: str) -> bool:
     return False
 
 
-def _just_said(rows: list[MemoryRecord], session_id: str | None) -> str | None:
+def just_said(rows: list[MemoryRecord], session_id: str | None) -> str | None:
     """The id of the newest of ``rows`` the chat ``session_id`` stored, if it stored one."""
     own = [record for record in rows if session_id is not None and record.session_id == session_id]
     return max(own, key=lambda record: record.at).id if own else None
@@ -271,7 +271,7 @@ def _unnamed(
     asked, values = _keys(query), _keys(text) - _keys(query) or _keys(text)
     named = compound or _named(rows, words, deleted)
     every = values <= asked and (not named or _quantifies(query))
-    said = None if named else _just_said(rows, session_id)
+    said = None if named else just_said(rows, session_id)
     return [
         record
         for record in rows
