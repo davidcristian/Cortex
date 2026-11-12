@@ -39,6 +39,7 @@ async def _forget(query: str, chat: str = "chat-new") -> tuple[str | None, ToolR
         ("Oublie mon code de gym.", "chat-new"),
         ("Forget my Visa.", "chat-new"),
         ("Forget what I just told you.", "chat-new"),
+        ("Forget my gym code.", "chat-a"),
     ],
 )
 async def test_a_card_alone_is_kept_when_the_message_lacks_the_text_and_names_another_word(
@@ -66,7 +67,6 @@ async def test_a_card_alone_is_kept_when_the_message_lacks_the_text_and_names_an
         ("Forget that.", "chat-new"),
         ("Vergiss das.", "chat-new"),
         ("Forget what I just told you.", "chat-a"),
-        ("Forget my gym code.", "chat-a"),
     ],
 )
 async def test_a_card_alone_is_listed_when_the_message_holds_the_text_or_names_it(

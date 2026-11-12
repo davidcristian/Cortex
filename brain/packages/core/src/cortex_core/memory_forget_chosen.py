@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, replace
 
 from cortex_core.errors import MemoryStoreError
-from cortex_core.forget_inside import INSIDE_ALL, INSIDE_LINE, inside
+from cortex_core.forget_inside import INSIDE_ALL, INSIDE_LINE, inside, kept_rows
 from cortex_core.forget_keep_named import keep_named
 from cortex_core.forget_longer import LONGER_ALL, beside, longer, longer_lines
 from cortex_core.forget_results import (
@@ -22,7 +22,7 @@ from cortex_core.forget_results import (
     unavailable,
     unlisted,
 )
-from cortex_core.forget_unnamed import KEPT_ALL, KEPT_LINE, KeptRows, asks_to_keep, unnamed
+from cortex_core.forget_unnamed import KEPT_ALL, KEPT_LINE, KeptRows, asks_to_keep
 from cortex_core.memory import MemoryRecord
 from cortex_core.memory_values import code_runs, short_groups, undated_runs, whole_values
 from cortex_core.ports import MemoryStore
@@ -203,7 +203,7 @@ class ForgetChosenTool:
         left_out = len(found) + len(extra) > FORGET_CHOSEN_LIMIT
         rows = [*found, *(row for row, _, _ in extra)]
         deleted = self._deleted_rows.get(call.stamp.turn_id, ())
-        kept = unnamed(rows, _text(call), call.stamp.query, deleted, call.stamp.session_id)
+        kept = kept_rows(rows, within, _text(call), call.stamp, deleted)
         held = {record.id for record in kept}
         far = [row for row in longer(rows, _text(call), call.stamp.query) if row.id not in held]
         spared = {row.id: _excerpt(row, _text(call)) for row in (*kept, *within, *far)}

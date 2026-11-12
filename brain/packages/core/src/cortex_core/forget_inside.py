@@ -4,14 +4,16 @@ import re
 from collections.abc import Iterable, Sequence
 
 from cortex_core.forget_languages import FUNCTION, readings
-from cortex_core.forget_unnamed import just_said, row_words
+from cortex_core.forget_unnamed import just_said, row_words, unnamed
 from cortex_core.memory import MemoryRecord
-from cortex_core.memory_values import joined, value_spans
+from cortex_core.memory_values import code_word, joined, value_spans
 from cortex_core.note_language import ENGLISH, in_language
+from cortex_core.tools import TurnStamp
 
 _HEAD = re.compile(r"\A[^\W_]+")
 _TAIL = re.compile(r"[^\W_]+\Z")
 _KIND = re.compile(r"\b(?:cards?|accounts?|ibans?)\b", re.IGNORECASE)
+_WORD = re.compile(r"[^\W\d_]{3,}")
 
 INSIDE_LINE = "Kept, since they hold that text only inside a longer value:"
 INSIDE_ALL = (
@@ -92,6 +94,12 @@ def _grouped(record: str, text: str, query: str, *, ends: bool) -> bool:
     return _KIND.search(query) is None and all(_part(record, at, query, ends=ends) for at in places)
 
 
+def _content(query: str) -> set[str]:
+    """The words of ``query`` that can name a fact, less the function words of its readings."""
+    function = {word for language in readings(query) for word in FUNCTION.get(language, ())}
+    return row_words(query) - function
+
+
 def _ends(
     records: Sequence[MemoryRecord],
     text: str,
@@ -102,15 +110,15 @@ def _ends(
 ) -> dict[str, bool]:
     """Whether to keep each row holding ``text`` (found by ``pattern``) as a last group: ``query``
     names no word only it has beside a text holding ``text`` whole, or lacks ``text`` and names
-    words, none of the row's; never the newest row ``chat`` stored if ``query`` names no row."""
+    words, none of the row's; never the newest row ``chat`` stored if ``query`` names nothing."""
     texts = (*held, *(record.text for record in records))
     holding = [row for row in texts if _whole(row, text)]
     beside = {word for row in holding for word in row_words(row)}
     words = row_words(query)
     named = any(not words.isdisjoint(row_words(record.text)) for record in records)
-    said = None if named else just_said(list(records), chat)
-    function = {word for language in readings(query) for word in FUNCTION.get(language, ())}
-    unasked = bool(words - function) and pattern.search(query) is None
+    kinds = any(code_word(word) for word in _WORD.findall(query))
+    said = None if named or kinds else just_said(list(records), chat)
+    unasked = bool(_content(query)) and pattern.search(query) is None
     return {
         record.id: record.id != said
         and (
@@ -141,3 +149,27 @@ def inside(
         if pattern.search(record.text) is None
         or (bool(query) and _grouped(record.text, text, query, ends=ends[record.id]))
     )
+
+
+def kept_rows(
+    rows: Sequence[MemoryRecord],
+    within: Sequence[MemoryRecord],
+    text: str,
+    stamp: TurnStamp,
+    deleted: Sequence[str],
+) -> list[MemoryRecord]:
+    """The ``rows`` ``unnamed`` keeps beside the kept rows ``within``, and each holding ``text``
+    whole when one is kept and the message holds ``text`` beside words naming no row."""
+    inner = {row.id for row in within}
+    every = unnamed([*rows, *within], text, stamp.query, deleted, stamp.session_id)
+    kept = [row for row in every if row.id not in inner]
+    pattern, words = _bounded(text), _content(stamp.query)
+    unclear = (
+        bool(within and words)
+        and pattern is not None
+        and pattern.search(stamp.query) is not None
+        and all(words.isdisjoint(row_words(row.text)) for row in (*rows, *within))
+    )
+    ids = {row.id for row in kept}
+    whole = [row for row in rows if unclear and row.id not in ids and _whole(row.text, text)]
+    return [*kept, *whole]

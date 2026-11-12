@@ -13,7 +13,7 @@ as its last group, since a card is named by its last four digits. The decision i
 A row that holds the call's text only as the last group of a longer value is now also kept under
 `INSIDE_LINE` when another row holds the text as a whole value and the message names no word of
 the row that the whole-value rows lack. A row the calling chat stored last stays listed when the
-message names no word of any row, since that row is what the person just said. With no row
+message names no word of any row and no code word, since that row is what the person just said. With no row
 holding the text whole, a last group is listed as before. The rows are in
 `test_forget_group_beside_whole.py`, card and gym code stored in that order unless named:
 
@@ -78,7 +78,7 @@ With only `Remember that my card is 4111 1111 1111 4242.` stored, `Forget my gym
 text `4242` listed and deleted the card: no other row held `4242` whole, so the rule above did not
 apply. A row holding the call's text only as a last group is now also kept when the message does
 not hold the text and names at least one word, none of them a word of that row. The newest row the
-calling chat stored is still listed when the message names no word of any match. When the person
+calling chat stored is still listed when the message names no word of any match and no code word. When the person
 writes the digits, they name the last group themselves, so the row is listed as before.
 
 A kept row reaches the person. On a card it is shown under `INSIDE_LINE`. A call whose every match
@@ -96,7 +96,7 @@ unless the storing chat is named. Each listing was decided before the code was w
 | `Forget my Visa.` | kept | `visa` is no word of the card row; the note names the card, so the person can ask again |
 | `Forget what I just told you.` | kept | this chat stored nothing, and `told` is no word of the card |
 | `Forget what I just told you.`, storing chat | listed | the newest row the chat stored, no word of any match named |
-| `Forget my gym code.`, storing chat | listed | read like the row above, since `gym` names no match; filed as task 1156 |
+| `Forget my gym code.`, storing chat | kept | `code` is a code word, so the message names another fact |
 | `Forget the code 4242.` | listed | the message holds `4242` |
 | `Forget 4242.` | listed | the message holds `4242` |
 | `Forget the card ending in 4242.` | listed | names a card |
@@ -113,9 +113,9 @@ The rule reads a word of the message only against the row it may keep, so a mess
 card in other words without the digits (`Forget my Visa.`) keeps it. The safe direction of the
 destructive card keeps rows, and the note names what was kept.
 
-Beside a gym code row, `Forget my Visa ending 4242.` and `Forget the number ending 4242.` keep the
-card and list the gym row under the rule above, since `visa` and `ending` are words of neither
-row and `number` is a code word. That deletes the row the message did not ask for; filed as task 1157.
+Beside a gym code row, `Forget my Visa ending 4242.` and `Forget the number ending 4242.` name
+words of neither row, so both rows are kept and the notes name both
+([forget-last-group-table.md](forget-last-group-table.md)).
 
 **Replay.** 266 forget strings, each backticked one in `docs/readings/` and the task files and
 each user message of the stack's proxy log, ran through the card and the delete of the build before the
