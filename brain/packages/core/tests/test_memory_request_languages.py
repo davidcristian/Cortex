@@ -310,6 +310,7 @@ def test_a_request_in_english_italian_or_not_at_a_clause_start_is_not_kept_other
         "Ține minte că numărul apartamentului meu este 42.",
         "Merci. Retiens qu'Anna préfère les plantes.",
         "Recuerda que mi código es 4512, ¡muchas gracias!",
+        "Merk dir, dass ich morgen arbeiten muss.",
     ],
 )
 def test_a_request_to_remember_one_stated_fact_asks_kept_fact_other(query: str) -> None:
@@ -325,6 +326,8 @@ def test_a_request_to_remember_one_stated_fact_asks_kept_fact_other(query: str) 
         "Merk dir nicht alles, aber merk dir, dass mein Code 4512 ist.",
         "Souviens-toi que mon vélo est bleu et jette mon code.",
         "Remember that my code is 4512.",
+        "Merk dir, dass du meinen Code wegwerfen sollst.",
+        "Recuerda que debes tirar mi código.",
     ],
 )
 def test_a_request_to_remember_an_action_or_beside_a_clause_is_not_kept_fact_other(

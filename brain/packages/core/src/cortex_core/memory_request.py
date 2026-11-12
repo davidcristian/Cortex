@@ -196,6 +196,13 @@ _THE_MESSAGE = re.compile(_MESSAGE, re.IGNORECASE)
 _FACT_AFTER = re.compile(r"\W*(?:(?:que|dass|c[ăa])\b|qu['\u2019])", re.IGNORECASE)
 _FACT_IN = re.compile(r"(?:\b(?:que|dass|c[ăa])\s*|\bqu['\u2019])$", re.IGNORECASE)
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
+# An obligation of the assistant, a second `que tu` or a `să` asks for an action, not a fact.
+_ASKS_OF_YOU = re.compile(
+    r"\b(?:tu\s+(?:dois|devras|devrais)|vous\s+(?:devez|devrez|devriez)|il\s+faut|il\s+faudr\w+"
+    r"|qu(?:e\s+|['\u2019])(?:tu|vous)|debes|deber[aá]s|deber[ií]as|deb[eé]is|tienes\s+que"
+    r"|tendr[aá]s\s+que|ten[eé]is\s+que|hay\s+que|trebuie|s[ăã]|sollst|solltest|musst|mußt)\b",
+    re.IGNORECASE,
+)
 
 
 def _asks_not_kept(sentence: str) -> bool:
@@ -261,7 +268,8 @@ def asks_kept_fact_other(query: str) -> bool:
             return False
         fact = _THANKS.sub("", rest[opener.end() :] if opener else rest)
         before = _THANKS.sub("", query[: start + found.start()])
-        return re.search(r"\w", before) is None and _SECOND_CLAUSE.search(fact) is None
+        alone = _SECOND_CLAUSE.search(fact) is None and _ASKS_OF_YOU.search(fact) is None
+        return re.search(r"\w", before) is None and alone
     return False
 
 

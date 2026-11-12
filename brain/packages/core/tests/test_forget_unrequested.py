@@ -89,6 +89,48 @@ def test_a_request_to_remember_in_a_read_language_refuses_the_forget_tool(query:
 @pytest.mark.parametrize(
     "query",
     [
+        "Recuerda que debes tirar mi código.",
+        "Recuerda que tienes que desechar mi código.",
+        "Recuerda que hay que tirar mi código.",
+        "Ține minte că trebuie să arunci codul meu.",
+        "Ține minte că vreau să arunci codul.",
+        "Ține minte că trebuie să plec la 9.",
+        "Souviens-toi que tu dois jeter mes données de santé.",
+        "Souviens-toi que je veux que tu jettes mon code.",
+        "Souviens-toi qu'il faut jeter mon code.",
+        "Retenez que vous devez jeter mon code.",
+        "Merk dir, dass du meinen Code wegwerfen sollst.",
+        "Merk dir, dass du meinen Code wegwerfen musst.",
+    ],
+)
+def test_a_request_to_remember_an_obligation_or_a_request_of_you_keeps_the_forget_tool(
+    query: str,
+) -> None:
+    assert forget_unrequested(query) == frozenset()
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Recuerda que tienes cita a las 9.",
+        "Recuerda que las llaves están en el coche.",
+        "Recuerda que debo llamar a mi madre.",
+        "Souviens-toi que je dois partir à 9 h.",
+        "Souviens-toi que sa voiture est rouge.",
+        "Merk dir, dass ich morgen arbeiten muss.",
+        "Merk dir, dass meine Schwester Vegetarierin ist.",
+        "Ține minte că sora mea vine mâine.",
+    ],
+)
+def test_a_request_to_remember_a_fact_with_no_obligation_of_you_refuses_the_forget_tool(
+    query: str,
+) -> None:
+    assert forget_unrequested(query) == _REFUSED
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
         "Ține minte să arunci codul.",
         "Ține minte să cumperi pâine.",
         "Merk dir, den Code wegzuwerfen.",

@@ -217,6 +217,22 @@ código.` asks for an action with `que` and a subjunctive ([task 1171](../refine
 `headdiff.py` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/d2003893-7ebe-4ec3-ad1c-e92980017fd3/scratchpad/slot17/`,
 with `diff3.py` of slot 14.
 
+A fact clause that asks the assistant for an action with a verb in no list still had the tool
+refused (`Recuerda que debes tirar mi código.`, `Merk dir, dass du meinen Code wegwerfen
+sollst.`). `asks_kept_fact_other` now reads no stated fact when the clause holds an obligation of
+the assistant or a second `que tu`, marked by closed words only: `tu dois`, `vous devez`, `il
+faut`, `debes`, `tienes que`, `hay que`, `trebuie`, `să`, `sollst` and `musst`. `Ține minte că
+trebuie să plec la 9.` states a fact about the person and keeps the tool too, while `Merk dir,
+dass ich morgen arbeiten muss.` and `Souviens-toi que je dois partir à 9 h.` are still refused.
+Replayed through the start build, HEAD before this change and this one over 203 turns and 28,952
+strings, no turn changed from HEAD, 13 strings now keep the tool and none is newly refused. Each
+of the 13 asks the assistant for an action, except the `trebuie să plec` fact. Of the 26 strings
+and 3 turns (`k1`, `k2`, `k4`) refused that the start build kept, each states one fact or is a
+fragment of such a request (`reține că`), except `Recuerda que remuevas mi código.`, whose second
+person subjunctive no closed word marks. Scripts: `replay.py` of slot 12, `diff3.py` of slot 14
+and `headdiff.py` of slot 17, with the logs in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/d2003893-7ebe-4ec3-ad1c-e92980017fd3/scratchpad/slot20/`.
+
 On `s12lang`, SM clock 0.57 of `clocks.max.sm`, proxy lines 1060 to 1143:
 
 | Rows | Draws | Forget calls | Refused by the reader | Cards | Fact row after |
