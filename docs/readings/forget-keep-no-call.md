@@ -138,5 +138,6 @@ Every item of the rule holds. A forget call ran in all 9 forget draws, so the fo
 occurred 0 times in 9, and the note's effect on it rests on the unit tests and the replay above.
 The `4242` call in p1 deleted the card row too, which holds `4242` only inside a longer number
 ([forget-last-group-beside-whole.md](forget-last-group-beside-whole.md)). One d1 draw also called `schedule_task`, which failed, on a message asking for no
-reminder (task 1154). Script `live.sh` and logs `draws.log` and `draws3.log` in the slot directory
+reminder; `unasked_tools` leaves that tool out beside a clause asking to forget
+([second clauses](side-effect-tools-second-clause.md#a-clause-asking-to-forget-2026-11-12)). Script `live.sh` and logs `draws.log` and `draws3.log` in the slot directory
 above.

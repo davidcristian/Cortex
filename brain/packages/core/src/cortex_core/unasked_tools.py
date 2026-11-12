@@ -27,6 +27,20 @@ _REMINDER = re.compile(
     re.IGNORECASE,
 )
 _ASKED = {SET_VOLUME_TOOL_NAME: _SOUND, SCHEDULE_TOOL_NAME: _REMINDER}
+# A clause asking to forget needs neither tool, unless the message names a time, which can say
+# when to forget or open a request the action reader misses ("and set one for 5 minutes").
+_FORGETS = re.compile(
+    r"^\W*(?:(?:and|so|then|but|plus)\s+)?(?:(?:please|also|just|then|now)\s+)*"
+    r"(?:forget|delete|remove|erase|wipe|purge|discard|unlearn)\b",
+    re.IGNORECASE,
+)
+_WHEN = re.compile(
+    r"\b(?:at|around|by|before|after|in|on|until|till)\s+\d|\d\s*(?:[ap]\.?m\b|o['\u2019]?clock\b)"
+    r"|\b(?:today|tonight|tomorrow|later|soon|morning|afternoon|evening|night|noon|midnight"
+    r"|daily|weekly|monthly|minutes?|hours?|days?|weeks?|months?"
+    r"|(?:mon|tues|wednes|thurs|fri|satur|sun)days?)\b",
+    re.IGNORECASE,
+)
 # A question, a second sentence, a path, a link or a named source can need a sidecar tool. A message
 # read wrongly here keeps its tools offered, and a file call then keeps the turn out of memory.
 _SOURCE = re.compile(
@@ -122,7 +136,10 @@ def unasked_tools(query: str) -> frozenset[str]:
     """The tools left out of a turn whose ``query`` asks to remember and names no use for them."""
     if not asks_kept_alone(query):
         return frozenset()
+    timed = _WHEN.search(query) is not None
     for action in actions_asked(query):
+        if not timed and _FORGETS.match(action):
+            continue
         if not any(asked.search(action) for asked in _ASKED.values()):
             return frozenset()
     return frozenset(name for name, asked in _ASKED.items() if asked.search(query) is None)

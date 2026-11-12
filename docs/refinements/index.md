@@ -79,10 +79,10 @@ never a reading of what the tree does now.
 - **[R-1109](tasks/1109-the-no-match-forget-result-tells-the-model-to-say-nothing-was-stored.md)** The no-match forget result tells the model to say nothing was stored (memory). Its claim was checked against the code on 2026-11-12.
 - **[R-1146](tasks/1146-a-recall-question-memory-cannot-answer-searches-the-file-sidecar.md)** A recall question memory cannot answer searches the file sidecar (memory). Its claim was checked against the code on 2026-11-11.
 - **[R-1151](tasks/1151-recall-leaves-out-the-rows-a-forget-of-everything-but-one-fact-asks-to-delete.md)** Recall leaves out the rows a forget of everything but one fact asks to delete (memory). Its claim was checked against the code on 2026-11-12.
-- **[R-1154](tasks/1154-a-remember-beside-a-delete-request-keeps-the-schedule-tool-offered.md)** A remember beside a delete request keeps the schedule tool offered (memory). Its claim was checked against the code on 2026-11-12.
 - **[R-1158](tasks/1158-a-forget-in-one-language-keeps-a-row-stored-in-another.md)** A forget in one language keeps a row stored in another (memory). Its claim was checked against the code on 2026-11-12.
 - **[R-1161](tasks/1161-a-later-forget-call-keeps-the-newest-row-after-an-older-one-is-deleted.md)** A later forget call keeps the newest row after an older one is deleted (memory). Its claim was checked against the code on 2026-11-12.
 - **[R-1162](tasks/1162-a-keep-clause-beside-a-forget-naming-only-a-value-keeps-every-row.md)** A keep clause beside a forget naming only a value keeps every row (memory). Its claim was checked against the code on 2026-11-12.
+- **[R-1163](tasks/1163-a-refused-forget-call-on-a-request-to-remember-costs-a-round.md)** A refused forget call on a request to remember costs a round (memory). Its claim was checked against the code on 2026-11-12.
 
 ### Actionable, once a port changes (1)
 
@@ -628,10 +628,10 @@ never a reading of what the tree does now.
 - [R-1146](tasks/1146-a-recall-question-memory-cannot-answer-searches-the-file-sidecar.md) A recall question memory cannot answer searches the file sidecar. open, actionable.
 - [R-1149](tasks/1149-a-forget-sparing-a-row-after-everything-but-lists-that-row.md) A forget sparing a row after everything but lists that row. done 2026-11-12.
 - [R-1151](tasks/1151-recall-leaves-out-the-rows-a-forget-of-everything-but-one-fact-asks-to-delete.md) Recall leaves out the rows a forget of everything but one fact asks to delete. open, actionable.
-- [R-1154](tasks/1154-a-remember-beside-a-delete-request-keeps-the-schedule-tool-offered.md) A remember beside a delete request keeps the schedule tool offered. open, actionable.
 - [R-1158](tasks/1158-a-forget-in-one-language-keeps-a-row-stored-in-another.md) A forget in one language keeps a row stored in another. open, actionable.
 - [R-1161](tasks/1161-a-later-forget-call-keeps-the-newest-row-after-an-older-one-is-deleted.md) A later forget call keeps the newest row after an older one is deleted. open, actionable.
 - [R-1162](tasks/1162-a-keep-clause-beside-a-forget-naming-only-a-value-keeps-every-row.md) A keep clause beside a forget naming only a value keeps every row. open, actionable.
+- [R-1163](tasks/1163-a-refused-forget-call-on-a-request-to-remember-costs-a-round.md) A refused forget call on a request to remember costs a round. open, actionable.
 
 ### orchestrator
 

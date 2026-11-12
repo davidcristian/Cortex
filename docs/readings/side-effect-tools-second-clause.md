@@ -121,3 +121,32 @@ traffic gets bad` or `on Fridays at 9 meetings run long`, and reads `and tomorro
 windows` and `and every morning at 7 wake me up`. It reads `and tomorrow at 8 coffee with us at
 Luigi's`, a plan rather than a request, as an action, which keeps the tool (the safe side). No
 defect.
+
+## A clause asking to forget, 2026-11-12
+
+`Note that my gym code is now 5555, and delete the old one.` kept both tools offered, since
+`actions_asked` reads `and delete the old one` as an action no word list reads, and one draw
+called `schedule_task` ([draws](forget-keep-no-call.md#a-forget-with-no-keep-clause-what-was-drawn)).
+`unasked_tools` now passes over a clause that opens with `forget`, `delete`, `remove`, `erase`,
+`wipe`, `purge`, `discard` or `unlearn` when the message names no time or day. A time keeps both
+tools, since it can say when to forget (`delete the old one tomorrow`) or open a request the
+action reader misses (`remove the timer and set one for 5 minutes`).
+
+The replay ran every backticked string in `docs/readings/` and the task files, and every user
+message in the `cortexn20` proxy log, that asks to remember or names a reminder: 380 strings,
+through HEAD before the change and the working tree. 9 changed, each now leaving out both tools,
+and each a request to remember beside a clause asking to forget, with no time and no reminder or
+sound word, such as `Remember the code 7319 and wipe the PIN.` and `Note that my phone number is
+out of date, delete it.` No string lost a tool it asks for. Script `replay.py`, logs
+`rec-old.json` and `rec-new.json`, in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/d2003893-7ebe-4ec3-ad1c-e92980017fd3/scratchpad/slot9/`.
+
+The same proxy log holds 135 first requests of a turn whose message `unasked_forget` refuses the
+forget tool on: 133 `Remember that my ... is ...` store turns of the forget draws and 2 of `Don't
+forget my gym code.` 94 of them called `forget_memories`, and the reader refuses each such call.
+The request after an `UNASKED_MSG` refusal took a median 2.8 times a first request's median over
+the same draws, whose SM clock this replay did not read. Whether leaving the tool out of the list is
+better is an open question, since leaving other tools out once raised these calls
+([listed tools](unasked-tools-listed-on-remember.md)), and
+[R-1163](../refinements/tasks/1163-a-refused-forget-call-on-a-request-to-remember-costs-a-round.md)
+holds it.

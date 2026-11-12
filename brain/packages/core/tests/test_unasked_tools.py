@@ -44,6 +44,9 @@ from cortex_core.unasked_tools import unasked_forget, unasked_sidecar_tools, una
 
 _AT = datetime(2026, 10, 30, 4, 0, 0, tzinfo=UTC)
 _BOTH = frozenset({SET_VOLUME_TOOL_NAME, SCHEDULE_TOOL_NAME})
+_VOLUME = frozenset({SET_VOLUME_TOOL_NAME})
+_SCHEDULE = frozenset({SCHEDULE_TOOL_NAME})
+_NEITHER = frozenset[str]()
 _FILE_TOOLS = ("list_allowed_directories", "read_file", "search_files")
 _REMEMBER_A_FACT = "Please remember this: my daughter is allergic to peanuts."
 _REMEMBER_AND_ASK = (
@@ -179,6 +182,48 @@ def test_a_request_to_remember_that_asks_for_a_reminder_keeps_the_schedule_tool(
     query: str,
 ) -> None:
     assert unasked_tools(query) == {SET_VOLUME_TOOL_NAME}
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Note that my gym code is now 5555, and delete the old one.",
+        "Note that my gym code is now 5555, and forget the old one.",
+        "Remember my gym code is 5555 and remove it.",
+        "Remember my locker is 42, delete the old one.",
+        "Remember my gym code is 5555; please erase the old one.",
+        "Remember my gym code is 5555 and then wipe the old one.",
+    ],
+)
+def test_a_request_to_remember_beside_a_clause_asking_to_forget_asks_for_neither_tool(
+    query: str,
+) -> None:
+    assert unasked_tools(query) == _BOTH
+
+
+@pytest.mark.parametrize(
+    ("query", "left_out"),
+    [
+        ("Note that my gym code is now 5555, delete the old one and remind me.", _VOLUME),
+        ("Note that my gym code is now 5555, delete the old one and remind me at 9.", _NEITHER),
+        ("Remember my code is 5555 and delete my 9 am reminder.", _VOLUME),
+        ("Remember my code is 5555 and delete the old one, then mute it.", _SCHEDULE),
+        ("Remember my code is 5555 and delete the old one tomorrow.", _NEITHER),
+        ("Remember my code is 5555 and delete the old one at 9.", _NEITHER),
+        ("Remember my code is 5555 and remove it in 2 hours.", _NEITHER),
+        ("Remember the dentist is at 9 and delete the old one.", _NEITHER),
+        ("Remember the 6 pm train and delete the old one.", _NEITHER),
+        ("Remember the 9 o'clock bus and delete the old one.", _NEITHER),
+        ("Remember my code is 5555, delete the old one and ring me at 9.", _NEITHER),
+        ("Remember my code is 5555 and at 9 delete the old one.", _NEITHER),
+        ("Remember my code is 5555 and drop me a line.", _NEITHER),
+        ("Remember my tea is steeping, remove the timer and set one for 5 minutes.", _NEITHER),
+    ],
+)
+def test_a_clause_asking_to_forget_beside_a_time_or_another_action_keeps_the_tools(
+    query: str, left_out: frozenset[str]
+) -> None:
+    assert unasked_tools(query) == left_out
 
 
 @pytest.mark.parametrize(
