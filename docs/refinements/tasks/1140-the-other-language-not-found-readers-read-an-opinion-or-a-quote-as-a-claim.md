@@ -1,9 +1,8 @@
 # The other-language not found readers read an opinion or a quote as a claim
 
-**Status:** open, actionable
+**Status:** declined 2026-11-12
 **Area:** cross-cutting
 **Origin:** [ADR-0074](../../adr/ADR-0074-replayed-tool-runs.md)
-**Verified:** 2026-11-11
 
 `claims_not_found_other` (`access_claim_other.py`) and `says_not_stored_other`
 (`forget_unfound_other.py`) read a find verb with a negation. Called on each sentence below in the
@@ -51,3 +50,10 @@ build should first show such a note reaching a person on a turn that needed none
   call of each reader.
 - 2026-11-11: replayed the readings and the proxy log through both readers, with no proxy
   reply matching; left open.
+- 2026-11-12: declined, since each note a false read shows is true on the turn it reaches.
+  `UNSEARCHED_FILES_NOTE` says no file was searched and the message asked only to remember, which
+  the refused file call alone makes true. `DELETED_UNFOUND_NOTE` says one forget call deleted
+  rows and another matched none, which the calls alone make true, and then only that what the
+  reply calls not found may be among them. Neither needs rewording. Narrowing would move both
+  readers off their safe side for no recorded harm: none of the 14 replies and tool results in
+  tonight's proxy log matches either reader.
