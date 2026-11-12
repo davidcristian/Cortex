@@ -221,6 +221,10 @@ def test_a_request_to_forget_or_a_correction_in_another_language_keeps_the_forge
         "Merk dir, dass ich die Nummer für Jürgen geändert habe.",
         "Recuerda que tengo un número nuevo y quita el de antes.",
         "Ține minte numărul nou și scoate-l pe cel vechi.",
+        "Amintește-ți să uiți codul meu de la sală.",
+        "Ține minte să uiți codul meu.",
+        "Ține minte să scoți codul meu din listă.",
+        "Ține minte că mereu uiți cheile.",
     ],
 )
 def test_a_request_to_remember_that_names_forgetting_or_a_negation_keeps_the_forget_tool(

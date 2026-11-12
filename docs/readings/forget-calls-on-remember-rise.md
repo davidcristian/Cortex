@@ -189,6 +189,14 @@ On the 20 draw messages above it gives the result `s12lang` gave, so the draws h
 Scripts: `diff3.py` and `drawdiff.py` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/d2003893-7ebe-4ec3-ad1c-e92980017fd3/scratchpad/slot14/`.
 
+The Romanian verbs `uita` and `scoate` take `ț` in the second person (`să uiți`, `să scoți`),
+which the lists' `uit` and `scoa[st]` did not read, so `Amintește-ți să uiți codul meu de la sală.`
+and `Ține minte să scoți codul meu din listă.` had the tool refused. The lists now read `ui[tț]`
+and `scoți`. Replayed over the same 203 turns and 28,863 strings, the change alters no result of
+`forget_unrequested`, `unasked_tools` or `unasked_forget`. A request to remember in the four
+languages that names removal by a word outside the lists still has the tool refused
+([task 1169](../refinements/tasks/1169-a-removal-word-outside-the-lists-in-a-request-to-remember-refuses-the-forget-tool.md)).
+
 On `s12lang`, SM clock 0.57 of `clocks.max.sm`, proxy lines 1060 to 1143:
 
 | Rows | Draws | Forget calls | Refused by the reader | Cards | Fact row after |
