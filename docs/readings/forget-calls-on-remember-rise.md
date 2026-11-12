@@ -131,7 +131,7 @@ such as `Butta via la nota sulla palestra, è vecchia.` and `Wis wat ik zei over
 corrections such as `Meu código mudou para 4862.`, have the tool refused, where the reader
 before this change kept it by their accented letters: 28 of 37 such messages in Italian,
 Portuguese, Catalan and Dutch
-([task 1167](../refinements/tasks/1167-a-request-to-forget-in-italian-portuguese-catalan-or-dutch-refuses-the-forget-tool.md)).
+([task 1167](../refinements/tasks/1167-a-request-to-forget-in-another-latin-script-language-refuses-the-forget-tool.md)).
 
 ### Rows and rule, written 2026-11-12 before any draw
 

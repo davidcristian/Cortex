@@ -1,4 +1,4 @@
-# A request to forget in Italian, Portuguese, Catalan or Dutch refuses the forget tool
+# A request to forget in another Latin-script language refuses the forget tool
 
 **Status:** open, actionable
 **Area:** memory
@@ -9,8 +9,8 @@
 by its word lists, and its letter clause keeps the forget tool only on a letter outside those five
 languages (`_READ_LETTERS`)
 ([readings](../../readings/forget-calls-on-remember-rise.md#the-refusal-in-four-more-languages)).
-Italian, Portuguese, Catalan and Dutch are written mostly in those letters, and the lists hold
-only a few of their forget verbs (`dimentic`, `rimuov`, `esquec`, `apag`, `oblid`, `esborr`,
+Italian, Portuguese, Catalan, Dutch, Swedish and Finnish are written mostly in those letters,
+Polish often is, and the lists hold none or a few of their forget verbs (`dimentic`, `rimuov`, `esquec`, `apag`, `oblid`, `esborr`,
 `vergeet`, `verwijder`). So these requests to forget, each kept by its accented letters before the
 letter clause read the four languages, now have the tool refused, which is a privacy loss:
 
@@ -20,13 +20,16 @@ letter clause read the four languages, now have the tool refused, which is a pri
   `Joga fora o que eu disse sobre a minha saúde.`
 - Catalan: `Llença el que et vaig dir del gimnàs.`, `Treu la nota del gimnàs, és privada.`
 - Dutch: `Wis wat ik zei over België.`, `Wis de notitie over de reünie.`
+- Swedish, Finnish and Polish: `Glöm bort det jag sa om gymmet.`,
+  `Poista muistista se mitä kerroin terveydestäni.`, `Zapomnij mój stary numer.`
 
 Corrections are refused the same way: `Il numero che ti ho dato è sbagliato: è 4862.`,
 `Aggiorna il mio indirizzo: è Via Roma 5.`, `Meu código mudou para 4862.`,
 `O meu código já é outro: 4862.` and `He canviat de número: ara és el 555 1234.` Of 37 such
-messages replayed, the build before kept the tool on 36 and HEAD keeps it on 8. `message_language`
-cannot tell these languages from the five: it reads `Tira o meu número da memória.` as Romanian
-and `Llença el que et vaig dir del gimnàs.` as Spanish.
+messages in the first four languages, the build before kept the tool on 36 and HEAD keeps it
+on 8. `message_language` cannot tell these languages from the five: it reads
+`Tira o meu número da memória.` as Romanian and `Llença el que et vaig dir del gimnàs.` as
+Spanish.
 
 Reproduction: `forget_unrequested("Wis wat ik zei over België.")` returns `{"forget_memories"}`.
 
