@@ -82,7 +82,7 @@ never a reading of what the tree does now.
 - **[R-1162](tasks/1162-a-keep-clause-beside-a-forget-naming-only-a-value-keeps-every-row.md)** A keep clause beside a forget naming only a value keeps every row (memory). Its claim was checked against the code on 2026-11-12.
 - **[R-1163](tasks/1163-a-refused-forget-call-on-a-request-to-remember-costs-a-round.md)** A refused forget call on a request to remember costs a round (memory). Its claim was checked against the code on 2026-11-12.
 - **[R-1165](tasks/1165-the-forget-calls-on-a-request-to-remember-are-not-measured-beside-the-body-tools.md)** The forget calls on a request to remember are not measured beside the body tools (memory). Its claim was checked against the code on 2026-11-12.
-- **[R-1166](tasks/1166-a-correction-in-portuguese-refuses-the-forget-tool.md)** A correction in Portuguese refuses the forget tool (memory). Its claim was checked against the code on 2026-11-12.
+- **[R-1167](tasks/1167-a-request-to-forget-in-italian-portuguese-catalan-or-dutch-refuses-the-forget-tool.md)** A request to forget in Italian, Portuguese, Catalan or Dutch refuses the forget tool (memory). Its claim was checked against the code on 2026-11-12.
 
 ### Actionable, once a port changes (1)
 
@@ -633,7 +633,7 @@ never a reading of what the tree does now.
 - [R-1162](tasks/1162-a-keep-clause-beside-a-forget-naming-only-a-value-keeps-every-row.md) A keep clause beside a forget naming only a value keeps every row. open, actionable.
 - [R-1163](tasks/1163-a-refused-forget-call-on-a-request-to-remember-costs-a-round.md) A refused forget call on a request to remember costs a round. open, actionable.
 - [R-1165](tasks/1165-the-forget-calls-on-a-request-to-remember-are-not-measured-beside-the-body-tools.md) The forget calls on a request to remember are not measured beside the body tools. open, actionable.
-- [R-1166](tasks/1166-a-correction-in-portuguese-refuses-the-forget-tool.md) A correction in Portuguese refuses the forget tool. open, actionable.
+- [R-1167](tasks/1167-a-request-to-forget-in-italian-portuguese-catalan-or-dutch-refuses-the-forget-tool.md) A request to forget in Italian, Portuguese, Catalan or Dutch refuses the forget tool. open, actionable.
 
 ### orchestrator
 

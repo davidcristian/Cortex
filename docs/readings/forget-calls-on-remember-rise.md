@@ -126,9 +126,12 @@ and "from your memory" (`de ta mémoire`, `aus deinem Gedächtnis`, `de tu memor
 the form the English `out of memory` has. A bare word for memory is left out, since `garde en
 mémoire` asks to keep. The forget verbs of Portuguese, Catalan, Italian and Turkish (`esqueça`,
 `oblida`, `scorda`, `sil`) are listed too, since those languages are written in the same letters.
-Their words of a correction are not, so a Portuguese correction such as
-`Meu código mudou para 4862.` has the tool refused
-([task 1166](../refinements/tasks/1166-a-correction-in-portuguese-refuses-the-forget-tool.md)).
+Their other words for removing and their words of a correction are not, so requests to forget
+such as `Butta via la nota sulla palestra, è vecchia.` and `Wis wat ik zei over België.`, and
+corrections such as `Meu código mudou para 4862.`, have the tool refused, where the reader
+before this change kept it by their accented letters: 28 of 37 such messages in Italian,
+Portuguese, Catalan and Dutch
+([task 1167](../refinements/tasks/1167-a-request-to-forget-in-italian-portuguese-catalan-or-dutch-refuses-the-forget-tool.md)).
 
 ### Rows and rule, written 2026-11-12 before any draw
 
