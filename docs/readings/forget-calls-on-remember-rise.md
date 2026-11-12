@@ -102,10 +102,12 @@ the pool lowers the calls rather than raising them, and the setup's requests hel
 the two brain tools, the code since 2026-11-07 and the llama-server build each leave the rate
 within 4 of H; and 14 of 20 is far above the 4 of 15 and 5 of 15 of 2026-10-31. What tonight's
 requests share is an empty recall block and a list of five tools with no body and no sidecar tool,
-a condition no earlier record drew: the 2026-11-07 draws came after flows of that night had
-stored the same facts, and the 2026-10-31 draws listed the body's tools. Those two stack differences are not separated
-here. A brain-appended note in a stored row does not raise the calls on these rows, so the note
-stays in the row, as the turn stores what it showed.
+a condition no earlier record drew: the 2026-11-07 draws came after flows of that night had stored
+the same facts, and the 2026-10-31 draws listed the body's tools. Those two stack differences are
+not separated here
+([task 1165](../refinements/tasks/1165-the-forget-calls-on-a-request-to-remember-are-not-measured-beside-the-body-tools.md)).
+A brain-appended note in a stored row does not raise the calls on these rows, so the note stays in
+the row, as the turn stores what it showed.
 
 **Method.** `first.sh` (the brain turns), `replay.py <proxy.jsonl> <condition> <draws> <line>...`
 (the direct draws; `URL` names another server, `EDIT` the spec for C), `cmp.py` (the H and S
