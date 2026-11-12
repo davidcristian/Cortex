@@ -3,6 +3,7 @@
 import re
 from collections.abc import Iterable, Sequence
 
+from cortex_core.forget_languages import FUNCTION, readings
 from cortex_core.forget_unnamed import just_said, row_words
 from cortex_core.memory import MemoryRecord
 from cortex_core.memory_values import joined, value_spans
@@ -84,26 +85,40 @@ def _part(record: str, place: tuple[int, int], query: str, *, ends: bool) -> boo
     return False
 
 
-def _grouped(record: str, text: str, query: str, beside: Sequence[str]) -> bool:
+def _grouped(record: str, text: str, query: str, *, ends: bool) -> bool:
     """Whether ``record`` holds ``text`` only in longer values of a kind ``query`` does not name,
-    as a last group too when ``beside`` holds it whole and ``query`` names no word only it has."""
-    own = row_words(record) - {word for other in beside for word in row_words(other)}
-    ends = bool(beside) and row_words(query).isdisjoint(own)
+    as a last group too when ``ends``."""
     places = _places(record, text)
     return _KIND.search(query) is None and all(_part(record, at, query, ends=ends) for at in places)
 
 
-def _sides(
-    records: Sequence[MemoryRecord], text: str, query: str, held: Iterable[str], chat: str | None
-) -> dict[str, list[str]]:
-    """The texts holding ``text`` whole beside each row, none for the newest row ``chat`` stored
-    when ``query`` names no word of any row, since that row is what the person just said."""
+def _ends(
+    records: Sequence[MemoryRecord],
+    text: str,
+    pattern: re.Pattern[str],
+    query: str,
+    held: Iterable[str],
+    chat: str | None,
+) -> dict[str, bool]:
+    """Whether to keep each row holding ``text`` (found by ``pattern``) as a last group: ``query``
+    names no word only it has beside a text holding ``text`` whole, or lacks ``text`` and names
+    words, none of the row's; never the newest row ``chat`` stored if ``query`` names no row."""
     texts = (*held, *(record.text for record in records))
-    beside = [row for row in texts if _whole(row, text)]
+    holding = [row for row in texts if _whole(row, text)]
+    beside = {word for row in holding for word in row_words(row)}
     words = row_words(query)
     named = any(not words.isdisjoint(row_words(record.text)) for record in records)
     said = None if named else just_said(list(records), chat)
-    return {record.id: [] if record.id == said else beside for record in records}
+    function = {word for language in readings(query) for word in FUNCTION.get(language, ())}
+    unasked = bool(words - function) and pattern.search(query) is None
+    return {
+        record.id: record.id != said
+        and (
+            (bool(holding) and words.isdisjoint(row_words(record.text) - beside))
+            or (unasked and words.isdisjoint(row_words(record.text)))
+        )
+        for record in records
+    }
 
 
 def inside(
@@ -113,16 +128,16 @@ def inside(
     held: Iterable[str] = (),
     session_id: str | None = None,
 ) -> frozenset[str]:
-    """The ids of ``records`` holding ``text`` only inside a longer value, never on its own, or,
-    given the message ``query``, only as groups of a longer value it does not name. ``held`` are
-    the texts of rows just deleted and ``session_id`` the calling chat, read as in ``_sides``."""
+    """The ids of ``records`` holding ``text`` only inside a longer value, or, given the message
+    ``query``, only as groups of a longer value it does not name. ``held`` are the texts of rows
+    just deleted and ``session_id`` the calling chat."""
     pattern = _bounded(text)
     if pattern is None:
         return frozenset()
-    sides = _sides(records, text, query, held, session_id) if query else {}
+    ends = _ends(records, text, pattern, query, held, session_id) if query else {}
     return frozenset(
         record.id
         for record in records
         if pattern.search(record.text) is None
-        or (bool(query) and _grouped(record.text, text, query, sides[record.id]))
+        or (bool(query) and _grouped(record.text, text, query, ends=ends[record.id]))
     )
