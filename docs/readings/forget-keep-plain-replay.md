@@ -68,3 +68,13 @@ A refused call is not a run, and the note says no forget call ran, which stays t
 A cortex reply that hands the turn to the deep model with an approved `escalate_to_brain` run gets
 no note, because the deep model can still delete in the same turn; the deep model's reply gets it
 when neither model made a forget call.
+
+## Two calls and every row
+
+Taken 2026-11-12 on `28c75d129`, with the same rows and two calls sharing one turn. Over the English card ending in 4242 and the
+English gym code `4242`, `Forget my gym code 4242.` keeps the card on a first call with text
+`4242`, but a second call of the same turn with text `4242` lists and deletes it (task
+[1159](../refinements/tasks/1159-a-second-forget-call-in-a-turn-lists-the-card-the-first-one-kept.md)).
+`Forget every 4242.` and three other forgets of every row holding the code keep the card in 12 of
+16 cases, where the start build deleted both rows (task
+[1160](../refinements/tasks/1160-a-forget-of-every-row-holding-a-code-keeps-a-card-ending-in-it.md)).
