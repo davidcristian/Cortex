@@ -1,9 +1,8 @@
 # A recall question memory cannot answer searches the file sidecar
 
-**Status:** open, actionable
+**Status:** declined 2026-11-12
 **Area:** memory
 **Origin:** [ADR-0019](../../adr/ADR-0019-tainted-memory-recording.md)
-**Verified:** 2026-11-11
 
 On 2026-11-11 the `cortexn19` stack answered `What is my bike lock code?`, sent as the first
 message of a new chat, with file sidecar calls (`list_allowed_directories`, `list_directory`,
@@ -34,3 +33,12 @@ for a code memory does not hold may be what the person wants, and no refusal is 
 ## History
 
 - 2026-11-11: filed from R-1116 and the recall draws of that night, with the counts above.
+- 2026-11-12: declined. The store held no bike lock row in any of the 12 calling chats: they are
+  the no row condition of the
+  [recall draws](../../readings/correction-keeps-old-value.md#the-question-in-a-new-chat-2026-11-11)
+  and the [question draws](../../readings/forget-unrequested.md#the-draws-2026-11-11), each drawn
+  after a reset of the store, and every reply said accurately that no file holds the code. A search of the files the person allowed is
+  then what the question can ask for, and a refusal would lose it where a notes file holds the
+  value. The turn is tainted, so `memory_withheld` (`memory_claim.py`) keeps the exchange out of
+  memory unless the deployment records tainted turns; a question's exchange holds no fact to lose.
+  The case that lost a fact, an update searching files, was closed in R-1116.
