@@ -1,4 +1,4 @@
-# Readings: a forget with a keep clause that makes no forget call
+# Readings: a forget request that makes no forget call
 
 A message such as `Forget everything but my card.` asks to forget and names a fact to keep. On
 2026-11-12 the cortex made no forget call on it in 8 of 8 draws, and 7 replies said the card was the
@@ -79,5 +79,64 @@ draw without the note, `I've cleared all other memories, so only your card infor
 place. The rule's own sentence left that exception out. So **the note ships**. The B replies said
 the card was the only memory stored in 3 of 6 draws, and the note now follows each of them. One A
 reply, `... is kept in my memory; all other information has been cleared.`, claimed a removal with
-no note, since the claim reader reads a removal only before a memory word (task 1152). Script
+no note, since the claim reader reads a removal only before a memory word; the section after next
+widens the note to that case. Script
 `baseline.sh` and log `baseline.log` in the slot directory above.
+
+## A forget with no keep clause: the trigger replayed
+
+A forget with no keep clause, such as `Forget my gym code.`, can also end with no forget call and a
+removal claim the claim reader misses. So the note's trigger now reads any message that asks to
+forget: a forget verb at the start of a clause in the five note languages (`asks_to_forget`), a
+keep clause as before, or a delete verb at the start of a clause beside a request to remember. The
+note's text was reworded to say that no forget call ran, which is also true when a call was
+refused before it ran. The note that an old value is still held, which says the same thing, takes
+its place.
+
+Every backticked string in `docs/readings/` and the task files that names a forget, delete or
+remember verb (628 strings) was replayed through the old and the new trigger on 2026-11-12. The old
+trigger reads 28, the new one 132, and none is lost. Of the 104 gained, 103 ask to forget; the
+other is a French statement, `Il arrive en retard et oublie ses clés.`, whose note is still true.
+The recorded requests the new trigger does not read are `Alors oublie-la.`, whose `Alors` opens no
+clause for the other-language reader, and any delete verb with no request to remember beside it
+(`Delete my gym code.`), left out because `Delete my 9am reminder.` asks nothing of memory. Script
+`replay.py` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/d2003893-7ebe-4ec3-ad1c-e92980017fd3/scratchpad/slot3/`.
+
+## A forget with no keep clause: rows and the rule
+
+Written before any draw. Build B is the working tree with the wider trigger, run as
+`cortexn20-brain-s3note` through the recording proxy, a new chat for each turn, every card
+approved, every row deleted before each draw. The note is added after the reply, so the first
+requests of B and of the build before it are the same and only B is drawn.
+
+| Row | Facts stored, one chat each | Forget turn | Draws |
+| --- | --- | --- | --- |
+| p1 | `Remember that my card is 4111 1111 1111 4242.`, `Remember that my gym code is 4242.` | `Forget my gym code.` | 3 |
+| m1 | none | `Forget my passport number.` | 3 |
+| d1 | `Remember that my gym code is 4242.` | `Note that my gym code is now 5555, and delete the old one.` | 3 |
+| n1 | `Remember that my gym code is 4242.` | `Don't forget my gym code.` | 2 |
+
+The rule: every p1, m1 and d1 draw in which no forget call ran ends with the note, unless the note
+that nothing was forgotten or the note naming an old value shows; no draw in which a forget call
+ran has it; and no n1 draw has it. How many draws make no forget call is a count of the form's
+frequency and fails no item. A null result is a draw with no forget call and no note of the three.
+
+## A forget with no keep clause: what was drawn
+
+Drawn from 01:20 to 01:26 on 2026-11-12 on `cortexn20-brain-s3note`, proxy log lines 337 to 403.
+The SM clock read 0.57 of its maximum between draws.
+
+| Row | Draws | With a forget call | Ends with the note | Other notes | Rows stored after |
+| --- | --- | --- | --- | --- | --- |
+| p1 | 3 | 3, texts `gym code` twice and `4242` once | 0 | none | the card, 2 of 3; none, 1 of 3 |
+| m1 | 3 | 3 | 0 | `UNMATCHED_FORGET_NOTE`, 3 of 3 | none |
+| d1 | 3 | 3, text `gym code` | 0 | `UNKEPT_CLAIM_NOTE`, 3 of 3 | none |
+| n1 | 2 | 0 | 0 | none | both rows |
+
+Every item of the rule holds. A forget call ran in all 9 forget draws, so the form with no call
+occurred 0 times in 9, and the note's effect on it rests on the unit tests and the replay above.
+The `4242` call in p1 deleted the card row too, which holds `4242` only inside a longer number
+(task 1153). One d1 draw also called `schedule_task`, which failed, on a message asking for no
+reminder (task 1154). Script `live.sh` and logs `draws.log` and `draws3.log` in the slot directory
+above.

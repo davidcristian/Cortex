@@ -34,7 +34,7 @@ safe side; "drops" means a false claim in another language gets no note, the def
 | kept rows note, inside note | a forget kept rows | five | no text reader | none |
 | `DELETED_UNFOUND_NOTE` | a delete, an unmatched call and a not-stored claim | five | five | drops |
 | `UNMATCHED_FORGET_NOTE` | an unmatched forget and nothing deleted | five | no text reader | none |
-| `UNCALLED_FORGET_NOTE` | a forget beside a keep clause, no forget call and no `UNFORGOTTEN_CLAIM_NOTE` | five | message, five | drops |
+| `UNCALLED_FORGET_NOTE` | a message asking to forget, no forget call ran, no `UNFORGOTTEN_CLAIM_NOTE` and no old value note | five | message, five | drops |
 | `DECLINED_FORGET_NOTE` | a denied forget card and not `names_still_held` | five | five | adds |
 | `UNREAD_FOLDERS_NOTE` | `claims_folders` on an untainted file question | five | five | drops |
 | `UNSEARCHED_FILES_NOTE` | a claim of searched files with no file call | five | five | drops |

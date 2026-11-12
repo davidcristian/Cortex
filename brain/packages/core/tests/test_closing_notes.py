@@ -15,8 +15,10 @@ from cortex_core import (
     TurnCapabilities,
 )
 from cortex_core.closing_notes import limit_notes
+from cortex_core.forget_uncalled import UNCALLED_FORGET_NOTE
 from cortex_core.forget_unfound_claim import UNMATCHED_FORGET_NOTE
 from cortex_core.memory_claim import UNKEPT_CLAIM_NOTES, unkept_note_due
+from cortex_core.memory_request import asks_to_forget
 from cortex_core.stops import StopLedger
 
 _NEW_VALUE = "Note that my phone number is now 0699000000, and delete the old one."
@@ -75,7 +77,8 @@ def _shown(
 def test_each_way_a_request_to_remember_stays_out_of_memory_shows_the_note(
     *, taint: TaintLedger, runs: tuple[ToolRun, ...], query: str
 ) -> None:
-    assert _shown(taint, runs, query) == _REPLY + UNKEPT_CLAIM_NOTE
+    uncalled = UNCALLED_FORGET_NOTE if query == _NEW_VALUE and not runs else ""
+    assert _shown(taint, runs, query) == _REPLY + UNKEPT_CLAIM_NOTE + uncalled
 
 
 @pytest.mark.parametrize(
@@ -135,7 +138,8 @@ def test_a_request_to_remember_beside_a_request_not_to_keep_shows_the_note(
     *, query: str, reply: str
 ) -> None:
     note = UNKEPT_CLAIM_NOTES["de"] if query.startswith("Merk") else UNKEPT_CLAIM_NOTE
-    assert _shown(TaintLedger(), (), query, reply=reply) == reply + note
+    uncalled = UNCALLED_FORGET_NOTE if asks_to_forget(query) else ""
+    assert _shown(TaintLedger(), (), query, reply=reply) == reply + note + uncalled
 
 
 @pytest.mark.parametrize(

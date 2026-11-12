@@ -37,6 +37,8 @@ from cortex_core import (
     memory_withheld,
 )
 from cortex_core.chat_only_claim import KEPT_BEYOND_CHAT_NOTE
+from cortex_core.forget_uncalled import UNCALLED_FORGET_NOTE
+from cortex_core.memory_request import asks_to_forget
 from cortex_core.unasked_tools import unasked_forget
 
 _START = datetime(2026, 10, 29, 3, 0, tzinfo=UTC)
@@ -822,7 +824,8 @@ async def test_a_turn_that_makes_no_call_stores_nothing_when_its_message_asks_no
     *, query: str, stored: int
 ) -> None:
     shown, _sessions, store = await _turn([[TextChunk("I will not save it.")]], query=query)
-    assert shown == "I will not save it." + (KEPT_BEYOND_CHAT_NOTE if stored else "")
+    uncalled = UNCALLED_FORGET_NOTE if asks_to_forget(query) else ""
+    assert shown == "I will not save it." + (KEPT_BEYOND_CHAT_NOTE if stored else "") + uncalled
     assert await _stored(store) == stored
 
 
@@ -843,7 +846,7 @@ async def test_a_withheld_request_to_remember_gets_the_note_whatever_its_reply_s
     shown, _sessions, store = await _turn(
         steps, query="Remember that my new locker code is 8426, and forget the old code."
     )
-    assert shown == "Your new locker code is 8426." + UNKEPT_CLAIM_NOTE
+    assert shown == "Your new locker code is 8426." + UNKEPT_CLAIM_NOTE + UNCALLED_FORGET_NOTE
     assert await _stored(store) == 0
 
 

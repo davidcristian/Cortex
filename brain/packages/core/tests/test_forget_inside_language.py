@@ -1,9 +1,11 @@
 import pytest
 
-from cortex_core import StopLedger, TaintLedger, TurnCapabilities
+from cortex_core import FORGET_CHOSEN_TOOL_NAME, StopLedger, TaintLedger, ToolRun, TurnCapabilities
 from cortex_core.closing_notes import limit_notes
 from cortex_core.forget_inside import INSIDE_NOTE, INSIDE_NOTES, inside_note
 from cortex_core.forget_longer import LONGER_NOTE, LONGER_NOTES, longer_note
+
+_RAN = (ToolRun(FORGET_CHOSEN_TOOL_NAME, ok=True),)
 
 
 @pytest.mark.parametrize(
@@ -22,7 +24,7 @@ def test_the_inside_note_is_written_in_the_language_of_the_message(
 ) -> None:
     parts = ["OK."]
     taint = TaintLedger(forget_inside=("a row",))
-    list(limit_notes(StopLedger(), (), parts, caps=TurnCapabilities(), taint=taint, query=query))
+    list(limit_notes(StopLedger(), _RAN, parts, caps=TurnCapabilities(), taint=taint, query=query))
     head = INSIDE_NOTE if language == "en" else INSIDE_NOTES[language]
     assert "".join(parts) == f"OK.{head}\n- a row)"
     assert inside_note(("a row",), language) == f"{head}\n- a row)"
@@ -60,7 +62,7 @@ def test_the_longer_note_is_written_in_the_language_of_the_message(
 ) -> None:
     parts = ["OK."]
     taint = TaintLedger(forget_longer=("a row",))
-    list(limit_notes(StopLedger(), (), parts, caps=TurnCapabilities(), taint=taint, query=query))
+    list(limit_notes(StopLedger(), _RAN, parts, caps=TurnCapabilities(), taint=taint, query=query))
     head = LONGER_NOTE if language == "en" else LONGER_NOTES[language]
     assert "".join(parts) == f"OK.{head}\n- a row)"
     assert longer_note(("a row",), language) == f"{head}\n- a row)"

@@ -220,6 +220,15 @@ def asks_not_kept(query: str) -> bool:
     return any(_asks_not_kept(sentence) for sentence in _SENTENCE_END.split(query))
 
 
+def asks_to_forget(query: str) -> bool:
+    """Whether a sentence of ``query`` asks to forget something or remove it from memory."""
+    return any(
+        pattern.search(sentence)
+        for sentence in _SENTENCE_END.split(query)
+        for pattern in (_FORGET, _REMOVE, _FORGET_OTHER)
+    )
+
+
 def asks_kept(query: str) -> bool:
     """Whether a sentence of ``query`` asks that something be remembered."""
     return any(
