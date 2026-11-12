@@ -37,5 +37,5 @@ Reproduction: send `Merk dir, dass mein Hund Bello heißt.` in one chat and
   12 English questions in the language of the recalled fact and the build with the sentence 0 of
   12, with every question in another language answered in its own language on both
   ([readings](../../readings/recalled-memory-reply-language.md)). The three requests to remember
-  that ran a forget call during the setup are
-  [task 1164](1164-a-request-to-remember-in-another-language-runs-a-forget-call.md).
+  that ran a forget call during the setup are measured in the
+  [forget call readings](../../readings/forget-calls-on-remember-rise.md).

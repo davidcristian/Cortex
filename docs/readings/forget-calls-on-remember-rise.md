@@ -113,3 +113,70 @@ the row, as the turn stores what it showed.
 (the direct draws; `URL` names another server, `EDIT` the spec for C), `cmp.py` (the H and S
 requests) and `srccheck.py` (the request text against a source tree), in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/d2003893-7ebe-4ec3-ad1c-e92980017fd3/scratchpad/slot11/`.
+
+## The refusal in four more languages
+
+`forget_unrequested` now reads French, German, Spanish and Romanian by its word lists, which name
+the forget verbs, the words of a correction and the negations of those languages. Its letter
+clause keeps the forget tool only on a letter outside those four languages and English, so a
+message in Polish, Russian, Korean or Japanese still keeps it. The lists also gained `retir`,
+`enlev`, `quit`, `scoat`, `streich`, the past forms `gelöscht` and `șters`, the corrections
+(`plus`, `au lieu`, `mis à jour`, `statt`, `geändert`, `en lugar`, `cambió`, `în loc`, `schimbat`)
+and "from your memory" (`de ta mémoire`, `aus deinem Gedächtnis`, `de tu memoria`, `din memorie`),
+the form the English `out of memory` has. A bare word for memory is left out, since `garde en
+mémoire` asks to keep. The forget verbs of Portuguese, Catalan, Italian and Turkish (`esqueça`,
+`oblida`, `scorda`, `sil`) are listed too, since those languages are written in the same letters.
+
+### Rows and rule, written 2026-11-12 before any draw
+
+A second brain `s12lang` (port 23072) runs the working tree with this reader. Every draw starts
+from slot 10's eight setup rows, restored before each turn, so each fact has a stored row the
+recall block can show, the condition P above drew. Each turn is a new chat, every card approved.
+
+| Row | Message | Draws |
+| --- | --- | --- |
+| `k1` | `Souviens-toi que le code de mon casier à la piscine est 7731.` | 3 |
+| `k2` | `Merk dir, dass mein Hund Bello heißt.` | 3 |
+| `k3` | `Recuerda que mi color favorito es el verde.` | 3 |
+| `k4` | `Ține minte că numărul apartamentului meu este 42.` | 3 |
+| `x1` | `Oublie le code de mon casier à la piscine.` | 2 |
+| `x2` | `Vergiss, wie mein Hund heißt.` | 2 |
+| `x3` | `Olvida mi color favorito.` | 2 |
+| `x4` | `Uită numărul apartamentului meu.` | 2 |
+
+The change leaves the first request as it was (the tool stays listed and a call to it is refused),
+so the rule is about what the reader does to a call, and the call rate is a separate count.
+
+- **Pass on `k1` to `k4`**: no draw shows a card, no draw deletes the stored row of its fact, and
+  every `forget_memories` call on these turns is refused with the reader's `asks to forget nothing`.
+- **Pass on `x1` to `x4`**: no forget call is refused by `forget_unrequested`. Whether the card
+  appears and deletes the row is counted beside it, since the card and the match are other code.
+- **Fail**: a remember draw runs a forget call or loses its row, or a forget draw has its call
+  refused. A failure reverts the reader change.
+
+### The replay and the draws, 2026-11-12
+
+Replayed through the old and new reader, 8 of the 191 recorded turns (177 distinct messages) in
+the `cortexn20` proxy log changed, all to refused: the four requests to remember of the language
+setup and the four questions in French, German, Spanish and Romanian. Of 28,755 distinct strings
+in the brain's test files and the backticked text of `docs/`, 656 changed. 608 are now refused:
+requests to remember, reminders, questions, replies and fragments in the four languages, with no
+request to forget or correction among them once the replay had found `gelöscht`, `șters`,
+`ștearsă`, `modifié` and `mis à jour`, which the lists now name. 48 now keep the tool: the new
+verbs and corrections, and 22 English strings holding `plus`. `unasked_tools` and
+`unasked_forget`, which share `RETRACT_WORDS`, changed on none.
+
+On `s12lang`, SM clock 0.57 of `clocks.max.sm`, proxy lines 1060 to 1143:
+
+| Rows | Draws | Forget calls | Refused by the reader | Cards | Fact row after |
+| --- | --- | --- | --- | --- | --- |
+| `k1` to `k4`, remember | 12 | 4 (`k1` 1, `k2` 1, `k4` 2) | 4 of 4 | 0 | kept on 12 of 12 |
+| `x1` to `x4`, forget | 8 | 8 | 0 of 8 | 8, approved | deleted on 8 of 8 |
+
+**Result: pass.** Every forget call on a request to remember was refused and no stored fact was
+lost, where condition P above lost the French row to an approved card on the old reader. Every
+forget request reached the tool, and each card deleted the fact's row. Each reply was in the
+person's language and said the fact was kept or forgotten. The image was built before `error`
+left the list, a word none of the 20 messages holds. Scripts: `draw.sh`, `summ.py`,
+`collect.py`, `replay.py`, `replay_ua.py` and `diff.py` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/d2003893-7ebe-4ec3-ad1c-e92980017fd3/scratchpad/slot12/`.

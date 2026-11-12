@@ -93,7 +93,7 @@ the reply's language is the one holding more than half of the votes.
 Three of the four requests to remember in another language, French, German and Romanian, ran a
 `forget_memories` call that matched nothing during the setup, and their stored rows hold the
 note saying nothing was deleted
-([task 1164](../refinements/tasks/1164-a-request-to-remember-in-another-language-runs-a-forget-call.md)).
+([forget calls on a request to remember](forget-calls-on-remember-rise.md)).
 
 ## A request for an answer in another language, rows written 2026-11-12 before the draws
 

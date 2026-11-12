@@ -44,15 +44,124 @@ def test_a_message_with_no_word_that_can_retract_refuses_the_forget_tool(query: 
 @pytest.mark.parametrize(
     "query",
     [
-        "Peux-tu noter qu'Anna préfère les plantes ?",
-        "Wie lautet mein Fahrradschloss-Code für das Rad?",
-        "¿Cuál es mi código?",
-        "Care este codul meu de la bicicletă?",
+        "Zapamiętaj, że mój kod to 7731.",
+        "Запомни, что мой код 7731.",
+        "私のコードは7731だと覚えて",
+        "내 코드가 7731이라는 걸 기억해 줘",
+        "Nezapomeň, že můj kód je 7731.",
+        "Lembra que o meu código não é 7731.",
         "I don't need that",
         "Scrap it",
     ],
 )
-def test_a_letter_outside_english_or_a_word_that_can_retract_keeps_the_forget_tool(
+def test_a_letter_outside_the_read_languages_or_a_word_that_can_retract_keeps_the_forget_tool(
+    query: str,
+) -> None:
+    assert forget_unrequested(query) == frozenset()
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Peux-tu noter qu'Anna préfère les plantes ?",
+        "Wie lautet mein Fahrradschloss-Code für das Rad?",
+        "¿Cuál es mi código?",
+        "Care este codul meu de la bicicletă?",
+        "Souviens-toi que le code de mon casier à la piscine est 7731.",
+        "Merk dir, dass mein Hund Bello heißt.",
+        "Recuerda que mi color favorito es el verde.",
+        "Ține minte că numărul apartamentului meu este 42.",
+        "Souviens-toi que ma sœur s'appelle Claire et rappelle-moi demain à 18h de l'appeler.",
+        "Merk dir, dass das Treffen am Montag stattfindet und mein anderer Hund Rex heißt.",
+        "Recuerda que mi código del gimnasio es 4242, quizá lo necesite.",
+        "Reține că mașina mea este o Dacia albastră.",
+    ],
+)
+def test_a_request_to_remember_or_a_question_in_a_read_language_refuses_the_forget_tool(
+    query: str,
+) -> None:
+    assert forget_unrequested(query) == _REFUSED
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Efface mon code 7731 de ta mémoire.",
+        "Mon code est 7731, mais oublie-le.",
+        "Oublie le code de mon casier à la piscine.",
+        "Oublie le code de mon vélo 7319, c'est tout.",
+        "Oublie mon code de casier 7319, s'il te plaît.",
+        "Retire mon code de casier.",
+        "Enlève mon adresse, s'il te plaît.",
+        "Supprime mon numéro de téléphone.",
+        "Annule ce que je t'ai dit sur mon vélo.",
+        "Sors mon code de ta mémoire.",
+        "Je n'ai plus de vélo.",
+        "J'ai plus de vélo.",
+        "Mon code a changé, c'est 4862.",
+        "Mets à jour mon code : 4862.",
+        "Mon code a été modifié, c'est 4862.",
+        "Mon nouveau code est 4862 au lieu de 4826.",
+        "C'était une erreur, mon code est 4862.",
+        "Ma sœur s'appelle Claire, pas Clara.",
+        "Vergiss den Fahrradcode 7319 überall.",
+        "Vergiss meinen Türcode, aber behalte die Postleitzahl.",
+        "Vergiss, wie mein Hund heißt.",
+        "Streich meine alte Adresse.",
+        "Lösch meine Telefonnummer.",
+        "Entferne den Code für das Schloss.",
+        "Nimm das aus deinem Gedächtnis, bitte.",
+        "Mein Code ist jetzt 4862 statt 4826.",
+        "Der Code für das Schloss war falsch, er lautet 4862.",
+        "Ich habe meinen Code geändert, er heißt 4862.",
+        "Mein Hund heißt nicht mehr Bello.",
+        "Olvida el código de la bici 7319, eso es todo.",
+        "Olvídalo, por favor.",
+        "Bórralo, por favor.",
+        "Elimínalo de tu lista.",
+        "Quítame el PIN del banco.",
+        "Retíralo de la lista, gracias.",
+        "Suprime mi número de teléfono.",
+        "Saca mi PIN de tu memoria.",
+        "Mi código ya no es 7731.",
+        "Mi código cambió a 4862.",
+        "Mi color favorito es el azul en lugar del verde.",
+        "Ningún código sirve ya.",
+        "Jamás tuve un gato.",
+        "Te rog, uită codul meu 7788.",
+        "Uită numărul apartamentului.",
+        "Șterge codul meu de la bicicletă.",
+        "Elimină numărul de telefon.",
+        "Scoate-l din listă, te rog.",
+        "Ia numărul din memoria ta.",
+        "N-am mai bicicletă.",
+        "Codul meu s-a schimbat în 4862.",
+        "Codul vechi era greșit.",
+        "Numărul este 43 în loc de 42.",
+        "Esqueça o meu código.",
+        "Şifremi sil.",
+    ],
+)
+def test_a_request_to_forget_or_a_correction_in_another_language_keeps_the_forget_tool(
+    query: str,
+) -> None:
+    assert forget_unrequested(query) == frozenset()
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Merk dir, dass ich meinen Schlüssel vergessen habe.",
+        "Souviens-toi que j'oublie toujours mon code.",
+        "Recuerda que siempre olvido mis llaves en el coche.",
+        "Ține minte că uit mereu cheile acasă.",
+        "Souviens-toi que je n'aime pas les épinards.",
+        "Merk dir, dass ich keine Nüsse esse.",
+        "Recuerda que no me gusta el café.",
+        "Ține minte că nu beau cafea dimineața.",
+    ],
+)
+def test_a_request_to_remember_that_names_forgetting_or_a_negation_keeps_the_forget_tool(
     query: str,
 ) -> None:
     assert forget_unrequested(query) == frozenset()
@@ -67,6 +176,10 @@ def test_a_letter_outside_english_or_a_word_that_can_retract_keeps_the_forget_to
         "Lo he borrado.",
         "Am șters codul.",
         "Your number was removed.",
+        "J'ai retiré ton code.",
+        "Ich habe die Adresse gestrichen.",
+        "He quitado tu PIN.",
+        "Am scos numărul.",
     ],
 )
 def test_a_message_after_a_reply_that_names_forgetting_keeps_the_forget_tool(
