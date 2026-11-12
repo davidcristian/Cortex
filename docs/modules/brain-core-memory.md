@@ -94,8 +94,8 @@ pool down to the hits one turn sees. The turn that calls it is in
   `ToolResult.numbers_left`. No text, no match, more than 20 rows
   containing the text or a failed store deletes nothing (a store that fails after `delete_ids` returns an error result saying how many rows were deleted, with `ToolResult.forgot` set): `card` returns `None`, so the dispatcher shows no card and runs the call,
   whose result says why. The description asks for the value or one word from the request that names
-  it, and the no-match result tells the model to say that nothing about it was stored and not to
-  ask the user for the value. After a delete earlier in the same turn (the latest 32 turn ids that
+  it, and the no-match result tells the model to say that no remembered exchange contains that
+  exact text and not to ask the user for the value. After a delete earlier in the same turn (the latest 32 turn ids that
   ran one are kept, with the deleted rows and the texts that deleted them), a no-match result whose
   text a deleted row contains, which contains an earlier text, or which holds a whole value of a
   deleted row says instead that the earlier call deleted it and that the reply must not say it was

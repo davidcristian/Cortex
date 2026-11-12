@@ -1,9 +1,8 @@
 # The no-match forget result tells the model to say nothing was stored
 
-**Status:** open, actionable
+**Status:** done 2026-11-12
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-12
 
 `_NONE_FOUND` (`forget_results.py`), the result of a `forget_memories` call whose text no row
 contains, tells the model to "tell the user that nothing about it was stored". That is false when a
@@ -34,3 +33,8 @@ is still stored.
   model reads, left unchanged by that fix.
 - 2026-11-12: left open. The reworded text with no instruction to report failed its rule, a
   forget call after the no-match result deleting a row, so the result text is unchanged.
+- 2026-11-12: done. `NONE_FOUND` now tells the model to say that no remembered exchange contains
+  that exact text. Of 8 turns that read it, none said the fact was never stored, made another
+  forget call or claimed a removal; all 7 turns that read the old text said the fact was not stored
+  or had no record
+  ([readings](../../readings/forget-matched-nothing-note.md#the-no-match-result-told-to-report-the-exact-text-what-was-drawn-2026-11-12)).

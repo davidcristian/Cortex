@@ -7,8 +7,8 @@ from cortex_core.memory_values import whole_values
 FORGET_CHOSEN_LIMIT = 20
 
 NONE_FOUND = (
-    "nothing was forgotten: no remembered exchange contains that text, so tell the user that "
-    "nothing about it was stored, and do not ask the user for the value"
+    "nothing was forgotten: no remembered exchange contains that exact text, so tell the user "
+    "that no remembered exchange contains that exact text, and do not ask the user for the value"
 )
 ALREADY_DELETED = (
     "nothing more was forgotten: no remembered exchange contains that text, and an earlier call "

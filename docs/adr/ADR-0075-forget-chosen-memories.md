@@ -45,8 +45,8 @@ that removes exactly those rows and holds against a turn in flight. This record 
 5. **The built-in `forget_memories` (`ForgetChosenTool`) is the one caller.** It takes one `text`:
    the value when the model knows it, and otherwise one word from the request that names it, such
    as `passport`, because a model told to pass only the value asked the person to type it. A
-   search that finds nothing returns a result telling the model to say that nothing about it was
-   stored and not to ask for the value. When an earlier call in the same turn already deleted rows
+   search that finds nothing returns a result telling the model to say that no remembered
+   exchange contains that exact text and not to ask for the value. When an earlier call in the same turn already deleted rows
    and the later text names the same fact (a deleted row contains it, it contains an earlier
    call's text, or it holds a whole value of a deleted row), the result says instead that the
    earlier call deleted what was asked and that the reply must not say it was not stored or could
@@ -72,7 +72,7 @@ that removes exactly those rows and holds against a turn in flight. This record 
    text named, the store unavailable, more than 20 matches, no match and no row holding its value whole) shows no card: `card` returns
    `None`, and the dispatcher then asks nothing and runs the call at once, so the model reads why
    nothing was deleted. Such a card asked the person to approve the forget of a fact they had just
-   asked to keep ([readings](../readings/forget-that-deletes-nothing.md)). When a call matched nothing and no forget of the turn removed a row, the brain appends `UNMATCHED_FORGET_NOTE` after the reply, whatever it says, because the no-match result tells the model to say nothing was stored, which is false when a row states the fact in other words; the note states only what is true, so it needs no reader of the reply and no guess of what the person meant ([readings](../readings/forget-matched-nothing-note.md)). On a reply whose own calls hand the turn to the deep model, the note is `HANDED_UNMATCHED_NOTE`, which says the same of the time before the handoff, since the deep model can still delete in the same turn. The tool keeps the ids it
+   asked to keep ([readings](../readings/forget-that-deletes-nothing.md)). When a call matched nothing and no forget of the turn removed a row, the brain appends `UNMATCHED_FORGET_NOTE` after the reply, whatever it says, because a reply after a no-match result can still say the fact was never stored, which is false when a row states the fact in other words; the note states only what is true, so it needs no reader of the reply and no guess of what the person meant ([readings](../readings/forget-matched-nothing-note.md)). On a reply whose own calls hand the turn to the deep model, the note is `HANDED_UNMATCHED_NOTE`, which says the same of the time before the handoff, since the deep model can still delete in the same turn. The tool keeps the ids it
    listed under the call's id, and `invoke` deletes exactly those, so a row written after the card
    was shown is never deleted unseen. The ids live in the brain process only between the card and
    the answer to it, the same span the dispatcher holds the call. After the delete it searches again

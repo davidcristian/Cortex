@@ -1,7 +1,8 @@
 # Readings: the note after a forget that matched nothing
 
-A `forget_memories` call whose text no row contains reads `_NONE_FOUND` (`forget_results.py`),
-which tells the model to say nothing about it was stored. That is false when a row holds the same
+A `forget_memories` call whose text no row contains reads `NONE_FOUND` (`forget_results.py`),
+which until the last section below told the model to say nothing about it was stored. That is
+false when a row holds the same
 fact in other words: the call text `Fahrradschloss Code 2468` against the row `Fahrradschloss hat
 den Code 2468`
 ([R-1061](../refinements/tasks/1061-a-forget-of-what-was-just-said-can-match-nothing-and-say-it-was-never-stored.md)),
@@ -130,3 +131,78 @@ and ended with both notes. With no instruction about what to tell the user, the 
 further in one turn and claimed a removal in another. Script `live2.sh`, `word.sh` and
 `nomatch.py`, log `word.log`, in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/d2003893-7ebe-4ec3-ad1c-e92980017fd3/scratchpad/slot2/`.
+
+## The no-match result told to report the exact text: rows and the rule, 2026-11-12
+
+Written before any draw. The candidate rewords `NONE_FOUND` to `nothing was forgotten: no
+remembered exchange contains that exact text, so tell the user that no remembered exchange contains
+that exact text, and do not ask the user for the value`. It keeps an instruction about what to tell
+the user, which the text drawn above dropped, and makes that instruction true whether or not a row
+states the fact in other words. It names no next call. Build A is the stack brain of the
+`cortexn21` stack, the start tree `cec7c748f` with the old text; build B is the working tree with
+the new text as a second brain through the same recording proxy. A new chat for each turn, every
+card approved, every row deleted before each draw. Only the request after a forget result differs
+between the builds, so the first requests are the same and only the turns that reach the condition
+measure the text.
+
+| Row | Facts stored | Forget turn | Draws per build |
+| --- | --- | --- | --- |
+| p1 | `Remember that my phone number is 0612345678.` | `Forget that my phone number is now 0699000000.` | 5 |
+| m1 | none | `Forget my passport number.` | 3 |
+
+A turn **reaches the condition** when a `forget_memories` result in it is the no-match text. A
+reply **says the fact was never stored** when it says the number or the fact was not stored, not
+saved, not remembered, or that there is no record of it; a reply saying only that no remembered
+exchange contains that exact text, or that the exact text was not found, does not count, since that
+is true. A reply **claims a removal** when it says something was removed, deleted or forgotten.
+
+- Item S: no B turn makes a forget call after a no-match result whose approved card deletes a row.
+  If one does, the new text does not ship.
+- Item R: among turns that reach the condition and remove no row, B has no more replies claiming a
+  removal than A. If B has more, the new text does not ship.
+- Item T: over p1 turns that reach the condition while the phone row is stored, B has fewer replies
+  saying the phone number was never stored than A. With fewer than 2 such turns in either build,
+  item T gives no result.
+- The null result is fewer than 3 B turns reaching the condition: the text is then barely read and
+  does not ship.
+- The new text ships when items S and R hold and item T holds or gives no result, since the old
+  text asks for a claim that is false whenever a row states the fact in other words.
+- Counted besides, deciding nothing: turns reaching the condition per row and build, every forget
+  call after a no-match result, and replies in m1 saying the passport number was not stored (true
+  there).
+
+## The no-match result told to report the exact text: what was drawn, 2026-11-12
+
+Drawn from 23:23 to 23:27, build A as `cortexn21-brain-1` and build B as `cortexn21-brain-s1cand`,
+proxy log lines 34 to 101, the A and B draws of each row alternating. The SM clock read 0.58 to
+0.59 of its maximum. A first pass from 23:20 was stopped in its fourth turn because the proxy lost
+the record of every request the brain closed early; none of its turns is counted. Every first
+request of a forget turn was the same in both builds; they differ only after the forget result.
+
+| Of the turns | A, p1 | A, m1 | B, p1 | B, m1 |
+| --- | --- | --- | --- | --- |
+| Turns | 5 | 3 | 5 | 3 |
+| Reach the condition | 4 | 3 | 5 | 3 |
+| Of those, the reply says the fact was not stored | 2 | 3 | 0 | 0 |
+| Of those, the reply says no record of the number was found | 2 | 0 | 0 | 0 |
+| Of those, a forget call after the no-match result | 0 | 0 | 0 | 0 |
+| Of those, the reply claims a removal | 0 | 0 | 0 | 0 |
+
+- Every p1 call that reached the condition passed `0699000000`; the m1 calls passed `passport` or
+  `passport number`. A p1 draw 2 called `phone number`, whose approved card deleted the old phone
+  row, and replied `OK. I've deleted the information about your phone number.`
+- The A p1 replies read `I didn't have that phone number stored in my memory` or `I didn't find any
+  record of that phone number in my memory`. Every B reply said it could not find a remembered
+  exchange, a memory or stored information containing the number or the passport number. Two of
+  them, `I couldn't find any stored information for the number 0699000000` and `... containing
+  that phone number`, read close to A's "no record" form; counted with it, item T reads A 4 of 4
+  against B 2 of 5, and counted apart, A 2 of 4 against B 0 of 5.
+- One B m1 reply added `If you previously shared it and it's still appearing in our conversation,
+  please let me know.`, which asks for no value and names no next call.
+
+**Result.** Item S holds (no forget call after a no-match result in B), item R holds (no removal
+claim in either build), and item T holds under either reading of the "not found" form, with 8 B
+turns reaching the condition, so **the new text ships**. Scripts `draw.py` and `analyze.py`, logs
+`draw.log`, `rows.jsonl` and `analyze.txt`, in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/b21ab427-7e2c-4723-9504-d59e434516ce/scratchpad/slot1/`,
+and the proxy log `stack/logs/req.log` beside it.

@@ -16,8 +16,8 @@ from cortex_core import (
 _AT = datetime(2026, 11, 7, 1, 0, 0, tzinfo=UTC)
 _OLD = "User: Remember that my phone number is 0612345678.\nAssistant: Noted."
 _NONE_FOUND = (
-    "nothing was forgotten: no remembered exchange contains that text, so tell the user that "
-    "nothing about it was stored, and do not ask the user for the value"
+    "nothing was forgotten: no remembered exchange contains that exact text, so tell the user "
+    "that no remembered exchange contains that exact text, and do not ask the user for the value"
 )
 _ALREADY_DELETED = (
     "nothing more was forgotten: no remembered exchange contains that text, and an earlier call "
@@ -89,7 +89,7 @@ async def test_a_later_text_holding_the_deleting_text_or_its_value_names_the_del
     assert _said(await _run(tool, _call("06-1234-5678", "c3"))) == _ALREADY_DELETED
 
 
-async def test_a_later_call_about_another_fact_says_nothing_about_it_was_stored() -> None:
+async def test_a_later_call_about_another_fact_gets_the_no_match_result() -> None:
     phone = "User: Remember my phone number is 0176 5550 1234.\nAssistant: Noted."
     tool = await _tool(_record("phone", phone))
     assert _said(await _run(tool, _call("phone number", "c1"))).startswith("forgot 1")
@@ -99,7 +99,7 @@ async def test_a_later_call_about_another_fact_says_nothing_about_it_was_stored(
         assert later.matched_nothing is True
 
 
-async def test_an_unmatched_call_in_a_later_turn_says_nothing_was_stored() -> None:
+async def test_an_unmatched_call_in_a_later_turn_gets_the_no_match_result() -> None:
     tool = await _tool(_record("old", _OLD))
     await _run(tool, _call("0612345678", "c1"))
     later = await _run(tool, _call("0612345678", "c2", turn="turn-b"))
@@ -107,7 +107,7 @@ async def test_an_unmatched_call_in_a_later_turn_says_nothing_was_stored() -> No
     assert later.matched_nothing is True
 
 
-async def test_unmatched_calls_with_no_delete_both_say_nothing_was_stored() -> None:
+async def test_unmatched_calls_with_no_delete_both_get_the_no_match_result() -> None:
     tool = await _tool(_record("old", _OLD))
     for call_id in ("c1", "c2"):
         result = await _run(tool, _call("passport", call_id))
