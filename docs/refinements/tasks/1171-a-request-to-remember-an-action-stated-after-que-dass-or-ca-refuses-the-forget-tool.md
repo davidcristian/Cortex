@@ -8,7 +8,7 @@
 `forget_unrequested` (`forget_unrequested.py`) reads the letters of French, German, Spanish and
 Romanian only on a request that `asks_kept_fact_other` (`memory_request.py`) reads as one stated
 fact, which it takes from `que`, `dass` or `că` after the remember verb
-([readings](../../readings/forget-calls-on-remember-rise.md#the-refusal-in-four-more-languages)).
+([readings](../../readings/forget-refusal-other-languages.md)).
 A fact clause holding an obligation of the assistant or a second `que tu` (`tu dois`, `il faut`,
 `debes`, `hay que`, `trebuie`, `să`, `sollst`, `musst`) is read as a request for an action and keeps
 the tool. Four forms that ask for an action hold none of those words and are still refused, so the

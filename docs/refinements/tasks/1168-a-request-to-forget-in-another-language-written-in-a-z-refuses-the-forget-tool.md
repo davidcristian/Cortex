@@ -7,7 +7,7 @@
 
 `forget_unrequested` (`forget_unrequested.py`) reads English, French, German, Spanish and Romanian
 by its word lists and keeps the forget tool on any other message only by a letter outside `a-z`
-([readings](../../readings/forget-calls-on-remember-rise.md#the-refusal-in-four-more-languages)).
+([readings](../../readings/forget-refusal-other-languages.md)).
 A request to forget in another language whose letters are all in `a-z` and that holds none of the
 lists' words has the tool refused, which is a privacy loss. The start build `d1620de90` refuses it
 the same way. Each of these returns `{"forget_memories"}`:
