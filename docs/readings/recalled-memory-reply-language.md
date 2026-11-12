@@ -94,3 +94,24 @@ Three of the four requests to remember in another language, French, German and R
 `forget_memories` call that matched nothing during the setup, and their stored rows hold the
 note saying nothing was deleted
 ([task 1164](../refinements/tasks/1164-a-request-to-remember-in-another-language-runs-a-forget-call.md)).
+
+## A request for an answer in another language, rows written 2026-11-12 before the draws
+
+The sentence tells the cortex to reply in the language of the person's message, which could
+override a message that asks for another language. Three rows over the same eight stored rows,
+two draws per build. A draw passes when the reply holds the asked language: German for `n1`, the
+French for the number for `n2` and English for `n3`. A candidate draw failing where the base
+passes is a defect of the sentence, filed as a task; both builds passing means the sentence
+leaves such a request alone.
+
+| Row | Question, new chat | Language asked for |
+| --- | --- | --- |
+| `n1` | `Tell me in German what my dog is called.` | German |
+| `n2` | `How do I say my apartment number in French?` | French |
+| `n3` | `Réponds en anglais : comment s'appelle ma sœur ?` | English |
+
+**Drawn 2026-11-12**, the same stack and rows at SM clock 0.57 of `clocks.max.sm`: every draw
+passed on both builds, 6 of 6 each. `n1` was answered `Dein Hund heißt Bello.`, `n2` gave the
+French (`Mon numéro d'appartement est quarante-deux.`) inside an English reply, and `n3` was
+answered `Your sister's name is Clara.` The sentence leaves a request for another language alone
+on these rows. Script: `ask2.sh` in the slot directory above.
