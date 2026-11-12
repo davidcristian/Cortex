@@ -82,7 +82,7 @@ never a reading of what the tree does now.
 - **[R-1163](tasks/1163-a-refused-forget-call-on-a-request-to-remember-costs-a-round.md)** A refused forget call on a request to remember costs a round (memory). Its claim was checked against the code on 2026-11-12.
 - **[R-1165](tasks/1165-the-forget-calls-on-a-request-to-remember-are-not-measured-beside-the-body-tools.md)** The forget calls on a request to remember are not measured beside the body tools (memory). Its claim was checked against the code on 2026-11-12.
 - **[R-1168](tasks/1168-a-request-to-forget-in-another-language-written-in-a-z-refuses-the-forget-tool.md)** A request to forget in another language written in a-z refuses the forget tool (memory). Its claim was checked against the code on 2026-11-12.
-- **[R-1171](tasks/1171-a-request-to-remember-with-que-and-a-subjunctive-refuses-the-forget-tool.md)** A request to remember with que and a subjunctive refuses the forget tool (memory). Its claim was checked against the code on 2026-11-12.
+- **[R-1171](tasks/1171-a-request-to-remember-an-action-stated-after-que-dass-or-ca-refuses-the-forget-tool.md)** A request to remember an action stated after que, dass or că refuses the forget tool (memory). Its claim was checked against the code on 2026-11-12.
 
 ### Actionable, once a port changes (1)
 
@@ -633,7 +633,7 @@ never a reading of what the tree does now.
 - [R-1163](tasks/1163-a-refused-forget-call-on-a-request-to-remember-costs-a-round.md) A refused forget call on a request to remember costs a round. open, actionable.
 - [R-1165](tasks/1165-the-forget-calls-on-a-request-to-remember-are-not-measured-beside-the-body-tools.md) The forget calls on a request to remember are not measured beside the body tools. open, actionable.
 - [R-1168](tasks/1168-a-request-to-forget-in-another-language-written-in-a-z-refuses-the-forget-tool.md) A request to forget in another language written in a-z refuses the forget tool. open, actionable.
-- [R-1171](tasks/1171-a-request-to-remember-with-que-and-a-subjunctive-refuses-the-forget-tool.md) A request to remember with que and a subjunctive refuses the forget tool. open, actionable.
+- [R-1171](tasks/1171-a-request-to-remember-an-action-stated-after-que-dass-or-ca-refuses-the-forget-tool.md) A request to remember an action stated after que, dass or că refuses the forget tool. open, actionable.
 
 ### orchestrator
 

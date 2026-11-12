@@ -209,7 +209,7 @@ strings now keep the tool and none is newly refused. Those 122 are requests to r
 object, a fact after a colon or a comma with no `dass`, a fact beside a second clause or
 sentence, a remember verb after the fact, and stored row texts opening with `User:`. Of the 22
 strings refused that the start build kept, 21 state one fact or are part of such a request, and `Recuerda que remuevas mi
-código.` asks for an action with `que` and a subjunctive ([task 1171](../refinements/tasks/1171-a-request-to-remember-with-que-and-a-subjunctive-refuses-the-forget-tool.md)). Scripts: `kept_other.py` and
+código.` asks for an action with `que` and a subjunctive ([task 1171](../refinements/tasks/1171-a-request-to-remember-an-action-stated-after-que-dass-or-ca-refuses-the-forget-tool.md)). Scripts: `kept_other.py` and
 `headdiff.py` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/d2003893-7ebe-4ec3-ad1c-e92980017fd3/scratchpad/slot17/`,
 with `diff3.py` of slot 14.
 
