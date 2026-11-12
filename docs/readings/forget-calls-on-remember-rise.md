@@ -192,8 +192,12 @@ Scripts: `diff3.py` and `drawdiff.py` in
 The Romanian verbs `uita` and `scoate` take `ț` in the second person (`să uiți`, `să scoți`),
 which the lists' `uit` and `scoa[st]` did not read, so `Amintește-ți să uiți codul meu de la sală.`
 and `Ține minte să scoți codul meu din listă.` had the tool refused. The lists now read `ui[tț]`
-and `scoți`. Replayed over the same 203 turns and 28,863 strings, the change alters no result of
-`forget_unrequested`, `unasked_tools` or `unasked_forget`.
+and `scoți`, also as `scoti` without diacritics, in the message and in the reply and message
+before it. Replayed over the same 203 turns and 28,863 strings, the `ț` forms alter no result of
+`forget_unrequested`, `unasked_tools` or `unasked_forget`. Over the 203 turns and 28,901 strings,
+`scoti` and the reading of the earlier texts change no result on a message. Read as the reply and
+the message before one, 7 strings now keep the tool, each naming `uiți` or `scoți`, two of
+them a habit or a reminder (`Ține minte că mereu uiți cheile.`), as `forget` in English does.
 
 A request to remember that names removal by a word outside the lists still had the tool refused
 (`Ține minte să arunci codul.`, `Merk dir, den Code wegzuwerfen.`, `Souviens-toi : jette mon

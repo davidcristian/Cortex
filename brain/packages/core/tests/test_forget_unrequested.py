@@ -222,6 +222,7 @@ def test_a_message_in_a_language_the_lists_do_not_read_keeps_the_forget_tool(que
         "Numărul este 43 în loc de 42.",
         "Esqueça o meu código.",
         "Şifremi sil.",
+        "Te rog sa scoti codul.",
     ],
 )
 def test_a_request_to_forget_or_a_correction_in_another_language_keeps_the_forget_tool(
@@ -328,6 +329,15 @@ def test_a_message_after_a_reply_with_a_retracting_word_keeps_the_forget_tool(
 def test_an_answer_to_a_question_about_an_earlier_forget_keeps_the_forget_tool() -> None:
     reply = "You have two numbers stored, 0712 and 0713. Which one do you mean?"
     assert forget_unrequested("The first one.", reply, "Forget my phone number.") == frozenset()
+
+
+@pytest.mark.parametrize(
+    "earlier", ["Vreau să uiți codul.", "Vreau să scoți codul.", "Vreau sa scoti codul."]
+)
+def test_an_answer_after_a_romanian_forget_in_the_second_person_keeps_the_forget_tool(
+    earlier: str,
+) -> None:
+    assert forget_unrequested("Cel de la bicicleta.", "Care cod?", earlier) == frozenset()
 
 
 def test_an_answer_to_a_question_about_an_earlier_message_with_no_forget_refuses() -> None:

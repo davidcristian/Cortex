@@ -23,7 +23,7 @@ RETRACT_WORDS = (
     r"|unstor\w*|let\s+go|go\s+away|out\s+of\s+(?:your|memory)|used\s+to|must\s+go|remember\s+to|bin"
     r"|vergiss\w*|vergess\w*|vergeet|loesch\w*|entfern\w*|verwijder\w*|oubli\w*|effac\w+|olv[ií]d\w*"
     r"|b[oó]rr\w+|dimentic\w*|ui[tțţ]\w*|[șşs]terg\w*|sup{1,2}r[ií]m\w*|elim[ií]n\w*|l[oö]sch\w*"
-    r"|ret[ií]r\w*|enl[eè]v\w*|qu[ií]t(?!e\b)\w+|scoa[st]\w*|scos\w*|sco[țţ]i|streich\w*|gestrichen"
+    r"|ret[ií]r\w*|enl[eè]v\w*|qu[ií]t(?!e\b)\w+|scoa[st]\w*|scos\w*|sco[țţt]i|streich\w*|gestrichen"
     r"|gel[oö]sch\w*|geloesch\w*|[șşs]ters\w*|[șşs]tear[sș]\w*|annul\w*|tilg\w*|plus|aucun\w*"
     r"|ancien\w*|plut[oô]t|faux|erreur\w*|corrig\w*|remplac\w*|statt|stattdessen|fr[üu]her\w*"
     r"|falsch\w*|fehler\w*|änder\w*|aender\w*|ge[äa]ndert|korrigier\w*|ersetz\w*|aktualisier\w*"
@@ -58,8 +58,8 @@ _ABOUT_FORGETTING = re.compile(
 )
 _NAMES_FORGETTING = re.compile(
     r"\b(?:forg[eo]t|delet|eras|remov|wip(?:e|es|ed|ing)\b|clear|drop|discard|purg|vergiss|vergess"
-    r"|vergeet|l[oö]sch|loesch|gel[oö]sch|geloesch|entfern|oubli|effac|olv[ií]d|b[oó]rr|uit|[șşs]ters"
-    r"|[șşs]terg|sup{1,2}r[ií]m|elim[ií]n|ret[ií]r|enl[eè]v|qu[ií]t(?!e\b)\w|scoa[st]|scos|streich"
+    r"|vergeet|l[oö]sch|loesch|gel[oö]sch|geloesch|entfern|oubli|effac|olv[ií]d|b[oó]rr|ui[tțţ]|[șşs]ters"
+    r"|[șşs]terg|sup{1,2}r[ií]m|elim[ií]n|ret[ií]r|enl[eè]v|qu[ií]t(?!e\b)\w|scoa[st]|scos|sco[țţt]i|streich"
     r"|gestrichen)",
     re.IGNORECASE,
 )
