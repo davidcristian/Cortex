@@ -13,12 +13,17 @@ Remember that my gym code is 4242.` stored before `User: Remember that my card i
 4242.` in the calling chat, `Forget what I just told you.` with a first call `gym code` and a
 second call `4242` deletes the gym code and keeps the card, which the inside note names
 ([readings](../../readings/forget-keep-plain-replay.md#two-calls-and-every-row)).
+The earlier delete need not hold the call's text or come from the calling chat: with the card
+stored in the calling chat and `User: Remember that my dog is called Rex.` stored later in
+another chat, `Forget my dog and the 4242 I just told you.` with calls `dog` and `4242`
+deletes the dog and keeps the card, which the second call deletes when the card reads no earlier
+delete.
 
 ## What to do
 
 1. Keep the time and chat of each deleted row in the turn's ledger, and apply the exception on a
    later call when no deleted row of the calling chat is newer than the newest match.
-2. Write the case above and its near miss as tests first (the gym code stored last: the second
+2. Write both cases above and the near miss as tests first (the gym code stored last: the second
    call keeps the card), then replay the strings of the readings through the old and new code.
 
 ## History
