@@ -237,6 +237,11 @@ def asks_kept(query: str) -> bool:
     )
 
 
+def asks_kept_other(query: str) -> bool:
+    """Whether a sentence of ``query`` asks to remember in French, German, Spanish or Romanian."""
+    return any(_REMEMBER_OTHER.search(sentence) for sentence in _SENTENCE_END.split(query))
+
+
 def asks_kept_alone(query: str) -> bool:
     """Whether ``query`` asks to remember in English, or in another language with one clause."""
     if any(_REMEMBER.search(sentence) for sentence in _SENTENCE_END.split(query)):

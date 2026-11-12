@@ -1,6 +1,6 @@
 import pytest
 
-from cortex_core.memory_request import asks_kept, asks_not_kept
+from cortex_core.memory_request import asks_kept, asks_kept_other, asks_not_kept
 
 
 @pytest.mark.parametrize(
@@ -272,3 +272,25 @@ def test_a_statement_question_or_reminder_with_a_forget_verb_does_not_ask_not_ke
 
 def test_a_request_to_remember_after_an_idiom_in_another_language_asks_kept() -> None:
     assert asks_kept("Merk dir nicht alles, aber merk dir, dass mein Code 4512 ist.")
+
+
+@pytest.mark.parametrize(
+    "query",
+    ["Souviens-toi que mon vélo est bleu.", "Merci. Merk dir, dass mein Hund Bello heißt."],
+)
+def test_a_request_to_remember_in_another_read_language_asks_kept_other(query: str) -> None:
+    assert asks_kept_other(query)
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Remember that my favourite café is Brühl.",
+        "Ricorda che il mio caffè preferito è l'espresso.",
+        "Je veux que tu te souviennes que mon vélo est bleu.",
+    ],
+)
+def test_a_request_in_english_italian_or_not_at_a_clause_start_is_not_kept_other(
+    query: str,
+) -> None:
+    assert not asks_kept_other(query)

@@ -134,7 +134,7 @@ pool down to the hits one turn sees. The turn that calls it is in
   für dich` do not count and `ne retiens pas cette information` and `n'enregistre pas ça` do. A save decision put off in the first person (`I'll tell you later whether to save it`, `let me decide if you should keep it`) asks not to keep too, in all five languages (`ich sage dir später, ob du es speichern sollst`), and `I'll tell you later what to do` does not.
   `asks_kept` reads English (`keep in mind` also with `it`, `this`, `that` or `these` between, not before `for him`, `for her` or `for them`) and, in those four languages, an imperative to remember at a
   clause start (`souviens-toi`, `retiens-le`, `merk dir`, `merk ihn dir`, `recuerda que`, `recuérdalo`, `ține minte`), and not a statement, a question, a
-  reminder (`rappelle-moi`) or a request not to keep. `asks_files`
+  reminder (`rappelle-moi`) or a request not to keep; `asks_kept_other` reads that imperative alone. `asks_files`
   (`file_request.py`) reads a sentence naming files, folders, directories or a file name such as
   `notes.txt` beside a question mark or a request word ("list", "show", "tell", "read", "which",
   "what" and the like), on a message `asks_kept` does not read as a request to remember; an

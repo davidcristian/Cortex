@@ -117,21 +117,23 @@ requests) and `srccheck.py` (the request text against a source tree), in
 ## The refusal in four more languages
 
 `forget_unrequested` now reads French, German, Spanish and Romanian by its word lists, which name
-the forget verbs, the words of a correction and the negations of those languages. Its letter
-clause keeps the forget tool only on a letter outside those four languages and English, so a
-message in Polish, Russian, Korean or Japanese still keeps it. The lists also gained `retir`,
+the forget verbs, the words of a correction and the negations of those languages. On a message
+that `asks_kept_other` reads as a request to remember in one of those four languages (`souviens-toi`,
+`merk dir`, `recuerda que`, `ține minte`), its letter clause keeps the forget tool only on a letter
+outside them and English. On any other message a letter outside `a-z` keeps the tool, so a request
+to forget in Italian, Portuguese, Catalan, Dutch or Polish keeps it by its accented letters, and
+so does a question in the four languages. The lists also gained `retir`,
 `enlev`, `quit`, `scoat`, `streich`, the past forms `gelöscht` and `șters`, the corrections
 (`plus`, `au lieu`, `mis à jour`, `statt`, `geändert`, `en lugar`, `cambió`, `în loc`, `schimbat`)
 and "from your memory" (`de ta mémoire`, `aus deinem Gedächtnis`, `de tu memoria`, `din memorie`),
 the form the English `out of memory` has. A bare word for memory is left out, since `garde en
 mémoire` asks to keep. The forget verbs of Portuguese, Catalan, Italian and Turkish (`esqueça`,
 `oblida`, `scorda`, `sil`) are listed too, since those languages are written in the same letters.
-Their other words for removing and their words of a correction are not, so requests to forget
-such as `Butta via la nota sulla palestra, è vecchia.` and `Wis wat ik zei over België.`, and
-corrections such as `Meu código mudou para 4862.`, have the tool refused, where the reader
-before this change kept it by their accented letters: 28 of 37 such messages in Italian,
-Portuguese, Catalan and Dutch
-([task 1167](../refinements/tasks/1167-a-request-to-forget-in-another-latin-script-language-refuses-the-forget-tool.md)).
+Their other words for removing and their words of a correction are not. A reader that read the
+four languages' letters on every message refused the tool on requests to forget such as
+`Butta via la nota sulla palestra, è vecchia.` and `Wis wat ik zei over België.`, and on
+corrections such as `Meu código mudou para 4862.`: of 37 such messages in Italian, Portuguese,
+Catalan and Dutch, the reader before it kept the tool on 36 and it kept the tool on 8.
 
 ### Rows and rule, written 2026-11-12 before any draw
 
@@ -162,7 +164,8 @@ so the rule is about what the reader does to a call, and the call rate is a sepa
 
 ### The replay and the draws, 2026-11-12
 
-Replayed through the old and new reader, 8 of the 191 recorded turns (177 distinct messages) in
+Replayed through the reader that read the four languages' letters on every message and the one
+before it, 8 of the 191 recorded turns (177 distinct messages) in
 the `cortexn20` proxy log changed, all to refused: the four requests to remember of the language
 setup and the four questions in French, German, Spanish and Romanian. Of 28,755 distinct strings
 in the brain's test files and the backticked text of `docs/`, 656 changed. 608 are now refused:
@@ -171,6 +174,20 @@ request to forget or correction among them once the replay had found `gelöscht`
 `ștearsă`, `modifié` and `mis à jour`, which the lists now name. 48 now keep the tool: the new
 verbs and corrections, and 22 English strings holding `plus`. `unasked_tools` and
 `unasked_forget`, which share `RETRACT_WORDS`, changed on none.
+
+The reader as built reads those letters only on a request to remember. Replayed through it, the
+reader that read them on every message and the start build `d1620de90`, over 203 recorded turns (189 distinct messages, proxy
+lines 1 to 1143) and 28,863 test and docs strings, it refuses on 3 turns and 83 strings that the
+start build kept. Each is a request to remember in French, German, Spanish or Romanian or a part
+of one (the turns are `k1`, `k2` and `k4`; `k3` has no letter outside `a-z`). It keeps the tool on 5
+turns and 569 strings the every-message reader refused, among them five questions in the four
+languages, and refuses on none it kept. On the 37 messages above and six in Swedish,
+Finnish, Norwegian and Polish it gives the start build's result: 42 keep the tool, and
+`Descarta el que et vaig dir de la meva salut.` is refused by all three, since every letter is in
+`a-z` ([task 1168](../refinements/tasks/1168-a-request-to-forget-in-another-language-written-in-a-z-refuses-the-forget-tool.md)).
+On the 20 draw messages above it gives the result `s12lang` gave, so the draws hold for it.
+Scripts: `diff3.py` and `drawdiff.py` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/d2003893-7ebe-4ec3-ad1c-e92980017fd3/scratchpad/slot14/`.
 
 On `s12lang`, SM clock 0.57 of `clocks.max.sm`, proxy lines 1060 to 1143:
 

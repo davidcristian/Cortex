@@ -3,6 +3,7 @@
 import re
 
 from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
+from cortex_core.memory_request import asks_kept_other
 
 FORGET_UNREQUESTED_MSG = (
     "REFUSED: the person's message asks to forget nothing, so this call was not run. Do not call "
@@ -40,10 +41,12 @@ _NEGATIONS = (
     r"\b(?:nicht|nichts|nie|nein|kein\w*|ne|pas|jamais|jam[aá]s|rien|non|nu|nimic|niciodat\w*|nunca"
     r"|nada|ning[uú]n\w*)\b"
 )
-# The letters of English, French, German, Spanish and Romanian, which the word lists here read.
-_READ_LETTERS = "a-zàâæçéèêëîïôœùûüÿäößẞáíñóúășşțţ"
 # Wide on purpose: a message read wrongly here keeps the tool, as every turn did before this check.
-_CAN_RETRACT = re.compile(
+_CAN_RETRACT = re.compile(rf"{RETRACT_WORDS}|{_NEGATIONS}|(?![a-z])[^\W\d_]", re.IGNORECASE)
+# The letters of English, French, German, Spanish and Romanian. Italian, Portuguese, Catalan and
+# Dutch use them too and the lists do not read those, so only a request to remember names them read.
+_READ_LETTERS = "a-zàâæçéèêëîïôœùûüÿäößẞáíñóúășşțţ"
+_CAN_RETRACT_READ = re.compile(
     rf"{RETRACT_WORDS}|{_NEGATIONS}|(?![{_READ_LETTERS}])[^\W\d_]", re.IGNORECASE
 )
 # Narrower than RETRACT_WORDS, since a reply often says "don't", "no" or "changes".
@@ -89,7 +92,8 @@ def forget_unrequested(query: str, last_reply: str = "", earlier: str = "") -> f
 
     ``last_reply`` is the chat's last assistant message and ``earlier`` the message it answered.
     """
-    if _CAN_RETRACT.search(query) or _misspells_forgetting(query):
+    can_retract = _CAN_RETRACT_READ if asks_kept_other(query) else _CAN_RETRACT
+    if can_retract.search(query) or _misspells_forgetting(query):
         return frozenset()
     if any(
         _ABOUT_FORGETTING.search(text) or _NAMES_FORGETTING.search(text)

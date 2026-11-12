@@ -52,9 +52,15 @@ def test_a_message_with_no_word_that_can_retract_refuses_the_forget_tool(query: 
         "Lembra que o meu código não é 7731.",
         "I don't need that",
         "Scrap it",
+        "Peux-tu noter qu'Anna préfère les plantes ?",
+        "Wie lautet mein Fahrradschloss-Code für das Rad?",
+        "¿Cuál es mi código?",
+        "Care este codul meu de la bicicletă?",
+        "Remember that my favourite café is Brühl.",
+        "Je veux que tu te souviennes que mon vélo est bleu.",
     ],
 )
-def test_a_letter_outside_the_read_languages_or_a_word_that_can_retract_keeps_the_forget_tool(
+def test_a_letter_outside_english_or_a_word_that_can_retract_keeps_the_forget_tool(
     query: str,
 ) -> None:
     assert forget_unrequested(query) == frozenset()
@@ -63,10 +69,6 @@ def test_a_letter_outside_the_read_languages_or_a_word_that_can_retract_keeps_th
 @pytest.mark.parametrize(
     "query",
     [
-        "Peux-tu noter qu'Anna préfère les plantes ?",
-        "Wie lautet mein Fahrradschloss-Code für das Rad?",
-        "¿Cuál es mi código?",
-        "Care este codul meu de la bicicletă?",
         "Souviens-toi que le code de mon casier à la piscine est 7731.",
         "Merk dir, dass mein Hund Bello heißt.",
         "Recuerda que mi color favorito es el verde.",
@@ -75,12 +77,66 @@ def test_a_letter_outside_the_read_languages_or_a_word_that_can_retract_keeps_th
         "Merk dir, dass das Treffen am Montag stattfindet und mein anderer Hund Rex heißt.",
         "Recuerda que mi código del gimnasio es 4242, quizá lo necesite.",
         "Reține că mașina mea este o Dacia albastră.",
+        "Merci. Souviens-toi que mon vélo est bleu.",
     ],
 )
-def test_a_request_to_remember_or_a_question_in_a_read_language_refuses_the_forget_tool(
-    query: str,
-) -> None:
+def test_a_request_to_remember_in_a_read_language_refuses_the_forget_tool(query: str) -> None:
     assert forget_unrequested(query) == _REFUSED
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Dimentica il mio numero di telefono.",
+        "Cancella il mio indirizzo di casa.",
+        "Via il mio vecchio numero, è sbagliato.",
+        "Il numero che ti ho dato è sbagliato: è 4862.",
+        "Il mio indirizzo adesso è Via Roma 5.",
+        "Quello che ti ho detto ieri è falso.",
+        "Aggiorna il mio indirizzo: è Via Roma 5.",
+        "Togli dalla memoria quello che ho detto della palestra, è privato.",
+        "Butta via la nota sulla palestra, è vecchia.",
+        "Lascia perdere quello che ho detto: è una cosa privata.",
+        "Svuota la memoria, è tutto privato.",
+        "Sostituisci il mio numero: è 555 1234.",
+        "Tira o meu número da memória.",
+        "Limpa a memória sobre a academia.",
+        "Mudei de número: agora é 555 1234.",
+        "Troquei de senha, a nova é 4862.",
+        "Atualiza o meu número: é 555 1234.",
+        "O meu endereço está errado, é Rua Augusta 5.",
+        "Deixa pra lá o que eu disse sobre a academia.",
+        "Joga fora o que eu disse sobre a minha saúde.",
+        "Descarta a nota da academia, é privada.",
+        "Esquece o meu número de telefone.",
+        "Treu el meu número de la memòria.",
+        "He canviat de número: ara és el 555 1234.",
+        "Llença el que et vaig dir del gimnàs.",
+        "Actualitza la meva adreça: és el carrer Major 5.",
+        "Canvia el meu número per 555 1234.",
+        "Esborra la meva adreça.",
+        "Treu la nota del gimnàs, és privada.",
+        "Wis wat ik zei over België.",
+        "Gooi mijn oude adres weg, ik ben naar België verhuisd.",
+        "Haal mijn adres uit je geheugen.",
+        "Mijn code is veranderd, het is nu 4862 voor de reünie.",
+        "Vergeet mijn telefoonnummer.",
+        "Wis de notitie over de reünie.",
+        "Weg met mijn oude ideeën over het café.",
+        "Glöm bort det jag sa om gymmet.",
+        "Ta bort det jag sa om min hälsa.",
+        "Unohda mitä sanoin kuntosalista, se on yksityistä ja vähän noloa.",
+        "Poista muistista se mitä kerroin terveydestäni.",
+        "Glem det jeg sa om helsa mi, det er privat og sårt.",
+        "Zapomnij mój stary numer.",
+        "Ricorda che il mio caffè preferito è l'espresso.",
+        "Lembra que o meu café favorito é o expresso.",
+        "Recorda que el meu cafè preferit és el tallat.",
+        "Onthoud dat mijn favoriete café in België ligt.",
+    ],
+)
+def test_a_message_in_a_language_the_lists_do_not_read_keeps_the_forget_tool(query: str) -> None:
+    assert forget_unrequested(query) == frozenset()
 
 
 @pytest.mark.parametrize(
@@ -108,6 +164,7 @@ def test_a_request_to_remember_or_a_question_in_a_read_language_refuses_the_forg
         "Vergiss meinen Türcode, aber behalte die Postleitzahl.",
         "Vergiss, wie mein Hund heißt.",
         "Streich meine alte Adresse.",
+        "Streich die Notiz über Jürgen.",
         "Lösch meine Telefonnummer.",
         "Entferne den Code für das Schloss.",
         "Nimm das aus deinem Gedächtnis, bitte.",
@@ -159,6 +216,11 @@ def test_a_request_to_forget_or_a_correction_in_another_language_keeps_the_forge
         "Merk dir, dass ich keine Nüsse esse.",
         "Recuerda que no me gusta el café.",
         "Ține minte că nu beau cafea dimineața.",
+        "Souviens-toi que j'ai oublié mon parapluie chez Hélène.",
+        "Merk dir die neue Adresse und streich die alte.",
+        "Merk dir, dass ich die Nummer für Jürgen geändert habe.",
+        "Recuerda que tengo un número nuevo y quita el de antes.",
+        "Ține minte numărul nou și scoate-l pe cel vechi.",
     ],
 )
 def test_a_request_to_remember_that_names_forgetting_or_a_negation_keeps_the_forget_tool(
