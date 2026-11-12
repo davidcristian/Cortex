@@ -4,7 +4,7 @@ import re
 from collections.abc import Iterable, Sequence
 
 from cortex_core.forget_languages import FUNCTION, readings
-from cortex_core.forget_unnamed import just_said, row_words, unnamed
+from cortex_core.forget_unnamed import just_said, quantifies, row_words, unnamed
 from cortex_core.memory import MemoryRecord
 from cortex_core.memory_values import code_word, joined, value_spans
 from cortex_core.note_language import ENGLISH, in_language
@@ -108,16 +108,18 @@ def _ends(
     held: Iterable[str],
     chat: str | None,
 ) -> dict[str, bool]:
-    """Whether to keep each row holding ``text`` (found by ``pattern``) as a last group: ``query``
-    names no word only it has beside a text holding ``text`` whole, or lacks ``text`` and names
-    words, none of the row's; never the newest row ``chat`` stored if ``query`` names nothing."""
-    texts = (*held, *(record.text for record in records))
-    holding = [row for row in texts if _whole(row, text)]
+    """Whether to keep each row holding ``text`` as a last group: ``query`` asks for all rows only
+    with a code word and names no word only it has beside a text holding ``text`` whole, or lacks
+    ``text`` and names words, none its own; never ``chat``'s newest row unless named or ``held``."""
+    kinds = any(code_word(word) for word in _WORD.findall(query))
+    deleted = tuple(held)
+    texts = (*deleted, *(record.text for record in records))
+    every = quantifies(query) and not kinds
+    holding = [] if every else [row for row in texts if _whole(row, text)]
     beside = {word for row in holding for word in row_words(row)}
     words = row_words(query)
     named = any(not words.isdisjoint(row_words(record.text)) for record in records)
-    kinds = any(code_word(word) for word in _WORD.findall(query))
-    said = None if named or kinds else just_said(list(records), chat)
+    said = None if named or kinds or deleted else just_said(list(records), chat)
     unasked = bool(_content(query)) and pattern.search(query) is None
     return {
         record.id: record.id != said

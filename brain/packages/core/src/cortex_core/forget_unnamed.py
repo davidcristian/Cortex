@@ -206,7 +206,7 @@ def asks_to_keep(text: str, query: str) -> bool:
     return not _REST.isdisjoint(_parts(query)[1]) or not kept.isdisjoint(_row_names(text))
 
 
-def _quantifies(query: str) -> bool:
+def quantifies(query: str) -> bool:
     """Whether a word for all in ``query`` asks for every row: within two words of a value."""
     clauses = _clauses(query)
     for index, clause in enumerate(clauses):
@@ -256,10 +256,9 @@ def _unnamed(
     session_id: str | None,
     language: str,
 ) -> list[MemoryRecord]:
-    """The ``rows`` to keep: with a clause asking to keep, each no whole word outside it names
-    or that it names; else each whose request holds a value of ``text`` and no word of ``query``,
-    unless ``query`` asks for every row or names nothing and ``session_id`` stored the newest.
-    """
+    """The ``rows`` to keep: with a keep clause, each no whole word outside it names or it names;
+    else each whose request holds a value of ``text`` and no word of ``query``, unless it asks
+    for every row, or names nothing, ``deleted`` is empty and ``session_id`` stored the newest."""
     words, keep, listed, compound = _split(query, language)
     if listed is not None:
         # A clause asks to keep: delete only a row a whole word names, so a misread keeps it.
@@ -270,8 +269,8 @@ def _unnamed(
         ]
     asked, values = _keys(query), _keys(text) - _keys(query) or _keys(text)
     named = compound or _named(rows, words, deleted)
-    every = values <= asked and (not named or _quantifies(query))
-    said = None if named else just_said(rows, session_id)
+    every = values <= asked and (not named or quantifies(query))
+    said = None if named or deleted else just_said(rows, session_id)
     return [
         record
         for record in rows

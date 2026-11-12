@@ -71,10 +71,32 @@ when neither model made a forget call.
 
 ## Two calls and every row
 
-Taken 2026-11-12 on `28c75d129`, with the same rows and two calls sharing one turn. Over the English card ending in 4242 and the
-English gym code `4242`, `Forget my gym code 4242.` keeps the card on a first call with text
-`4242`, but a second call of the same turn with text `4242` lists and deletes it (task
-[1159](../refinements/tasks/1159-a-second-forget-call-in-a-turn-lists-the-card-the-first-one-kept.md)).
-`Forget every 4242.` and three other forgets of every row holding the code keep the card in 12 of
-16 cases, where the start build deleted both rows (task
-[1160](../refinements/tasks/1160-a-forget-of-every-row-holding-a-code-keeps-a-card-ending-in-it.md)).
+Taken 2026-11-12 with the same rows, on `28c75d129` and on the change that followed it. Over the
+English card ending in 4242 and the English gym code `4242`, `Forget my gym code 4242.` kept the
+card on a first call with text `4242`, but a second call of the same turn with text `4242` listed
+and deleted it. `Forget every 4242.`, `Forget everything with 4242.`, `Forget all of 4242.` and
+`Forget 4242 everywhere.` with call text `4242` kept the card in 12 of 16 cases, where the start
+build deleted both rows. After the change a later call reads the rows earlier calls of the turn
+deleted, and a word for all beside the value, with no code word, lists the card.
+
+| Replay | Cases | Changed | Keep more rows | Keep fewer rows |
+| --- | --- | --- | --- | --- |
+| 295 recorded forget strings, one call, six row sets, both chats | 3540 | 20 | 0 | 20 |
+| The same strings, two calls over the four sets of two rows | 7080 | 1796 | 1788 | 8 |
+| The 548 plain forgets above | 548 | 0 | 0 | 0 |
+| The four forgets of every row | 16 | 12 | 0 | 12 |
+
+The two call turns sent the value, `gym code` or `code` first and the value second.
+
+- **One call.** Every change is one of the four forgets of every row, now deleting the card or
+  the phone account ending in the code beside the gym or door code. `Forget every gym code
+  4242.`, `Forget the code 4242 everywhere.` and `Vergiss den Fahrradcode 7319 überall.` still keep
+  the card. `Forget what I just told you.` still deletes the newest row in every row set.
+- **Two calls.** A turn sending the value twice now ends with the rows one call leaves in every
+  case, against 530 differing cases before. The 8 that keep fewer are the forgets of every row.
+  A second call no longer treats the older row as the newest once the first call deleted the
+  newest, so `Forget my bank details.` keeps the older row on both calls. Read by message, the 1788
+  hold two kinds that keep a row the message asked to delete: a message naming the card only in another language, as
+  in one call, and `Forget what I just told you.` when the first call deleted the older gym code
+  instead of the card stored last, which then stays and is named in the inside note (task
+  [1161](../refinements/tasks/1161-a-later-forget-call-keeps-the-newest-row-after-an-older-one-is-deleted.md)).

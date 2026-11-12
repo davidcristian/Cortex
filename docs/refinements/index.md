@@ -81,8 +81,8 @@ never a reading of what the tree does now.
 - **[R-1151](tasks/1151-recall-leaves-out-the-rows-a-forget-of-everything-but-one-fact-asks-to-delete.md)** Recall leaves out the rows a forget of everything but one fact asks to delete (memory). Its claim was checked against the code on 2026-11-12.
 - **[R-1154](tasks/1154-a-remember-beside-a-delete-request-keeps-the-schedule-tool-offered.md)** A remember beside a delete request keeps the schedule tool offered (memory). Its claim was checked against the code on 2026-11-12.
 - **[R-1158](tasks/1158-a-forget-in-one-language-keeps-a-row-stored-in-another.md)** A forget in one language keeps a row stored in another (memory). Its claim was checked against the code on 2026-11-12.
-- **[R-1159](tasks/1159-a-second-forget-call-in-a-turn-lists-the-card-the-first-one-kept.md)** A second forget call in a turn lists the card the first one kept (memory). Its claim was checked against the code on 2026-11-12.
-- **[R-1160](tasks/1160-a-forget-of-every-row-holding-a-code-keeps-a-card-ending-in-it.md)** A forget of every row holding a code keeps a card ending in it (memory). Its claim was checked against the code on 2026-11-12.
+- **[R-1161](tasks/1161-a-later-forget-call-keeps-the-newest-row-after-an-older-one-is-deleted.md)** A later forget call keeps the newest row after an older one is deleted (memory). Its claim was checked against the code on 2026-11-12.
+- **[R-1162](tasks/1162-a-keep-clause-beside-a-forget-naming-only-a-value-keeps-every-row.md)** A keep clause beside a forget naming only a value keeps every row (memory). Its claim was checked against the code on 2026-11-12.
 
 ### Actionable, once a port changes (1)
 
@@ -630,8 +630,8 @@ never a reading of what the tree does now.
 - [R-1151](tasks/1151-recall-leaves-out-the-rows-a-forget-of-everything-but-one-fact-asks-to-delete.md) Recall leaves out the rows a forget of everything but one fact asks to delete. open, actionable.
 - [R-1154](tasks/1154-a-remember-beside-a-delete-request-keeps-the-schedule-tool-offered.md) A remember beside a delete request keeps the schedule tool offered. open, actionable.
 - [R-1158](tasks/1158-a-forget-in-one-language-keeps-a-row-stored-in-another.md) A forget in one language keeps a row stored in another. open, actionable.
-- [R-1159](tasks/1159-a-second-forget-call-in-a-turn-lists-the-card-the-first-one-kept.md) A second forget call in a turn lists the card the first one kept. open, actionable.
-- [R-1160](tasks/1160-a-forget-of-every-row-holding-a-code-keeps-a-card-ending-in-it.md) A forget of every row holding a code keeps a card ending in it. open, actionable.
+- [R-1161](tasks/1161-a-later-forget-call-keeps-the-newest-row-after-an-older-one-is-deleted.md) A later forget call keeps the newest row after an older one is deleted. open, actionable.
+- [R-1162](tasks/1162-a-keep-clause-beside-a-forget-naming-only-a-value-keeps-every-row.md) A keep clause beside a forget naming only a value keeps every row. open, actionable.
 
 ### orchestrator
 

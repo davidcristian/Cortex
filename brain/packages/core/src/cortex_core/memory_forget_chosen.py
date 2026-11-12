@@ -183,9 +183,10 @@ class ForgetChosenTool:
         """The rows to delete and the card listing them, or why nothing will be and no card."""
         if not _text(call):
             return "nothing was forgotten: the call named no text", None
+        gone = self._deleted_rows.get(call.stamp.turn_id, ())
         try:
             matches = await self._found(call)
-            inner = inside(matches, _text(call), call.stamp.query, session_id=call.stamp.session_id)
+            inner = inside(matches, _text(call), call.stamp.query, gone, call.stamp.session_id)
             found = [record for record in matches if record.id not in inner]
             small = len(matches) <= FORGET_CHOSEN_LIMIT
             extra = await self._repeating(call, found) if small else []
@@ -202,8 +203,7 @@ class ForgetChosenTool:
             return (ALREADY_DELETED if about_deleted(_text(call), deleted) else NONE_FOUND), None
         left_out = len(found) + len(extra) > FORGET_CHOSEN_LIMIT
         rows = [*found, *(row for row, _, _ in extra)]
-        deleted = self._deleted_rows.get(call.stamp.turn_id, ())
-        kept = kept_rows(rows, within, _text(call), call.stamp, deleted)
+        kept = kept_rows(rows, within, _text(call), call.stamp, gone)
         held = {record.id for record in kept}
         far = [row for row in longer(rows, _text(call), call.stamp.query) if row.id not in held]
         spared = {row.id: _excerpt(row, _text(call)) for row in (*kept, *within, *far)}

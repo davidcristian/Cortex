@@ -9,7 +9,7 @@ A plain forget naming a row only in words of another language than the row's del
 ([readings](../../readings/forget-keep-plain-replay.md#readings)). Over the row `User: Remember
 that my phone number is 0721 555 019.`, the message `Vergiss meine Telefonnummer 0721 555 019.`
 with call text `0721 555 019` returns `KEPT_ALL`: `_split` reads the compound `Telefonnummer` as
-naming `telefon`, so `named` holds, `every` needs `_quantifies`, and `unnamed` keeps the row since
+naming `telefon`, so `named` holds, `every` needs `quantifies`, and `unnamed` keeps the row since
 no word of the message is the row's. The same holds for `Oublie ma carte.` over an English card
 row with call text `4111 1111 1111 4242` in a new chat. Over the English card ending in 4242
 beside the English gym code `4242`, `Oublie la carte qui finit par 4242.` and `Vergiss die Karte,
