@@ -3,6 +3,7 @@
 import logging
 from collections.abc import AsyncGenerator, Sequence
 
+from cortex_core.attachments import person_text
 from cortex_core.cadence import NO_CADENCE_TERMS, CadenceReading, CadenceTerms, CadenceWatch
 from cortex_core.closing_notes import limit_notes
 from cortex_core.conversation import Message, Role, ToolRun
@@ -61,7 +62,7 @@ def _user_query(history: Sequence[Message], record: HandoffRecord) -> str:
     """What this turn asked, recovered from the store for recall and the memory record."""
     for message in reversed(history):
         if message.role is Role.USER and message.turn_id == record.handoff_id:
-            return message.text
+            return person_text(message.text)
     return record.brief
 
 

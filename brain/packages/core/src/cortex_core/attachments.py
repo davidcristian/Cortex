@@ -1,5 +1,6 @@
 """Images the user attached to a turn: the checks they pass and the note history keeps."""
 
+import re
 from collections.abc import Sequence
 from dataclasses import replace
 
@@ -56,12 +57,23 @@ def check_attachments(parts: Sequence[ImagePart]) -> tuple[ImagePart, ...]:
     return tuple(parts)
 
 
+_NOTE_OPEN = "\n\n(Attached to this message and not kept: "
+
+
 def attachment_note(parts: Sequence[ImagePart]) -> str:
     """The line history keeps in place of the pixels, which last only for the turn."""
     if not parts:
         return ""
     sizes = ", ".join(f"{part.mime_type} {part.width}x{part.height}" for part in parts)
-    return f"\n\n(Attached to this message and not kept: {sizes}.)"
+    return f"{_NOTE_OPEN}{sizes}.)"
+
+
+_NOTE_AT_END = re.compile(re.escape(_NOTE_OPEN) + r"[^\n]+\.\)\Z")
+
+
+def person_text(stored: str) -> str:
+    """A stored user message less the note ``attachment_note`` appended to it."""
+    return _NOTE_AT_END.sub("", stored)
 
 
 def attach_images(

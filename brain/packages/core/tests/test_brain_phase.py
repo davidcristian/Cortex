@@ -68,6 +68,7 @@ from cortex_core import (
     as_source,
     wrap_untrusted,
 )
+from cortex_core.attachments import attachment_note
 from cortex_core.brain_phase import SPILLED_LOG_MSG, BrainPhase
 from cortex_core.handoff_view import HANDOFF_TAKEN_MSG
 from cortex_core.memory import MemoryRecord
@@ -617,6 +618,18 @@ async def test_the_query_is_recovered_from_the_store_for_recall_and_memory() -> 
     _phase, _backend, _sessions, _texts = await _drive(capabilities=TurnCapabilities(memory=memory))
     (recorded,) = await _recorded(memory)
     assert recorded.text.startswith(f"User: {harness.USER_TEXT}")
+
+
+async def test_the_recovered_query_leaves_out_the_note_on_an_attached_picture() -> None:
+    memory = _recaller()
+    sessions = InMemorySessionStore()
+    picture = ImagePart(data=b"\x89PNG\r\n\x1a\n", mime_type="image/png", width=64, height=48)
+    text = f"My alarm code is 5528.{attachment_note([picture])}"
+    await sessions.append(harness.SESSION, Message(Role.USER, text, _AT, harness.TURN))
+    backend = ScriptedBrainBackend(chunks=("Noted.",))
+    await _drive(store=sessions, capabilities=TurnCapabilities(memory=memory), backend=backend)
+    (recorded,) = await _recorded(memory)
+    assert "Attached" not in recorded.text
 
 
 @pytest.mark.parametrize(("text", "kept"), [("Don't save this: my PIN is 5521.", 0), ("Hi.", 1)])

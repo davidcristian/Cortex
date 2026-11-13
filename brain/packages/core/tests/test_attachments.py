@@ -34,6 +34,7 @@ from cortex_core.attachments import (
     BLIND_ATTACHMENT_MSG,
     attach_images,
     attachment_note,
+    person_text,
     signature_matches,
 )
 
@@ -95,6 +96,12 @@ def test_the_note_names_each_attachment_and_is_empty_without_one() -> None:
     assert attachment_note([_part(), _part(_JPEG, "image/jpeg")]) == (
         "\n\n(Attached to this message and not kept: image/png 640x480, image/jpeg 640x480.)"
     )
+
+
+@pytest.mark.parametrize("text", ["Look at this.", "Not kept: (my note.)", ""])
+def test_the_person_text_is_the_stored_message_less_its_note(text: str) -> None:
+    assert person_text(text + attachment_note([_part(), _part()])) == text
+    assert person_text(text) == text
 
 
 def test_attach_images_gives_back_only_the_stored_user_message() -> None:

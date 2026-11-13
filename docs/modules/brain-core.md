@@ -101,7 +101,7 @@ imports only the standard library, so `tools.py`, `conversation.py` and `body.py
 `attachments.py` checks the user's own pictures (ADR-0070): `check_attachments(parts)` raises
 `AttachmentError` past `MAX_ATTACHED_IMAGES` (4) or on the wrong signature, and `TurnEngine` raises
 it before storing anything when `TurnCapabilities.sight` says the model cannot see. It stores the
-text plus `attachment_note(parts)`; `attach_images` puts the pixels on the working copy.
+text plus `attachment_note(parts)`, which `person_text` takes off where the deep phase reads the query; `attach_images` puts the pixels on the working copy.
 
 ## Provenance and the untrusted-content boundary
 
