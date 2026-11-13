@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-13
+**Verified:** 2026-11-14
 
 `asking` (`forget_clauses.py`) reads a clause holding no forget verb, keep clause or the call's
 value as a remark unless it opens with `and`. `_grouped` (`forget_inside.py`) then lists no row
@@ -27,3 +27,7 @@ kept note shows it, so the person can ask again.
 
 - 2026-11-13: filed by the third audit of the night, with `slot14/c2.json` over `slot12/probe.py` as
   the reproduction, both in `/tmp/claude-1000/-home-david-Files-Git-Cortex/b21ab427-7e2c-4723-9504-d59e434516ce/scratchpad/`.
+- 2026-11-14: the remark reader now also reads the asking part beside a row holding the value only
+  as a group, so beside a card and a phone ending `4242` the messages `Forget the card 4242, my
+  phone as well.`, `Forget the card 4242, the phone one too.` and `Forget the card 4242. My phone
+  as well.` keep the phone, which the tree before deleted. The fix asked for here covers them too.

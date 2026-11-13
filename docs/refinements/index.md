@@ -83,7 +83,7 @@ never a reading of what the tree does now.
 - **[R-1184](tasks/1184-a-request-to-save-or-store-a-fact-in-english-keeps-the-forget-tool.md)** A request to save or store a fact in English keeps the forget tool (memory). Its claim was checked against the code on 2026-11-13.
 - **[R-1187](tasks/1187-a-second-forget-clause-with-an-unread-verb-is-read-as-a-remark.md)** A second forget clause with an unread verb is read as a remark (memory). Its claim was checked against the code on 2026-11-13.
 - **[R-1188](tasks/1188-the-old-value-note-names-a-row-of-a-shorter-fact.md)** The old value note names a row of a shorter fact (memory). Its claim was checked against the code on 2026-11-13.
-- **[R-1192](tasks/1192-a-clause-naming-a-row-with-no-verb-after-a-forget-is-a-remark.md)** A clause naming a row with no verb after a forget is a remark (memory). Its claim was checked against the code on 2026-11-13.
+- **[R-1192](tasks/1192-a-clause-naming-a-row-with-no-verb-after-a-forget-is-a-remark.md)** A clause naming a row with no verb after a forget is a remark (memory). Its claim was checked against the code on 2026-11-14.
 - **[R-1193](tasks/1193-a-forget-in-words-no-reader-reads-is-refused-on-the-answer.md)** A forget in words no reader reads is refused on the answer (memory). Its claim was checked against the code on 2026-11-13.
 
 ### Actionable, once a port changes (1)
