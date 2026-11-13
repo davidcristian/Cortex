@@ -81,9 +81,9 @@ never a reading of what the tree does now.
 - **[R-1180](tasks/1180-a-false-claim-of-a-delete-in-the-last-reply-keeps-the-forget-tool-on-the-next-fact.md)** A false claim of a delete in the last reply keeps the forget tool on the next fact (memory). Its claim was checked against the code on 2026-11-13.
 - **[R-1183](tasks/1183-a-forget-of-every-value-except-one-kind-keeps-a-row-of-another-kind.md)** A forget of every value except one kind keeps a row of another kind (memory). Its claim was checked against the code on 2026-11-13.
 - **[R-1184](tasks/1184-a-request-to-save-or-store-a-fact-in-english-keeps-the-forget-tool.md)** A request to save or store a fact in English keeps the forget tool (memory). Its claim was checked against the code on 2026-11-13.
-- **[R-1185](tasks/1185-a-card-word-where-a-forget-asks-lists-a-row-a-remark-alone-names.md)** A card word where a forget asks lists a row a remark alone names (memory). Its claim was checked against the code on 2026-11-13.
 - **[R-1187](tasks/1187-a-second-forget-clause-with-an-unread-verb-is-read-as-a-remark.md)** A second forget clause with an unread verb is read as a remark (memory). Its claim was checked against the code on 2026-11-13.
 - **[R-1188](tasks/1188-the-old-value-note-names-a-row-of-a-shorter-fact.md)** The old value note names a row of a shorter fact (memory). Its claim was checked against the code on 2026-11-13.
+- **[R-1189](tasks/1189-a-remark-beside-no-whole-row-lists-the-row-it-names.md)** A remark beside no whole row lists the row it names (memory). Its claim was checked against the code on 2026-11-13.
 
 ### Actionable, once a port changes (1)
 
@@ -639,9 +639,9 @@ never a reading of what the tree does now.
 - [R-1180](tasks/1180-a-false-claim-of-a-delete-in-the-last-reply-keeps-the-forget-tool-on-the-next-fact.md) A false claim of a delete in the last reply keeps the forget tool on the next fact. open, actionable.
 - [R-1183](tasks/1183-a-forget-of-every-value-except-one-kind-keeps-a-row-of-another-kind.md) A forget of every value except one kind keeps a row of another kind. open, actionable.
 - [R-1184](tasks/1184-a-request-to-save-or-store-a-fact-in-english-keeps-the-forget-tool.md) A request to save or store a fact in English keeps the forget tool. open, actionable.
-- [R-1185](tasks/1185-a-card-word-where-a-forget-asks-lists-a-row-a-remark-alone-names.md) A card word where a forget asks lists a row a remark alone names. open, actionable.
 - [R-1187](tasks/1187-a-second-forget-clause-with-an-unread-verb-is-read-as-a-remark.md) A second forget clause with an unread verb is read as a remark. open, actionable.
 - [R-1188](tasks/1188-the-old-value-note-names-a-row-of-a-shorter-fact.md) The old value note names a row of a shorter fact. open, actionable.
+- [R-1189](tasks/1189-a-remark-beside-no-whole-row-lists-the-row-it-names.md) A remark beside no whole row lists the row it names. open, actionable.
 
 ### orchestrator
 

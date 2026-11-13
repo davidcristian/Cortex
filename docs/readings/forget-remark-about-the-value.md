@@ -33,9 +33,11 @@ row they name. `Forget 4242 that I texted from my phone.` names no row holding `
 lists the phone row as before. The tests are `test_forget_side_clause.py`.
 
 A clause list without `and` reads as remarks: `Forget the locker code 4242, the card one.` keeps
-the card and shows it in the note. When the part names a card, `_KIND` still lists a row the remark
-alone names, as in `Forget the locker code 4242 and the card, I texted both from my phone.`
-([task 1185](../refinements/tasks/1185-a-card-word-where-a-forget-asks-lists-a-row-a-remark-alone-names.md)).
+the card and shows it in the note. When the part names a card, an account or an IBAN (`_KIND`),
+the kind word lists every row holding the value as a group, except a row that a word of the
+message outside the part names and the part does not (`_grouped`). So `Forget the locker code
+4242 and the card, I texted both from my phone.` lists the locker and card rows and keeps the phone
+row, shown in the note, while `Forget my card 4242.` beside the phone row still lists the card.
 
 ## Replay through HEAD and the change
 
@@ -62,6 +64,30 @@ The audit's probe (`probe.py`, `cases1.json` to `cases4.json`) changed 9 of its 
 deleting only the row the case wants, and none lists more. The scripts `replay.py`, `strings.py`
 and the logs `old.jsonl`, `new.jsonl`, `diff.txt` and `probe_*.txt` are in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/b21ab427-7e2c-4723-9504-d59e434516ce/scratchpad/slot11/`.
+
+## A kind word beside a remark: replay through HEAD and the change
+
+Taken 2026-11-13 at HEAD `f27d46da5` and the working tree, over 1,544 distinct strings holding a
+forget verb (the sources above, the test strings of the tree, the proxy log to line 992 and five
+forms of the kind word message) and the row sets above.
+
+| Cases | Changed | Lists more rows | Lists fewer rows | Lists another row |
+| --- | --- | --- | --- | --- |
+| 342,466 | 24 from 3 strings | 0 | 24 | 0 |
+
+Each change keeps the mobile phone or the French phone ending `4242`, beside the locker code alone
+or with the card, for `Forget the locker code 4242 and the card, I texted both from my phone.`,
+`Forget the card and the locker code 4242, I read both on my phone.` and
+`Forget the locker code 4242 and my card, the ones I sent from my phone.`. No case outside that
+form changes, the neighbouring flows above among them, so no draw was taken.
+`Forget the card 4242, the one I read from my phone.` and
+`Forget 4242 and my card, I sent the code from my phone.` still list the phone row, since their
+asking part names no row holding `4242` whole and `inside` reads the whole message
+([task 1189](../refinements/tasks/1189-a-remark-beside-no-whole-row-lists-the-row-it-names.md)).
+The scripts `replay2.sh` and `strings.json` and the logs `old2.jsonl`, `new2.jsonl` and
+`diff2.txt` are in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/b21ab427-7e2c-4723-9504-d59e434516ce/scratchpad/slot13/`,
+with `replay.py` in `slot11/` beside it.
 
 ## Neighbouring flows on the live stack: rows and the rule
 

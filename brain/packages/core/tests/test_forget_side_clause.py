@@ -23,6 +23,7 @@ _ROWS = {
     "gym": "User: Remember that my gym code is 4242.\nAssistant: Noted.",
     "phone": "User: Remember that my phone is 0721 555 4242.\nAssistant: Noted.",
     "card": "User: Remember that my card is 4111 1111 1111 4242.\nAssistant: Noted.",
+    "visa": "User: Remember that my Visa card is 4111 1111 1111 4242.\nAssistant: Noted.",
 }
 
 
@@ -66,6 +67,41 @@ async def test_a_row_named_only_in_a_remark_about_the_value_is_kept_and_shown(
     assert card is not None
     assert card.split(INSIDE_LINE)[1].count("4242") == 1
     assert "1 other remembered exchanges contain that text only inside a longer value" in result
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Forget the locker code 4242 and the card, I texted both from my phone.",
+        "Forget the card and the locker code 4242, I read both on my phone.",
+        "Forget the locker code 4242 and my card, the ones I sent from my phone.",
+    ],
+)
+async def test_a_row_only_a_remark_names_is_kept_beside_a_card_word_that_asks(query: str) -> None:
+    card, result, left = await _forget(query, "locker", "card", "phone")
+    assert left == ["phone"]
+    assert card is not None
+    assert "0721 555 4242" in card.split(INSIDE_LINE)[1]
+    assert "1111 4242" not in card.split(INSIDE_LINE)[1]
+    assert "1 other remembered exchanges contain that text only inside a longer value" in result
+
+
+@pytest.mark.parametrize(
+    ("query", "ids", "left"),
+    [
+        ("Forget my card 4242.", ("card", "phone"), ["phone"]),
+        ("Forget my card ending 4242.", ("card", "phone", "locker"), ["locker", "phone"]),
+        ("Forget the card 4242 and my phone.", ("card", "phone"), []),
+        ("Forget the locker code 4242 and the card, the Visa one.", ("locker", "visa"), []),
+    ],
+)
+async def test_a_card_word_where_the_message_asks_still_lists_the_card(
+    query: str, ids: tuple[str, ...], left: list[str]
+) -> None:
+    card, _, rows = await _forget(query, *ids)
+    assert card is not None
+    assert "4111 1111 1111 4242" in card.split(INSIDE_LINE)[0]
+    assert rows == left
 
 
 @pytest.mark.parametrize(

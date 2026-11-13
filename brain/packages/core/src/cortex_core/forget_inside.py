@@ -90,10 +90,12 @@ def _part(record: str, place: tuple[int, int], query: str, *, ends: bool) -> boo
 
 
 def _grouped(record: str, text: str, query: str, read: str, *, ends: bool) -> bool:
-    """Whether ``record`` holds ``text`` only in longer values of a kind ``read``, the part of
-    ``query`` naming rows, does not name, as a last group too when ``ends``."""
-    places = _places(record, text)
-    return _KIND.search(read) is None and all(_part(record, at, query, ends=ends) for at in places)
+    """Whether ``record`` holds ``text`` only in longer values ``query`` lacks, as a last group too
+    when ``ends``; a kind word of ``read`` lists it unless only words outside ``read`` name it."""
+    row, asked = row_words(record), row_words(read)
+    remarked = names(row_words(query), row) and not names(asked, row)
+    kind = _KIND.search(read) is not None and not remarked
+    return not kind and all(_part(record, at, query, ends=ends) for at in _places(record, text))
 
 
 def _read(texts: Sequence[str], text: str, query: str) -> str:
