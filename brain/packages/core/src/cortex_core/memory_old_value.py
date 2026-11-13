@@ -66,6 +66,8 @@ _SEPARATOR = re.compile(r"[ ./-]+")
 _STATED = re.compile(rf"\W*{FACT_VALUE}", re.IGNORECASE)
 _STORED = re.compile(FACT_VALUE, re.IGNORECASE | re.MULTILINE)
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
+# The words a statement can add before a stored fact's words to say it gives the fact a new value.
+_CHANGE_WORDS = frozenset(("new", "current", "actual"))
 _FR = r"(?:mis\s+[àa]\s+jour|modifi[ée]e?s?|corrig[ée]e?s?|remplac[ée]e?s?|chang[ée]e?s?)"
 _DE = r"(?:aktualisiert|ge[äa]ndert|korrigiert|ersetzt)"
 _ES = r"(?:actualizad|cambiad|corregid|reemplazad|sustituid)[oa]s?"
@@ -116,8 +118,9 @@ def _digit(text: str) -> bool:
 
 
 async def _replaced(memory: MemoryRecaller, query: str, session_id: str) -> str:
-    """The value with a digit a stored row states for a fact ``query`` alone states with no
-    negation, the same possessive and another value with a digit, naming each of its fact words."""
+    """The value with a digit a stored row states for the fact ``query`` alone states with no
+    negation, the same possessive and another value with a digit, in the row's fact words and
+    words of change only."""
     stated = _STATED.fullmatch(query.strip())
     if stated is None or not NOT.isdisjoint(re.findall(r"\w+", query.lower())):
         return ""
@@ -129,7 +132,8 @@ async def _replaced(memory: MemoryRecaller, query: str, session_id: str) -> str:
         for row in found:
             for match in _STORED.finditer(row.text.split("\nAssistant: ", 1)[0]):
                 old = match.group("value").rstrip(".!")
-                named = set(match.group("fact").lower().split()) <= set(words)
+                fact = set(match.group("fact").lower().split())
+                named = fact <= set(words) and set(words) - fact <= _CHANGE_WORDS
                 same = match.group("owner").lower() == owner and _digit(old)
                 if named and same and not holds(query, old) and new not in joined(old):
                     return old

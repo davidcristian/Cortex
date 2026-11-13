@@ -1,9 +1,8 @@
 # The old value note names a row of a shorter fact
 
-**Status:** open, actionable
+**Status:** done 2026-11-14
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-13
 
 `_replaced` (`memory_old_value.py`) takes a row whose fact words are all among the statement's
 own, so `My new number is 0721 555 019.` names the row `my number is 0721 555 018`
@@ -34,3 +33,10 @@ password is 5528.` beside `my wifi password is 1234`).
 
 - 2026-11-13: filed by the second audit of the night, which made the reader compare the possessive
   and require a digit in both values.
+- 2026-11-14: done. `_replaced` takes a row only when the message's fact words are the row's plus
+  at most `new`, `current` or `actual` (`now` after the fact words reaches no row through the
+  search), and `FACT_VALUE` reads only `is` and `are`, so a past value on either side names
+  nothing. A replay of 188,929 strings named no new row and lost 903 notes; 39 of them are the
+  cost, `My phone number` beside `my number`. A value with no digit and another possessive still
+  name nothing, since `My sister is Maria.` beside `my sister is Ana` names a second sister
+  ([readings](../../readings/forget-refused-statement-old-row.md#equal-fact-words-and-the-present-tense-2026-11-14)).

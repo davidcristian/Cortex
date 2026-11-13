@@ -47,7 +47,9 @@ async def _held(query: str, *rows: str, deleted: int = 0, reply: str = "Got it."
         ("My birthday is actually 12 May.", "User: Remember that my birthday is 3 June.", "3 June"),
         ("My new number is 0721 555 019.", _NUMBER, "0721 555 018"),
         ("My current number is 0721 555 019.", _NUMBER, "0721 555 018"),
-        ("My phone number was 0721 555 019.", _PHONE, "0721 555 018"),
+        ("My actual number is 0721 555 019.", _NUMBER, "0721 555 018"),
+        ("My new phone number is 0721 555 019.", _PHONE, "0721 555 018"),
+        ("My new number is 0721 555 019.", "User: My new number is 0721 555 018.", "0721 555 018"),
         ("My bike lock code is 4862.", "User: Remember that my bike lock code is 4826.", "4826"),
         (
             "Her phone is 0721 555 019.",
@@ -87,12 +89,36 @@ async def test_a_statement_of_a_stored_fact_with_another_value_names_the_old_val
         ("My kids are 5 and 7.", ("User: Remember that my kids are Ana and Ion.",), 0),
         ("Her phone is 0721 555 019.", ("User: Remember that my phone is 0744 111 222.",), 0),
         ("My phone is 0721 555 019.", ("User: Remember that his phone is 0744 111 222.",), 0),
+        ("My number is 0721 555 019.", ("User: My new number is 0721 555 018.",), 0),
     ],
 )
 async def test_a_statement_naming_no_other_value_of_its_fact_names_none(
     query: str, rows: tuple[str, ...], deleted: int
 ) -> None:
     assert await _held(query, *rows, deleted=deleted) == ""
+
+
+_MY_PHONE = "User: Remember that my phone is 0744 111 222."
+_MY_NUMBER = "User: Remember that my phone number is 0721 555 019."
+
+
+@pytest.mark.parametrize(
+    ("query", "row"),
+    [
+        ("My work phone is 0721 555 019.", _MY_PHONE),
+        ("My sister's phone is 0721 555 019.", _MY_PHONE),
+        ("My phone at work is 0721 555 019.", _MY_PHONE),
+        ("My gym code is 4242.", "User: Remember that my code is 1234."),
+        ("My old phone number is 0744 111 222.", _MY_NUMBER),
+        ("My old phone number was 0744 111 222.", _MY_NUMBER),
+        ("My phone number was 0744 111 222.", _MY_NUMBER),
+        ("My previous address was 12 Elm Street.", "User: Remember that my address is 3 Oak Road."),
+        ("My old locker code was 1234.", "User: Remember that my locker code is 5528."),
+        ("My phone number is 0744 111 222.", "User: My phone number was 0721 555 019."),
+    ],
+)
+async def test_a_statement_of_another_or_a_past_fact_names_no_row(query: str, row: str) -> None:
+    assert await _held(query, row) == ""
 
 
 async def test_an_unreadable_store_names_no_replaced_value() -> None:
