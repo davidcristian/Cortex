@@ -10,7 +10,7 @@ from cortex_core import (
     MemoryRecord,
     ToolCall,
 )
-from cortex_core.forget_clauses import asking
+from cortex_core.forget_clauses import asking, parts
 from cortex_core.forget_inside import INSIDE_LINE
 from cortex_core.tools import TurnStamp
 
@@ -28,6 +28,8 @@ _ROWS = {
     "telephone": "User: Retiens que mon téléphone est 0721 555 4242.\nAssistant: Noté.",
     "karte": "User: Merke dir, meine Karte ist 4111 1111 1111 4242.\nAssistant: Notiert.",
     "handy": "User: Merke dir, mein Handy ist 0721 555 4242.\nAssistant: Notiert.",
+    "cardul": "User: Ține minte că cardul meu este 4111 1111 1111 4242.\nAssistant: Notat.",
+    "telefonul": "User: Ține minte că telefonul meu este 0721 555 4242.\nAssistant: Notat.",
 }
 
 
@@ -281,3 +283,82 @@ async def test_a_remark_or_keep_clause_naming_a_row_beside_a_forget_keeps_the_ro
 )
 def test_asking_reads_a_clause_adding_a_named_row(query: str, named: set[str], asked: str) -> None:
     assert asking(query, "4242", frozenset(named)) == asked
+
+
+@pytest.mark.parametrize(
+    ("query", "ids", "left"),
+    [
+        ("Vergiss die Karte 4242, mein Handy bleibt.", ("karte", "handy"), ["handy"]),
+        ("Vergiss die Karte 4242, das Handy bleibt.", ("karte", "handy"), ["handy"]),
+        ("Vergiss die Karte 4242, das Handy behalte ich.", ("karte", "handy"), ["handy"]),
+        ("Vergiss die Karte 4242 aber mein Handy bleibt.", ("karte", "handy"), ["handy"]),
+        ("Forget the card 4242, my phone I keep.", ("card", "phone"), ["phone"]),
+        ("Forget the card 4242 but my phone I keep.", ("card", "phone"), ["phone"]),
+        (
+            "Forget the card 4242, the locker and my phone I keep.",
+            ("locker", "card", "phone"),
+            ["phone"],
+        ),
+        ("Oublie la carte 4242, mon téléphone je le garde.", ("carte", "telephone"), ["telephone"]),
+        ("Uită cardul 4242, telefonul îl păstrez.", ("cardul", "telefonul"), ["telefonul"]),
+        ("Uită cardul 4242 dar telefonul îl păstrez.", ("cardul", "telefonul"), ["telefonul"]),
+    ],
+)
+async def test_a_row_named_before_its_keep_verb_is_kept(
+    query: str, ids: tuple[str, ...], left: list[str]
+) -> None:
+    card, _, rows = await _forget(query, *ids)
+    assert card is not None
+    assert rows == left
+    listed = card.split("\nKept", 1)[0]
+    assert all((_ROWS[name].split("\n")[0][6:] in listed) != (name in left) for name in ids)
+
+
+@pytest.mark.parametrize(
+    ("query", "ids", "left"),
+    [
+        ("Vergiss die Karte 4242, mein Handy vergiss auch.", ("karte", "handy"), []),
+        ("Forget the card 4242, my phone forget too.", ("card", "phone"), []),
+        ("Forget the card 4242 and keep my phone.", ("card", "phone"), ["phone"]),
+        ("Forget 4242, the card and keep my phone.", ("card", "phone"), ["phone"]),
+        ("Vergiss die Karte 4242 und behalte mein Handy.", ("karte", "handy"), ["handy"]),
+        ("Uită cardul 4242 și păstrează telefonul.", ("cardul", "telefonul"), ["telefonul"]),
+        ("Oublie la carte 4242 mais garde mon téléphone.", ("carte", "telephone"), ["telephone"]),
+    ],
+)
+async def test_a_row_named_after_its_forget_verb_is_still_listed_beside_a_keep_verb(
+    query: str, ids: tuple[str, ...], left: list[str]
+) -> None:
+    _, _, rows = await _forget(query, *ids)
+    assert rows == left
+
+
+@pytest.mark.parametrize(
+    ("query", "ids"),
+    [
+        ("Vergiss die Karte 4242 mein Handy bleibt.", ("karte", "handy")),
+        ("Forget the card 4242 my phone I keep.", ("card", "phone")),
+    ],
+)
+async def test_a_keep_verb_after_a_forget_verb_with_no_joining_word_keeps_both_rows(
+    query: str, ids: tuple[str, str]
+) -> None:
+    card, result, rows = await _forget(query, *ids)
+    assert card is None
+    assert rows == sorted(ids)
+    assert result.startswith("nothing was forgotten")
+
+
+@pytest.mark.parametrize(
+    ("query", "forget", "keep"),
+    [
+        ("Forget the card 4242 my phone I keep.", "forget", "the card 4242 my phone i keep"),
+        ("Vergiss die Karte, mein Handy bleibt.", "vergiss die karte", "mein handy bleibt"),
+        ("Forget the card and keep the phone.", "forget the card", "and keep the phone"),
+        ("Keep the phone and forget the card.", "forget the card", "keep the phone and"),
+    ],
+)
+def test_parts_reads_a_keep_verb_back_to_a_forget_verb_or_a_joining_word(
+    query: str, forget: str, keep: str
+) -> None:
+    assert tuple(" ".join(tokens) for tokens in parts(query)) == (forget, keep)

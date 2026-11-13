@@ -218,4 +218,33 @@ other 9 are readings sentences quoting a French or German forget beside English 
 Script `replay.py` and log `replay.log` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot4/`.
 
+## A keep verb after the words it keeps, 2026-11-14
+
+A clause read from its keep verb onward left the words before the verb to forget, so beside a
+card and a phone ending `4242`, `Vergiss die Karte 4242, mein Handy bleibt.`, `das Handy behalte
+ich.` and `Forget the card 4242, my phone I keep.` listed and deleted the phone. A keep verb
+can follow the words naming what it keeps: `bleibt` follows its subject, and `mon téléphone je le
+garde` and `telefonul îl păstrez` put the object first. A keep verb now also keeps the words before it
+in its clause, back to a forget verb or a joining word (`and`, `or`, `but`, `yet`, `et`, `ou`,
+`mais`, `und`, `oder`, `aber`, `y`, `o`, `pero`, `și`, `sau`, `dar`), so `Vergiss die Karte 4242
+aber mein Handy bleibt.` keeps the phone and deletes the card, and `Forget the card 4242, the
+locker and my phone I keep.` deletes the locker code. The keep words are unchanged. In a clause
+holding a forget verb and no joining word the keep verb takes every word after the forget verb, so
+`Vergiss die Karte 4242 mein Handy bleibt.` keeps both rows: a misread keeps a row. `Vergiss die
+Karte 4242, mein Handy vergiss auch.` still deletes the phone (`test_forget_side_clause.py`).
+
+Replay: 5,206 distinct test, readings, task and recorded strings, over 27 sets of fourteen stored
+card, phone and code exchanges in four languages, went through the card before and after (140,562
+cases). No row is newly deleted. 204 rows are newly kept, from 16 strings: the phone of 14 strings
+with a keep verb after the phone's words, such as those above, the card too beside the two of them
+with no joining word, and the card of the reply text `... only your card number (4111 1111 1111
+4242) is kept in my memory ...`, which says to keep it, and of its quote here. Script
+`replay.py`, logs `replay2-old.jsonl`, `replay2-new.jsonl` and `compare2.log` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/11450320-079c-401d-9f26-43a763a369b6/scratchpad/slot4/`.
+
+Draws on a brain of the fix (cortex tier, `draw.log` in the folder above): in two draws each of the
+German and English forms above the model called with the whole card number or made no call, so the
+phone stayed and the fix was not reached. `Forget what I just told you`, `Forget 4242.` and `my
+phone as well` beside a forget listed what they listed before.
+
 A word for except, and `but` after a word for all, are in [forget-keep-except.md](forget-keep-except.md).

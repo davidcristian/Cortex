@@ -24,6 +24,8 @@ _LEAD = frozenset(
     {"but", "and", "yet", "do", "don", "is", "isn", "s", "aber", "und", "mais", "et", "pero", "dar"}
 )
 _NAMING = frozenset({"the", "a", "an", "my", "your", "our", "his", "her", "their", "its"})
+_AND = frozenset({"and", "or", "et", "ou", "und", "oder", "y", "o", "și", "şi", "sau"})
+_JOIN = _AND | {"but", "yet", "aber", "mais", "pero", "dar"}
 FORGET = re.compile(
     r"forg[eo]t\w*|delet\w*|remov\w*|eras\w*|oubli\w*|effac\w*|vergiss\w*|vergess\w*"
     r"|l[oö]sch\w*|olvid\w*|borr[ae]\w*|uit\w*|[șş]terg\w*"
@@ -54,24 +56,36 @@ def _opens_keep(clause: list[str], at: int) -> bool:
     return at + 1 == len(clause) or not KEEP.fullmatch(clause[at + 1])
 
 
+def _keeping(clause: list[str]) -> list[bool]:
+    """Whether each token of ``clause`` is inside a clause asking to keep. A keep verb also keeps
+    the words before it back to a forget verb or a joining word, as in ``mein Handy bleibt``."""
+    flags: list[bool] = []
+    start = 0
+    for at, token in enumerate(clause):
+        if FORGET.fullmatch(token) and NOT.isdisjoint(clause[max(0, at - 2) : at]):
+            start = at + 1
+            flags.append(False)
+            continue
+        start = at if token in _JOIN else start
+        opens = not (flags and flags[-1]) and _opens_keep(clause, at)
+        if opens and KEEP.fullmatch(token):
+            flags[start:] = [True] * (at - start)
+        flags.append(opens or bool(flags and flags[-1]))
+    return flags
+
+
 def parts(query: str) -> tuple[list[str], list[str]]:
     """The tokens of ``query`` outside a clause asking to keep, and those inside one."""
     forget: list[str] = []
     keep: list[str] = []
     for clause in clauses(query):
-        keeping = False
-        for at, token in enumerate(clause):
-            if FORGET.fullmatch(token) and NOT.isdisjoint(clause[max(0, at - 2) : at]):
-                keeping = False
-            elif not keeping:
-                keeping = _opens_keep(clause, at)
+        for token, keeping in zip(clause, _keeping(clause), strict=True):
             (keep if keeping else forget).append(token)
     return forget, keep
 
 
 # A relative word after the value opens a remark about it, as in "4242 that I texted".
 _RELATIVE = frozenset({"that", "which", "where", "que", "qu", "qui", "dont", "où", "donde", "care"})
-_AND = frozenset({"and", "or", "et", "ou", "und", "oder", "y", "o", "și", "şi", "sau"})
 
 
 # A word adding a row to a forget, as in "also my phone" or "my phone as well".
