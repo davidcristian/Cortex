@@ -5,6 +5,7 @@ from collections.abc import AsyncGenerator, AsyncIterator, Mapping, Sequence
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch_round import LoopRecord, ToolLoopContext, run_round
 from cortex_core.errors import InferenceError
+from cortex_core.forget_open import Exchange
 from cortex_core.forget_unrequested import forget_unrequested
 from cortex_core.inference import (
     DecodeCadence,
@@ -14,6 +15,7 @@ from cortex_core.inference import (
     TextChunk,
 )
 from cortex_core.loop_events import ReasoningDelta, StepOutcome, ToolStep
+from cortex_core.memory_forget import FORGET_UNTRUSTED_TOOL_NAME
 from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
 from cortex_core.ports import InferenceBackend
 from cortex_core.progress import hold_wait
@@ -27,6 +29,8 @@ from cortex_core.tools import ToolCall, ToolSpec
 from cortex_core.unasked_tools import unasked_forget, unasked_sidecar_tools, unasked_tools
 
 __all__ = ["MAX_TOOL_STEPS", "ToolLoopContext", "stream_tool_loop"]
+
+_FORGET_TOOLS = frozenset({FORGET_CHOSEN_TOOL_NAME, FORGET_UNTRUSTED_TOOL_NAME})
 
 
 def _reply_text(
@@ -90,17 +94,23 @@ def _last_reply(working: Sequence[Message], turn_id: str) -> str:
     return next((m.text for m in _earlier(working, turn_id) if m.role is Role.ASSISTANT), "")
 
 
-def _earlier_asks(working: Sequence[Message], turn_id: str) -> tuple[str, str]:
-    """The person's last two messages before the last assistant message before the turn
-    ``turn_id``, latest first, or empty."""
-    asks: list[str] = []
-    replied = False
+def _exchange(turn: Sequence[Message]) -> Exchange | None:
+    """One earlier turn's messages, oldest first, as an exchange, or ``None`` with no reply."""
+    replies = [message for message in turn if message.role is Role.ASSISTANT]
+    if not replies:
+        return None
+    ask = next((m.text for m in turn if m.role is Role.USER), "")
+    forgot = any(run.name in _FORGET_TOOLS for reply in replies for run in reply.runs)
+    return Exchange(ask, model_text(replies[-1].text), forgot=forgot)
+
+
+def _earlier_exchanges(working: Sequence[Message], turn_id: str) -> tuple[Exchange, ...]:
+    """The last two exchanges before the turn ``turn_id`` that stored a reply, latest first."""
+    turns: dict[str, list[Message]] = {}
     for message in _earlier(working, turn_id):
-        replied = replied or message.role is Role.ASSISTANT
-        if replied and message.role is Role.USER:
-            asks.append(message.text)
-    earlier, before, *_older = [*asks, "", ""]
-    return earlier, before
+        turns.setdefault(message.turn_id, []).insert(0, message)
+    exchanges = (_exchange(turn) for turn in turns.values())
+    return tuple(exchange for exchange in exchanges if exchange is not None)[:2]
 
 
 async def _turn_tools(
@@ -118,10 +128,8 @@ async def _turn_tools(
     offered = tuple(spec for spec in specs if spec.name not in withheld)
     last_reply = _last_reply(working, context.turn_id)
     forget = unasked_forget(context.query, last_reply)
-    # The brain's own notes name forgetting in every language, so they would keep the tool.
-    written = model_text(last_reply)
-    asks = _earlier_asks(working, context.turn_id)
-    unrequested = forget_unrequested(context.query, written, *asks) - forget
+    earlier = _earlier_exchanges(working, context.turn_id)
+    unrequested = forget_unrequested(context.query, earlier) - forget
     refused = left_out | unasked_sidecar_tools(context.query, specs) | forget | unrequested
     return offered, {s.name: s for s in specs}, refused, unrequested
 

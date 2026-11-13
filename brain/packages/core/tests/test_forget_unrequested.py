@@ -1,6 +1,7 @@
 import pytest
 
 from cortex_core import FORGET_CHOSEN_TOOL_NAME
+from cortex_core.forget_open import Exchange
 from cortex_core.forget_unrequested import forget_unrequested
 
 _REFUSED = frozenset({FORGET_CHOSEN_TOOL_NAME})
@@ -24,7 +25,7 @@ _REFUSED = frozenset({FORGET_CHOSEN_TOOL_NAME})
     ],
 )
 def test_a_near_miss_keeps_the_forget_tool(query: str, last_reply: str) -> None:
-    assert forget_unrequested(query, last_reply) == frozenset()
+    assert forget_unrequested(query, [Exchange("", last_reply)]) == frozenset()
 
 
 @pytest.mark.parametrize(
@@ -101,50 +102,99 @@ def test_an_english_statement_of_a_fact_refuses_the_forget_tool(query: str) -> N
 
 
 _WHICH_PHONE = "Which one, the mobile or the landline?"
+_ANYTHING = "Got it. Anything else I can help with?"
 
 
 @pytest.mark.parametrize(
-    ("query", "last_reply", "earlier", "before"),
+    ("query", "earlier"),
     [
-        ("My locker code is 4242.", "Which code is it?", "Cancel the code I gave you.", ""),
-        ("My alarm code is 5528.", "Which code is it?", "The alarm one.", "Cancel my code."),
-        ("My mobile is 0721 555 019.", _WHICH_PHONE, "The mobile one.", "Delete my phone."),
-        ("My PIN is 4412.", "Which one is it?", "The bank one.", "Plese forgt my PIN."),
-        ("My PIN is 4412.", "Which one is it?", "Die für die Bank.", ""),
+        (
+            "My locker code is 4242.",
+            [Exchange("Cancel the code I gave you.", "Which code is it?", forgot=True)],
+        ),
+        (
+            "My locker code is 4242.",
+            [Exchange("Cancel the code I gave you.", "Which code should I forget?")],
+        ),
+        (
+            "My alarm code is 5528.",
+            [
+                Exchange("The alarm one.", "Which is it?"),
+                Exchange("Cancel my code.", "Which code should I delete?"),
+            ],
+        ),
+        (
+            "My mobile is 0721 555 019.",
+            [Exchange("The mobile one.", _WHICH_PHONE), Exchange("Forget my phone.", "Which one?")],
+        ),
+        (
+            "My PIN is 4412.",
+            [Exchange("Die für die Bank.", "Welche?"), Exchange("Vergiss meine PIN.", "Welche?")],
+        ),
+        (
+            "Remember that my PIN is 4412.",
+            [Exchange("Delete my PIN from your memory.", "Which one?")],
+        ),
+        ("What is my bike lock code?", [Exchange("The bike.", "Done.", forgot=True)]),
     ],
 )
-def test_an_english_statement_while_a_forget_is_open_keeps_the_forget_tool(
-    query: str, last_reply: str, earlier: str, before: str
+def test_a_message_after_an_exchange_that_opened_a_forget_keeps_the_forget_tool(
+    query: str, earlier: list[Exchange]
 ) -> None:
-    assert forget_unrequested(query, last_reply, earlier, before) == frozenset()
+    assert forget_unrequested(query, earlier) == frozenset()
 
 
 @pytest.mark.parametrize(
-    ("query", "last_reply", "earlier", "before"),
+    "ask",
     [
-        ("My alarm code is 5528.", "Got it. How was your day?", "", ""),
+        "Don't forget my dentist on Friday.",
+        "I forgot my keys.",
+        "Remember to buy milk.",
+        "I'm not sure yet.",
+        "No, that's fine.",
+        "I used to live in Berlin.",
+        "I'm at the café.",
+        "Can you update my calendar?",
+        "What did I tell you earlier?",
+        "Plese forgt my PIN.",
+        "Look at this.",
+    ],
+)
+@pytest.mark.parametrize(
+    "query", ["My alarm code is 5528.", "Remember that my alarm code is 5528."]
+)
+def test_a_message_after_exchanges_that_opened_no_forget_refuses_the_forget_tool(
+    query: str, ask: str
+) -> None:
+    earlier = [Exchange(ask, _ANYTHING), Exchange("Hello.", "Hi! How can I help?")]
+    assert forget_unrequested(query, earlier) == _REFUSED
+
+
+@pytest.mark.parametrize(
+    ("query", "earlier"),
+    [
+        ("My alarm code is 5528.", [Exchange("", "Got it. How was your day?")]),
         (
             "My locker code at the pool is 7319.",
-            "I'm doing well, thank you for asking! How can I help you today?",
-            "Hi! How are you today?",
-            "",
+            [
+                Exchange(
+                    "Hi! How are you today?",
+                    "I'm doing well, thank you for asking! How can I help you today?",
+                )
+            ],
         ),
-        ("My phone is 0721 555 019.", "Got it. Anything else?", "Thanks.", "Hello."),
-        ("My mobile is 0721 555 019.", _WHICH_PHONE, "The mobile one.", ""),
-        ("My locker code is 4242.", "Noted. I'll keep that in mind.", "", ""),
+        ("My mobile is 0721 555 019.", [Exchange("The mobile one.", _WHICH_PHONE)]),
+        ("My locker code is 4242.", [Exchange("Cancel the code I gave you.", "Which code is it?")]),
+        (
+            "My work phone is 0744 111 222.",
+            [Exchange("Get my phone number out of there.", "Which one, work or personal?")],
+        ),
     ],
 )
-def test_an_english_statement_with_no_forget_open_refuses_whatever_the_reply_asks(
-    query: str, last_reply: str, earlier: str, before: str
+def test_a_statement_after_exchanges_that_did_nothing_about_forgetting_refuses_the_tool(
+    query: str, earlier: list[Exchange]
 ) -> None:
-    assert forget_unrequested(query, last_reply, earlier, before) == _REFUSED
-
-
-@pytest.mark.parametrize(
-    "query", ["Remember that my phone is 0721 555 019.", "What is my bike lock code?"]
-)
-def test_a_request_or_a_question_two_exchanges_after_a_forget_still_refuses(query: str) -> None:
-    assert forget_unrequested(query, "Which code is it?", "The bike.", "Cancel it.") == _REFUSED
+    assert forget_unrequested(query, earlier) == _REFUSED
 
 
 @pytest.mark.parametrize(
@@ -161,7 +211,7 @@ def test_a_request_or_a_question_two_exchanges_after_a_forget_still_refuses(quer
 def test_an_english_statement_naming_a_retracting_word_keeps_the_forget_tool(
     query: str, last_reply: str
 ) -> None:
-    assert forget_unrequested(query, last_reply) == frozenset()
+    assert forget_unrequested(query, [Exchange("", last_reply)]) == frozenset()
 
 
 @pytest.mark.parametrize(
@@ -490,11 +540,12 @@ def test_a_request_to_remember_that_names_forgetting_or_a_negation_keeps_the_for
 def test_a_message_after_a_reply_that_names_forgetting_keeps_the_forget_tool(
     last_reply: str,
 ) -> None:
-    assert forget_unrequested("What about my address?", last_reply) == frozenset()
+    assert forget_unrequested("What about my address?", [Exchange("", last_reply)]) == frozenset()
 
 
 def test_a_message_after_a_reply_that_names_no_forgetting_refuses_the_forget_tool() -> None:
-    assert forget_unrequested("What about my address?", "Your code is 4862.") == _REFUSED
+    reply = [Exchange("", "Your code is 4862.")]
+    assert forget_unrequested("What about my address?", reply) == _REFUSED
 
 
 @pytest.mark.parametrize(
@@ -536,13 +587,14 @@ def test_a_word_two_letters_from_a_forget_word_refuses_the_forget_tool(query: st
 def test_a_message_after_a_reply_with_a_retracting_word_keeps_the_forget_tool(
     query: str, last_reply: str
 ) -> None:
-    assert forget_unrequested(query, last_reply) == frozenset()
+    assert forget_unrequested(query, [Exchange("", last_reply)]) == frozenset()
 
 
 def test_an_answer_to_a_question_about_an_earlier_forget_keeps_the_forget_tool() -> None:
     reply = "You have two numbers stored, 0712 and 0713. Which one do you mean?"
     query = "What about the first one?"
-    assert forget_unrequested(query, reply, "Forget my phone number.") == frozenset()
+    earlier = [Exchange("Forget my phone number.", reply)]
+    assert forget_unrequested(query, earlier) == frozenset()
 
 
 @pytest.mark.parametrize(
@@ -551,13 +603,15 @@ def test_an_answer_to_a_question_about_an_earlier_forget_keeps_the_forget_tool()
 def test_an_answer_after_a_romanian_forget_in_the_second_person_keeps_the_forget_tool(
     earlier: str,
 ) -> None:
-    assert forget_unrequested("Cel de la bicicleta.", "Care cod?", earlier) == frozenset()
+    exchanges = [Exchange(earlier, "Care cod?")]
+    assert forget_unrequested("Cel de la bicicleta.", exchanges) == frozenset()
 
 
 def test_an_answer_to_a_question_about_an_earlier_message_with_no_forget_refuses() -> None:
     reply = "You have two numbers stored, 0712 and 0713. Which one do you mean?"
     query = "What about the first one?"
-    assert forget_unrequested(query, reply, "What is my phone number?") == _REFUSED
+    earlier = [Exchange("What is my phone number?", reply)]
+    assert forget_unrequested(query, earlier) == _REFUSED
 
 
 @pytest.mark.parametrize(
@@ -581,9 +635,10 @@ def test_an_answer_to_a_question_about_an_earlier_message_with_no_forget_refuses
 def test_a_reply_with_a_negation_or_a_change_word_still_refuses_the_forget_tool(
     query: str, last_reply: str
 ) -> None:
-    assert forget_unrequested(query, last_reply) == _REFUSED
+    assert forget_unrequested(query, [Exchange("", last_reply)]) == _REFUSED
 
 
 @pytest.mark.parametrize("earlier", ["Remember to buy milk.", "I used to live in Bonn."])
 def test_an_earlier_message_with_no_forget_still_refuses_the_forget_tool(earlier: str) -> None:
-    assert forget_unrequested("What is my bike lock code?", "Noted.", earlier) == _REFUSED
+    exchanges = [Exchange(earlier, "Noted.")]
+    assert forget_unrequested("What is my bike lock code?", exchanges) == _REFUSED

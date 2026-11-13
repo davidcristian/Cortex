@@ -9,6 +9,7 @@ from cortex_core import (
     FORGET_CHOSEN_TOOL_NAME,
     GenerationBounds,
     HashEmbedder,
+    ImagePart,
     InferenceEvent,
     InMemoryMemoryStore,
     InMemorySessionStore,
@@ -141,9 +142,16 @@ class _Script:
 
 
 _ANSWER = "What about the first one?"
+_PICTURE = ImagePart(data=b"\x89PNG\r\n\x1a\n", mime_type="image/png", width=640, height=480)
 
 
-async def _chat(queries: Sequence[str], replies: Sequence[str]) -> list[str]:
+async def _chat(
+    queries: Sequence[str],
+    replies: Sequence[str],
+    *,
+    opening: Sequence[Sequence[InferenceEvent]] = (),
+    images: tuple[ImagePart, ...] = (),
+) -> list[str]:
     ran: list[str] = []
 
     async def forget(arguments: Mapping[str, object]) -> str:
@@ -155,12 +163,14 @@ async def _chat(queries: Sequence[str], replies: Sequence[str]) -> list[str]:
     registry = InMemoryToolRegistry({FORGET_CHOSEN_TOOL_NAME: (spec, forget)})
     tools = ToolDispatcher(registry, RecordingAuditSink(), TickingClock())
     asked = [[TextChunk(reply)] for reply in replies]
-    backend = _Script([*asked, [_CALL], [TextChunk("Done.")]])
+    backend = _Script([*opening, *asked, [_CALL], [TextChunk("Done.")]])
     engine = TurnEngine(
         InMemorySessionStore(), backend, TickingClock(), capabilities=TurnCapabilities(tools=tools)
     )
     for turn, query in enumerate(queries):
-        _events = [event async for event in engine.handle_turn("s", query, turn_id=f"t{turn}")]
+        attached = images if turn == 0 else ()
+        turn_events = engine.handle_turn("s", query, turn_id=f"t{turn}", images=attached)
+        _events = [event async for event in turn_events]
     return ran
 
 
@@ -176,10 +186,32 @@ async def test_an_answer_to_a_question_about_a_lookup_refuses_the_forget() -> No
     assert await _answer("What is my phone number?", _ANSWER) == []
 
 
-async def test_a_statement_two_exchanges_after_a_forget_runs_the_forget() -> None:
+async def test_a_statement_two_exchanges_after_a_reply_naming_a_forget_runs_the_forget() -> None:
     queries = ("Cancel the code I gave you.", "The alarm one.", "My alarm code is 5528.")
-    replies = ["Which code is it?", "Which alarm code is it?"]
+    replies = ["Which code should I forget?", "Which alarm code is it?"]
     assert await _chat(queries, replies) == [FORGET_CHOSEN_TOOL_NAME]
+
+
+async def test_a_statement_after_a_turn_that_ran_a_forget_runs_the_forget() -> None:
+    queries = ("Cancel the code I gave you.", "My locker code is 4242.")
+    ran = await _chat(queries, ["Which code is it?"], opening=[[_CALL]])
+    assert ran == [FORGET_CHOSEN_TOOL_NAME, FORGET_CHOSEN_TOOL_NAME]
+
+
+async def test_a_statement_after_a_forget_named_in_words_no_reader_names_refuses_the_forget() -> (
+    None
+):
+    queries = ("Cancel the code I gave you.", "My locker code is 4242.")
+    assert await _chat(queries, ["Which code is it?"]) == []
+
+
+@pytest.mark.parametrize("images", [(), (_PICTURE,)])
+async def test_a_statement_after_a_picture_refuses_the_forget_as_without_it(
+    images: tuple[ImagePart, ...],
+) -> None:
+    queries = ("Look at this.", "My alarm code is 5528.")
+    replies = ["Nice photo! How can I help with it?"]
+    assert await _chat(queries, replies, images=images) == []
 
 
 async def test_a_statement_after_a_courtesy_question_refuses_the_forget() -> None:
@@ -190,7 +222,11 @@ async def test_a_statement_after_a_courtesy_question_refuses_the_forget() -> Non
 
 async def test_a_statement_three_exchanges_after_a_forget_refuses_the_forget() -> None:
     queries = ("Cancel the code I gave you.", "Thanks.", "Hello again.", "My alarm code is 5528.")
-    replies = ["Which code is it?", "You're welcome. Anything else?", "Hi! How can I help you?"]
+    replies = [
+        "Which code should I forget?",
+        "You're welcome. Anything else?",
+        "Hi! How can I help?",
+    ]
     assert await _chat(queries, replies) == []
 
 
@@ -237,7 +273,7 @@ async def _handoff(exchanges: Sequence[tuple[str, str]], query: str) -> list[str
 
 @pytest.mark.parametrize(
     ("first", "ran"),
-    [("Cancel the code I gave you.", [FORGET_CHOSEN_TOOL_NAME]), ("Hello there.", [])],
+    [("Forget the code I gave you.", [FORGET_CHOSEN_TOOL_NAME]), ("Hello there.", [])],
 )
 async def test_a_handoff_reads_the_two_exchanges_before_its_own_turn(
     *, first: str, ran: list[str]

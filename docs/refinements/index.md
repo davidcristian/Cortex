@@ -84,9 +84,9 @@ never a reading of what the tree does now.
 - **[R-1187](tasks/1187-a-second-forget-clause-with-an-unread-verb-is-read-as-a-remark.md)** A second forget clause with an unread verb is read as a remark (memory). Its claim was checked against the code on 2026-11-13.
 - **[R-1188](tasks/1188-the-old-value-note-names-a-row-of-a-shorter-fact.md)** The old value note names a row of a shorter fact (memory). Its claim was checked against the code on 2026-11-13.
 - **[R-1189](tasks/1189-a-remark-beside-no-whole-row-lists-the-row-it-names.md)** A remark beside no whole row lists the row it names (memory). Its claim was checked against the code on 2026-11-13.
-- **[R-1190](tasks/1190-the-open-forget-reader-reads-words-and-not-a-forget.md)** The open forget reader reads words and not a forget (memory). Its claim was checked against the code on 2026-11-13.
 - **[R-1191](tasks/1191-an-attached-picture-note-opens-a-forget-for-two-exchanges.md)** An attached picture note opens a forget for two exchanges (memory). Its claim was checked against the code on 2026-11-13.
 - **[R-1192](tasks/1192-a-clause-naming-a-row-with-no-verb-after-a-forget-is-a-remark.md)** A clause naming a row with no verb after a forget is a remark (memory). Its claim was checked against the code on 2026-11-13.
+- **[R-1193](tasks/1193-a-forget-in-words-no-reader-reads-is-refused-on-the-answer.md)** A forget in words no reader reads is refused on the answer (memory). Its claim was checked against the code on 2026-11-13.
 
 ### Actionable, once a port changes (1)
 
@@ -645,9 +645,9 @@ never a reading of what the tree does now.
 - [R-1187](tasks/1187-a-second-forget-clause-with-an-unread-verb-is-read-as-a-remark.md) A second forget clause with an unread verb is read as a remark. open, actionable.
 - [R-1188](tasks/1188-the-old-value-note-names-a-row-of-a-shorter-fact.md) The old value note names a row of a shorter fact. open, actionable.
 - [R-1189](tasks/1189-a-remark-beside-no-whole-row-lists-the-row-it-names.md) A remark beside no whole row lists the row it names. open, actionable.
-- [R-1190](tasks/1190-the-open-forget-reader-reads-words-and-not-a-forget.md) The open forget reader reads words and not a forget. open, actionable.
 - [R-1191](tasks/1191-an-attached-picture-note-opens-a-forget-for-two-exchanges.md) An attached picture note opens a forget for two exchanges. open, actionable.
 - [R-1192](tasks/1192-a-clause-naming-a-row-with-no-verb-after-a-forget-is-a-remark.md) A clause naming a row with no verb after a forget is a remark. open, actionable.
+- [R-1193](tasks/1193-a-forget-in-words-no-reader-reads-is-refused-on-the-answer.md) A forget in words no reader reads is refused on the answer. open, actionable.
 
 ### orchestrator
 

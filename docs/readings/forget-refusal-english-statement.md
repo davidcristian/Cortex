@@ -92,15 +92,15 @@ directory above, with the collect, run and diff scripts of `slot3/` beside it.
 
 ## A statement while a forget is open
 
-A statement can answer the assistant's own question in a forget flow, as in `Cancel the code I
-gave you.`, then `Which code is it?`, then `My locker code is 4242.`. Neither reply reader names
-`cancel`. `_states_in_english` counts a statement only when no message of the person in the last
-two exchanges holds what `_CAN_RETRACT` or `_misspells_forgetting` reads in the message itself (a
-word that can retract, a negation, a near `forget` or a letter outside `a-z`). The tool loop reads
-those two messages from the chat as `earlier` and `before` (`_earlier_asks` in `tool_loop.py`),
-skipping the messages of the turn itself, since a handoff's working list ends with the cortex's
-calls for that turn after the person's message. What the last reply asks is not read. A request to remember or a question after such a message is
-still refused, unless the last reply or `earlier` names forgetting.
+A statement can answer the assistant's own question in a forget flow, as in `Forget the code I
+gave you.`, then `Which code is it?`, then `My locker code is 4242.`. The reader counts a statement
+only when neither of the chat's last two exchanges opened a forget by what it did: a forget call
+that ran, a reply naming forgetting, or a person's message `asks_to_forget` reads. The tool loop
+reads those exchanges from the chat, skipping the messages of the turn itself, since a handoff's
+working list ends with the cortex's calls for that turn after the person's message. The same check
+keeps the tool on a request to remember or a question. The sections headed "The open forget
+check" below measure the build before it, which read the person's messages with `_CAN_RETRACT`; the deed
+reader is measured in [forget-open-from-earlier-turns.md](forget-open-from-earlier-turns.md).
 
 A build that counted a statement only after a last reply holding no `?` was replayed 2026-11-13
 through HEAD `c0e02329e` and that build over 33,201 strings (the sources above) and the 165 turns

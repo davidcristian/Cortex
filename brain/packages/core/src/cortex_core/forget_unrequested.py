@@ -1,8 +1,10 @@
 """Refuse the forget tool on a request to remember or a question that cannot retract anything."""
 
 import re
+from collections.abc import Sequence
 
 from cortex_core.fact_statement import STATEMENT
+from cortex_core.forget_open import Exchange, forget_open
 from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
 from cortex_core.memory_request import asks_kept, asks_kept_fact_other, asks_kept_other
 
@@ -50,22 +52,6 @@ _READ_LETTERS = "a-zàâæçéèêëîïôœùûüÿäößẞáíñóúășşț�
 _CAN_RETRACT_READ = re.compile(
     rf"{RETRACT_WORDS}|{_NEGATIONS}|(?![{_READ_LETTERS}])[^\W\d_]", re.IGNORECASE
 )
-# Narrower than RETRACT_WORDS, since a reply often says "don't", "no" or "changes".
-_ABOUT_FORGETTING = re.compile(
-    r"\b(?:rid|unlearn\w*|no\s+longer|any\s?more|gone|take\s+back|out\s+of\s+(?:your|memory)|bin"
-    r"|scrub\w*|ditch\w*|scrap\w*|toss\w*|trash\w*|expung\w+|shred\w*|unsav\w*|unremember\w*"
-    r"|unstor\w*|let\s+go|retract\w*|revok\w+|withdraw\w*)\b",
-    re.IGNORECASE,
-)
-_NAMES_FORGETTING = re.compile(
-    r"\b(?:forg[eo]t|delet|eras|remov|wip(?:e|es|ed|ing)\b|clear|drop|discard|purg|vergiss|vergess"
-    r"|vergeet|l[oö]sch|loesch|gel[oö]sch|geloesch|entfern|oubli|effac|olv[ií]d|b[oó]rr|ui[tțţ]|[șşs]ters"
-    r"|[șşs]terg|sup{1,2}r[ií]m|elim[ií]n|ret[ií]r|enl[eè]v|qu[ií]t(?!e\b)\w|scoa[st]|scos|sco[țţt]i|streich"
-    r"|gestrichen)",
-    re.IGNORECASE,
-)
-
-
 # English words that Dutch, Polish, Portuguese, Catalan, Romanian and the Nordic languages do not
 # write alone, so a message in one of them is not named English: "is", "my", "to" and "has" are.
 _ENGLISH = re.compile(
@@ -105,38 +91,22 @@ def _states_in_english(query: str) -> bool:
     return all(_STATEMENT.fullmatch(s) for s in _SENTENCE_END.split(query.strip()))
 
 
-def _names_forgetting(text: str) -> bool:
-    return _ABOUT_FORGETTING.search(text) is not None or _NAMES_FORGETTING.search(text) is not None
-
-
-def _can_ask_to_forget(text: str) -> bool:
-    """Whether the person's ``text`` holds a word or a letter that can ask to forget something."""
-    return _CAN_RETRACT.search(text) is not None or _misspells_forgetting(text)
-
-
-def _asks_in_english(query: str, asks: tuple[str, str]) -> bool:
-    """Whether ``query`` asks to remember, asks a question or states a fact, in English words.
-
-    A statement can answer a question about a forget the person's ``asks`` opened, so it is not."""
+def _asks_in_english(query: str) -> bool:
+    """Whether ``query`` asks to remember, asks a question or states a fact, in English words."""
     question = _QUESTION.search(query) is not None and _ENGLISH.search(query) is not None
-    opened = any(_can_ask_to_forget(text) for text in asks)
-    return question or asks_kept(query) or (_states_in_english(query) and not opened)
+    return question or asks_kept(query) or _states_in_english(query)
 
 
-def forget_unrequested(
-    query: str, last_reply: str = "", earlier: str = "", before: str = ""
-) -> frozenset[str]:
+def forget_unrequested(query: str, earlier: Sequence[Exchange] = ()) -> frozenset[str]:
     """The forget tool, refused on a named request to remember or question that retracts nothing.
 
-    ``earlier`` is the message ``last_reply`` answered and ``before`` the person's one before it."""
+    ``earlier`` is the chat's last two exchanges before this message, which can open a forget."""
     if asks_kept_fact_other(query):
         can_retract = _CAN_RETRACT_READ
-    elif asks_kept_other(query) or not _asks_in_english(query, (earlier, before)):
+    elif asks_kept_other(query) or not _asks_in_english(query):
         return frozenset()
     else:
         can_retract = _CAN_RETRACT
-    if can_retract.search(query) or _misspells_forgetting(query):
-        return frozenset()
-    if _names_forgetting(last_reply) or _names_forgetting(earlier):
+    if can_retract.search(query) or _misspells_forgetting(query) or forget_open(earlier):
         return frozenset()
     return frozenset({FORGET_CHOSEN_TOOL_NAME})
