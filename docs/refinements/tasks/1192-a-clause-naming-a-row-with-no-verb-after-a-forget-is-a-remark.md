@@ -1,9 +1,8 @@
 # A clause naming a row with no verb after a forget is a remark
 
-**Status:** open, actionable
+**Status:** done 2026-11-14
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-14
 
 `asking` (`forget_clauses.py`) reads a clause holding no forget verb, keep clause or the call's
 value as a remark unless it opens with `and`. `_grouped` (`forget_inside.py`) then lists no row
@@ -31,3 +30,12 @@ kept note shows it, so the person can ask again.
   as a group, so beside a card and a phone ending `4242` the messages `Forget the card 4242, my
   phone as well.`, `Forget the card 4242, the phone one too.` and `Forget the card 4242. My phone
   as well.` keep the phone, which the tree before deleted. The fix asked for here covers them too.
+- 2026-11-14: done. `asking` reads a clause that only adds a row as asking (`_adds`: `too`, `also`,
+  `as well`, `plus`, `aussi`, `également`, `auch` or `ebenfalls` at one end, a word for the or my,
+  then only fact words of rows holding the text), so `my phone as well`, `the phone too`, `also my
+  phone`, `plus my phone` and a second sentence `My phone as well.` list the phone. `then my
+  phone`, `my phone included` and `even my phone` stay remarks and keep the phone under the kept
+  line. A row named before its keep verb, as in `mein Handy bleibt`, is deleted, filed as task
+  1194, and neither draw of `Forget the card 4242, my phone stays.` deleted the card, filed as
+  task 1195. The replay and the draws are in
+  [the remark readings](../../readings/forget-remark-about-the-value.md#a-clause-adding-a-row).

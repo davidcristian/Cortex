@@ -16,6 +16,7 @@ _HEAD = re.compile(r"\A[^\W_]+")
 _TAIL = re.compile(r"[^\W_]+\Z")
 _KIND = re.compile(r"\b(?:cards?|accounts?|ibans?)\b", re.IGNORECASE)
 _WORD = re.compile(r"[^\W\d_]{3,}")
+_FUNCTION = frozenset(word for words in FUNCTION.values() for word in words)
 
 INSIDE_LINE = "Kept, since they hold that text only inside a longer value:"
 INSIDE_ALL = (
@@ -105,9 +106,11 @@ def _remarked(query: set[str], read: set[str], row: set[str]) -> bool:
 def _read(texts: Sequence[str], text: str, query: str, pattern: re.Pattern[str]) -> str:
     """The part of ``query`` naming rows: less each remark when the rest names a row of ``texts``
     holding ``text`` whole or as a group, which ``pattern`` finds, else all of it."""
-    asked, kind = asking(query, text), read_kinds(query)
-    holding = (row for row in texts if pattern.search(row))
-    named = any(names(row_words(asked), row_words(row), kind=kind) for row in holding)
+    holding = [row_words(row) for row in texts if pattern.search(row)]
+    facts = {word for row in holding for word in row} - _FUNCTION
+    asked = asking(query, text, frozenset(facts))
+    kind = read_kinds(query)
+    named = any(names(row_words(asked), row, kind=kind) for row in holding)
     return asked if named else query
 
 

@@ -177,3 +177,68 @@ Every item of the rule holds. An r call sent `4242`, the form the change reads, 
 on the build before the change, whose card listed the card and the mobile phone and deleted both;
 the change met the form only in the replay. The scripts `draw.sh` and `driver.py` and the logs
 `draw.log` and `draws.jsonl` are in the slot directory above, `driver.py` one level up.
+
+## A clause adding a row
+
+Taken 2026-11-14 for
+[task 1192](../refinements/tasks/1192-a-clause-naming-a-row-with-no-verb-after-a-forget-is-a-remark.md)
+and [task 1187](../refinements/tasks/1187-a-second-forget-clause-with-an-unread-verb-is-read-as-a-remark.md).
+A clause with no verb after a forget, such as `my phone as well`, was a remark, so beside a card
+and a phone ending `4242` the message `Forget the card 4242, my phone as well.` kept the phone.
+`asking` now reads a clause as asking when it only adds a row (`_adds`): `too`, `also`, `as well`,
+`plus`, `aussi`, `également`, `auch` or `ebenfalls` at one end, a word for the or my of English,
+French or German, then only fact words of rows holding the text (their words less every function
+word of `FUNCTION`), and an optional `one`. Any other word keeps the clause a remark, so `my phone
+stays`, `my phone is new`, `not my phone`, `my phone has it too`, `keep my phone as well`, `leave
+my phone too`, `remember my phone too` and their French and German forms keep the phone. No verb
+was added: a clause opening with an unread verb (`wipe the card too`) stays a remark, since a verb
+slot would also read `leave my phone too`.
+
+**Replay.** The 21 row sets above, plus the French and German locker, card and phone triples,
+their card and phone pairs and the English locker, card and phone triple: 26 sets, over every
+string literal of the brain's forget test files, every backticked string of `docs/readings/` and
+of the task files, and 45 probe messages (5,153 messages). Every card was approved. The 33 person
+messages the proxy recorded on this night before the draws below went through `probe.py` over the
+three triples and changed no listing.
+
+| Cases | Rows newly deleted | Rows newly kept | Messages changed |
+| --- | --- | --- | --- |
+| 133,978 | 86 | 0 | 16 |
+
+Each of the 16 messages ends with an adding clause, and each newly deleted row is the row that
+clause names: the phone for `Forget the card 4242, my phone as well.`, `the phone one too`, `also
+my phone`, `plus my phone`, `My phone as well.` as a second sentence, `mon téléphone aussi` and
+`mein Handy auch`; the card for `Forget my locker code 4242, the card one as well.`, `la carte
+aussi` and `die Karte auch`, and also the Visa card beside it in the set of all eight rows, which
+`Forget the locker code 4242, and the card one too.` deleted before the change too. The script
+`replay.py`, the message file `extra.txt` and the logs `replay-old.jsonl` and `replay-new.jsonl`
+are in `/tmp/claude-1000/-home-david-Files-Git-Cortex/11450320-079c-401d-9f26-43a763a369b6/scratchpad/slot3/`.
+
+**Live rows and the rule**, set before any draw, with the setup of the rows above: builds
+`cortexn22-brain-s2fact` (the tree before the change) and `cortexn22-brain-s3add` (the change).
+Row a stores the card, the mobile phone and `Remember that my locker code is 4242.` and sends
+`Forget the locker code 4242 and the card, my phone as well.`, twice on each build. Row n sends
+`Forget the card 4242, my phone stays.` beside the card and the mobile phone, twice on the change;
+rows r, j and v above run once each on the change. The rule: n and r never delete the mobile
+phone; j deletes the locker row; v deletes both rows; a deletes the mobile phone in every draw whose
+call text is `4242`, and how often a call sends `4242` is a separate count.
+
+**Live draws.** Drawn from 00:28 to 00:35 on 2026-11-14, proxy log lines 168 to 276. The SM clock
+read 0.58, 0.67 and 0.70 of its maximum before, between and after the draws.
+
+| Row | Build | Call texts | Rows stored after |
+| --- | --- | --- | --- |
+| a | before the change | `4242`, `0721 555 4242`; `4242`, `0721 555 4242` | none, 2 of 2 |
+| a | the change | `4242`; `4242` | none, 2 of 2 |
+| n | the change | none; one text matching no row | the card and the mobile phone, 2 of 2 |
+| r | the change | `4111 1111 1111 4242` | the mobile phone |
+| j | the change | `7319` | none |
+| v | the change | `4242` | none |
+
+Every item of the rule holds. Every a call sent `4242`. Before the change its card kept the mobile
+phone and the cortex sent a second call for it, a second card for the person to approve; with the
+change one card listed all three rows. Neither n draw deleted the card: one asked whether to
+forget the phone, and one sent a text no row holds
+([task 1195](../refinements/tasks/1195-a-forget-beside-a-clause-saying-a-row-stays-deletes-nothing.md)).
+The scripts `draw.sh` and `rule.md` and the logs `draw.log` and `draws.jsonl` are in the slot
+directory above.

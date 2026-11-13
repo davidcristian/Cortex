@@ -24,6 +24,10 @@ _ROWS = {
     "phone": "User: Remember that my phone is 0721 555 4242.\nAssistant: Noted.",
     "card": "User: Remember that my card is 4111 1111 1111 4242.\nAssistant: Noted.",
     "visa": "User: Remember that my Visa card is 4111 1111 1111 4242.\nAssistant: Noted.",
+    "carte": "User: Retiens que ma carte est 4111 1111 1111 4242.\nAssistant: Noté.",
+    "telephone": "User: Retiens que mon téléphone est 0721 555 4242.\nAssistant: Noté.",
+    "karte": "User: Merke dir, meine Karte ist 4111 1111 1111 4242.\nAssistant: Notiert.",
+    "handy": "User: Merke dir, mein Handy ist 0721 555 4242.\nAssistant: Notiert.",
 }
 
 
@@ -172,3 +176,108 @@ async def test_a_row_named_where_the_message_asks_to_forget_is_still_listed(
 )
 def test_asking_reads_the_message_less_each_remark(query: str, text: str, asked: str) -> None:
     assert asking(query, text) == asked
+
+
+@pytest.mark.parametrize(
+    ("query", "ids", "left"),
+    [
+        (
+            "Forget my locker code 4242, the card one as well.",
+            ("locker", "card", "phone"),
+            ["phone"],
+        ),
+        ("Forget my locker code 4242, also my phone.", ("locker", "card", "phone"), ["card"]),
+        (
+            "Forget the locker code 4242 and the card, my phone as well.",
+            ("locker", "card", "phone"),
+            [],
+        ),
+        (
+            "Forget the locker code 4242 and the card, the phone too.",
+            ("locker", "card", "phone"),
+            [],
+        ),
+        (
+            "Forget the locker code 4242 and the card, plus my phone.",
+            ("locker", "card", "phone"),
+            [],
+        ),
+        ("Forget the card 4242, my phone as well.", ("card", "phone"), []),
+        ("Forget the card 4242. My phone as well.", ("card", "phone"), []),
+        ("Forget the card 4242, the phone one too.", ("card", "phone"), []),
+        (
+            "Oublie le code 4242 du casier, la carte aussi.",
+            ("casier", "carte", "telephone"),
+            ["telephone"],
+        ),
+        ("Oublie la carte 4242, mon téléphone aussi.", ("carte", "telephone"), []),
+        (
+            "Vergiss den Code 4242 vom Spind, die Karte auch.",
+            ("spind", "karte", "handy"),
+            ["handy"],
+        ),
+        ("Vergiss die Karte 4242, mein Handy auch.", ("karte", "handy"), []),
+    ],
+)
+async def test_a_clause_adding_a_named_row_to_a_forget_lists_the_row(
+    query: str, ids: tuple[str, ...], left: list[str]
+) -> None:
+    card, _, rows = await _forget(query, *ids)
+    assert card is not None
+    assert rows == left
+    listed = card.split("\nKept", 1)[0]
+    assert all((_ROWS[name].split("\n")[0][6:] in listed) != (name in left) for name in ids)
+
+
+@pytest.mark.parametrize(
+    ("query", "ids"),
+    [
+        ("Forget the card 4242, my phone stays.", ("card", "phone")),
+        ("Forget the card 4242, my phone is new.", ("card", "phone")),
+        ("Forget the card 4242, not my phone.", ("card", "phone")),
+        ("Forget the card 4242, my phone has it too.", ("card", "phone")),
+        ("Forget the card 4242, my phone too has it.", ("card", "phone")),
+        ("Forget the card 4242, my phone is too old.", ("card", "phone")),
+        ("Forget the card 4242, keep my phone as well.", ("card", "phone")),
+        ("Forget the card 4242, leave my phone too.", ("card", "phone")),
+        ("Forget the card 4242, remember my phone too.", ("card", "phone")),
+        ("Forget the card 4242, leave phone too.", ("card", "phone")),
+        ("Oublie la carte 4242, mon téléphone reste.", ("carte", "telephone")),
+        ("Oublie la carte 4242, mon téléphone est neuf.", ("carte", "telephone")),
+        ("Oublie la carte 4242, pas mon téléphone.", ("carte", "telephone")),
+        ("Oublie la carte 4242, mon téléphone l'a aussi.", ("carte", "telephone")),
+        ("Oublie la carte 4242, garde mon téléphone aussi.", ("carte", "telephone")),
+        ("Vergiss die Karte 4242, mein Handy ist neu.", ("karte", "handy")),
+        ("Vergiss die Karte 4242, nicht mein Handy.", ("karte", "handy")),
+        ("Vergiss die Karte 4242, mein Handy hat sie auch.", ("karte", "handy")),
+        ("Vergiss die Karte 4242, mein Handy ist auch alt.", ("karte", "handy")),
+        ("Vergiss die Karte 4242, mein Handy ist auch.", ("karte", "handy")),
+        ("Oublie la carte 4242, mon téléphone est aussi.", ("carte", "telephone")),
+        ("Vergiss die Karte 4242, behalte mein Handy auch.", ("karte", "handy")),
+    ],
+)
+async def test_a_remark_or_keep_clause_naming_a_row_beside_a_forget_keeps_the_row(
+    query: str, ids: tuple[str, str]
+) -> None:
+    card, _, rows = await _forget(query, *ids)
+    assert card is not None
+    assert rows == [ids[1]]
+    assert _ROWS[ids[1]].split("\n")[0][6:] in card.split("\nKept", 1)[1]
+
+
+@pytest.mark.parametrize(
+    ("query", "named", "asked"),
+    [
+        ("Forget 4242, my phone too.", {"phone"}, "forget 4242 my phone too"),
+        ("Forget 4242, also the card one.", {"card"}, "forget 4242 also the card one"),
+        ("Forget 4242, my phone too.", {"card"}, "forget 4242"),
+        ("Forget 4242, my phone.", {"phone"}, "forget 4242"),
+        ("Forget 4242, my phone too too.", {"phone"}, "forget 4242"),
+        ("Forget 4242, my phone as.", {"phone"}, "forget 4242"),
+        ("Forget 4242, phone too.", {"phone"}, "forget 4242"),
+        ("Forget 4242, also my phone too.", {"phone"}, "forget 4242"),
+        ("Forget 4242, the one too.", {"phone"}, "forget 4242"),
+    ],
+)
+def test_asking_reads_a_clause_adding_a_named_row(query: str, named: set[str], asked: str) -> None:
+    assert asking(query, "4242", frozenset(named)) == asked

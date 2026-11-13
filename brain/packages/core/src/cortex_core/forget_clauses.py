@@ -74,6 +74,26 @@ _RELATIVE = frozenset({"that", "which", "where", "que", "qu", "qui", "dont", "o�
 _AND = frozenset({"and", "or", "et", "ou", "und", "oder", "y", "o", "și", "şi", "sau"})
 
 
+# A word adding a row to a forget, as in "also my phone" or "my phone as well".
+_ADD = frozenset({"too", "also", "plus", "aussi", "également", "auch", "ebenfalls"})
+_OWNER = frozenset(
+    {"the", "my", "le", "la", "les", "l", "mon", "ma", "mes", "der", "die", "das", "den", "mein"}
+    | {"meine", "meinen"}
+)
+
+
+def _adds(clause: list[str], named: frozenset[str]) -> bool:
+    """Whether ``clause`` only adds a row: an adding word at one end, then a word for the or my,
+    words of ``named`` only and an optional ``one``."""
+    head = clause[0] in _ADD
+    tail = 2 if clause[-2:] == ["as", "well"] else int(clause[-1] in _ADD)
+    if not head and not tail:
+        return False
+    body = clause[1:] if head else clause[:-tail]
+    body = body[:-1] if body[-1:] in (["one"], ["ones"]) else body
+    return len(body) > 1 and body[0] in _OWNER and named.issuperset(body[1:])
+
+
 def _asks(clause: list[str]) -> bool:
     """Whether ``clause`` holds a forget verb or a clause asking to keep."""
     return any(FORGET.fullmatch(word) or _opens_keep(clause, at) for at, word in enumerate(clause))
@@ -93,14 +113,15 @@ def _cut(clause: list[str], value: list[str]) -> list[list[str]]:
     return [clause] if cut is None else [clause[:cut], clause[cut:]]
 
 
-def asking(query: str, value: str) -> str:
+def asking(query: str, value: str, named: frozenset[str] = frozenset()) -> str:
     """The words of ``query`` less each remark: a clause, or its words from a relative word after
-    ``value``, holding no forget verb, keep clause or ``value``, unless it opens with ``and``."""
+    ``value``, holding no forget verb, keep clause or ``value``, unless it opens with ``and`` or
+    only adds a row of words ``named``."""
     wanted = [token for token in _TOKEN.findall(value.lower()) if token not in _MARKS]
     found: list[str] = []
     asked = True
     for piece in (piece for clause in clauses(query) for piece in _cut(clause, wanted)):
         joins = asked and piece[0] in _AND
-        asked = joins or _asks(piece) or _after(piece, wanted) is not None
+        asked = joins or _asks(piece) or _after(piece, wanted) is not None or _adds(piece, named)
         found.extend(piece if asked else [])
     return " ".join(found)
