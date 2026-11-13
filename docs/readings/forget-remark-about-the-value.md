@@ -126,3 +126,54 @@ Every item of the rule holds. Both l calls sent `4242`, 2 of 2, and each card li
 code with the mobile phone under the line for a row holding that text only inside a longer value.
 The script `draw.sh`, the logs `draw.log` and `draws.jsonl` and `summ.py` are in the slot directory
 above.
+
+## A remark beside a row holding the value as a group
+
+Taken 2026-11-14 for
+[task 1189](../refinements/tasks/1189-a-remark-beside-no-whole-row-lists-the-row-it-names.md).
+The remark reader read the part asking to forget only when it named a row holding the text whole,
+so `Forget the card 4242, the one I read from my phone.` beside a card and a phone ending `4242`
+deleted the phone, which only the remark names. The change reads that part when it names a row
+holding the text whole or as a group, and keeps a row holding the text as a last group that a
+word of the message names and no word of that part names.
+
+**Replay.** Every string literal of the brain's forget test files and every backticked string of
+`docs/readings/` (3,493 messages) went through the card and the delete, every card approved, with
+the text `4242`, over 21 row sets: each pair and triple of a locker code, a gym code, a phone
+`0721 555 4242`, a card `4111 1111 1111 4242` and a row holding an alarm code beside a bike lock
+`4242`, and all eight rows of the side clause tests. Of 73,353 cases, the build before the change
+and the change differ in 28 rows, each kept by the change and deleted before it, and in no row
+deleted by the change and kept before it. The 28 come from 8 messages: 24 phone rows of six
+messages with a remark naming the phone, and 4 card rows of two stored replies about an old phone
+number. The script `replay.py` and the logs `replay-old.jsonl` and `replay-new.jsonl` are in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/11450320-079c-401d-9f26-43a763a369b6/scratchpad/slot1/`.
+
+**Live rows and the rule**, set before any draw. Builds `cortexn22-brain-head` (the tree before the
+change) and `cortexn22-brain-s1fix` (the working tree with it), every tool listed, through the
+recording proxy, every card approved, every row deleted before each draw, each fact stored in a
+chat of its own, each forget sent from a new chat unless the row says otherwise.
+
+| Row | Facts stored | Forget turn | Build | Draws |
+| --- | --- | --- | --- | --- |
+| r | `Remember that my card is 4111 1111 1111 4242.`, `Remember that my mobile phone is 0721 555 4242.` | `Forget the card 4242, the one I read from my phone.` | both | 2 each |
+| j | `My locker code at the pool is 7319.` | `Actually, forget what I just told you.`, same chat | change | 2 |
+| v | the card, the mobile phone | `Forget 4242.` | change | 2 |
+
+The rule: r on the change never deletes the mobile phone; j deletes the locker row; v deletes both
+rows. r on the build before the change shows what the change alters and fails no item, and so does
+how often an r call sends the text `4242`.
+
+**Live draws.** Drawn from 23:48 to 23:53 on 2026-11-13, proxy log lines 52 to 133. The SM clock
+read 0.58, 0.65 and 0.71 of its maximum before, between and after the draws.
+
+| Row | Build | Call texts | Rows stored after |
+| --- | --- | --- | --- |
+| r | before the change | `4242`; `4111 1111 1111 4242` | none; the mobile phone |
+| r | the change | `4111 1111 1111 4242`; `4111 1111 1111 4242` | the mobile phone, 2 of 2 |
+| j | the change | `locker code at the pool is 7319`; `locker code` | none, 2 of 2 |
+| v | the change | `4242`; `4242` | none, 2 of 2 |
+
+Every item of the rule holds. An r call sent `4242`, the form the change reads, in 1 of 4 draws,
+on the build before the change, whose card listed the card and the mobile phone and deleted both;
+the change met the form only in the replay. The scripts `draw.sh` and `driver.py` and the logs
+`draw.log` and `draws.jsonl` are in the slot directory above, `driver.py` one level up.

@@ -1,9 +1,8 @@
 # A remark beside no whole row lists the row it names
 
-**Status:** open, actionable
+**Status:** done 2026-11-14
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-13
 
 `_read` (`forget_inside.py`) reads row names from the asking part of a forget message (`asking`
 in `forget_clauses.py`) only when that part names a row holding the call's text whole; otherwise
@@ -27,3 +26,8 @@ the card and the phone. The person still sees the card before the delete.
 ## History
 
 - 2026-11-13: filed while narrowing the kind word beside a remark, which left this form unchanged.
+- 2026-11-14: done. `_read` reads the asking part when it names a row holding the text whole or
+  as a group, and `_ends` keeps a last group that only a remark names, so both messages keep the
+  phone under `INSIDE_LINE`; `Forget 4242 that I texted from my phone.` still lists it, since its
+  asking part names no row. Over 73,353 replayed cases the change kept 28 rows and listed none
+  more ([readings](../../readings/forget-remark-about-the-value.md#a-remark-beside-a-row-holding-the-value-as-a-group)).

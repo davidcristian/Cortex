@@ -92,18 +92,22 @@ def _part(record: str, place: tuple[int, int], query: str, *, ends: bool) -> boo
 def _grouped(record: str, text: str, query: str, read: str, *, ends: bool) -> bool:
     """Whether ``record`` holds ``text`` only in longer values ``query`` lacks, as a last group too
     when ``ends``; a kind word of ``read`` lists it unless only words outside ``read`` name it."""
-    row, asked = row_words(record), row_words(read)
-    remarked = names(row_words(query), row) and not names(asked, row)
+    remarked = _remarked(row_words(query), row_words(read), row_words(record))
     kind = _KIND.search(read) is not None and not remarked
     return not kind and all(_part(record, at, query, ends=ends) for at in _places(record, text))
 
 
-def _read(texts: Sequence[str], text: str, query: str) -> str:
+def _remarked(query: set[str], read: set[str], row: set[str]) -> bool:
+    """Whether the words ``query`` name the row words ``row`` and the words ``read`` do not."""
+    return names(query, row) and not names(read, row)
+
+
+def _read(texts: Sequence[str], text: str, query: str, pattern: re.Pattern[str]) -> str:
     """The part of ``query`` naming rows: less each remark when the rest names a row of ``texts``
-    holding ``text`` whole, else all of it."""
+    holding ``text`` whole or as a group, which ``pattern`` finds, else all of it."""
     asked, kind = asking(query, text), read_kinds(query)
-    whole = (row for row in texts if _whole(row, text))
-    named = any(names(row_words(asked), row_words(row), kind=kind) for row in whole)
+    holding = (row for row in texts if pattern.search(row))
+    named = any(names(row_words(asked), row_words(row), kind=kind) for row in holding)
     return asked if named else query
 
 
@@ -127,7 +131,7 @@ def _ends(
     ``text`` and names words, none its own; never ``just_said``'s row unless one is named."""
     kinds = any(code_word(word) for word in _WORD.findall(query))
     texts = [record.text for record in (*held, *records)]
-    read = _read(texts, text, query)
+    read = _read(texts, text, query, pattern)
     every = quantifies(query) and not kinds
     holding = [] if every else [row for row in texts if _whole(row, text)]
     beside = {word for row in holding for word in row_words(row)}
@@ -135,12 +139,13 @@ def _ends(
     named = any(names(words, row_words(row)) for row in texts)
     said = None if named or kinds else just_said(list(records), chat, held)
     unasked = bool(_content(query)) and pattern.search(query) is None
-    kind = read_kinds(query)
+    kind, said_words = read_kinds(query), row_words(query)
     return {
         record.id: record.id != said
         and (
             (bool(holding) and not names(words, row_words(record.text) - beside, kind=kind))
             or (unasked and not names(words, row_words(record.text), kind=kind))
+            or _remarked(said_words, words, row_words(record.text))
         )
         for record in records
     }
@@ -159,7 +164,7 @@ def inside(
     pattern, deleted = _bounded(text), tuple(held)
     if pattern is None:
         return frozenset()
-    read = _read([row.text for row in (*deleted, *records)], text, query)
+    read = _read([row.text for row in (*deleted, *records)], text, query, pattern)
     ends = _ends(records, text, pattern, query, deleted, session_id) if query else {}
     return frozenset(
         record.id

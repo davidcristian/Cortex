@@ -89,6 +89,31 @@ async def test_a_row_only_a_remark_names_is_kept_beside_a_card_word_that_asks(qu
 @pytest.mark.parametrize(
     ("query", "ids", "left"),
     [
+        ("Forget the card 4242, the one I read from my phone.", ("card", "phone"), ["phone"]),
+        ("Forget the card 4242 that I read from my phone.", ("card", "phone"), ["phone"]),
+        (
+            "Forget 4242 and my card, I sent the code from my phone.",
+            ("locker", "card", "phone"),
+            ["locker", "phone"],
+        ),
+    ],
+)
+async def test_a_row_only_a_remark_names_is_kept_beside_a_row_holding_the_value_as_a_group(
+    query: str, ids: tuple[str, ...], left: list[str]
+) -> None:
+    card, result, rows = await _forget(query, *ids)
+    assert rows == left
+    assert card is not None
+    listed, kept = card.split(INSIDE_LINE)
+    assert "4111 1111 1111 4242" in listed
+    assert "0721 555 4242" in kept
+    assert "0721 555 4242" not in listed
+    assert result.startswith("forgot 1 remembered exchanges;")
+
+
+@pytest.mark.parametrize(
+    ("query", "ids", "left"),
+    [
         ("Forget my card 4242.", ("card", "phone"), ["phone"]),
         ("Forget my card ending 4242.", ("card", "phone", "locker"), ["locker", "phone"]),
         ("Forget the card 4242 and my phone.", ("card", "phone"), []),
@@ -119,6 +144,8 @@ async def test_a_card_word_where_the_message_asks_still_lists_the_card(
         ("Forget the locker code 4242 and the card, I texted both.", ("locker", "card"), []),
         ("Forget 4242 that I texted from my phone.", ("locker", "phone"), ["locker"]),
         ("Forget 4242, it is the end of my phone number.", ("locker", "phone"), ["locker"]),
+        ("Forget the card 4242 from my phone.", ("card", "phone"), []),
+        ("Forget the card 4242, and the phone too.", ("card", "phone"), []),
     ],
 )
 async def test_a_row_named_where_the_message_asks_to_forget_is_still_listed(
