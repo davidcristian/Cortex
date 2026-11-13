@@ -11,7 +11,7 @@ _KINDS = (
     "phone phones telephone téléphone telefon telefons telefonul teléfono telefono",
 )
 _KIND = {word: kind for kind, words in enumerate(_KINDS) for word in words.split()}
-_MINUS = frozenset({"minus", "less", "moins", "menos", "weniger", "puțin", "puţin"})
+MINUS = frozenset({"minus", "less", "moins", "menos", "weniger", "puțin", "puţin"})
 
 
 def kinds(words: Iterable[str]) -> set[int]:
@@ -22,7 +22,7 @@ def kinds(words: Iterable[str]) -> set[int]:
 def read_kinds(query: str) -> bool:
     """Whether a kind word of ``query`` may list a row: it holds no negation and no word for minus,
     either of which can make the kind word name a row to keep, as in ``N'oublie pas ma carte``."""
-    return all(NOT.isdisjoint(clause) and _MINUS.isdisjoint(clause) for clause in clauses(query))
+    return all(NOT.isdisjoint(clause) and MINUS.isdisjoint(clause) for clause in clauses(query))
 
 
 def names(words: set[str], row: set[str], *, kind: bool = True) -> bool:

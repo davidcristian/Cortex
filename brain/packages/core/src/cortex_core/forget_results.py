@@ -77,9 +77,15 @@ def about_deleted(text: str, deleted: tuple[str, ...]) -> bool:
     )
 
 
-def forgot(removed: int, holding: int, kept: int, inner: int = 0) -> str:
+def forgot(removed: int, holding: int, kept: int, inner: int = 0, text: str | None = None) -> str:
     """What a delete that left no match forgot; ``holding`` rows hold its numbers, ``kept`` kept,
-    ``inner`` hold its text only inside a longer value."""
+    ``inner`` hold its text only inside a longer value, ``text`` the call's text if known."""
+    if kept and text is not None and not any(char.isdigit() for char in text):
+        return (
+            f"forgot {removed} remembered exchanges; {kept} other remembered exchanges contain "
+            "that text, and the user's message names none of their words or asks to keep them, "
+            "so they were kept"
+        )
     if kept:
         return (
             f"forgot {removed} remembered exchanges; {kept} other remembered exchanges hold the "

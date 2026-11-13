@@ -3,7 +3,8 @@
 import re
 from collections.abc import Iterable, Sequence
 
-from cortex_core.forget_kinds import names, read_kinds
+from cortex_core.forget_clauses import clauses
+from cortex_core.forget_kinds import MINUS, names, read_kinds
 from cortex_core.forget_languages import FUNCTION, readings
 from cortex_core.forget_unnamed import just_said, quantifies, row_words, unnamed
 from cortex_core.memory import MemoryRecord
@@ -95,10 +96,11 @@ def _grouped(record: str, text: str, query: str, *, ends: bool) -> bool:
     return _KIND.search(query) is None and all(_part(record, at, query, ends=ends) for at in places)
 
 
-def _content(query: str) -> set[str]:
-    """The words of ``query`` that can name a fact, less the function words of its readings."""
+def _content(query: str, part: str | None = None) -> set[str]:
+    """The words of ``part``, by default ``query``, that can name a fact, less the function words
+    of the readings of ``query``."""
     function = {word for language in readings(query) for word in FUNCTION.get(language, ())}
-    return row_words(query) - function
+    return row_words(query if part is None else part) - function
 
 
 def _ends(
@@ -176,7 +178,20 @@ def kept_rows(
     )
     ids = {row.id for row in kept}
     whole = [row for row in rows if unclear and row.id not in ids and _whole(row.text, text)]
-    return [*kept, *whole, *_unnamed_groups(rows, within, text, stamp.query)]
+    every = [*kept, *whole, *_unnamed_groups(rows, within, text, stamp.query)]
+    every.extend(_after_minus(rows, stamp.query))
+    return list({row.id: row for row in every}.values())
+
+
+def _after_minus(rows: Sequence[MemoryRecord], query: str) -> list[MemoryRecord]:
+    """The ``rows`` a word after a word for minus in a clause of ``query`` names, as the card of
+    ``Uită codul 4242 mai puțin cel de pe card``, which may ask to keep them."""
+    after: list[str] = []
+    for clause in clauses(query):
+        at = next((at for at, token in enumerate(clause) if token in MINUS), len(clause))
+        after.extend(clause[at + 1 :])
+    words = _content(query, " ".join(after))
+    return [row for row in rows if names(words, row_words(row.text))]
 
 
 def _in_longer(record: str, text: str) -> bool:
@@ -191,10 +206,15 @@ def _in_longer(record: str, text: str) -> bool:
 def _unnamed_groups(
     rows: Sequence[MemoryRecord], within: Sequence[MemoryRecord], text: str, query: str
 ) -> list[MemoryRecord]:
-    """The ``rows`` holding ``text`` only inside a longer value that no word or kind of ``query``
-    names, when it names another of ``rows`` or ``within``."""
+    """The ``rows`` holding ``text`` only inside a longer value, or matched by a ``text`` holding
+    no digit, that no word or kind of ``query`` names, when it names another of ``rows`` or
+    ``within``."""
     if quantifies(query):
         return []
-    words = _content(query)
+    words, word = _content(query), not any(char.isdigit() for char in text)
     named = {row.id for row in (*rows, *within) if names(words, row_words(row.text))}
-    return [row for row in rows if named and row.id not in named and _in_longer(row.text, text)]
+    return [
+        row
+        for row in rows
+        if named and row.id not in named and (word or _in_longer(row.text, text))
+    ]

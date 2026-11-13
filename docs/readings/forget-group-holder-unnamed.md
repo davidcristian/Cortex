@@ -38,8 +38,8 @@ Taken 2026-11-13 over the per case list of the kind word change
 The 121 cases listing fewer rows are the first five classes; the 9 listing another row are the
 last. The Romanian message deletes the card it asks to keep at the start build too (both rows
 there), and over the English card at both builds, since no word for minus opens a keep clause and
-`card` is the English row's own word: task
-[1174](../refinements/tasks/1174-a-forget-with-a-word-for-minus-deletes-the-card-it-asks-to-keep.md).
+`card` is the English row's own word; the minus reader of
+[forget-word-and-minus-unnamed.md](forget-word-and-minus-unnamed.md) keeps that card.
 A forget whose other clause holds a negation keeps a row named only by its kind at both builds:
 task [1175](../refinements/tasks/1175-a-forget-beside-a-negated-clause-keeps-a-row-named-only-by-its-kind.md).
 
