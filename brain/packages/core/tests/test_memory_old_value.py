@@ -162,7 +162,6 @@ async def test_an_update_claim_while_a_row_holds_the_old_value_names_it() -> Non
     [
         (_CORRECTION, _UPDATED, 1),
         (_CORRECTION, "Got it, your code is 4862.", 0),
-        ("My bike lock code is 4862.", _UPDATED, 0),
         ("My bike lock code is 4862, not 1111.", _UPDATED, 0),
     ],
 )

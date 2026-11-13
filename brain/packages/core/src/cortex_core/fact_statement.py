@@ -20,3 +20,8 @@ STATEMENT_OTHER = _statement(
     "est|sont|était|étaient|ist|sind|war|waren|es|son|era|eran|está|están|estaba|estaban"
     "|este|e|sunt|erau",
 )
+# The English statement on one line, with its fact's words and its value as groups.
+FACT_VALUE = (
+    rf"\b(?:my|our|his|her|their)\s+(?P<fact>(?:[\w'\u2019-]+\s+){{1,6}}?)(?:is|are|was|were)\s+"
+    rf"(?P<value>{_VALUE_WORD}(?:\s+{_VALUE_WORD}){{0,3}}?)[.!]?[ \t]*$"
+)

@@ -3,12 +3,15 @@
 import re
 
 from cortex_core.errors import MemoryStoreError
+from cortex_core.fact_statement import FACT_VALUE
+from cortex_core.forget_clauses import NOT
 from cortex_core.forget_languages import FUNCTION
 from cortex_core.memory_claim import claims_kept
 from cortex_core.memory_claim_other import claims_kept_other, stated
 from cortex_core.memory_claim_update import claims_updated
 from cortex_core.memory_values import joined
 from cortex_core.note_language import in_language
+from cortex_core.recall import MemoryRecaller
 from cortex_core.turn_context import TurnCapabilities
 from cortex_core.untrusted import TaintLedger
 
@@ -60,6 +63,8 @@ _FUNCTION = frozenset(word for words in FUNCTION.values() for word in words) | f
     )
 )
 _SEPARATOR = re.compile(r"[ ./-]+")
+_STATED = re.compile(rf"\W*{FACT_VALUE}", re.IGNORECASE)
+_STORED = re.compile(FACT_VALUE, re.IGNORECASE | re.MULTILINE)
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
 _FR = r"(?:mis\s+[àa]\s+jour|modifi[ée]e?s?|corrig[ée]e?s?|remplac[ée]e?s?|chang[ée]e?s?)"
 _DE = r"(?:aktualisiert|ge[äa]ndert|korrigiert|ersetzt)"
@@ -106,24 +111,44 @@ def holds(text: str, value: str) -> bool:
     return re.search(pattern, text, re.IGNORECASE) is not None
 
 
+async def _replaced(memory: MemoryRecaller, query: str, session_id: str) -> str:
+    """The value a stored row states for a fact ``query`` alone states with no negation, naming
+    each of the row's fact words, with a value that is neither the row's value nor part of it."""
+    stated = _STATED.fullmatch(query.strip())
+    if stated is None or not NOT.isdisjoint(re.findall(r"\w+", query.lower())):
+        return ""
+    words, new = stated.group("fact").lower().split(), joined(stated.group("value").rstrip(".!"))
+    for at in range(len(words)):
+        found = await memory.find_value(" ".join(words[at:]), session_id=session_id, limit=_LIMIT)
+        for row in found:
+            for match in _STORED.finditer(row.text.split("\nAssistant: ", 1)[0]):
+                old = match.group("value").rstrip(".!")
+                named = set(match.group("fact").lower().split()) <= set(words)
+                if named and not holds(query, old) and new not in joined(old):
+                    return old
+    return ""
+
+
 async def hold_old_value(
     caps: TurnCapabilities, taint: TaintLedger, *, query: str, reply: str, session_id: str
 ) -> None:
-    """Set ``taint.old_value`` to a value ``query`` corrects that a stored row still holds."""
-    claimed = claims_changed(reply) or claims_kept(reply) or claims_kept_other(reply)
-    if caps.memory is None or taint.forget_deleted or not claimed:
+    """Set ``taint.old_value`` to a value ``query`` corrects, or a stored row states for a fact
+    ``query`` states with another value, that a stored row still holds."""
+    if caps.memory is None or taint.forget_deleted:
         return
-    for value in corrected_values(query):
-        try:
+    claimed = claims_changed(reply) or claims_kept(reply) or claims_kept_other(reply)
+    try:
+        for value in corrected_values(query) if claimed else ():
             rows = await caps.memory.find_value(value, session_id=session_id, limit=_LIMIT)
-        except MemoryStoreError:
-            # The note states what a row holds, so a store that cannot be read gives no note.
-            return
-        for row in rows:
-            corrected = {joined(old) for old in corrected_values(row.text)}
-            if holds(row.text, value) and joined(value) not in corrected:
-                taint.old_value = value
-                return
+            for row in rows:
+                corrected = {joined(old) for old in corrected_values(row.text)}
+                if holds(row.text, value) and joined(value) not in corrected:
+                    taint.old_value = value
+                    return
+        taint.old_value = await _replaced(caps.memory, query, session_id)
+    except MemoryStoreError:
+        # The note states what a row holds, so a store that cannot be read gives no note.
+        return
 
 
 def old_value_note(value: str, language: str) -> str:
