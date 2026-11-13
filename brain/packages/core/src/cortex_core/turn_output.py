@@ -23,8 +23,8 @@ from cortex_core.ports_stores import SessionStore
 from cortex_core.repeat_watch import REPEATED_LINE_NOTE, REPEATED_LINE_NOTES, RepeatWatch
 from cortex_core.rounds_languages import ROUNDS_SPENT_NOTES, runs_said
 from cortex_core.stops import StopLedger
-from cortex_core.tool_loop import MAX_TOOL_STEPS
 from cortex_core.tool_replay import runs_line
+from cortex_core.tool_steps import MAX_TOOL_STEPS
 from cortex_core.turn_context import TurnCapabilities
 from cortex_core.untrusted import TaintLedger
 

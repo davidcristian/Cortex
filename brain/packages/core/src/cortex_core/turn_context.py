@@ -7,6 +7,7 @@ from datetime import datetime
 
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
+from cortex_core.dispatch_round import ToolLoopContext
 from cortex_core.errors import EmbedderError, MemoryDataError, MemoryStoreError
 from cortex_core.events import FORGOING_STATE, StatusUpdate
 from cortex_core.guardrail import OutputGuardrail
@@ -21,7 +22,6 @@ from cortex_core.recall import MemoryRecaller
 from cortex_core.recall_budget import fit_recalled
 from cortex_core.schedule_time import UTC_DISPLAY, DisplayZone
 from cortex_core.sighted import VisionProbe
-from cortex_core.tool_loop import ToolLoopContext
 from cortex_core.tool_replay import RECALLED_RUNS_NOTE, replay_runs
 from cortex_core.untrusted import (
     TaintLedger,

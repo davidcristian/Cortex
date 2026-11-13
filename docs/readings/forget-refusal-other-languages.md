@@ -224,4 +224,4 @@ showed a card, was approved and deleted the code row. Here the forms asked for t
 same note before a stated fact such as `k1` would leave that fact unprotected on the next turn, as
 `UNFORGOTTEN_CLAIM_NOTE` already does after a claim. **Result: not shipped.** The note was reverted;
 the brain's own appended notes have to be left out of the last reply that `forget_unrequested`
-reads first. Log `draws2.jsonl` and `draw2.log` in the slot directory above.
+reads first ([the notes](forget-unrequested-notes.md)). Log `draws2.jsonl` and `draw2.log` in the slot directory above.

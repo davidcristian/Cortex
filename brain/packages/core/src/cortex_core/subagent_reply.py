@@ -10,7 +10,7 @@ from cortex_core.subagent_outcome import (
     AttemptOutcome,
     cap_detail,
 )
-from cortex_core.tool_loop import MAX_TOOL_STEPS
+from cortex_core.tool_steps import MAX_TOOL_STEPS
 
 __all__ = [
     "REPLY_ENVELOPE",

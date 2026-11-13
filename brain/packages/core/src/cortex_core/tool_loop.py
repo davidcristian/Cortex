@@ -17,16 +17,16 @@ from cortex_core.loop_events import ReasoningDelta, StepOutcome, ToolStep
 from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
 from cortex_core.ports import InferenceBackend
 from cortex_core.progress import hold_wait
+from cortex_core.reply_notes import model_text
 from cortex_core.round_opening import OpeningHold
 from cortex_core.tool_cut import ResultRoom
 from cortex_core.tool_round import call_message, plan_round
 from cortex_core.tool_skips import list_tools
+from cortex_core.tool_steps import MAX_TOOL_STEPS
 from cortex_core.tools import ToolCall, ToolSpec
 from cortex_core.unasked_tools import unasked_forget, unasked_sidecar_tools, unasked_tools
 
 __all__ = ["MAX_TOOL_STEPS", "ToolLoopContext", "stream_tool_loop"]
-
-MAX_TOOL_STEPS = 8
 
 
 def _reply_text(
@@ -109,7 +109,9 @@ async def _turn_tools(
     offered = tuple(spec for spec in specs if spec.name not in withheld)
     last_reply = _last_reply(working)
     forget = unasked_forget(context.query, last_reply)
-    unrequested = forget_unrequested(context.query, last_reply, _earlier_ask(working)) - forget
+    # The brain's own notes name forgetting in every language, so they would keep the tool.
+    written = model_text(last_reply)
+    unrequested = forget_unrequested(context.query, written, _earlier_ask(working)) - forget
     refused = left_out | unasked_sidecar_tools(context.query, specs) | forget | unrequested
     return offered, {s.name: s for s in specs}, refused, unrequested
 
