@@ -78,7 +78,7 @@ never a reading of what the tree does now.
 - **[R-1151](tasks/1151-recall-leaves-out-the-rows-a-forget-of-everything-but-one-fact-asks-to-delete.md)** Recall leaves out the rows a forget of everything but one fact asks to delete (memory). Its claim was checked against the code on 2026-11-12.
 - **[R-1171](tasks/1171-a-request-to-remember-an-action-stated-after-que-dass-or-ca-refuses-the-forget-tool.md)** A request to remember an action stated after que, dass or că refuses the forget tool (memory). Its claim was checked against the code on 2026-11-13.
 - **[R-1172](tasks/1172-the-brains-own-note-in-the-last-reply-keeps-the-forget-tool-on-the-next-message.md)** The brain's own note in the last reply keeps the forget tool on the next message (memory). Its claim was checked against the code on 2026-11-13.
-- **[R-1175](tasks/1175-a-forget-beside-a-negated-clause-keeps-a-row-named-only-by-its-kind.md)** A forget beside a negated clause keeps a row named only by its kind (memory). Its claim was checked against the code on 2026-11-13.
+- **[R-1178](tasks/1178-a-german-request-to-remember-calls-the-forget-tool-unasked.md)** A German request to remember calls the forget tool unasked (memory). Its claim was checked against the code on 2026-11-13.
 
 ### Actionable, once a port changes (1)
 
@@ -631,7 +631,7 @@ never a reading of what the tree does now.
 - [R-1168](tasks/1168-a-request-to-forget-in-another-language-written-in-a-z-refuses-the-forget-tool.md) A request to forget in another language written in a-z refuses the forget tool. done 2026-11-13.
 - [R-1171](tasks/1171-a-request-to-remember-an-action-stated-after-que-dass-or-ca-refuses-the-forget-tool.md) A request to remember an action stated after que, dass or că refuses the forget tool. open, actionable.
 - [R-1172](tasks/1172-the-brains-own-note-in-the-last-reply-keeps-the-forget-tool-on-the-next-message.md) The brain's own note in the last reply keeps the forget tool on the next message. open, actionable.
-- [R-1175](tasks/1175-a-forget-beside-a-negated-clause-keeps-a-row-named-only-by-its-kind.md) A forget beside a negated clause keeps a row named only by its kind. open, actionable.
+- [R-1178](tasks/1178-a-german-request-to-remember-calls-the-forget-tool-unasked.md) A German request to remember calls the forget tool unasked. open, actionable.
 
 ### orchestrator
 

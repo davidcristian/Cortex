@@ -40,8 +40,9 @@ last. The Romanian message deletes the card it asks to keep at the start build t
 there), and over the English card at both builds, since no word for minus opens a keep clause and
 `card` is the English row's own word; the minus reader of
 [forget-word-and-minus-unnamed.md](forget-word-and-minus-unnamed.md) keeps that card.
-A forget whose other clause holds a negation keeps a row named only by its kind at both builds:
-task [1175](../refinements/tasks/1175-a-forget-beside-a-negated-clause-keeps-a-row-named-only-by-its-kind.md).
+A forget whose other clause holds a negation kept a row named only by its kind at both builds;
+the kind reader reads the negation per clause
+([readings](forget-kind-and-value-names.md#a-negation-read-per-clause)).
 
 ## Replay through HEAD and the change
 

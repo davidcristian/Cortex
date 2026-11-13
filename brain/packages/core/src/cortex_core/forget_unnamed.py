@@ -112,7 +112,7 @@ def _named(rows: list[MemoryRecord], words: set[str], deleted: Iterable[MemoryRe
     return any(names(words, row_words(record.text)) for record in (*rows, *deleted))
 
 
-def _lists(text: str, listed: set[str], values: set[str], *, kind: bool) -> bool:
+def _lists(text: str, listed: set[str], values: set[str], *, kind: frozenset[str]) -> bool:
     """Whether a forget part naming ``listed``, or only the whole ``values``, names the row."""
     held = whole_values(text.split(_REPLY, 1)[0])
     return names(listed, _row_names(text), kind=kind) or not values.isdisjoint(held)

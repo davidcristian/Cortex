@@ -3,6 +3,7 @@
 from collections.abc import Iterable
 
 from cortex_core.forget_clauses import NOT, clauses
+from cortex_core.memory_values import code_stem
 
 # A closed table: each line is one kind of fact in the note languages, English, French, German,
 # Spanish and Romanian, so a message in one of them names a row stored in another.
@@ -19,13 +20,20 @@ def kinds(words: Iterable[str]) -> set[int]:
     return {_KIND[word] for word in words if word in _KIND}
 
 
-def read_kinds(query: str) -> bool:
-    """Whether a kind word of ``query`` may list a row: it holds no negation and no word for minus,
-    either of which can make the kind word name a row to keep, as in ``N'oublie pas ma carte``."""
-    return all(NOT.isdisjoint(clause) and MINUS.isdisjoint(clause) for clause in clauses(query))
+def read_kinds(query: str) -> frozenset[str]:
+    """The words of ``query`` a kind word may list a row from: each clause holding no negation and
+    no word for minus, which can make it name a row to keep, as in ``N'oublie pas ma carte``."""
+    return frozenset(
+        word
+        for clause in clauses(query)
+        if NOT.isdisjoint(clause) and MINUS.isdisjoint(clause)
+        for token in clause
+        for word in (token, code_stem(token) or token)
+    )
 
 
-def names(words: set[str], row: set[str], *, kind: bool = True) -> bool:
+def names(words: set[str], row: set[str], *, kind: frozenset[str] | None = None) -> bool:
     """Whether the message's ``words`` name a row of words ``row``: a word both hold, or a kind
-    both name when ``kind``."""
-    return not words.isdisjoint(row) or (kind and not kinds(words).isdisjoint(kinds(row)))
+    both name, read only from the words of ``kind`` when given."""
+    listing = words if kind is None else words & kind
+    return not words.isdisjoint(row) or not kinds(listing).isdisjoint(kinds(row))

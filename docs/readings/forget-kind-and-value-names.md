@@ -15,10 +15,11 @@ clause forms are in [forget-keep-clause.md](forget-keep-clause.md) and
   word of the same kind, beside the rule that a word both hold names the row. `Telefonnummer` names
   the phone row through its stem `telefon`. The table is read where `unnamed` and the last group
   keep compare the message's words with a row's, and nowhere else.
-- **Kinds never list a row in a message holding a negation or a word for minus** (`read_kinds`:
+- **Kinds never list a row from a clause holding a negation or a word for minus** (`read_kinds`:
   a word of `NOT` in `forget_clauses.py`, or `minus`, `less`, `moins`, `menos`, `weniger`,
   `puțin`), since `N'oublie pas ma carte.` and `Oublie le code 4242 moins celui de la carte.` name
-  the card as a row to keep, and no keep clause opens there. Such a message still reads a kind as
+  the card as a row to keep, and no keep clause opens there. A kind word of another clause, or the
+  stem of its compound, still lists a row ([per clause](#a-negation-read-per-clause)). Such a message still reads a kind as
   naming a row where that only keeps rows: it ends the newest row exception and the forget of
   every row.
 - **A value alone beside a keep clause.** When the part outside the clause names no word and each
@@ -118,3 +119,37 @@ since `carte` names no word of the English row. No x draw sent `4242`, so the ca
 code by its last group was not drawn. Scripts `draw.sh`, `draw3.sh` and `summ.py`, logs `draw.log`
 and `draws.jsonl`, in the slot directory above.
 
+
+## A negation read per clause
+
+Over `User: Merke dir, meine Telefonnummer ist 0721 555 019.`, `Forget my phone number, I don't
+need it anymore.` with the call text `0721 555 019` kept the row with `KEPT_ALL`, since the
+`don't` of the second clause stopped `phone` naming `Telefonnummer` in the first. `read_kinds`
+returns the words of each clause holding no negation and no word for minus, with the stem of each
+compound code word (`telefon` of `Telefonnummer`), and a kind word lists a row only from that set.
+So that message deletes the row, while `Don't forget my phone number.`, `I don't need my phone
+number, forget it.`, `Vergiss nicht meine Karte.` and `Uită cardul 4242 mai puțin codul de la
+sală.` list no row by a kind. The tests are `test_forget_kind_clause.py`.
+
+Replayed 2026-11-13 through HEAD and the change, with the strings and row sets of
+[the word and minus replay](forget-word-and-minus-unnamed.md#replay-through-head-and-the-change)
+and three more: a French phone row, the German and French phone rows, and the German card beside
+the German phone.
+
+| Cases | Changed | Lists more rows | Lists fewer rows | Lists another row |
+| --- | --- | --- | --- | --- |
+| 238,772 | 120 from 9 strings | 120 | 0 | 0 |
+
+Each changed case lists a French or German row a kind word of a clause holding no negation names:
+the phone for five assistant replies such as `I've deleted your old phone number from my memory.
+However, your new phone number was not kept`, and the card for `Forget the card 4242, minus.`, a
+card text and two tool results. None is a person's message from the proxy log. The logs are
+`old2.jsonl`, `new2.jsonl` and `diff2.txt` in the slot directory of that replay.
+
+Drawn from 04:30 to 04:32 on `cortexn21-brain-s7kind` (the working tree, memory tools only),
+proxy log lines 605 to 629, SM clock 0.58 of its maximum. The rule, set in the draw script before
+any draw: the forget above deletes the row whenever a call sends `0721 555 019`, and `Don't forget
+my phone number.` never deletes it, each from a new chat after the row is stored in a chat of its
+own. Both forgets sent `0721 555 019` and deleted the row, 2 of 2, and no `Don't forget` draw
+called the tool, 2 of 2, so the row stayed. Each store turn called `forget_memories`, which matched
+nothing (task [1178](../refinements/tasks/1178-a-german-request-to-remember-calls-the-forget-tool-unasked.md)).
