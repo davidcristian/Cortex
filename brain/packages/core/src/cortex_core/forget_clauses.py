@@ -67,3 +67,40 @@ def parts(query: str) -> tuple[list[str], list[str]]:
                 keeping = _opens_keep(clause, at)
             (keep if keeping else forget).append(token)
     return forget, keep
+
+
+# A relative word after the value opens a remark about it, as in "4242 that I texted".
+_RELATIVE = frozenset({"that", "which", "where", "que", "qu", "qui", "dont", "où", "donde", "care"})
+_AND = frozenset({"and", "or", "et", "ou", "und", "oder", "y", "o", "și", "şi", "sau"})
+
+
+def _asks(clause: list[str]) -> bool:
+    """Whether ``clause`` holds a forget verb or a clause asking to keep."""
+    return any(FORGET.fullmatch(word) or _opens_keep(clause, at) for at, word in enumerate(clause))
+
+
+def _after(clause: list[str], value: list[str]) -> int | None:
+    """The index just after the first place ``clause`` holds the tokens ``value``, if it does."""
+    size = len(value)
+    ends = (at + size for at in range(len(clause) - size + 1) if clause[at : at + size] == value)
+    return next(ends, None)
+
+
+def _cut(clause: list[str], value: list[str]) -> list[list[str]]:
+    """``clause`` split before the first relative word after ``value``, when it holds both."""
+    at = _after(clause, value) or len(clause)
+    cut = next((i for i in range(at, len(clause)) if clause[i] in _RELATIVE), None)
+    return [clause] if cut is None else [clause[:cut], clause[cut:]]
+
+
+def asking(query: str, value: str) -> str:
+    """The words of ``query`` less each remark: a clause, or its words from a relative word after
+    ``value``, holding no forget verb, keep clause or ``value``, unless it opens with ``and``."""
+    wanted = [token for token in _TOKEN.findall(value.lower()) if token not in _MARKS]
+    found: list[str] = []
+    asked = True
+    for piece in (piece for clause in clauses(query) for piece in _cut(clause, wanted)):
+        joins = asked and piece[0] in _AND
+        asked = joins or _asks(piece) or _after(piece, wanted) is not None
+        found.extend(piece if asked else [])
+    return " ".join(found)
