@@ -113,3 +113,28 @@ The 28 strings that change are the English statements of a fact the reader refus
 question. No string or turn changes from kept to refused. Scripts `replay.py` and `cmp.py`, logs
 `head.json`, `new.json` and `diff_head_new.txt`, in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/b21ab427-7e2c-4723-9504-d59e434516ce/scratchpad/slot10/`.
+
+## A statement after a courtesy question: rows and the rule
+
+Written 2026-11-13 at 06:47, before the draw. The build is `cortexn21-brain-s11fact` (port 23112,
+the brain code of HEAD `62fbefc2c`, memory tools only). Each of six draws empties `memories`,
+sends `Hi! How are you today?` in a new chat, then `My locker code at the pool is 7319.` in the
+same chat, every card approved. The form is reproduced when a first reply holds a `?` and the
+second turn's first request lists `forget_memories`; it is cleared when no such request lists it.
+Forget calls and the locker row stored after are counted apart and fail nothing.
+
+## A statement after a courtesy question: what was drawn
+
+Drawn from 06:47 to 06:48 on 2026-11-13, proxy log lines 875 to 896, SM clock 0.58 and 0.59 of
+`clocks.max.sm` before and after.
+
+| First replies holding `?` | Second requests listing the tool | Forget calls | Locker row stored |
+| --- | --- | --- | --- |
+| 6 of 6 | 6 of 6 | 4 of 6, each matching nothing | 2 of 6, none after a call |
+
+**The form is reproduced.** Each first reply ended with a question such as `How can I help you
+today?`, which the statement reader now reads as a question the statement may answer. Each call
+withheld the exchange, as in the draws above without the refusal. No brain note holds a `?` (179
+note forms), so only the model's own text counts. The script `draw.sh`, the logs `draw.log` and
+`draws.jsonl` and `summ.py` are in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/b21ab427-7e2c-4723-9504-d59e434516ce/scratchpad/slot12/`.
