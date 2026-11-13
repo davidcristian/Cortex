@@ -1,9 +1,8 @@
 # A request to forget in another language written in a-z refuses the forget tool
 
-**Status:** open, actionable
+**Status:** done 2026-11-13
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-12
 
 `forget_unrequested` (`forget_unrequested.py`) reads English, French, German, Spanish and Romanian
 by its word lists and keeps the forget tool on any other message only by a letter outside `a-z`
@@ -34,3 +33,11 @@ the same way. Each of these returns `{"forget_memories"}`:
 
 - 2026-11-12: filed from the replay of the reader that reads the four languages' letters only on
   a request to remember in one of them.
+- 2026-11-13: done. The reader now refuses only a message it names as one of its five languages
+  and reads as a request to remember or a question (`asks_kept_fact_other`, `asks_kept`, or a `?`
+  or an opening question word beside an English word the other languages do not write alone), and
+  every message above keeps the tool. No word was added to a list. Replayed with the start build
+  over 32,826 strings, none is newly refused and 26,558 now keep the tool. Of the 854 short strings
+  now kept that name no English word, a hand read finds 45 a person could send in English (11 in
+  `docs/readings/`, 34 in tests), such as `Hi` and `Okay.`
+  ([readings](../../readings/forget-refusal-other-languages.md#refusing-a-named-request-or-question-only-2026-11-13)).

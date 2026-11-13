@@ -132,3 +132,48 @@ person's language and said the fact was kept or forgotten. The image was built b
 left the list, a word none of the 20 messages holds. Scripts: `draw.sh`, `summ.py`,
 `collect.py`, `replay.py`, `replay_ua.py` and `diff.py` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/d2003893-7ebe-4ec3-ad1c-e92980017fd3/scratchpad/slot12/`.
+
+## Refusing a named request or question only, 2026-11-13
+
+A request to forget in a language the lists do not read and written in `a-z` had the tool refused
+(`Wis mijn adres.`, `Svuota la memoria.`, `Unohda puhelinnumeroni.`). The reader now refuses only a
+message it names as one of its five languages and reads as a request to remember or a question:
+`asks_kept_fact_other` as before, `asks_kept` for English, or a `?` or an opening `what`, `how` and
+the like beside an English word that Dutch, Polish, Portuguese, Catalan, Romanian and the Nordic
+languages do not write alone (`the`, `you`, `that`, `please`; not `is`, `my`, `to`, `in`, `has`).
+Every other message keeps the tool, whatever its letters. No word was added to any list.
+
+Replayed through the start build `cec7c748f` and this reader, with no last reply, over 32,826
+distinct strings: 18,348 in the brain's test files, 16,274 backticked in `docs/`, the 39 distinct
+person messages of tonight's `cortexn21` proxy log and 61 written for the replay in English, the
+four languages, Italian, Portuguese, Dutch, Polish, Catalan, Norwegian and Finnish. The start build
+refuses 27,369 and this reader 811. None is newly refused; 26,558 now keep the tool.
+
+| Strings | Count | Refused, start build | Refused, this reader |
+| --- | --- | --- | --- |
+| tests | 18,348 | 14,260 | 688 |
+| docs | 16,274 | 14,571 | 197 |
+| proxy log messages | 39 | 26 | 20 |
+| written for the replay | 61 | 58 | 12 |
+
+Of the 61, the 12 still refused are the requests to remember a stated fact in French, German,
+Spanish and Romanian written without diacritics, the forms of
+[task 1171](../refinements/tasks/1171-a-request-to-remember-an-action-stated-after-que-dass-or-ca-refuses-the-forget-tool.md)
+among them (`Recuerda que remuevas mi codigo.`), and three English messages: `Remember my code is
+4862.`, `what is my bike lock code` and `Remember that you must chuck my code.`, which the start
+build refuses too. The 46 now kept are every Italian, Portuguese, Dutch, Polish, Catalan, Norwegian
+and Finnish message, the questions, statements and requests to forget of the four languages
+(`Cual es mi codigo?`, `Tira mi codigo.`), and `Hi`, `Thanks`, `My sister is vegan.` and `Tell me a
+joke.`. The six proxy messages now kept are `hello` and five other greetings or `.`.
+
+Among the strings now kept, 854 have at most four words, read as a message and hold none of the
+English words (317 backticked in `docs/readings/`, 537 in tests). A hand read finds 11 of the 317 and
+34 of the 537 that a person could send in English, such as `Hi`, `Okay.`, `My number is 1063.`,
+`Shall we?` and `Tell me a joke.`; the rest are names, labels and identifiers. The two forms that
+called `forget_memories` and were refused in the replay of
+[the first record](forget-unrequested.md#replay-2026-11-11), the Anna question and `Remember that
+my ... is ...`, are still refused. A statement or command such as `I asked you to zap 8426`
+or `My locker code is 7319.` now keeps the tool; a call the model makes there unasked still meets
+the card. `unasked_tools` and `unasked_forget` share no changed code. Scripts `collect.py`, `run.py`,
+`diff.py` and `classify.py`, logs `diff1.txt` and `kept_*.txt`, in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/b21ab427-7e2c-4723-9504-d59e434516ce/scratchpad/slot3/`.

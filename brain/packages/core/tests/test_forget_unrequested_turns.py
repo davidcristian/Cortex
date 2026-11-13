@@ -135,6 +135,9 @@ class _Script:
             yield event
 
 
+_ANSWER = "What about the first one?"
+
+
 async def _answer(first: str, second: str) -> list[str]:
     ran: list[str] = []
 
@@ -157,8 +160,8 @@ async def _answer(first: str, second: str) -> list[str]:
 
 
 async def test_an_answer_to_a_question_about_a_forget_runs_the_forget() -> None:
-    assert await _answer("Forget my phone number.", "The first one.") == [FORGET_CHOSEN_TOOL_NAME]
+    assert await _answer("Forget my phone number.", _ANSWER) == [FORGET_CHOSEN_TOOL_NAME]
 
 
 async def test_an_answer_to_a_question_about_a_lookup_refuses_the_forget() -> None:
-    assert await _answer("What is my phone number?", "The first one.") == []
+    assert await _answer("What is my phone number?", _ANSWER) == []

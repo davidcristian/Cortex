@@ -1,9 +1,9 @@
-"""Refuse the forget tool on a message that holds no word that can retract something."""
+"""Refuse the forget tool on a request to remember or a question that cannot retract anything."""
 
 import re
 
 from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
-from cortex_core.memory_request import asks_kept_fact_other, asks_kept_other
+from cortex_core.memory_request import asks_kept, asks_kept_fact_other, asks_kept_other
 
 FORGET_UNREQUESTED_MSG = (
     "REFUSED: the person's message asks to forget nothing, so this call was not run. Do not call "
@@ -65,6 +65,16 @@ _NAMES_FORGETTING = re.compile(
 )
 
 
+# English words that Dutch, Polish, Portuguese, Catalan, Romanian and the Nordic languages do not
+# write alone, so a message in one of them is not named English: "is", "my", "to" and "has" are.
+_ENGLISH = re.compile(
+    r"\b(?:the|you|your|yours|what|which|who|whose|where|when|why|how|this|that|these|those|with"
+    r"|please|and|can|could|would|should|does|did|have|it|its|they|them|their)\b",
+    re.IGNORECASE,
+)
+_QUESTION = re.compile(
+    r"\?|(?:^|[.!]\s)\W*(?:what|which|who|whose|where|when|why|how)\b", re.IGNORECASE
+)
 _LETTERS = re.compile(r"[a-z]{4,}", re.IGNORECASE)
 _TYPO_OF = ("forget", "forgot", "delete", "remove", "erase", "unlearn")
 
@@ -87,14 +97,20 @@ def _misspells_forgetting(text: str) -> bool:
     return any(_one_typo(w.lower(), t) for w in _LETTERS.findall(text) for t in _TYPO_OF)
 
 
+def _asks_in_english(query: str) -> bool:
+    """Whether ``query`` asks to remember in English, or asks a question in English words."""
+    question = _QUESTION.search(query) is not None and _ENGLISH.search(query) is not None
+    return question or asks_kept(query)
+
+
 def forget_unrequested(query: str, last_reply: str = "", earlier: str = "") -> frozenset[str]:
-    """The forget tool, refused by name on a ``query`` with no word that can retract something.
+    """The forget tool, refused on a named request to remember or question that retracts nothing.
 
     ``last_reply`` is the chat's last assistant message and ``earlier`` the message it answered.
     """
     if asks_kept_fact_other(query):
         can_retract = _CAN_RETRACT_READ
-    elif asks_kept_other(query):
+    elif asks_kept_other(query) or not _asks_in_english(query):
         return frozenset()
     else:
         can_retract = _CAN_RETRACT
