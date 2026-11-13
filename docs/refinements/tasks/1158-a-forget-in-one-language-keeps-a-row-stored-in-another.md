@@ -1,9 +1,8 @@
 # A forget in one language keeps a row stored in another
 
-**Status:** open, actionable
+**Status:** done 2026-11-13
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-12
 
 A plain forget naming a row only in words of another language than the row's deletes nothing
 ([readings](../../readings/forget-keep-plain-replay.md#readings)). Over the row `User: Remember
@@ -27,3 +26,10 @@ either. 126 of 316 replayed cases with a message and row in different languages 
 ## History
 
 - 2026-11-12: filed from the replay of plain forgets through the destructive card.
+- 2026-11-13: done. A closed table of card and phone words in the five note languages
+  (`forget_kinds.py`) names a row of the same kind where `unnamed` and the last group keep
+  compare the message's words with a row's, but lists no row in a message holding a negation or a
+  word for minus. The replay changed only cases listing a row the message names
+  ([readings](../../readings/forget-kind-and-value-names.md)). A card message still lists a phone
+  row ending in the same group: task
+  [1173](1173-a-forget-naming-a-card-lists-a-phone-ending-in-the-same-group.md).

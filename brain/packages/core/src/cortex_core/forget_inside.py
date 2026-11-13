@@ -3,6 +3,7 @@
 import re
 from collections.abc import Iterable, Sequence
 
+from cortex_core.forget_kinds import names, read_kinds
 from cortex_core.forget_languages import FUNCTION, readings
 from cortex_core.forget_unnamed import just_said, quantifies, row_words, unnamed
 from cortex_core.memory import MemoryRecord
@@ -118,14 +119,15 @@ def _ends(
     holding = [] if every else [row for row in texts if _whole(row, text)]
     beside = {word for row in holding for word in row_words(row)}
     words = row_words(query)
-    named = any(not words.isdisjoint(row_words(row)) for row in texts)
+    named = any(names(words, row_words(row)) for row in texts)
     said = None if named or kinds else just_said(list(records), chat, deleted)
     unasked = bool(_content(query)) and pattern.search(query) is None
+    kind = read_kinds(query)
     return {
         record.id: record.id != said
         and (
-            (bool(holding) and words.isdisjoint(row_words(record.text) - beside))
-            or (unasked and words.isdisjoint(row_words(record.text)))
+            (bool(holding) and not names(words, row_words(record.text) - beside, kind=kind))
+            or (unasked and not names(words, row_words(record.text), kind=kind))
         )
         for record in records
     }

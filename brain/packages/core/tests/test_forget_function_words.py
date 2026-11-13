@@ -78,10 +78,13 @@ def test_a_content_word_or_an_english_word_still_names_its_row(
     [
         ("de", "Vergiss 7319, behalte den vom Schuppen."),
         ("es", "Olvida 7319, guarda el del cobertizo."),
-        ("ro", "Uită 7319, păstrează-l pe cel de la magazie."),
     ],
 )
 def test_a_keep_clause_beside_a_value_naming_no_fact_keeps_both_rows(
     language: str, query: str
 ) -> None:
     assert _kept(language, query) == ["bike", "other"]
+
+
+def test_a_keep_clause_whose_every_content_word_names_a_row_lists_the_others_by_value() -> None:
+    assert _kept("ro", "Uită 7319, păstrează-l pe cel de la magazie.") == ["other"]

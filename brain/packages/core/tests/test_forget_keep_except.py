@@ -44,13 +44,18 @@ def _kept(text: str, query: str, *rows: MemoryRecord) -> list[str]:
     [
         "Forget the code 4242 except the card.",
         "Forget the code 4242, excluding the card.",
-        "Forget everything except my card.",
         "Forget the code 4242 but not my card.",
         "Forget the code 4242, keep the card.",
     ],
 )
-def test_an_except_clause_beside_a_code_word_alone_lists_no_row(query: str) -> None:
-    assert _kept("4242", query, _CARD, _CODE) == ["card", "code"]
+def test_an_except_clause_beside_a_code_word_and_a_value_lists_the_row_holding_it_whole(
+    query: str,
+) -> None:
+    assert _kept("4242", query, _CARD, _CODE) == ["card"]
+
+
+def test_an_except_clause_beside_no_word_and_no_value_lists_no_row() -> None:
+    assert _kept("4242", "Forget everything except my card.", _CARD, _CODE) == ["card", "code"]
 
 
 @pytest.mark.parametrize(

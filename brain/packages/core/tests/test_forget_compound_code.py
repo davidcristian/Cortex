@@ -110,7 +110,7 @@ def _kept_of_compounds(query: str) -> list[str]:
     ("query", "kept"),
     [
         ("Forget the Fahrradcode 7319 but keep the Postleitzahl.", ["haus", "pass", "pin", "plz"]),
-        ("Vergiss 7319, behalte den Fahrradcode.", ["haus", "pass", "pin", "plz", "rad"]),
+        ("Vergiss 7319, behalte den Fahrradcode.", ["rad"]),
         ("Vergiss den Fahrradcode 7319, alles andere bleibt.", ["haus", "pass", "pin", "plz"]),
         ("Vergiss meine Postleitzahl 7319, alles andere bleibt.", ["haus", "pass", "pin", "rad"]),
         ("Forget my passcode 7319 but keep my passport.", ["haus", "pin", "plz", "rad"]),

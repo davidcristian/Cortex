@@ -64,12 +64,23 @@ def test_a_fact_named_only_in_a_clause_asking_to_keep_is_kept(query: str) -> Non
     [
         "Forget 7319, keep the shed one.",
         "Forget 7319 everywhere, but keep the shed one.",
-        "Oublie 7319, garde celui du shed.",
         "Vergiss 7319, behalte den shed Code.",
         "Uită 7319, păstrează codul de la shed.",
     ],
 )
-def test_a_keep_clause_beside_a_value_naming_no_fact_keeps_every_row(query: str) -> None:
+def test_a_keep_clause_beside_a_value_naming_no_fact_lists_the_rows_holding_it_whole(
+    query: str,
+) -> None:
+    assert _kept(query) == ["shed"]
+
+
+@pytest.mark.parametrize(
+    "query",
+    ["Oublie 7319, garde celui du shed.", "Forget 7319, keep the shed one and the boat one."],
+)
+def test_a_keep_clause_with_a_word_naming_no_row_beside_a_value_keeps_every_row(
+    query: str,
+) -> None:
     assert _kept(query) == ["bike", "shed"]
 
 

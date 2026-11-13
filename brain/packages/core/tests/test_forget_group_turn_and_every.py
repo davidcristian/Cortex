@@ -91,8 +91,8 @@ async def test_a_forget_of_every_row_holding_the_code_lists_the_card(
         ("Forget the code 4242 everywhere.", ["card"]),
         ("Vergiss den Fahrradcode 4242 überall.", ["card", "gym"]),
         ("Forget everything about my gym, 4242.", ["card"]),
-        ("Forget every 4242 except the card.", ["card", "gym"]),
-        ("Forget every 4242 but keep the card.", ["card", "gym"]),
+        ("Forget every 4242 except the card.", ["card"]),
+        ("Forget every 4242 but keep the card.", ["card"]),
         ("Forget my gym code 4242, all of it.", ["card"]),
     ],
 )

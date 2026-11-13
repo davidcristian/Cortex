@@ -1,9 +1,8 @@
 # A keep clause beside a forget naming only a value keeps every row
 
-**Status:** open, actionable
+**Status:** done 2026-11-13
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-12
 
 Over `User: Remember that my card is 4111 1111 1111 4242.` and `User: Remember that my gym code
 is 4242.`, `Forget every 4242 except the card.` and `Forget every 4242 but keep the card.` with
@@ -21,3 +20,7 @@ note names both rows, so the person sees it.
 ## History
 
 - 2026-11-12: filed from the tests of the forget of every row holding a code.
+- 2026-11-13: done. A forget part naming no word, beside a clause each of whose content words names a
+  matched row, names each matched row holding one of its values whole, so `Forget every 4242
+  except the card.` deletes the gym code and keeps the card, and a clause with a word naming no
+  row still keeps every row ([readings](../../readings/forget-kind-and-value-names.md)).

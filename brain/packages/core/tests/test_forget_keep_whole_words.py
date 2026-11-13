@@ -69,9 +69,9 @@ def test_a_german_compound_names_its_own_compound_and_not_a_word_it_ends(
     [
         ("Forget my PIN 7319, keep everything else.", ["card"]),
         ("Forget my pin code 7319, keep everything else.", ["card"]),
-        ("Forget 7319 but keep my pin code.", []),
-        ("Forget 7319 but keep my zip code.", []),
-        ("Forget 7319 but keep the Postleitzahl.", []),
+        ("Forget 7319 but keep my pin code.", [n for n in _EVERY if n != "card"]),
+        ("Forget 7319 but keep my zip code.", [n for n in _EVERY if n != "zip"]),
+        ("Forget 7319 but keep the Postleitzahl.", [n for n in _EVERY if n != "plz"]),
         ("Forget 7319, keep the shed one.", []),
     ],
 )
