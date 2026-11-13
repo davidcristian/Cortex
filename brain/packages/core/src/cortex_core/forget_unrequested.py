@@ -75,6 +75,15 @@ _ENGLISH = re.compile(
 _QUESTION = re.compile(
     r"\?|(?:^|[.!]\s)\W*(?:what|which|who|whose|where|when|why|how)\b", re.IGNORECASE
 )
+# A possessive, at most six words, a copula, then a value of at most four words and no second
+# clause, as in "My phone is 0721 555 019."
+_VALUE_WORD = r"(?!-(?:\s|$))[^\s,;:?!()\u2013\u2014]+"
+_STATEMENT = re.compile(
+    r"\W*(?:my|our|his|her|their)\s+(?:[\w'\u2019-]+\s+){0,6}?(?:is|are|was|were)\s+"
+    rf"{_VALUE_WORD}(?:\s+{_VALUE_WORD}){{0,3}}[.!]?",
+    re.IGNORECASE,
+)
+_SENTENCE_END = re.compile(r"(?<=[.!])\s+")
 _LETTERS = re.compile(r"[a-z]{4,}", re.IGNORECASE)
 _TYPO_OF = ("forget", "forgot", "delete", "remove", "erase", "unlearn")
 
@@ -97,10 +106,15 @@ def _misspells_forgetting(text: str) -> bool:
     return any(_one_typo(w.lower(), t) for w in _LETTERS.findall(text) for t in _TYPO_OF)
 
 
+def _states_in_english(query: str) -> bool:
+    """Whether every sentence of ``query`` states a fact in English, as in ``My phone is 0721.``."""
+    return all(_STATEMENT.fullmatch(s) for s in _SENTENCE_END.split(query.strip()))
+
+
 def _asks_in_english(query: str) -> bool:
-    """Whether ``query`` asks to remember in English, or asks a question in English words."""
+    """Whether ``query`` asks to remember, asks a question or states a fact, in English words."""
     question = _QUESTION.search(query) is not None and _ENGLISH.search(query) is not None
-    return question or asks_kept(query)
+    return question or asks_kept(query) or _states_in_english(query)
 
 
 def forget_unrequested(query: str, last_reply: str = "", earlier: str = "") -> frozenset[str]:

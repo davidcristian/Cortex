@@ -47,7 +47,19 @@ def test_a_message_with_no_word_that_can_retract_refuses_the_forget_tool(query: 
     [
         "Hi",
         "Tell me a joke, then the time",
-        "My sister is vegan.",
+        "I live in Berlin.",
+        "My name's Ana.",
+        "My code is 7319?",
+        "My locker code is 7319, and my pin is 1111.",
+        "My PIN is 4412 (keep it nowhere).",
+        "My PIN is 4412 - I keep it nowhere near the kids.",
+        "My kode is verkeerd en vee dit dadelik weg.",
+        "My PIN is 4412 - keep it.",
+        "My code is 7319. Usun moj stary numer.",
+        "My friend from the gym who lives near the big station is Ion.",
+        "Mijn code is 7319.",
+        "Moj kod to 7319.",
+        "My to usuniemy.",
         "I asked you to zap 8426",
         "Descarta el que et vaig dir de la meva salut.",
         "Wis mijn adres.",
@@ -70,6 +82,39 @@ def test_a_message_neither_asking_to_remember_nor_an_english_question_keeps_the_
     query: str,
 ) -> None:
     assert forget_unrequested(query) == frozenset()
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "My phone is 0721 555 019.",
+        "My locker code at the pool is 7319.",
+        "My sister is vegan.",
+        "Our wifi password is hunter2",
+        "Her birthday was on May 3. My code is 7319!",
+        "  My email is ana.pop@example.com.  ",
+        "My phone is 0721-555-019.",
+    ],
+)
+def test_an_english_statement_of_a_fact_refuses_the_forget_tool(query: str) -> None:
+    assert forget_unrequested(query) == _REFUSED
+
+
+@pytest.mark.parametrize(
+    ("query", "last_reply"),
+    [
+        ("My locker code is 7319, forget the old one.", ""),
+        ("My old locker code was 7319.", ""),
+        ("My locker code is no longer 7319.", ""),
+        ("My biggest regret is that I forgot her birthday.", ""),
+        ("My café is Brühl.", ""),
+        ("My code is 7319.", "Should I forget your old code?"),
+    ],
+)
+def test_an_english_statement_naming_a_retracting_word_keeps_the_forget_tool(
+    query: str, last_reply: str
+) -> None:
+    assert forget_unrequested(query, last_reply) == frozenset()
 
 
 @pytest.mark.parametrize(

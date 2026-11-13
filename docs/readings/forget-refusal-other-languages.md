@@ -172,9 +172,10 @@ English words (317 backticked in `docs/readings/`, 537 in tests). A hand read fi
 `Shall we?` and `Tell me a joke.`; the rest are names, labels and identifiers. The two forms that
 called `forget_memories` and were refused in the replay of
 [the first record](forget-unrequested.md#replay-2026-11-11), the Anna question and `Remember that
-my ... is ...`, are still refused. A statement or command such as `I asked you to zap 8426`
-or `My locker code is 7319.` now keeps the tool; a call the model makes there unasked still meets
-the card. `unasked_tools` and `unasked_forget` share no changed code. Scripts `collect.py`, `run.py`,
+my ... is ...`, are still refused. A command such as `I asked you to zap 8426` now keeps the
+tool; a call the model makes there unasked still meets the card. A plain English statement such as
+`My locker code is 7319.` is refused by its own shape
+([the statement](forget-refusal-english-statement.md)). `unasked_tools` and `unasked_forget` share no changed code. Scripts `collect.py`, `run.py`,
 `diff.py` and `classify.py`, logs `diff1.txt` and `kept_*.txt`, in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/b21ab427-7e2c-4723-9504-d59e434516ce/scratchpad/slot3/`.
 

@@ -98,8 +98,8 @@ Drawn from 03:29 to 03:33 on 2026-11-13 on `cortexn21-brain-s5group`, proxy log 
 
 Every item of the rule holds where its form was drawn. In j1 and j3 the store turn itself called
 `forget_memories`, which matched no row, so the reply kept nothing in memory and the forget turn
-matched nothing: task
-[1176](../refinements/tasks/1176-a-plain-statement-of-a-fact-calls-the-forget-tool-and-stores-nothing.md).
+matched nothing, since this build kept the forget tool on a plain English statement
+([the store turn](forget-refusal-english-statement.md)).
 In c both calls sent the whole card number, which the phone row does not hold, so the card listed
 the card alone at HEAD too; no c draw sent `4242`, so the new keep was not drawn, as no x draw of
 the kind word change sent it. Scripts `draw.sh` and `draw3.sh`, logs `draw.log`, `draw3.log` and
