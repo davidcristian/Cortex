@@ -238,7 +238,10 @@ read 0.58, 0.67 and 0.70 of its maximum before, between and after the draws.
 Every item of the rule holds. Every a call sent `4242`. Before the change its card kept the mobile
 phone and the cortex sent a second call for it, a second card for the person to approve; with the
 change one card listed all three rows. Neither n draw deleted the card: one asked whether to
-forget the phone, and one sent a text no row holds
-([task 1195](../refinements/tasks/1195-a-forget-beside-a-clause-saying-a-row-stays-deletes-nothing.md)).
+forget the phone, and one sent a text no row holds. Each reply ended with a brain note saying
+nothing was deleted (`UNCALLED_FORGET_NOTE`, due whenever `asks_to_forget` reads the message and no
+forget call ran, which it does for this form in English, German, French and Romanian, and
+`UNMATCHED_FORGET_NOTE`), so the card stays, the safe direction, and the person can ask again. No
+prompt line is added to raise the call rate: both paths already end with a typed note.
 The scripts `draw.sh` and `rule.md` and the logs `draw.log` and `draws.jsonl` are in the slot
 directory above.

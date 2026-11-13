@@ -35,6 +35,6 @@ kept note shows it, so the person can ask again.
   then only fact words of rows holding the text), so `my phone as well`, `the phone too`, `also my
   phone`, `plus my phone` and a second sentence `My phone as well.` list the phone. `then my
   phone`, `my phone included` and `even my phone` stay remarks and keep the phone under the kept
-  line. Neither draw of `Forget the card 4242, my phone stays.` deleted the card, filed as task
-  1195. The replay and the draws are in
+  line. Neither draw of `Forget the card 4242, my phone stays.` deleted the card, and a brain
+  note in each reply said nothing was deleted. The replay and the draws are in
   [the remark readings](../../readings/forget-remark-about-the-value.md#a-clause-adding-a-row).
