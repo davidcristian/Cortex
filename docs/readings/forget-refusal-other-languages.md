@@ -177,3 +177,50 @@ or `My locker code is 7319.` now keeps the tool; a call the model makes there un
 the card. `unasked_tools` and `unasked_forget` share no changed code. Scripts `collect.py`, `run.py`,
 `diff.py` and `classify.py`, logs `diff1.txt` and `kept_*.txt`, in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/b21ab427-7e2c-4723-9504-d59e434516ce/scratchpad/slot3/`.
+
+## An action asked after que, dass or că: rows and rule, written 2026-11-13 before any draw
+
+The start build and HEAD refuse the forget tool on all five forms of
+[task 1171](../refinements/tasks/1171-a-request-to-remember-an-action-stated-after-que-dass-or-ca-refuses-the-forget-tool.md).
+A FORGET_UNREQUESTED refusal sets no `TaintLedger.forget_refused`, so its reply gets
+`UNFORGOTTEN_CLAIM_NOTE` only when it claims a forget. On the stack brain (port 23051, the start
+build, memory tools only), each draw is a new chat whose first message stores a code
+(`Recuerda que mi código es 7731.` and its French, German and Romanian forms), then one form, every
+card approved. Two draws each of `a1` `Recuerda que remuevas mi código.`, `a2` `Recuerda que tires mi
+código.`, `a3` `Souviens-toi que tu jettes mon code.`, `a4` `Merk dir, dass du meinen Code
+wegwirfst.` and `a5` `Tine minte ca vreau sa arunci codul.`.
+
+- **Satisfied**: every form reply after a refused or absent forget call says nothing was removed,
+  or ends with the existing note. The existing note then covers the forms.
+- **Note needed**: a form reply after a refused or absent call says the code is kept, removed or
+  will be removed with no note, so the person is not told nothing was forgotten.
+- The forget call rate on the forms is a separate count. A draw ending in an error is a null row.
+
+On the stack brain, proxy lines 168 to 228, SM clock 0.58 of `clocks.max.sm` at the end:
+
+| Row | Draws | With a refused call | Reply | Existing note |
+| --- | --- | --- | --- | --- |
+| `a1` | 2 | 2 | `He eliminado tu código de mi memoria.` | 2 |
+| `a2` | 2 | 0 | `recordaré tu código`, `Ya lo tengo guardado` | 0 |
+| `a3` | 2 | 2 | `je retiendrai que vous jetez votre code` | 0 |
+| `a4` | 2 | 2 | `ich habe mir gemerkt, dass ich deinen Code wegwirf` | 0 |
+| `a5` | 2 | 0 | `voi ține minte că dorești să arunci codul` | 0 |
+
+**Result: note needed.** Six of ten draws had a forget call refused, and four of them replied that
+the request was kept with no note, so a German reply says the code will be thrown away while it
+stays stored. Every code row was kept and no card showed. Draw logs `draws.jsonl`, `draw.log` and
+`summ.py` in the slot directory above.
+
+A note was then built and drawn before it shipped: `UNREQUESTED_FORGET_NOTE`, appended when a call
+was refused as `FORGET_UNREQUESTED` on a message `asks_kept_fact_other` reads, no forget call
+deleted and `UNFORGOTTEN_CLAIM_NOTE` did not show (`Aquí no se olvidó nada. Para que se olvide
+algo, pídelo en un mensaje aparte.`). The rule, written before its draw, was one draw each of `a1`,
+`a3` and `a4` on a second brain `s3note` built from the working tree: each draw with a refused call
+ends with one note and keeps its code row. On `s3note`, proxy lines 230 to 249, SM clock 0.58, all
+three setup turns had an unasked forget call refused and ended with the note. Then the note's own
+words (`olvid`, `oublié`, `vergessen`) in the last reply kept the tool on each form, whose call ran,
+showed a card, was approved and deleted the code row. Here the forms asked for that removal, but the
+same note before a stated fact such as `k1` would leave that fact unprotected on the next turn, as
+`UNFORGOTTEN_CLAIM_NOTE` already does after a claim. **Result: not shipped.** The note was reverted;
+the brain's own appended notes have to be left out of the last reply that `forget_unrequested`
+reads first. Log `draws2.jsonl` and `draw2.log` in the slot directory above.

@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-12
+**Verified:** 2026-11-13
 
 `forget_unrequested` (`forget_unrequested.py`) reads the letters of French, German, Spanish and
 Romanian only on a request that `asks_kept_fact_other` (`memory_request.py`) reads as one stated
@@ -26,15 +26,23 @@ né en 1990.`, `Souviens-toi que sa voiture est rouge.`), so no closed word sepa
 
 ## What to do
 
-1. Count the forms in recorded draws first: no recorded draw has any of them, so draw one per
-   language before building.
-2. Do not add verbs or verb endings. If the draws show a form, prefer a brain-appended note on a
-   refused forget call over a wider reader.
-3. Replay every recorded draw message and test string through the start build, HEAD and the new
-   reader, and name every string whose result changes.
+1. First close [task 1172](1172-the-brains-own-note-in-the-last-reply-keeps-the-forget-tool-on-the-next-message.md),
+   since a note naming forgetting keeps the tool on the message after it.
+2. Then append a note after a call refused as `FORGET_UNREQUESTED` on a message
+   `asks_kept_fact_other` reads, when no forget call deleted and `UNFORGOTTEN_CLAIM_NOTE` does not
+   show, saying nothing was forgotten and to ask for a forget in a message of its own. It needs a
+   `TaintLedger` flag kept by the handoff record. Do not add verbs or verb endings to a reader.
+3. Draw rows `a1` to `a5` and `k1` with the next message after each
+   ([readings](../../readings/forget-refusal-other-languages.md#an-action-asked-after-que-dass-or-că-rows-and-rule-written-2026-11-13-before-any-draw)).
 
 ## History
 
 - 2026-11-12: filed when the four languages' letters became read only on a stated fact with
   no obligation of the assistant, which left these forms refused. No draw was made, since the
   stack was down.
+- 2026-11-13: left open. On the stack brain, 6 of 10 draws of the five forms had a forget call
+  refused, and 4 of those replied that the request was kept with no note, so the person is not told
+  nothing was forgotten. A note built for it showed on every refused setup turn, and its own words
+  then kept the tool on the next message, so it was reverted and
+  [task 1172](1172-the-brains-own-note-in-the-last-reply-keeps-the-forget-tool-on-the-next-message.md)
+  was filed first.
