@@ -30,6 +30,8 @@ either. 126 of 316 replayed cases with a message and row in different languages 
   (`forget_kinds.py`) names a row of the same kind where `unnamed` and the last group keep
   compare the message's words with a row's, but lists no row in a message holding a negation or a
   word for minus. The replay changed only cases listing a row the message names
-  ([readings](../../readings/forget-kind-and-value-names.md)). A card message still lists a phone
-  row ending in the same group: task
-  [1173](1173-a-forget-naming-a-card-lists-a-phone-ending-in-the-same-group.md).
+  ([readings](../../readings/forget-kind-and-value-names.md)). Its review found that a word for
+  minus still deletes the card it asks to keep, task
+  [1174](1174-a-forget-with-a-word-for-minus-deletes-the-card-it-asks-to-keep.md), and that a
+  negated clause keeps a row named only by its kind, task
+  [1175](1175-a-forget-beside-a-negated-clause-keeps-a-row-named-only-by-its-kind.md).

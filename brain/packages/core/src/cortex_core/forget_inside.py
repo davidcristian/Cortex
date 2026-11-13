@@ -176,4 +176,25 @@ def kept_rows(
     )
     ids = {row.id for row in kept}
     whole = [row for row in rows if unclear and row.id not in ids and _whole(row.text, text)]
-    return [*kept, *whole]
+    return [*kept, *whole, *_unnamed_groups(rows, within, text, stamp.query)]
+
+
+def _in_longer(record: str, text: str) -> bool:
+    """Whether ``record`` holds ``text`` and each place it does is inside a longer value."""
+    places, spans = _places(record, text), value_spans(record)
+    return bool(places) and all(
+        any(low <= start and end <= high and (start, end) != (low, high) for low, high in spans)
+        for start, end in places
+    )
+
+
+def _unnamed_groups(
+    rows: Sequence[MemoryRecord], within: Sequence[MemoryRecord], text: str, query: str
+) -> list[MemoryRecord]:
+    """The ``rows`` holding ``text`` only inside a longer value that no word or kind of ``query``
+    names, when it names another of ``rows`` or ``within``."""
+    if quantifies(query):
+        return []
+    words = _content(query)
+    named = {row.id for row in (*rows, *within) if names(words, row_words(row.text))}
+    return [row for row in rows if named and row.id not in named and _in_longer(row.text, text)]

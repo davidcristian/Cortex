@@ -70,8 +70,8 @@ card rows) with that value and `code`, from the chat that stored the rows and fr
 
 No change lists a row that the message does not name by a word, a kind or its whole value. Both
 builds list a mobile phone `0721 555 4242` beside the card for `Forget the card ending in 4242.`
-with call text `4242`, since neither row holds `4242` whole: task
-[1173](../refinements/tasks/1173-a-forget-naming-a-card-lists-a-phone-ending-in-the-same-group.md). Scripts
+with call text `4242`, since neither row holds `4242` whole; the reader that keeps the phone is in
+[forget-group-holder-unnamed.md](forget-group-holder-unnamed.md). Scripts
 `replay.py` and `diff.py`, the logs `old.jsonl` and `new.jsonl` and the per case list `diff.txt`
 are in `/tmp/claude-1000/-home-david-Files-Git-Cortex/b21ab427-7e2c-4723-9504-d59e434516ce/scratchpad/slot4/`.
 
