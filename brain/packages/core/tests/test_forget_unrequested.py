@@ -100,32 +100,51 @@ def test_an_english_statement_of_a_fact_refuses_the_forget_tool(query: str) -> N
     assert forget_unrequested(query) == _REFUSED
 
 
-@pytest.mark.parametrize(
-    ("query", "last_reply", "earlier"),
-    [
-        ("My locker code is 4242.", "Which code is it?", "Cancel the code I gave you."),
-        ("My mobile is 0721 555 019.", "Which one, the mobile or the landline?", "The mobile one."),
-        ("My phone is 0721 555 019.", "Got it. Anything else?", ""),
-    ],
-)
-def test_an_english_statement_after_a_reply_asking_a_question_keeps_the_forget_tool(
-    query: str, last_reply: str, earlier: str
-) -> None:
-    assert forget_unrequested(query, last_reply, earlier) == frozenset()
+_WHICH_PHONE = "Which one, the mobile or the landline?"
 
 
 @pytest.mark.parametrize(
-    ("query", "last_reply"),
+    ("query", "last_reply", "earlier", "before"),
     [
-        ("My locker code is 4242.", "Noted. I'll keep that in mind."),
-        ("Remember that my phone is 0721 555 019.", "Anything else?"),
-        ("What is my bike lock code?", "Which code is it?"),
+        ("My locker code is 4242.", "Which code is it?", "Cancel the code I gave you.", ""),
+        ("My alarm code is 5528.", "Which code is it?", "The alarm one.", "Cancel my code."),
+        ("My mobile is 0721 555 019.", _WHICH_PHONE, "The mobile one.", "Delete my phone."),
+        ("My PIN is 4412.", "Which one is it?", "The bank one.", "Plese forgt my PIN."),
+        ("My PIN is 4412.", "Which one is it?", "Die für die Bank.", ""),
     ],
 )
-def test_a_statement_after_a_reply_with_no_question_or_a_request_after_one_still_refuses(
-    query: str, last_reply: str
+def test_an_english_statement_while_a_forget_is_open_keeps_the_forget_tool(
+    query: str, last_reply: str, earlier: str, before: str
 ) -> None:
-    assert forget_unrequested(query, last_reply) == _REFUSED
+    assert forget_unrequested(query, last_reply, earlier, before) == frozenset()
+
+
+@pytest.mark.parametrize(
+    ("query", "last_reply", "earlier", "before"),
+    [
+        ("My alarm code is 5528.", "Got it. How was your day?", "", ""),
+        (
+            "My locker code at the pool is 7319.",
+            "I'm doing well, thank you for asking! How can I help you today?",
+            "Hi! How are you today?",
+            "",
+        ),
+        ("My phone is 0721 555 019.", "Got it. Anything else?", "Thanks.", "Hello."),
+        ("My mobile is 0721 555 019.", _WHICH_PHONE, "The mobile one.", ""),
+        ("My locker code is 4242.", "Noted. I'll keep that in mind.", "", ""),
+    ],
+)
+def test_an_english_statement_with_no_forget_open_refuses_whatever_the_reply_asks(
+    query: str, last_reply: str, earlier: str, before: str
+) -> None:
+    assert forget_unrequested(query, last_reply, earlier, before) == _REFUSED
+
+
+@pytest.mark.parametrize(
+    "query", ["Remember that my phone is 0721 555 019.", "What is my bike lock code?"]
+)
+def test_a_request_or_a_question_two_exchanges_after_a_forget_still_refuses(query: str) -> None:
+    assert forget_unrequested(query, "Which code is it?", "The bike.", "Cancel it.") == _REFUSED
 
 
 @pytest.mark.parametrize(

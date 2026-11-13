@@ -84,14 +84,16 @@ def _last_reply(working: Sequence[Message]) -> str:
     return next((m.text for m in reversed(working) if m.role is Role.ASSISTANT), "")
 
 
-def _earlier_ask(working: Sequence[Message]) -> str:
-    """The text of the person's message the last assistant message answered, empty when none."""
+def _earlier_asks(working: Sequence[Message]) -> tuple[str, str]:
+    """The person's last two messages before the last assistant message, latest first, or empty."""
+    asks: list[str] = []
     replied = False
     for message in reversed(working):
         replied = replied or message.role is Role.ASSISTANT
         if replied and message.role is Role.USER:
-            return message.text
-    return ""
+            asks.append(message.text)
+    earlier, before, *_older = [*asks, "", ""]
+    return earlier, before
 
 
 async def _turn_tools(
@@ -111,7 +113,7 @@ async def _turn_tools(
     forget = unasked_forget(context.query, last_reply)
     # The brain's own notes name forgetting in every language, so they would keep the tool.
     written = model_text(last_reply)
-    unrequested = forget_unrequested(context.query, written, _earlier_ask(working)) - forget
+    unrequested = forget_unrequested(context.query, written, *_earlier_asks(working)) - forget
     refused = left_out | unasked_sidecar_tools(context.query, specs) | forget | unrequested
     return offered, {s.name: s for s in specs}, refused, unrequested
 

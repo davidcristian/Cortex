@@ -90,27 +90,30 @@ twelve languages changes other than `My sister is vegan.`, and no string HEAD re
 Scripts `replay.sh`, logs `start.json`, `head.json`, `new.json` and `diff_head_new.txt` in the slot
 directory above, with the collect, run and diff scripts of `slot3/` beside it.
 
-## A statement after a reply asking a question
+## A statement while a forget is open
 
 A statement can answer the assistant's own question in a forget flow, as in `Cancel the code I
 gave you.`, then `Which code is it?`, then `My locker code is 4242.`. Neither reply reader names
-`cancel`, and a forget asked two turns back is out of `earlier`, so the statement class refused the
-tool there. `_states_in_english` now counts a statement only when the model's text of the last
-reply holds no `?`; a request to remember or a question after one is still refused. No draw was
-taken: the change only keeps the tool.
+`cancel`. `_states_in_english` counts a statement only when no message of the person in the last
+two exchanges holds what `_CAN_RETRACT` or `_misspells_forgetting` reads in the message itself (a
+word that can retract, a negation, a near `forget` or a letter outside `a-z`). The tool loop reads
+those two messages from the chat as `earlier` and `before` (`_earlier_asks` in `tool_loop.py`).
+What the last reply asks is not read. A request to remember or a question after such a message is
+still refused, unless the last reply or `earlier` names forgetting.
 
-Replayed 2026-11-13 through HEAD `c0e02329e` and the fix over 33,201 strings (the sources above)
-and the 165 turns of the night's proxy log, each with its own last reply and earlier message.
+A build that counted a statement only after a last reply holding no `?` was replayed 2026-11-13
+through HEAD `c0e02329e` and that build over 33,201 strings (the sources above) and the 165 turns
+of the night's proxy log, each with its own last reply and earlier message.
 
-| Read | HEAD refused | The fix refused |
+| Read | HEAD refused | That build refused |
 | --- | --- | --- |
 | each string, no last reply | 881 | 881 |
 | each string after `Which one do you mean?` | 881 | 853 |
 | each recorded turn | 46 | 46 |
 
 The 28 strings that change are the English statements of a fact the reader refuses alone, such as
-`My phone is 0721 555 019.`, `My sister is vegan.` and `my dog is Rex`, now kept after the
-question. No string or turn changes from kept to refused. Scripts `replay.py` and `cmp.py`, logs
+`My phone is 0721 555 019.`, `My sister is vegan.` and `my dog is Rex`, kept after the question.
+No string or turn changes from kept to refused. Scripts `replay.py` and `cmp.py`, logs
 `head.json`, `new.json` and `diff_head_new.txt`, in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/b21ab427-7e2c-4723-9504-d59e434516ce/scratchpad/slot10/`.
 
@@ -133,8 +136,66 @@ Drawn from 06:47 to 06:48 on 2026-11-13, proxy log lines 875 to 896, SM clock 0.
 | 6 of 6 | 6 of 6 | 4 of 6, each matching nothing | 2 of 6, none after a call |
 
 **The form is reproduced.** Each first reply ended with a question such as `How can I help you
-today?`, which the statement reader now reads as a question the statement may answer. Each call
+today?`, which that build's statement reader read as a question the statement may answer. Each call
 withheld the exchange, as in the draws above without the refusal. No brain note holds a `?` (179
 note forms), so only the model's own text counts. The script `draw.sh`, the logs `draw.log` and
 `draws.jsonl` and `summ.py` are in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/b21ab427-7e2c-4723-9504-d59e434516ce/scratchpad/slot12/`.
+
+## The open forget check: replay
+
+Taken 2026-11-13 through HEAD `868cd33d8` and the open forget check over 33,382 strings (the
+sources above, the test strings of the tree and every user message of the proxy log to line 896)
+and the 198 turns of that log, each with its own last reply, `earlier` and `before`.
+
+| Read | HEAD refused | The check refused |
+| --- | --- | --- |
+| each string, no last reply | 919 | 919 |
+| after `Hi! How are you today?` and a reply asking `How can I help you today?` | 875 | 919 |
+| after `Which one do you mean?` | 875 | 919 |
+| after `Cancel the code I gave you.` and `Which code is it?` | 875 | 875 |
+| after `Cancel the code I gave you.`, `The alarm one.` and a question | 875 | 875 |
+| each recorded turn | 52 | 55 |
+
+The 44 strings that change after either question are the English statements of a fact the reader
+refuses alone, such as `My locker code at the pool is 7319.`, `My alarm code is now 5528.` and
+`my wifi is plum`; each is refused alone by both builds. The three turns that change are two of
+the courtesy chains drawn above (their six draws hold two distinct replies) and
+`My alarm code is now 5528.` after `My alarm code is 4826.`, whose reply asks
+`Is there anything else you'd like me to help you with?`. No string or turn changes from refused
+to kept. Scripts `collect.py` and `replay.py`, logs `head.json`, `work.json` and
+`diff_head_work.txt`, in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/b21ab427-7e2c-4723-9504-d59e434516ce/scratchpad/slot13/`.
+
+## The open forget check on the live stack: rows and the rule
+
+Written 2026-11-13 at 07:09, before the draw. The build is `cortexn21-brain-s13open` (port 23131,
+the working tree with the check, memory tools only), through the recording proxy.
+
+- **Courtesy chains**, six draws: empty `memories`, send `Hi! How are you today?` in a new chat,
+  then `My locker code at the pool is 7319.` in the same chat, every card approved. The check holds
+  when every forget call of the second turn is refused with `FORGET_UNREQUESTED` and every draw
+  stores the locker row. It fails when a call runs or a draw stores no locker row.
+- **The forget flow**, three draws: empty `memories`, store `Remember that my alarm code is 5528.`
+  and `Remember that my locker code is 4242.` in two chats, then send `Cancel the code I gave
+  you.` in a new chat with every card denied. When that reply asks which code and calls nothing,
+  send `My alarm code is 5528.` with every card approved. The check holds when every forget call
+  of that turn runs and its card deletes the alarm row and keeps the locker row. It fails when such
+  a call is refused. A draw that calls the tool on the first message, or makes no call on the
+  second, decides nothing and is counted apart; with fewer than two deciding draws, three more.
+
+## The open forget check on the live stack: what was drawn
+
+Drawn from 07:09 to 07:14 on 2026-11-13, proxy log lines 898 to 992, SM clock 0.58 and 0.65 of
+`clocks.max.sm` before and after.
+
+| Flow | Draws | Deciding draws | Forget calls on the deciding turn | Rows after |
+| --- | --- | --- | --- | --- |
+| courtesy chain | 6 | 6 | 2, refused 2 of 2 | locker row stored 6 of 6 |
+| forget flow | 6 | 2 | 2, run 2 of 2 | alarm row deleted, locker row kept, 2 of 2 |
+
+**Result: the check holds.** In four forget flows the first message called the tool and its card
+was denied, so they decide nothing. In the two that asked first (`Which code would you like me to
+forget?`), the statement kept the tool and the approved card deleted only the alarm row. The
+scripts `draw.sh` and `summ.py`, the logs `draw.log` and `draws.jsonl`, are in the slot directory
+above.

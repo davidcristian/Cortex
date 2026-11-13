@@ -138,7 +138,7 @@ class _Script:
 _ANSWER = "What about the first one?"
 
 
-async def _answer(first: str, second: str) -> list[str]:
+async def _chat(queries: Sequence[str], replies: Sequence[str]) -> list[str]:
     ran: list[str] = []
 
     async def forget(arguments: Mapping[str, object]) -> str:
@@ -149,14 +149,18 @@ async def _answer(first: str, second: str) -> list[str]:
     spec = ToolSpec(name=FORGET_CHOSEN_TOOL_NAME, description="", parameters={})
     registry = InMemoryToolRegistry({FORGET_CHOSEN_TOOL_NAME: (spec, forget)})
     tools = ToolDispatcher(registry, RecordingAuditSink(), TickingClock())
-    asked = [TextChunk("You have two numbers stored. Which one do you mean?")]
-    backend = _Script([asked, [_CALL], [TextChunk("Done.")]])
+    asked = [[TextChunk(reply)] for reply in replies]
+    backend = _Script([*asked, [_CALL], [TextChunk("Done.")]])
     engine = TurnEngine(
         InMemorySessionStore(), backend, TickingClock(), capabilities=TurnCapabilities(tools=tools)
     )
-    for turn_id, query in (("t1", first), ("t2", second)):
-        _events = [event async for event in engine.handle_turn("s", query, turn_id=turn_id)]
+    for turn, query in enumerate(queries):
+        _events = [event async for event in engine.handle_turn("s", query, turn_id=f"t{turn}")]
     return ran
+
+
+async def _answer(first: str, second: str) -> list[str]:
+    return await _chat((first, second), ["You have two numbers stored. Which one do you mean?"])
 
 
 async def test_an_answer_to_a_question_about_a_forget_runs_the_forget() -> None:
@@ -165,3 +169,21 @@ async def test_an_answer_to_a_question_about_a_forget_runs_the_forget() -> None:
 
 async def test_an_answer_to_a_question_about_a_lookup_refuses_the_forget() -> None:
     assert await _answer("What is my phone number?", _ANSWER) == []
+
+
+async def test_a_statement_two_exchanges_after_a_forget_runs_the_forget() -> None:
+    queries = ("Cancel the code I gave you.", "The alarm one.", "My alarm code is 5528.")
+    replies = ["Which code is it?", "Which alarm code is it?"]
+    assert await _chat(queries, replies) == [FORGET_CHOSEN_TOOL_NAME]
+
+
+async def test_a_statement_after_a_courtesy_question_refuses_the_forget() -> None:
+    queries = ("Hi! How are you today?", "My locker code at the pool is 7319.")
+    replies = ["I'm doing well, thank you for asking! How can I help you today?"]
+    assert await _chat(queries, replies) == []
+
+
+async def test_a_statement_three_exchanges_after_a_forget_refuses_the_forget() -> None:
+    queries = ("Cancel the code I gave you.", "Thanks.", "Hello again.", "My alarm code is 5528.")
+    replies = ["Which code is it?", "You're welcome. Anything else?", "Hi! How can I help you?"]
+    assert await _chat(queries, replies) == []

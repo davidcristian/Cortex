@@ -105,31 +105,38 @@ def _states_in_english(query: str) -> bool:
     return all(_STATEMENT.fullmatch(s) for s in _SENTENCE_END.split(query.strip()))
 
 
-def _asks_in_english(query: str, last_reply: str) -> bool:
+def _names_forgetting(text: str) -> bool:
+    return _ABOUT_FORGETTING.search(text) is not None or _NAMES_FORGETTING.search(text) is not None
+
+
+def _can_ask_to_forget(text: str) -> bool:
+    """Whether the person's ``text`` holds a word or a letter that can ask to forget something."""
+    return _CAN_RETRACT.search(text) is not None or _misspells_forgetting(text)
+
+
+def _asks_in_english(query: str, asks: tuple[str, str]) -> bool:
     """Whether ``query`` asks to remember, asks a question or states a fact, in English words.
 
-    A statement after a ``last_reply`` holding a question can answer it, so it is not counted."""
+    A statement can answer a question about a forget the person's ``asks`` opened, so it is not."""
     question = _QUESTION.search(query) is not None and _ENGLISH.search(query) is not None
-    stated = "?" not in last_reply and _states_in_english(query)
-    return question or asks_kept(query) or stated
+    opened = any(_can_ask_to_forget(text) for text in asks)
+    return question or asks_kept(query) or (_states_in_english(query) and not opened)
 
 
-def forget_unrequested(query: str, last_reply: str = "", earlier: str = "") -> frozenset[str]:
+def forget_unrequested(
+    query: str, last_reply: str = "", earlier: str = "", before: str = ""
+) -> frozenset[str]:
     """The forget tool, refused on a named request to remember or question that retracts nothing.
 
-    ``last_reply`` is the chat's last assistant message and ``earlier`` the message it answered.
-    """
+    ``earlier`` is the message ``last_reply`` answered and ``before`` the person's one before it."""
     if asks_kept_fact_other(query):
         can_retract = _CAN_RETRACT_READ
-    elif asks_kept_other(query) or not _asks_in_english(query, last_reply):
+    elif asks_kept_other(query) or not _asks_in_english(query, (earlier, before)):
         return frozenset()
     else:
         can_retract = _CAN_RETRACT
     if can_retract.search(query) or _misspells_forgetting(query):
         return frozenset()
-    if any(
-        _ABOUT_FORGETTING.search(text) or _NAMES_FORGETTING.search(text)
-        for text in (last_reply, earlier)
-    ):
+    if _names_forgetting(last_reply) or _names_forgetting(earlier):
         return frozenset()
     return frozenset({FORGET_CHOSEN_TOOL_NAME})
