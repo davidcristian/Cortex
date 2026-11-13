@@ -79,16 +79,23 @@ async def _round_pieces(
         yield held
 
 
-def _last_reply(working: Sequence[Message]) -> str:
-    """The text of the last assistant message in ``working``, empty when there is none."""
-    return next((m.text for m in reversed(working) if m.role is Role.ASSISTANT), "")
+def _earlier(working: Sequence[Message], turn_id: str) -> list[Message]:
+    """``working`` latest first, less the messages of the turn ``turn_id``."""
+    # A handoff's working list ends with the cortex's calls for this turn, after its message.
+    return [message for message in reversed(working) if message.turn_id != turn_id]
 
 
-def _earlier_asks(working: Sequence[Message]) -> tuple[str, str]:
-    """The person's last two messages before the last assistant message, latest first, or empty."""
+def _last_reply(working: Sequence[Message], turn_id: str) -> str:
+    """The text of the last assistant message before the turn ``turn_id``, empty when none."""
+    return next((m.text for m in _earlier(working, turn_id) if m.role is Role.ASSISTANT), "")
+
+
+def _earlier_asks(working: Sequence[Message], turn_id: str) -> tuple[str, str]:
+    """The person's last two messages before the last assistant message before the turn
+    ``turn_id``, latest first, or empty."""
     asks: list[str] = []
     replied = False
-    for message in reversed(working):
+    for message in _earlier(working, turn_id):
         replied = replied or message.role is Role.ASSISTANT
         if replied and message.role is Role.USER:
             asks.append(message.text)
@@ -109,11 +116,12 @@ async def _turn_tools(
     # an unasked tool, its refusal. A sidecar tool stays listed, since a shorter list raised the
     # model's forget calls in one of two comparisons (unasked-tools-listed-on-remember.md).
     offered = tuple(spec for spec in specs if spec.name not in withheld)
-    last_reply = _last_reply(working)
+    last_reply = _last_reply(working, context.turn_id)
     forget = unasked_forget(context.query, last_reply)
     # The brain's own notes name forgetting in every language, so they would keep the tool.
     written = model_text(last_reply)
-    unrequested = forget_unrequested(context.query, written, *_earlier_asks(working)) - forget
+    asks = _earlier_asks(working, context.turn_id)
+    unrequested = forget_unrequested(context.query, written, *asks) - forget
     refused = left_out | unasked_sidecar_tools(context.query, specs) | forget | unrequested
     return offered, {s.name: s for s in specs}, refused, unrequested
 

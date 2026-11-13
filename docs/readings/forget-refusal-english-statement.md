@@ -97,8 +97,9 @@ gave you.`, then `Which code is it?`, then `My locker code is 4242.`. Neither re
 `cancel`. `_states_in_english` counts a statement only when no message of the person in the last
 two exchanges holds what `_CAN_RETRACT` or `_misspells_forgetting` reads in the message itself (a
 word that can retract, a negation, a near `forget` or a letter outside `a-z`). The tool loop reads
-those two messages from the chat as `earlier` and `before` (`_earlier_asks` in `tool_loop.py`).
-What the last reply asks is not read. A request to remember or a question after such a message is
+those two messages from the chat as `earlier` and `before` (`_earlier_asks` in `tool_loop.py`),
+skipping the messages of the turn itself, since a handoff's working list ends with the cortex's
+calls for that turn after the person's message. What the last reply asks is not read. A request to remember or a question after such a message is
 still refused, unless the last reply or `earlier` names forgetting.
 
 A build that counted a statement only after a last reply holding no `?` was replayed 2026-11-13

@@ -1,4 +1,6 @@
 from collections.abc import AsyncIterator, Mapping, Sequence
+from dataclasses import replace
+from datetime import UTC, datetime
 
 import pytest
 from swap_harness import TickingClock
@@ -15,7 +17,9 @@ from cortex_core import (
     MemoryRecaller,
     Message,
     RecordingAuditSink,
+    Role,
     SystemClock,
+    TaintLedger,
     TextChunk,
     TextDelta,
     ToolCall,
@@ -27,6 +31,7 @@ from cortex_core import (
 from cortex_core.dispatch import UNASKED_MSG
 from cortex_core.forget_claim import UNFORGOTTEN_CLAIM_NOTE
 from cortex_core.forget_unrequested import FORGET_UNREQUESTED_MSG
+from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 
 _CALL = ToolCall(id="c1", name=FORGET_CHOSEN_TOOL_NAME, arguments={"text": "bike lock"})
 
@@ -187,3 +192,69 @@ async def test_a_statement_three_exchanges_after_a_forget_refuses_the_forget() -
     queries = ("Cancel the code I gave you.", "Thanks.", "Hello again.", "My alarm code is 5528.")
     replies = ["Which code is it?", "You're welcome. Anything else?", "Hi! How can I help you?"]
     assert await _chat(queries, replies) == []
+
+
+def _said(role: Role, text: str, turn_id: str) -> Message:
+    return Message(role=role, text=text, at=datetime(2026, 11, 13, tzinfo=UTC), turn_id=turn_id)
+
+
+async def _handoff(exchanges: Sequence[tuple[str, str]], query: str) -> list[str]:
+    calls: list[str] = []
+
+    async def forget(arguments: Mapping[str, object]) -> str:
+        del arguments
+        calls.append(FORGET_CHOSEN_TOOL_NAME)
+        return "done"
+
+    spec = ToolSpec(name=FORGET_CHOSEN_TOOL_NAME, description="", parameters={})
+    registry = InMemoryToolRegistry({FORGET_CHOSEN_TOOL_NAME: (spec, forget)})
+    tools = ToolDispatcher(registry, RecordingAuditSink(), TickingClock())
+    earlier = [
+        _said(role, text, f"t{turn}")
+        for turn, exchange in enumerate(exchanges)
+        for role, text in zip((Role.USER, Role.ASSISTANT), exchange, strict=True)
+    ]
+    escalate = ToolCall(id="e1", name="escalate", arguments={})
+    working = [
+        *earlier,
+        _said(Role.USER, query, "now"),
+        replace(_said(Role.ASSISTANT, "", "now"), tool_calls=(escalate,)),
+        replace(_said(Role.TOOL, "taken", "now"), tool_call_id="e1"),
+    ]
+    context = ToolLoopContext(
+        dispatcher=tools,
+        clock=TickingClock(),
+        turn_id="now",
+        taint=TaintLedger(),
+        nonce="n",
+        session_id="s",
+        query=query,
+    )
+    backend = _Script([[_CALL], [TextChunk("Done.")]])
+    _events = [event async for event in stream_tool_loop(backend, "m", working, context)]
+    return calls
+
+
+@pytest.mark.parametrize(
+    ("first", "ran"),
+    [("Cancel the code I gave you.", [FORGET_CHOSEN_TOOL_NAME]), ("Hello there.", [])],
+)
+async def test_a_handoff_reads_the_two_exchanges_before_its_own_turn(
+    *, first: str, ran: list[str]
+) -> None:
+    exchanges = [(first, "Which code is it?"), ("The alarm one.", "Which alarm code is it?")]
+    assert await _handoff(exchanges, "My alarm code is 5528.") == ran
+
+
+@pytest.mark.parametrize(
+    ("reply", "ran"),
+    [("Should I forget it?", [FORGET_CHOSEN_TOOL_NAME]), ("Anything else?", [])],
+)
+@pytest.mark.parametrize(
+    "query", ["My alarm code is 5528.", "Remember that my alarm code is 5528."]
+)
+async def test_a_handoff_reads_the_last_reply_before_its_own_turn(
+    *, reply: str, ran: list[str], query: str
+) -> None:
+    exchanges = [("What do you have about my alarm?", f"Your alarm code is 4826. {reply}")]
+    assert await _handoff(exchanges, query) == ran
