@@ -31,7 +31,8 @@ né en 1990.`, `Souviens-toi que sa voiture est rouge.`), so no closed word sepa
    show, saying nothing was forgotten and to ask for a forget in a message of its own. It needs a
    `TaintLedger` flag kept by the handoff record. Do not add verbs or verb endings to a reader.
 2. Draw rows `a1` to `a5` and `k1` with the next message after each
-   ([readings](../../readings/forget-refusal-other-languages.md#an-action-asked-after-que-dass-or-că-rows-and-rule-written-2026-11-13-before-any-draw)).
+   ([readings](../../readings/forget-refusal-other-languages.md#an-action-asked-after-que-dass-or-că-rows-and-rule-written-2026-11-13-before-any-draw)),
+   by the next rows in [the note's readings](../../readings/forget-unrequested-notes.md#the-draws-2026-11-13).
 
 ## History
 
@@ -43,3 +44,9 @@ né en 1990.`, `Souviens-toi que sa voiture est rouge.`), so no closed word sepa
   nothing was forgotten. A note built for it showed on every refused setup turn, and its own words
   then kept the tool on the next message, so it was reverted until the forget refusal read the
   last reply without the brain's own notes ([the notes](../../readings/forget-unrequested-notes.md)).
+- 2026-11-13: left open. The note was built with `TaintLedger.forget_unrequested` kept by the
+  handoff record and drawn after the brain's own notes left the last reply: it closed every refused
+  turn with no claim note, and every next message after it had its call refused. On one chain a
+  false claim of a delete kept the tool on the next message, so the rule failed and the note was
+  reverted ([the draws](../../readings/forget-unrequested-notes.md#the-draws-2026-11-13),
+  [task 1180](1180-a-false-claim-of-a-delete-in-the-last-reply-keeps-the-forget-tool-on-the-next-fact.md)).
