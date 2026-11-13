@@ -165,6 +165,54 @@ def test_a_request_to_remember_in_a_read_language_refuses_the_forget_tool(query:
 @pytest.mark.parametrize(
     "query",
     [
+        "Merke dir, meine Telefonnummer ist 0721 555 019.",
+        "Merke dir meine Nummer ist 0721.",
+        "Merken Sie sich, unsere Nummer war 0721 555 019!",
+        "Souviens-toi, mon code est 4242.",
+        "Souviens-toi : mon numéro de téléphone est 0721 555 019.",
+        "Recuerda: mi código es 4242.",
+        "Acuérdate, mi coche está en la plaza 12.",
+        "Ține minte, numărul meu de telefon este 0721 555 019.",
+        "Ține minte, codul meu e 4242.  ",
+    ],
+)
+def test_a_request_to_remember_a_statement_in_a_read_language_refuses_the_forget_tool(
+    query: str,
+) -> None:
+    assert forget_unrequested(query) == _REFUSED
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Merke dir das nicht, vergiss meine Nummer.",
+        "Recuerda, borra mi código.",
+        "Merke dir, wirf meinen Code weg.",
+        "Merk dir, meine Nummer: 0721.",
+        "Merke dir, der Code ist 4242.",
+        "Merke dir, meine Nummer ist nicht 0721.",
+        "Recuerda: mi código ya no es 4242.",
+        "Souviens-toi, mon ancien code était 4242.",
+        "Ține minte, numărul meu vechi era 42.",
+        "Souviens-toi, mon code est 4242 et jette 1111.",
+        "Merke dir, meine Nummer ist 0721 555 019 und meine PIN 1111.",
+        "Merke dir, meine Nummer ist 0721, danke.",
+        "Merke dir, meine Nummer ist 0721. Lösch die alte.",
+        "Merke dir, mein Code ist 4242 (oder 4243).",
+        "Merke dir, mein Code ist 4242 wirf den alten Zettel weg.",
+        "Ricorda, il mio codice è 4242.",
+        "Onthoud, mijn code is 4242.",
+    ],
+)
+def test_a_request_to_remember_beside_no_whole_statement_keeps_the_forget_tool(
+    query: str,
+) -> None:
+    assert forget_unrequested(query) == frozenset()
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
         "Recuerda que debes tirar mi código.",
         "Recuerda que tienes que desechar mi código.",
         "Recuerda que hay que tirar mi código.",

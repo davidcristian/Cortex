@@ -2,6 +2,7 @@
 
 import re
 
+from cortex_core.fact_statement import STATEMENT
 from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
 from cortex_core.memory_request import asks_kept, asks_kept_fact_other, asks_kept_other
 
@@ -75,14 +76,7 @@ _ENGLISH = re.compile(
 _QUESTION = re.compile(
     r"\?|(?:^|[.!]\s)\W*(?:what|which|who|whose|where|when|why|how)\b", re.IGNORECASE
 )
-# A possessive, at most six words, a copula, then a value of at most four words and no second
-# clause, as in "My phone is 0721 555 019."
-_VALUE_WORD = r"(?!-(?:\s|$))[^\s,;:?!()\u2013\u2014]+"
-_STATEMENT = re.compile(
-    r"\W*(?:my|our|his|her|their)\s+(?:[\w'\u2019-]+\s+){0,6}?(?:is|are|was|were)\s+"
-    rf"{_VALUE_WORD}(?:\s+{_VALUE_WORD}){{0,3}}[.!]?",
-    re.IGNORECASE,
-)
+_STATEMENT = re.compile(STATEMENT, re.IGNORECASE)
 _SENTENCE_END = re.compile(r"(?<=[.!])\s+")
 _LETTERS = re.compile(r"[a-z]{4,}", re.IGNORECASE)
 _TYPO_OF = ("forget", "forgot", "delete", "remove", "erase", "unlearn")

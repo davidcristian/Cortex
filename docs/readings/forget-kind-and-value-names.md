@@ -152,4 +152,4 @@ any draw: the forget above deletes the row whenever a call sends `0721 555 019`,
 my phone number.` never deletes it, each from a new chat after the row is stored in a chat of its
 own. Both forgets sent `0721 555 019` and deleted the row, 2 of 2, and no `Don't forget` draw
 called the tool, 2 of 2, so the row stayed. Each store turn called `forget_memories`, which matched
-nothing (task [1178](../refinements/tasks/1178-a-german-request-to-remember-calls-the-forget-tool-unasked.md)).
+nothing ([the refusal of that call](forget-refusal-statement-other-languages.md)).

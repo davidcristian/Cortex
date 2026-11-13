@@ -2,6 +2,8 @@
 
 import re
 
+from cortex_core.fact_statement import STATEMENT_OTHER
+
 # "Keep me waiting" is an idiom, and so is "keep it to yourself" when it ends its clause or asks
 # to share; "or anyone" after it asks not to keep. "Don't note everything, but remember" keeps.
 _IDIOM = (
@@ -191,9 +193,10 @@ _ACTION = re.compile(
     re.IGNORECASE,
 )
 _THE_MESSAGE = re.compile(_MESSAGE, re.IGNORECASE)
-# `que`, `dass` or `că` after the remember verb opens a stated fact. A colon or a verb there can
-# ask for an action instead ("Merk dir: weg mit", "să arunci"), so neither opens one.
-_FACT_AFTER = re.compile(r"\W*(?:(?:que|dass|c[ăa])\b|qu['\u2019])", re.IGNORECASE)
+# `que`, `dass` or `că` after the verb, or a comma or colon before a statement, opens a fact.
+_FACT_AFTER = re.compile(
+    rf"\W*(?:(?:que|dass|c[ăa])\b|qu['\u2019])|[\s,]*(?={STATEMENT_OTHER}\s*$)", re.IGNORECASE
+)
 _FACT_IN = re.compile(r"(?:\b(?:que|dass|c[ăa])\s*|\bqu['\u2019])$", re.IGNORECASE)
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
 # An obligation of the assistant, a second `que tu` or a `să` asks for an action, not a fact.
