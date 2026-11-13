@@ -105,10 +105,13 @@ def _states_in_english(query: str) -> bool:
     return all(_STATEMENT.fullmatch(s) for s in _SENTENCE_END.split(query.strip()))
 
 
-def _asks_in_english(query: str) -> bool:
-    """Whether ``query`` asks to remember, asks a question or states a fact, in English words."""
+def _asks_in_english(query: str, last_reply: str) -> bool:
+    """Whether ``query`` asks to remember, asks a question or states a fact, in English words.
+
+    A statement after a ``last_reply`` holding a question can answer it, so it is not counted."""
     question = _QUESTION.search(query) is not None and _ENGLISH.search(query) is not None
-    return question or asks_kept(query) or _states_in_english(query)
+    stated = "?" not in last_reply and _states_in_english(query)
+    return question or asks_kept(query) or stated
 
 
 def forget_unrequested(query: str, last_reply: str = "", earlier: str = "") -> frozenset[str]:
@@ -118,7 +121,7 @@ def forget_unrequested(query: str, last_reply: str = "", earlier: str = "") -> f
     """
     if asks_kept_fact_other(query):
         can_retract = _CAN_RETRACT_READ
-    elif asks_kept_other(query) or not _asks_in_english(query):
+    elif asks_kept_other(query) or not _asks_in_english(query, last_reply):
         return frozenset()
     else:
         can_retract = _CAN_RETRACT

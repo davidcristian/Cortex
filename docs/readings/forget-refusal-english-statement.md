@@ -89,3 +89,27 @@ twelve languages changes other than `My sister is vegan.`, and no string HEAD re
 `My kode is verkeerd en vee dit dadelik weg.` and `My code is 7319?` keep the tool.
 Scripts `replay.sh`, logs `start.json`, `head.json`, `new.json` and `diff_head_new.txt` in the slot
 directory above, with the collect, run and diff scripts of `slot3/` beside it.
+
+## A statement after a reply asking a question
+
+A statement can answer the assistant's own question in a forget flow, as in `Cancel the code I
+gave you.`, then `Which code is it?`, then `My locker code is 4242.`. Neither reply reader names
+`cancel`, and a forget asked two turns back is out of `earlier`, so the statement class refused the
+tool there. `_states_in_english` now counts a statement only when the model's text of the last
+reply holds no `?`; a request to remember or a question after one is still refused. No draw was
+taken: the change only keeps the tool.
+
+Replayed 2026-11-13 through HEAD `c0e02329e` and the fix over 33,201 strings (the sources above)
+and the 165 turns of the night's proxy log, each with its own last reply and earlier message.
+
+| Read | HEAD refused | The fix refused |
+| --- | --- | --- |
+| each string, no last reply | 881 | 881 |
+| each string after `Which one do you mean?` | 881 | 853 |
+| each recorded turn | 46 | 46 |
+
+The 28 strings that change are the English statements of a fact the reader refuses alone, such as
+`My phone is 0721 555 019.`, `My sister is vegan.` and `my dog is Rex`, now kept after the
+question. No string or turn changes from kept to refused. Scripts `replay.py` and `cmp.py`, logs
+`head.json`, `new.json` and `diff_head_new.txt`, in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/b21ab427-7e2c-4723-9504-d59e434516ce/scratchpad/slot10/`.
