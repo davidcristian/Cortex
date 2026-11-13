@@ -16,16 +16,22 @@ stayed with no note, since `corrected_values` reads only a message naming the ol
 `fact_statement.py`, the shape of `STATEMENT` with the fact's words and the value as groups) and
 holds no negation word of `NOT` (`forget_clauses.py`). It searches the rows the chat can recall
 for the fact's words and each shorter ending of them (`alarm code`, then `code`), and takes the
-first row whose user line states a fact in the same shape, every word of which the message names,
-with a value the message does not hold and that does not hold the message's value. The old value
-note then names that value, whatever the reply says, unless a forget of the turn deleted a row.
+first row whose user line states a fact in the same shape with the same possessive, every word of
+which the message names, with a value the message does not hold and that does not hold the
+message's value. Both values must hold a digit, since `My sister is vegan.` beside `my sister is
+Ana` gives another detail of the fact rather than a new value of it. The old value note then names
+that value, whatever the reply says, unless a forget of the turn deleted a row.
 The note says a remembered exchange still holds the value, nothing was deleted and the person can
-ask to forget it, which is true on every turn it reaches. The note text and its four translations
-are unchanged.
+ask to forget it. It also calls the value the one the message corrects, which is false beside a
+row of another fact whose words the message all holds
+([open task](../refinements/tasks/1188-the-old-value-note-names-a-row-of-a-shorter-fact.md)).
+The note text and its four translations are unchanged.
 
 No note: `My code is 5528.` beside the alarm code (the row names `alarm`), `My number is 0721 555
 019.` beside `My phone number is 0721 555 018.`, `My code is 4862 not 4826.` (a negation), `My
-card is 4242.` beside a card ending in `4242`, a question, and a row whose value is the stated one.
+card is 4242.` beside a card ending in `4242`, a question, a row whose value is the stated one,
+`Her phone is 0721 555 019.` beside `my phone is 0744 111 222`, and a value with no digit on
+either side (`My phone is broken.`, `My kids are 5 and 7.` beside `my kids are Ana and Ion`).
 The tests are `test_memory_old_fact.py`; one row of `test_memory_old_value.py`, `My bike lock code
 is 4862.` beside `my bike lock code is 4826`, moved there, since it now gets the note.
 

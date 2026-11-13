@@ -49,6 +49,11 @@ async def _held(query: str, *rows: str, deleted: int = 0, reply: str = "Got it."
         ("My current number is 0721 555 019.", _NUMBER, "0721 555 018"),
         ("My phone number was 0721 555 019.", _PHONE, "0721 555 018"),
         ("My bike lock code is 4862.", "User: Remember that my bike lock code is 4826.", "4826"),
+        (
+            "Her phone is 0721 555 019.",
+            "User: Remember that her phone is 0744 111 222.",
+            "0744 111 222",
+        ),
     ],
 )
 async def test_a_statement_of_a_stored_fact_with_another_value_names_the_old_value(
@@ -76,6 +81,12 @@ async def test_a_statement_of_a_stored_fact_with_another_value_names_the_old_val
             ("User: Remember it.\nAssistant: Noted, her alarm code is 4826.",),
             0,
         ),
+        ("My sister is vegan.", ("User: Remember that my sister is Ana.",), 0),
+        ("My phone is broken.", ("User: Remember that my phone is 0744 111 222.",), 0),
+        ("My flight is tomorrow.", ("User: Remember that my flight is LH 1234.",), 0),
+        ("My kids are 5 and 7.", ("User: Remember that my kids are Ana and Ion.",), 0),
+        ("Her phone is 0721 555 019.", ("User: Remember that my phone is 0744 111 222.",), 0),
+        ("My phone is 0721 555 019.", ("User: Remember that his phone is 0744 111 222.",), 0),
     ],
 )
 async def test_a_statement_naming_no_other_value_of_its_fact_names_none(

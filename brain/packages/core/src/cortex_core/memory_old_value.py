@@ -111,20 +111,27 @@ def holds(text: str, value: str) -> bool:
     return re.search(pattern, text, re.IGNORECASE) is not None
 
 
+def _digit(text: str) -> bool:
+    return any(char.isdigit() for char in text)
+
+
 async def _replaced(memory: MemoryRecaller, query: str, session_id: str) -> str:
-    """The value a stored row states for a fact ``query`` alone states with no negation, naming
-    each of the row's fact words, with a value that is neither the row's value nor part of it."""
+    """The value with a digit a stored row states for a fact ``query`` alone states with no
+    negation, the same possessive and another value with a digit, naming each of its fact words."""
     stated = _STATED.fullmatch(query.strip())
     if stated is None or not NOT.isdisjoint(re.findall(r"\w+", query.lower())):
         return ""
-    words, new = stated.group("fact").lower().split(), joined(stated.group("value").rstrip(".!"))
-    for at in range(len(words)):
+    # "My sister is vegan." beside "my sister is Ana" gives her another detail, not a new value.
+    value, owner = stated.group("value").rstrip(".!"), stated.group("owner").lower()
+    words, new = stated.group("fact").lower().split(), joined(value)
+    for at in range(len(words) if _digit(value) else 0):
         found = await memory.find_value(" ".join(words[at:]), session_id=session_id, limit=_LIMIT)
         for row in found:
             for match in _STORED.finditer(row.text.split("\nAssistant: ", 1)[0]):
                 old = match.group("value").rstrip(".!")
                 named = set(match.group("fact").lower().split()) <= set(words)
-                if named and not holds(query, old) and new not in joined(old):
+                same = match.group("owner").lower() == owner and _digit(old)
+                if named and same and not holds(query, old) and new not in joined(old):
                     return old
     return ""
 
