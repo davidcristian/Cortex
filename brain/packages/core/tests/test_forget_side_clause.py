@@ -30,6 +30,7 @@ _ROWS = {
     "handy": "User: Merke dir, mein Handy ist 0721 555 4242.\nAssistant: Notiert.",
     "cardul": "User: Ține minte că cardul meu este 4111 1111 1111 4242.\nAssistant: Notat.",
     "telefonul": "User: Ține minte că telefonul meu este 0721 555 4242.\nAssistant: Notat.",
+    "cartela": "User: Ține minte că cartela mea este 4111 1111 1111 4242.\nAssistant: Notat.",
 }
 
 
@@ -302,6 +303,8 @@ def test_asking_reads_a_clause_adding_a_named_row(query: str, named: set[str], a
         ("Oublie la carte 4242, mon téléphone je le garde.", ("carte", "telephone"), ["telephone"]),
         ("Uită cardul 4242, telefonul îl păstrez.", ("cardul", "telefonul"), ["telefonul"]),
         ("Uită cardul 4242 dar telefonul îl păstrez.", ("cardul", "telefonul"), ["telefonul"]),
+        ("Uită cardul 4242, cartela o păstrez.", ("cardul", "cartela"), ["cartela"]),
+        ("Uită cardul 4242 dar cartela mea o păstrez.", ("cardul", "cartela"), ["cartela"]),
     ],
 )
 async def test_a_row_named_before_its_keep_verb_is_kept(
@@ -356,6 +359,7 @@ async def test_a_keep_verb_after_a_forget_verb_with_no_joining_word_keeps_both_r
         ("Vergiss die Karte, mein Handy bleibt.", "vergiss die karte", "mein handy bleibt"),
         ("Forget the card and keep the phone.", "forget the card", "and keep the phone"),
         ("Keep the phone and forget the card.", "forget the card", "keep the phone and"),
+        ("Uită cardul, cartela o păstrez.", "uită cardul", "cartela o păstrez"),
     ],
 )
 def test_parts_reads_a_keep_verb_back_to_a_forget_verb_or_a_joining_word(

@@ -25,7 +25,8 @@ _LEAD = frozenset(
 )
 _NAMING = frozenset({"the", "a", "an", "my", "your", "our", "his", "her", "their", "its"})
 _AND = frozenset({"and", "or", "et", "ou", "und", "oder", "y", "o", "și", "şi", "sau"})
-_JOIN = _AND | {"but", "yet", "aber", "mais", "pero", "dar"}
+# Romanian "o" is a pronoun before a verb, as in "cartela o păstrez", so it starts no keep clause.
+_JOIN = (_AND - {"o"}) | {"but", "yet", "aber", "mais", "pero", "dar"}
 FORGET = re.compile(
     r"forg[eo]t\w*|delet\w*|remov\w*|eras\w*|oubli\w*|effac\w*|vergiss\w*|vergess\w*"
     r"|l[oö]sch\w*|olvid\w*|borr[ae]\w*|uit\w*|[șş]terg\w*"
