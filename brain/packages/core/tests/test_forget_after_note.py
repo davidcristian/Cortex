@@ -102,6 +102,16 @@ _ASKED = "What is my locker code?"
             FORGET_UNREQUESTED_MSG,
         ),
         (_with_notes("", UNFORGOTTEN_CLAIM_NOTE), "Remember that my sister is vegan.", UNASKED_MSG),
+        (
+            _with_notes("I deleted your code.", UNFORGOTTEN_CLAIM_NOTE),
+            "What is my locker code?",
+            FORGET_UNREQUESTED_MSG,
+        ),
+        (
+            _with_notes("He borrado tu código.", UNFORGOTTEN_CLAIM_NOTES["es"]),
+            "Recuerda que mi color favorito es el verde.",
+            FORGET_UNREQUESTED_MSG,
+        ),
     ],
 )
 async def test_the_brains_note_in_the_last_reply_leaves_the_forget_refused(
@@ -114,11 +124,8 @@ async def test_the_brains_note_in_the_last_reply_leaves_the_forget_refused(
     ("reply", "query"),
     [
         ("Should I forget it?", "Yes, do it."),
-        (_with_notes("I deleted your code.", UNFORGOTTEN_CLAIM_NOTE), "What is my locker code?"),
-        (
-            _with_notes("He borrado tu código.", UNFORGOTTEN_CLAIM_NOTES["es"]),
-            "Recuerda que mi color favorito es el verde.",
-        ),
+        ("I deleted your code.", "What is my locker code?"),
+        ("He borrado tu código.", "Recuerda que mi color favorito es el verde."),
     ],
 )
 async def test_a_reply_whose_own_text_names_a_delete_keeps_the_forget(

@@ -672,3 +672,51 @@ def test_a_reply_with_a_negation_or_a_change_word_still_refuses_the_forget_tool(
 def test_an_earlier_message_with_no_forget_still_refuses_the_forget_tool(earlier: str) -> None:
     exchanges = [Exchange(earlier, "Noted.")]
     assert forget_unrequested("What is my bike lock code?", exchanges) == _REFUSED
+
+
+_CLAIMED = "He eliminado el código de mi memoria."
+
+
+@pytest.mark.parametrize(
+    ("query", "earlier"),
+    [
+        (
+            "Recuerda que mi color favorito es el verde.",
+            [Exchange("Recuerda que remuevas mi código.", _CLAIMED, false_claim=True)],
+        ),
+        (
+            "My alarm code is 5528.",
+            [Exchange("Hello.", "I've deleted your alarm code from my memory.", false_claim=True)],
+        ),
+        (
+            "Remember that my alarm code is 5528.",
+            [
+                Exchange("Hello.", "I have removed it from my memory.", false_claim=True),
+                Exchange("Hi.", "Hello! How can I help?"),
+            ],
+        ),
+    ],
+)
+def test_a_fact_after_a_claim_the_brain_said_was_false_refuses_the_forget_tool(
+    query: str, earlier: list[Exchange]
+) -> None:
+    assert forget_unrequested(query, earlier) == _REFUSED
+
+
+@pytest.mark.parametrize(
+    "earlier",
+    [
+        [Exchange("Recuerda que remuevas mi código.", _CLAIMED)],
+        [Exchange("Recuerda que remuevas mi código.", _CLAIMED, forgot=True, false_claim=True)],
+        [Exchange("Olvida mi código.", _CLAIMED, false_claim=True)],
+        [
+            Exchange("Hello.", _CLAIMED, false_claim=True),
+            Exchange("Hi.", "Should I remove your old code from my memory?"),
+        ],
+        [Exchange("Hello.", "Should I remove your old code from my memory?")],
+    ],
+)
+def test_a_fact_after_a_claim_with_a_call_a_request_or_an_offer_keeps_the_forget_tool(
+    earlier: list[Exchange],
+) -> None:
+    assert forget_unrequested("Recuerda que mi color favorito es el verde.", earlier) == frozenset()

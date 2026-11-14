@@ -1,9 +1,8 @@
 # A false claim of a delete in the last reply keeps the forget tool on the next fact
 
-**Status:** open, actionable
+**Status:** done 2026-11-14
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-13
 
 `forget_unrequested` (`forget_unrequested.py`) keeps the forget tool when the model's own text in
 the chat's last reply names forgetting, the brain's notes left out (`model_text`,
@@ -29,3 +28,8 @@ verde.` had its forget call run; it matched no row, so nothing was lost
 - 2026-11-13: filed when a draw of the note for
   [task 1171](1171-a-request-to-remember-an-action-stated-after-que-dass-or-ca-refuses-the-forget-tool.md)
   had its next message's forget call run after a false claim of a delete.
+- 2026-11-14: done. `claim_corrected` (`reply_notes.py`) reads the claim note among a reply's
+  notes, and `forget_open` then reads that reply's words as naming no forget; a forget run or a
+  message asking to forget still opens it. Replay changed only the recorded chain above, now
+  refused. Nine live forget turns produced no claim note, so the tests decide
+  ([readings](../../readings/forget-open-from-earlier-turns.md#a-reply-the-brain-closed-as-a-false-claim-2026-11-14)).

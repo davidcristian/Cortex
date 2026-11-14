@@ -6,9 +6,14 @@ from typing import cast
 import pytest
 
 import cortex_core
-from cortex_core.forget_claim import UNFORGOTTEN_CLAIM_NOTE
+from cortex_core.forget_claim import (
+    HANDED_CLAIM_NOTE,
+    UNFORGOTTEN_CLAIM_NOTE,
+    UNFORGOTTEN_CLAIM_NOTES,
+)
+from cortex_core.forget_uncalled import UNCALLED_FORGET_NOTE
 from cortex_core.forget_unnamed import kept_note
-from cortex_core.reply_notes import REPLY_NOTES, model_text
+from cortex_core.reply_notes import REPLY_NOTES, claim_corrected, model_text
 from cortex_core.turn_output import place_note
 
 # Notes the brain writes into a tool result, a prompt or a summary, never after a reply.
@@ -61,6 +66,27 @@ def test_a_note_alone_leaves_nothing(note: str) -> None:
 )
 def test_text_the_model_wrote_stays(reply: str) -> None:
     assert model_text(reply) == reply
+
+
+@pytest.mark.parametrize("claim", [UNFORGOTTEN_CLAIM_NOTE, *UNFORGOTTEN_CLAIM_NOTES.values()])
+@pytest.mark.parametrize("after", [(), (UNCALLED_FORGET_NOTE,), (_as_appended(REPLY_NOTES[0]),)])
+def test_a_reply_closed_by_the_claim_note_is_corrected(claim: str, after: tuple[str, ...]) -> None:
+    assert claim_corrected(_reply("I deleted your code.", claim, *after))
+
+
+@pytest.mark.parametrize(
+    "reply",
+    [
+        "I deleted your code.",
+        _reply("I deleted your code.", UNCALLED_FORGET_NOTE),
+        _reply("I deleted your code.", HANDED_CLAIM_NOTE),
+        UNFORGOTTEN_CLAIM_NOTE + "\n\nI deleted your code.",
+        "Done." + UNFORGOTTEN_CLAIM_NOTE.rstrip(")"),
+        "Done. " + UNFORGOTTEN_CLAIM_NOTE.lstrip("\n"),
+    ],
+)
+def test_a_reply_with_no_claim_note_at_its_end_is_not_corrected(reply: str) -> None:
+    assert not claim_corrected(reply)
 
 
 def test_a_list_note_with_a_line_break_inside_an_item_stays() -> None:

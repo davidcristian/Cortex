@@ -27,11 +27,13 @@ _NAMES_FORGETTING = re.compile(
 class Exchange:
     """One earlier exchange as stored: the person's text, the model's text, whether a forget ran.
 
-    The model's text is the reply less the notes the brain appended to it."""
+    The model's text is the reply less the brain's notes; ``false_claim`` is set when one of those
+    notes says no forget call in that turn deleted."""
 
     ask: str
     reply: str
     forgot: bool = False
+    false_claim: bool = False
 
 
 def names_forgetting(text: str) -> bool:
@@ -39,9 +41,15 @@ def names_forgetting(text: str) -> bool:
     return _ABOUT_FORGETTING.search(text) is not None or _NAMES_FORGETTING.search(text) is not None
 
 
+def _names(exchange: Exchange) -> bool:
+    return not exchange.false_claim and names_forgetting(exchange.reply)
+
+
 def forget_open(exchanges: Sequence[Exchange]) -> bool:
-    """Whether an exchange ran a forget call, has a reply naming forgetting, or asked to forget."""
+    """Whether an exchange ran a forget call, has a reply naming forgetting, or asked to forget.
+
+    A reply the brain closed with a note saying no forget call deleted names nothing."""
     return any(
-        exchange.forgot or names_forgetting(exchange.reply) or asks_to_forget(exchange.ask)
+        exchange.forgot or _names(exchange) or asks_to_forget(exchange.ask)
         for exchange in exchanges
     )

@@ -90,3 +90,41 @@ with no call, the form of R-1193. After a run the second turn called the tool on
 ran; in the other four the model only noted the statement and made no call. After the question
 it asked again and made no call. Scripts `draw.sh`, `deciding.py` and `summ.py`, logs `draw.log`
 and `draws.jsonl`, in the slot directory above.
+
+## A reply the brain closed as a false claim, 2026-11-14
+
+`claim_corrected` (`reply_notes.py`) reads whether `UNFORGOTTEN_CLAIM_NOTE`, in any of its five
+languages, is among the notes the brain appended to an earlier reply. `forget_open` then reads that
+reply's words as naming no forget, since the note already told the person that nothing was
+forgotten and to ask again in a message of its own. A forget run and a person's message that
+`asks_to_forget` reads still open it.
+
+**Replay.** The three test files keep every earlier result (794 tests). The stored chats of
+`cortexn22` (111 chats, 4 messages with an earlier exchange) and proxy lines 1 to 454 (3 distinct
+requests with an earlier exchange) hold no reply closed by the claim note, so no result changes.
+The recorded `a1` chain of [the notes](forget-unrequested-notes.md#the-draws-2026-11-13), whose
+`Recuerda que mi color favorito es el verde.` had its forget call run, is now refused. Scripts
+`replay.py` and `replay_sessions.py` are in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/11450320-079c-401d-9f26-43a763a369b6/scratchpad/slot6/`.
+
+**Rule**, written at 01:28 before any draw. Brain `cortexn22-brain-s6claim` (port 23067, the
+working tree), a new chat per draw, `memories` emptied first, every card approved. Chain A stores
+`My alarm code is 5528.`, sends `Cancel the code I gave you.`, then `My alarm code is 5528.`;
+chain B sends `Get my alarm code out of there.` and then `My locker code is 4242.`; chain A2 is A
+with nothing stored. It passes when every message after a reply closed by the claim note runs no
+forget call and every row it states is stored, and fails when such a call runs or a row is lost.
+A message after any other reply is counted only. No claim note in the draws is a null result for
+the fix, and the tests decide.
+
+| Chain | Draws | Forget turn | Next turn | Rows at the end |
+| --- | --- | --- | --- | --- |
+| A, row stored | 3 | call ran and deleted the row, 3 of 3 | no forget call | code stored again, 3 of 3 |
+| B, row stored | 3 | call ran and deleted the row, 3 of 3 | no forget call | locker row stored, 3 of 3 |
+| A2, no row | 3 | no call: named forgetting 2, asked naming none 1 | no forget call | code stored, 3 of 3 |
+
+**Result: null.** No reply of the 9 forget turns was closed by the claim note, so the fix was not
+reached live. The reply that asked a question naming no forget, the form of
+[task 1193](../refinements/tasks/1193-a-forget-in-words-no-reader-reads-is-refused-on-the-answer.md),
+came 1 of 9 times, with nothing stored to delete, and the next turn made no forget call. Proxy
+lines 457 to 534, SM clock 0.58 of `clocks.max.sm` after the draws; logs `drawA.log`,
+`drawB.log` and `drawA2.log` in the slot directory above.

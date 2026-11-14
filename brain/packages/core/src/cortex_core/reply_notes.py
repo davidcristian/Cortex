@@ -146,9 +146,12 @@ def _pattern(note: str) -> str:
     return "".join(parts) + ("" if text.endswith(")") else _ITEMS)
 
 
-_NOTE_AT_END = re.compile(
-    r"(?:\A|\n)(?:" + "|".join(_pattern(note) for note in REPLY_NOTES) + r")\s*\Z"
-)
+def _at_end(notes: tuple[str, ...]) -> re.Pattern[str]:
+    return re.compile(r"(?:\A|\n)(?:" + "|".join(_pattern(note) for note in notes) + r")\s*\Z")
+
+
+_NOTE_AT_END = _at_end(REPLY_NOTES)
+_CLAIM_AT_END = _at_end(_forms(UNFORGOTTEN_CLAIM_NOTE, UNFORGOTTEN_CLAIM_NOTES))
 
 
 def model_text(reply: str) -> str:
@@ -157,3 +160,13 @@ def model_text(reply: str) -> str:
     while (found := _NOTE_AT_END.search(text)) is not None:
         text = text[: found.start()]
     return text
+
+
+def claim_corrected(reply: str) -> bool:
+    """Whether a note the brain appended to ``reply`` says no forget call in its turn deleted."""
+    text = reply
+    while (found := _NOTE_AT_END.search(text)) is not None:
+        if _CLAIM_AT_END.search(text) is not None:
+            return True
+        text = text[: found.start()]
+    return False

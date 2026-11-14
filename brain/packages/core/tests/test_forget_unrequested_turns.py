@@ -205,6 +205,19 @@ async def test_a_statement_after_a_forget_named_in_words_no_reader_names_refuses
     assert await _chat(queries, ["Which code is it?"]) == []
 
 
+@pytest.mark.parametrize(
+    ("reply", "ran"),
+    [
+        ("I have removed your alarm code from my memory.", []),
+        ("Should I remove your alarm code from my memory?", [FORGET_CHOSEN_TOOL_NAME]),
+    ],
+)
+async def test_a_statement_after_a_false_claim_of_a_delete_refuses_the_forget(
+    *, reply: str, ran: list[str]
+) -> None:
+    assert await _chat(("Hello.", "My alarm code is 5528."), [reply]) == ran
+
+
 @pytest.mark.parametrize("images", [(), (_PICTURE,)])
 async def test_a_statement_after_a_picture_refuses_the_forget_as_without_it(
     images: tuple[ImagePart, ...],

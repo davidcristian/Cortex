@@ -19,7 +19,7 @@ from cortex_core.memory_forget import FORGET_UNTRUSTED_TOOL_NAME
 from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
 from cortex_core.ports import InferenceBackend
 from cortex_core.progress import hold_wait
-from cortex_core.reply_notes import model_text
+from cortex_core.reply_notes import claim_corrected, model_text
 from cortex_core.round_opening import OpeningHold
 from cortex_core.tool_cut import ResultRoom
 from cortex_core.tool_round import call_message, plan_round
@@ -101,7 +101,8 @@ def _exchange(turn: Sequence[Message]) -> Exchange | None:
         return None
     ask = next((m.text for m in turn if m.role is Role.USER), "")
     forgot = any(run.name in _FORGET_TOOLS for reply in replies for run in reply.runs)
-    return Exchange(ask, model_text(replies[-1].text), forgot=forgot)
+    reply = replies[-1].text
+    return Exchange(ask, model_text(reply), forgot=forgot, false_claim=claim_corrected(reply))
 
 
 def _earlier_exchanges(working: Sequence[Message], turn_id: str) -> tuple[Exchange, ...]:
