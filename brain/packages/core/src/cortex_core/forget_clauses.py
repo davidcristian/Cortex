@@ -80,12 +80,18 @@ def _keeping(clause: list[str]) -> list[bool]:
 
 
 def parts(query: str) -> tuple[list[str], list[str]]:
-    """The tokens of ``query`` outside a clause asking to keep, and those inside one."""
+    """The tokens of ``query`` outside a clause asking to keep, and those inside one. A clause
+    with no forget verb joins a keep clause that ends before it, as in ``keep the card, my gym``."""
     forget: list[str] = []
     keep: list[str] = []
+    kept = False
     for clause in clauses(query):
-        for token, keeping in zip(clause, _keeping(clause), strict=True):
+        unforgot = not any(FORGET.fullmatch(token) for token in clause)
+        joined = kept and unforgot
+        flags = [True] * len(clause) if joined else _keeping(clause)
+        for token, keeping in zip(clause, flags, strict=True):
             (keep if keeping else forget).append(token)
+        kept = flags[-1]
     return forget, keep
 
 

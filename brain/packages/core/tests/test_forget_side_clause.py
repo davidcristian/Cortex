@@ -445,3 +445,39 @@ async def test_a_clause_adding_a_row_after_a_forget_clause_still_lists_the_row(
 ) -> None:
     _, _, rows = await _forget(query, *ids)
     assert rows == ["locker"]
+
+
+@pytest.mark.parametrize(
+    ("query", "ids"),
+    [
+        ("Forget the card 4242, keep the locker, and my phone.", ("card", "locker", "phone")),
+        ("Forget the card 4242, keep the locker. And my phone.", ("card", "locker", "phone")),
+        ("Vergiss die Karte 4242, behalte den Spind, und mein Handy.", ("karte", "spind", "handy")),
+        (
+            "Oublie la carte 4242, garde le casier, et mon téléphone.",
+            ("carte", "casier", "telephone"),
+        ),
+        ("Uită cardul 4242, păstrează cartela, și telefonul.", ("cardul", "cartela", "telefonul")),
+        ("Forget the locker code 4242, keep the card, my gym code too.", ("locker", "card", "gym")),
+        ("Forget the locker code 4242, keep the card, also the gym.", ("locker", "card", "gym")),
+        ("Forget the locker code 4242 but keep the card. The gym too.", ("locker", "card", "gym")),
+    ],
+)
+async def test_a_clause_joined_to_a_keep_clause_keeps_the_row(
+    query: str, ids: tuple[str, ...]
+) -> None:
+    _, _, rows = await _forget(query, *ids)
+    assert rows == sorted(ids[1:])
+
+
+@pytest.mark.parametrize(
+    ("query", "forget", "keep"),
+    [
+        ("Keep the locker, and my phone.", "", "keep the locker and my phone"),
+        ("Keep the locker, the phone is new.", "", "keep the locker the phone is new"),
+        ("Keep the locker, and forget my phone.", "and forget my phone", "keep the locker"),
+        ("Forget the card, and my phone.", "forget the card and my phone", ""),
+    ],
+)
+def test_parts_keeps_a_clause_joined_to_a_keep_clause(query: str, forget: str, keep: str) -> None:
+    assert tuple(" ".join(tokens) for tokens in parts(query)) == (forget, keep)
