@@ -17,12 +17,6 @@ COPULAS_OTHER = (
     "est|sont|était|étaient|ist|sind|war|waren|es|son|era|eran|está|están|estaba|estaban"
     "|este|e|sunt|erau"
 )
-# The same in French, German, Spanish and Romanian, where a possessive can follow the first noun.
-STATEMENT_OTHER = _statement(
-    r"(?:mon|ma|mes|notre|nos|mein\w{0,2}|unser\w{0,2}|mi|mis|nuestr[oa]s?"
-    r"|[\w-]+\s+(?:meu|mea|mei|mele|nostru|noastr[ăa]|no[șşs]tri|noastre))",
-    COPULAS_OTHER,
-)
 # At most eight words of subject, a copula and a value, or in German a copula last, as in
 # "las llaves están en el coche" or "dass meine Schwester Vegetarierin ist".
 STATED_OTHER = (
