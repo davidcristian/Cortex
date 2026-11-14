@@ -222,16 +222,16 @@ Script `replay.py` and log `replay.log` in
 
 A clause read from its keep verb onward left the words before the verb to forget, so beside a card
 and a phone ending `4242`, `Vergiss die Karte 4242, mein Handy bleibt.`, `das Handy behalte ich.`
-and `Forget the card 4242, my phone I keep.` listed and deleted the phone. A keep verb can follow
-the words naming what it keeps: `bleibt` follows its subject, and `mon téléphone je le garde` and
-`telefonul îl păstrez` put the object first. A keep verb now also keeps the words before it in its
-clause, back to a forget verb or a joining word (`and`, `or`, `but`, `yet`, `et`, `ou`, `mais`,
-`und`, `oder`, `aber`, `y`, `pero`, `și`, `sau`, `dar`, not the Romanian pronoun `o`), so `Vergiss
-die Karte 4242 aber mein Handy bleibt.` keeps the phone and deletes the card, and `Forget the card
-4242, the locker and my phone I keep.` deletes the locker code. In a clause holding a forget verb
-and no joining word the keep verb takes every word after the forget verb, so `Vergiss die Karte 4242
-mein Handy bleibt.` keeps both rows: a misread keeps a row. `Vergiss die Karte 4242, mein Handy
-vergiss auch.` still deletes the phone (`test_forget_side_clause.py`).
+and `Forget the card 4242, my phone I keep.` deleted the phone. A keep verb can follow the words
+naming what it keeps: `bleibt` follows its subject, and `mon téléphone je le garde` and `telefonul
+îl păstrez` put the object first. A keep verb now also keeps the words before it in its clause, back
+to a forget verb, a word for but (`but`, `yet`, `mais`, `aber`, `pero`, `dar`), or a word for and
+(`and`, `or`, `et`, `ou`, `und`, `oder`, `y`, `și`, `sau`, not the Romanian pronoun `o`) after a
+forget verb or just before the keep verb, so `Vergiss die Karte 4242 aber mein Handy bleibt.` keeps
+the phone and deletes the card, and `Forget the card 4242, the locker and my phone I keep.` keeps
+both. In a clause holding a forget verb and no joining word the keep verb takes every word after the
+forget verb, so `Vergiss die Karte 4242 mein Handy bleibt.` keeps both rows. `Vergiss die Karte
+4242, mein Handy vergiss auch.` still deletes the phone (`test_forget_side_clause.py`).
 
 Replay: 5,206 distinct test, readings, task and recorded strings, over 27 sets of fourteen stored
 card, phone and code exchanges in four languages, went through the card before and after (140,562

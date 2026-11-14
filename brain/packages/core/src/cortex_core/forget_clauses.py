@@ -26,7 +26,8 @@ _LEAD = frozenset(
 _NAMING = frozenset({"the", "a", "an", "my", "your", "our", "his", "her", "their", "its"})
 _AND = frozenset({"and", "or", "et", "ou", "und", "oder", "y", "o", "și", "şi", "sau"})
 # Romanian "o" is a pronoun before a verb, as in "cartela o păstrez", so it starts no keep clause.
-_JOIN = (_AND - {"o"}) | {"but", "yet", "aber", "mais", "pero", "dar"}
+_LIST = _AND - {"o"}
+_CONTRAST = frozenset({"but", "yet", "aber", "mais", "pero", "dar"})
 FORGET = re.compile(
     r"forg[eo]t\w*|delet\w*|remov\w*|eras\w*|oubli\w*|effac\w*|vergiss\w*|vergess\w*"
     r"|l[oö]sch\w*|olvid\w*|borr[ae]\w*|uit\w*|[șş]terg\w*"
@@ -59,18 +60,21 @@ def _opens_keep(clause: list[str], at: int) -> bool:
 
 def _keeping(clause: list[str]) -> list[bool]:
     """Whether each token of ``clause`` is inside a clause asking to keep. A keep verb also keeps
-    the words before it back to a forget verb or a joining word, as in ``mein Handy bleibt``."""
+    the words before it back to a forget verb, a word for but, or a word for and after a forget
+    verb or just before it, as in ``mein Handy bleibt`` or ``the phone and the locker I keep``."""
     flags: list[bool] = []
-    start = 0
+    start, forgot = 0, False
     for at, token in enumerate(clause):
         if FORGET.fullmatch(token) and NOT.isdisjoint(clause[max(0, at - 2) : at]):
-            start = at + 1
+            start, forgot = at + 1, True
             flags.append(False)
             continue
-        start = at if token in _JOIN else start
+        joins = token in _CONTRAST or (forgot and token in _LIST)
+        start = at if joins else start
         opens = not (flags and flags[-1]) and _opens_keep(clause, at)
         if opens and KEEP.fullmatch(token):
-            flags[start:] = [True] * (at - start)
+            begin = at - 1 if at and clause[at - 1] in _LIST else start
+            flags[begin:] = [True] * (at - begin)
         flags.append(opens or bool(flags and flags[-1]))
     return flags
 

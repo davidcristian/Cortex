@@ -298,12 +298,34 @@ def test_asking_reads_a_clause_adding_a_named_row(query: str, named: set[str], a
         (
             "Forget the card 4242, the locker and my phone I keep.",
             ("locker", "card", "phone"),
-            ["phone"],
+            ["locker", "phone"],
+        ),
+        (
+            "Forget the locker code 4242, the card and the phone I keep.",
+            ("locker", "card", "phone"),
+            ["card", "phone"],
+        ),
+        (
+            "Vergiss den Code 4242 vom Spind, die Karte und das Handy behalte ich.",
+            ("spind", "karte", "handy"),
+            ["handy", "karte"],
+        ),
+        (
+            "Oublie le code 4242 du casier, la carte et le téléphone je les garde.",
+            ("casier", "carte", "telephone"),
+            ["carte", "telephone"],
+        ),
+        (
+            "Uită codul 4242, cardul și telefonul le păstrez.",
+            ("cardul", "telefonul", "locker"),
+            ["cardul", "telefonul"],
         ),
         ("Oublie la carte 4242, mon téléphone je le garde.", ("carte", "telephone"), ["telephone"]),
         ("Uită cardul 4242, telefonul îl păstrez.", ("cardul", "telefonul"), ["telefonul"]),
         ("Uită cardul 4242 dar telefonul îl păstrez.", ("cardul", "telefonul"), ["telefonul"]),
         ("Uită cardul 4242, cartela o păstrez.", ("cardul", "cartela"), ["cartela"]),
+        ("Forget the card 4242 and my phone I keep.", ("card", "phone"), ["phone"]),
+        ("Vergiss die Karte 4242 und mein Handy bleibt.", ("karte", "handy"), ["handy"]),
         ("Uită cardul 4242 dar cartela mea o păstrez.", ("cardul", "cartela"), ["cartela"]),
     ],
 )
@@ -360,6 +382,12 @@ async def test_a_keep_verb_after_a_forget_verb_with_no_joining_word_keeps_both_r
         ("Forget the card and keep the phone.", "forget the card", "and keep the phone"),
         ("Keep the phone and forget the card.", "forget the card", "keep the phone and"),
         ("Uită cardul, cartela o păstrez.", "uită cardul", "cartela o păstrez"),
+        (
+            "Forget the card, the phone and the locker I keep.",
+            "forget the card",
+            "the phone and the locker i keep",
+        ),
+        ("Forget the card and the phone I keep.", "forget the card", "and the phone i keep"),
     ],
 )
 def test_parts_reads_a_keep_verb_back_to_a_forget_verb_or_a_joining_word(
