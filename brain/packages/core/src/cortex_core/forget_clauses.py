@@ -130,12 +130,14 @@ def _cut(clause: list[str], value: list[str]) -> list[list[str]]:
 def asking(query: str, value: str, named: frozenset[str] = frozenset()) -> str:
     """The words of ``query`` less each remark: a clause, or its words from a relative word after
     ``value``, holding no forget verb, keep clause or ``value``, unless it opens with ``and`` or
-    only adds a row of words ``named``."""
+    only adds a row of words ``named`` to a clause that does not end asking to keep."""
     wanted = [token for token in _TOKEN.findall(value.lower()) if token not in _MARKS]
     found: list[str] = []
-    asked = True
+    asked, keeps = True, False
     for piece in (piece for clause in clauses(query) for piece in _cut(clause, wanted)):
         joins = asked and piece[0] in _AND
-        asked = joins or _asks(piece) or _after(piece, wanted) is not None or _adds(piece, named)
+        adds = _adds(piece, named)
+        asked = joins or _asks(piece) or _after(piece, wanted) is not None or (adds and not keeps)
+        keeps = keeps if adds else _keeping(piece)[-1]
         found.extend(piece if asked else [])
     return " ".join(found)

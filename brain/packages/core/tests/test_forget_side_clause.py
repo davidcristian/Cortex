@@ -362,3 +362,54 @@ def test_parts_reads_a_keep_verb_back_to_a_forget_verb_or_a_joining_word(
     query: str, forget: str, keep: str
 ) -> None:
     assert tuple(" ".join(tokens) for tokens in parts(query)) == (forget, keep)
+
+
+@pytest.mark.parametrize(
+    ("query", "ids"),
+    [
+        ("Forget the card 4242, keep the locker, my phone too.", ("card", "locker", "phone")),
+        ("Forget the card 4242, keep the locker, the phone as well.", ("card", "locker", "phone")),
+        ("Forget the card 4242, I keep the locker, also my phone.", ("card", "locker", "phone")),
+        ("Forget the card 4242, not the locker, my phone too.", ("card", "locker", "phone")),
+        ("Forget the card 4242, except the locker, my phone too.", ("card", "locker", "phone")),
+        (
+            "Forget the card 4242, don't forget the locker, my phone too.",
+            ("card", "locker", "phone"),
+        ),
+        (
+            "Forget the locker code 4242, keep the gym, my phone too, the card as well.",
+            ("locker", "gym", "phone", "card"),
+        ),
+        (
+            "Oublie la carte 4242, garde le casier, mon téléphone aussi.",
+            ("carte", "casier", "telephone"),
+        ),
+        (
+            "Vergiss die Karte 4242, behalte den Spind, mein Handy auch.",
+            ("karte", "spind", "handy"),
+        ),
+        ("Vergiss die Karte 4242, der Spind bleibt, mein Handy auch.", ("karte", "spind", "handy")),
+    ],
+)
+async def test_a_clause_adding_a_row_after_a_keep_clause_keeps_the_row(
+    query: str, ids: tuple[str, ...]
+) -> None:
+    _, _, rows = await _forget(query, *ids)
+    assert rows == sorted(ids[1:])
+
+
+@pytest.mark.parametrize(
+    ("query", "ids"),
+    [
+        (
+            "Forget the card 4242, keep the locker, forget my phone too.",
+            ("card", "locker", "phone"),
+        ),
+        ("Keep the locker, forget the card 4242, my phone too.", ("card", "locker", "phone")),
+    ],
+)
+async def test_a_clause_adding_a_row_after_a_forget_clause_still_lists_the_row(
+    query: str, ids: tuple[str, ...]
+) -> None:
+    _, _, rows = await _forget(query, *ids)
+    assert rows == ["locker"]

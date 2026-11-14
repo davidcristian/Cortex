@@ -190,9 +190,10 @@ and a phone ending `4242` the message `Forget the card 4242, my phone as well.` 
 French or German, then only fact words of rows holding the text (their words less every function
 word of `FUNCTION`), and an optional `one`. Any other word keeps the clause a remark, so `my phone
 stays`, `my phone is new`, `not my phone`, `my phone has it too`, `keep my phone as well`, `leave
-my phone too`, `remember my phone too` and their French and German forms keep the phone. No verb
-was added: a clause opening with an unread verb (`wipe the card too`) stays a remark, since a verb
-slot would also read `leave my phone too`.
+my phone too`, `remember my phone too` and their French and German forms keep the phone, and so
+does an adding clause after a clause ending in a keep clause (`keep the locker, my phone too`). No
+verb was added: a clause opening with an unread verb (`wipe the card too`) stays a remark, since a
+verb slot would also read `leave my phone too`.
 
 **Replay.** The 21 row sets above, plus the French and German locker, card and phone triples,
 their card and phone pairs and the English locker, card and phone triple: 26 sets, over every
