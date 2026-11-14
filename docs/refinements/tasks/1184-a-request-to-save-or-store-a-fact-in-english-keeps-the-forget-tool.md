@@ -1,9 +1,8 @@
 # A request to save or store a fact in English keeps the forget tool
 
-**Status:** open, actionable
+**Status:** done 2026-11-14
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-13
 
 `forget_unrequested` (`forget_unrequested.py`) refuses the forget tool on an English request to
 remember only when `asks_kept` reads it, and `asks_kept` (`memory_request.py`) reads `remember`,
@@ -28,3 +27,11 @@ round and a withheld fact, never a lost row the person did not see on a card.
 ## History
 
 - 2026-11-13: filed by the first audit of the night.
+- 2026-11-14: done. `stores_fact` (`fact_request.py`) reads an opening `save`, `store`, `keep`,
+  `record`, `memorize` or `write down` only before one sentence stating a fact, and
+  `forget_unrequested` refuses the tool on it; `asks_kept` is unchanged. The near misses keep the
+  tool, and a replay of 19934 recorded strings changed 13 to refused. No forget call came in 8
+  store turns on either build, so the draws decide nothing about the refusal; the turns that
+  stored no row called a file tool, filed as
+  [task 1196](1196-a-request-to-save-a-fact-in-english-keeps-the-file-tools.md)
+  ([readings](../../readings/forget-refusal-stated-fact.md)).

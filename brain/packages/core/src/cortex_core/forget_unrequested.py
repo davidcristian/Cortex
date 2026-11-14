@@ -3,10 +3,11 @@
 import re
 from collections.abc import Sequence
 
+from cortex_core.fact_request import asks_kept_fact_other, stores_fact
 from cortex_core.fact_statement import STATEMENT
 from cortex_core.forget_open import Exchange, forget_open
 from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
-from cortex_core.memory_request import asks_kept, asks_kept_fact_other, asks_kept_other
+from cortex_core.memory_request import asks_kept, asks_kept_other
 
 FORGET_UNREQUESTED_MSG = (
     "REFUSED: the person's message asks to forget nothing, so this call was not run. Do not call "
@@ -92,9 +93,9 @@ def _states_in_english(query: str) -> bool:
 
 
 def _asks_in_english(query: str) -> bool:
-    """Whether ``query`` asks to remember, asks a question or states a fact, in English words."""
+    """Whether ``query`` asks to remember or store, asks a question or states a fact, in English."""
     question = _QUESTION.search(query) is not None and _ENGLISH.search(query) is not None
-    return question or asks_kept(query) or _states_in_english(query)
+    return question or asks_kept(query) or stores_fact(query) or _states_in_english(query)
 
 
 def forget_unrequested(query: str, earlier: Sequence[Exchange] = ()) -> frozenset[str]:

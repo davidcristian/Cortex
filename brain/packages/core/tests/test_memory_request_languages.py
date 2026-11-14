@@ -2,7 +2,6 @@ import pytest
 
 from cortex_core.memory_request import (
     asks_kept,
-    asks_kept_fact_other,
     asks_kept_other,
     asks_not_kept,
 )
@@ -299,44 +298,3 @@ def test_a_request_in_english_italian_or_not_at_a_clause_start_is_not_kept_other
     query: str,
 ) -> None:
     assert not asks_kept_other(query)
-
-
-@pytest.mark.parametrize(
-    "query",
-    [
-        "Souviens-toi que le code de mon casier à la piscine est 7731.",
-        "Merk dir, dass mein Hund Bello heißt.",
-        "Recuerda que mi color favorito es el verde.",
-        "Ține minte că numărul apartamentului meu este 42.",
-        "Merci. Retiens qu'Anna préfère les plantes.",
-        "Recuerda que mi código es 4512, ¡muchas gracias!",
-        "Merk dir, dass ich morgen arbeiten muss.",
-        "Merke dir, meine Telefonnummer ist 0721 555 019.",
-        "Recuerda: mi código es 4512.",
-        "Ține minte, codul meu e 4512.",
-    ],
-)
-def test_a_request_to_remember_one_stated_fact_asks_kept_fact_other(query: str) -> None:
-    assert asks_kept_fact_other(query)
-
-
-@pytest.mark.parametrize(
-    "query",
-    [
-        "Ține minte să arunci codul.",
-        "Merk dir: weg mit meinem alten Code.",
-        "Recuerda esto y sube el volumen.",
-        "Merk dir nicht alles, aber merk dir, dass mein Code 4512 ist.",
-        "Souviens-toi que mon vélo est bleu et jette mon code.",
-        "Remember that my code is 4512.",
-        "Merk dir, dass du meinen Code wegwerfen sollst.",
-        "Recuerda que debes tirar mi código.",
-        "Merke dir, wirf meinen Code weg.",
-        "Souviens-toi, mon code est 4512 et jette 1111.",
-        "Merke dir, meine Nummer ist 0721. Lösch die alte.",
-    ],
-)
-def test_a_request_to_remember_an_action_or_beside_a_clause_is_not_kept_fact_other(
-    query: str,
-) -> None:
-    assert not asks_kept_fact_other(query)

@@ -77,6 +77,18 @@ def test_a_message_with_no_word_that_can_retract_refuses_the_forget_tool(query: 
         "Hva er koden min?",
         "Care este codul meu de la bicicleta?",
         "Cual es mi codigo?",
+        "Don't save my phone number.",
+        "Store nothing about my phone.",
+        "Keep my phone number out of your memory.",
+        "Write down that you should forget my number.",
+        "Save me a seat.",
+        "Store the old one somewhere else.",
+        "Don't save my PIN.",
+        "Save my phone number 0721 555 019 and delete the old one.",
+        "Salva il mio numero 0721 555 019.",
+        "Guarda o meu número 0721 555 019.",
+        "Bewaar mijn nummer 0721 555 019.",
+        "Zapisz mój numer 0721 555 019.",
     ],
 )
 def test_a_message_neither_asking_to_remember_nor_an_english_question_keeps_the_forget_tool(
@@ -95,6 +107,11 @@ def test_a_message_neither_asking_to_remember_nor_an_english_question_keeps_the_
         "Her birthday was on May 3. My code is 7319!",
         "  My email is ana.pop@example.com.  ",
         "My phone is 0721-555-019.",
+        "Save my phone number 0721 555 019.",
+        "Store this: my phone is 0721 555 019.",
+        "Keep my phone number 0721 555 019.",
+        "Write down my phone number 0721 555 019.",
+        "Memorize my phone number 0721 555 019.",
     ],
 )
 def test_an_english_statement_of_a_fact_refuses_the_forget_tool(query: str) -> None:
@@ -243,16 +260,10 @@ def test_a_letter_outside_english_or_a_word_that_can_retract_keeps_the_forget_to
     "query",
     [
         "Souviens-toi que le code de mon casier à la piscine est 7731.",
-        "Merk dir, dass mein Hund Bello heißt.",
         "Recuerda que mi color favorito es el verde.",
         "Ține minte că numărul apartamentului meu este 42.",
         "Reține că mașina mea este o Dacia albastră.",
         "Merci. Souviens-toi que mon vélo est bleu.",
-        "Merk dir, dass ich den Code weggeworfen habe.",
-        "Ține minte că am aruncat codul.",
-        "Souviens-toi que j'ai jeté mon vieux code.",
-        "Recuerda que tiré mi código.",
-        "Recuerda que remuevas mi código.",
     ],
 )
 def test_a_request_to_remember_in_a_read_language_refuses_the_forget_tool(query: str) -> None:
@@ -271,6 +282,11 @@ def test_a_request_to_remember_in_a_read_language_refuses_the_forget_tool(query:
         "Acuérdate, mi coche está en la plaza 12.",
         "Ține minte, numărul meu de telefon este 0721 555 019.",
         "Ține minte, codul meu e 4242.  ",
+        "Recuerda, mi código es 4242.",
+        "Retiens, mon code est 4242.",
+        "Reține, codul meu e 4242.",
+        "Merke dir, der Code ist 4242.",
+        "Merke dir, meine Nummer ist 0721, danke.",
     ],
 )
 def test_a_request_to_remember_a_statement_in_a_read_language_refuses_the_forget_tool(
@@ -286,19 +302,22 @@ def test_a_request_to_remember_a_statement_in_a_read_language_refuses_the_forget
         "Recuerda, borra mi código.",
         "Merke dir, wirf meinen Code weg.",
         "Merk dir, meine Nummer: 0721.",
-        "Merke dir, der Code ist 4242.",
         "Merke dir, meine Nummer ist nicht 0721.",
         "Recuerda: mi código ya no es 4242.",
         "Souviens-toi, mon ancien code était 4242.",
         "Ține minte, numărul meu vechi era 42.",
         "Souviens-toi, mon code est 4242 et jette 1111.",
         "Merke dir, meine Nummer ist 0721 555 019 und meine PIN 1111.",
-        "Merke dir, meine Nummer ist 0721, danke.",
         "Merke dir, meine Nummer ist 0721. Lösch die alte.",
         "Merke dir, mein Code ist 4242 (oder 4243).",
         "Merke dir, mein Code ist 4242 wirf den alten Zettel weg.",
         "Ricorda, il mio codice è 4242.",
         "Onthoud, mijn code is 4242.",
+        "Lembra, o meu código é 4242.",
+        "Zapamiętaj, mój kod to 4242.",
+        "Retiens, oublie mon code.",
+        "Merk dir, vergiss meinen Code.",
+        "Reține, șterge codul meu.",
     ],
 )
 def test_a_request_to_remember_beside_no_whole_statement_keeps_the_forget_tool(
@@ -322,6 +341,12 @@ def test_a_request_to_remember_beside_no_whole_statement_keeps_the_forget_tool(
         "Retenez que vous devez jeter mon code.",
         "Merk dir, dass du meinen Code wegwerfen sollst.",
         "Merk dir, dass du meinen Code wegwerfen musst.",
+        "Recuerda que remuevas mi código.",
+        "Recuerda que tires mi código.",
+        "Recuerda que borres mi código.",
+        "Souviens-toi que tu jettes mon code.",
+        "Merk dir, dass du meinen Code wegwirfst.",
+        "Tine minte ca vreau sa arunci codul.",
     ],
 )
 def test_a_request_to_remember_an_obligation_or_a_request_of_you_keeps_the_forget_tool(
@@ -333,17 +358,12 @@ def test_a_request_to_remember_an_obligation_or_a_request_of_you_keeps_the_forge
 @pytest.mark.parametrize(
     "query",
     [
-        "Recuerda que tienes cita a las 9.",
         "Recuerda que las llaves están en el coche.",
-        "Recuerda que debo llamar a mi madre.",
-        "Souviens-toi que je dois partir à 9 h.",
         "Souviens-toi que sa voiture est rouge.",
-        "Merk dir, dass ich morgen arbeiten muss.",
         "Merk dir, dass meine Schwester Vegetarierin ist.",
-        "Ține minte că sora mea vine mâine.",
     ],
 )
-def test_a_request_to_remember_a_fact_with_no_obligation_of_you_refuses_the_forget_tool(
+def test_a_request_to_remember_a_fact_stated_with_a_copula_refuses_the_forget_tool(
     query: str,
 ) -> None:
     assert forget_unrequested(query) == _REFUSED
@@ -364,9 +384,19 @@ def test_a_request_to_remember_a_fact_with_no_obligation_of_you_refuses_the_forg
         "Souviens-toi que ma sœur s'appelle Claire et rappelle-moi demain à 18h de l'appeler.",
         "Merk dir, dass das Treffen am Montag stattfindet und mein anderer Hund Rex heißt.",
         "Recuerda que mi código del gimnasio es 4242, quizá lo necesite.",
+        "Recuerda que tienes cita a las 9.",
+        "Recuerda que debo llamar a mi madre.",
+        "Souviens-toi que je dois partir à 9 h.",
+        "Merk dir, dass ich morgen arbeiten muss.",
+        "Ține minte că sora mea vine mâine.",
+        "Merk dir, dass mein Hund Bello heißt.",
+        "Merk dir, dass ich den Code weggeworfen habe.",
+        "Ține minte că am aruncat codul.",
+        "Souviens-toi que j'ai jeté mon vieux code.",
+        "Recuerda que tiré mi código.",
     ],
 )
-def test_a_request_to_remember_that_states_no_fact_alone_keeps_the_forget_tool(
+def test_a_request_to_remember_that_states_no_fact_with_a_copula_alone_keeps_the_tool(
     query: str,
 ) -> None:
     assert forget_unrequested(query) == frozenset()

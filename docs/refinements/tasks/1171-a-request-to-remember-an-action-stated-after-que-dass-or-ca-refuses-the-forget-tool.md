@@ -1,9 +1,8 @@
 # A request to remember an action stated after que, dass or că refuses the forget tool
 
-**Status:** open, actionable
+**Status:** done 2026-11-14
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-13
 
 `forget_unrequested` (`forget_unrequested.py`) reads the letters of French, German, Spanish and
 Romanian only on a request that `asks_kept_fact_other` (`memory_request.py`) reads as one stated
@@ -50,3 +49,10 @@ né en 1990.`, `Souviens-toi que sa voiture est rouge.`), so no closed word sepa
   false claim of a delete kept the tool on the next message, so the rule failed and the note was
   reverted ([the draws](../../readings/forget-unrequested-notes.md#the-draws-2026-11-13),
   [task 1180](1180-a-false-claim-of-a-delete-in-the-last-reply-keeps-the-forget-tool-on-the-next-fact.md)).
+- 2026-11-14: done, with a different remedy: no note and no new obligation word.
+  `asks_kept_fact_other` reads the fact part only when it is stated with a copula, so the five
+  forms keep the tool. Asked after a stored code, `Recuerda que remuevas mi código.` deleted the row
+  in 3 of 3 draws on the fix and 0 of 3 on the start build. Facts stated with another verb now
+  keep the tool, filed as
+  [task 1197](1197-a-request-to-remember-a-fact-stated-with-a-verb-that-is-no-copula-keeps-the-forget-tool.md)
+  ([readings](../../readings/forget-refusal-stated-fact.md)).

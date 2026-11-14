@@ -2,8 +2,6 @@
 
 import re
 
-from cortex_core.fact_statement import STATEMENT_OTHER
-
 # "Keep me waiting" is an idiom, and so is "keep it to yourself" when it ends its clause or asks
 # to share; "or anyone" after it asks not to keep. "Don't note everything, but remember" keeps.
 _IDIOM = (
@@ -110,7 +108,7 @@ _FORGET_OTHER = re.compile(
 )
 # An imperative to remember in the same four languages, at a clause start: "je me souviens",
 # "rappelle-moi" and "recuérdale" (a reminder) and "merk dir das nicht" do not match.
-_REMEMBER_OTHER = re.compile(
+REMEMBER_OTHER = re.compile(
     rf"{_OTHER_OPENS}(?:souviens[-\s]toi|souvenez[-\s]vous|rappelle[-\s]toi|rappelez[-\s]vous"
     r"|ret(?:enez|iens)\s+(?:que|qu['\u2019]|bien|ceci|cela|ça|mon|ma|mes)\b|retiens\s*:"
     r"|(?:ret(?:enez|iens)|not(?:e|ez)|mémoris(?:e|ez))-(?:le|la|les)\b(?!\s+(?:pas|jamais)\b)"
@@ -154,12 +152,12 @@ _REMEMBER = re.compile(
 )
 # A second clause or sentence can ask for a tool in words the reminder and sound readers miss.
 # A comma before a digit and a closing thanks open none.
-_SECOND_CLAUSE = re.compile(
+SECOND_CLAUSE = re.compile(
     r";|,(?!\d)|[.!?]\s+\S|\b(?:and|et|mais|puis|alors|donc|ou|und|aber|dann|oder|also|pero|luego"
     r"|entonces|(?<!\bil\s)(?<!['\u2019])y|și|şi|si|dar|apoi|sau|iar|deci)\b",
     re.IGNORECASE,
 )
-_THANKS = re.compile(
+THANKS = re.compile(
     r"[\s,.;!¡]*\b(?:merci(?:\s+beaucoup)?|danke(?:\s+sch(?:ö|oe|o)n)?|vielen\s+dank"
     r"|(?:muchas\s+)?gracias|mul[țţt]umesc(?:\s+frumos)?|mersi)\W*$",
     re.IGNORECASE,
@@ -193,19 +191,7 @@ _ACTION = re.compile(
     re.IGNORECASE,
 )
 _THE_MESSAGE = re.compile(_MESSAGE, re.IGNORECASE)
-# `que`, `dass` or `că` after the verb, or a comma or colon before a statement, opens a fact.
-_FACT_AFTER = re.compile(
-    rf"\W*(?:(?:que|dass|c[ăa])\b|qu['\u2019])|[\s,]*(?={STATEMENT_OTHER}\s*$)", re.IGNORECASE
-)
-_FACT_IN = re.compile(r"(?:\b(?:que|dass|c[ăa])\s*|\bqu['\u2019])$", re.IGNORECASE)
-_SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
-# An obligation of the assistant, a second `que tu` or a `să` asks for an action, not a fact.
-_ASKS_OF_YOU = re.compile(
-    r"\b(?:tu\s+(?:dois|devras|devrais)|vous\s+(?:devez|devrez|devriez)|il\s+faut|il\s+faudr\w+"
-    r"|qu(?:e\s+|['\u2019])(?:tu|vous)|debes|deber[aá]s|deber[ií]as|deb[eé]is|tienes\s+que"
-    r"|tendr[aá]s\s+que|ten[eé]is\s+que|hay\s+que|trebuie|s[ăã]|sollst|solltest|musst|mußt)\b",
-    re.IGNORECASE,
-)
+SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
 
 
 def _asks_not_kept(sentence: str) -> bool:
@@ -231,14 +217,14 @@ def _asks_not_kept(sentence: str) -> bool:
 
 def asks_not_kept(query: str) -> bool:
     """Whether a sentence of ``query`` asks not to keep something, or to forget or remove it."""
-    return any(_asks_not_kept(sentence) for sentence in _SENTENCE_END.split(query))
+    return any(_asks_not_kept(sentence) for sentence in SENTENCE_END.split(query))
 
 
 def asks_to_forget(query: str) -> bool:
     """Whether a sentence of ``query`` asks to forget something or remove it from memory."""
     return any(
         pattern.search(sentence)
-        for sentence in _SENTENCE_END.split(query)
+        for sentence in SENTENCE_END.split(query)
         for pattern in (_FORGET, _REMOVE, _FORGET_OTHER)
     )
 
@@ -246,51 +232,31 @@ def asks_to_forget(query: str) -> bool:
 def asks_kept(query: str) -> bool:
     """Whether a sentence of ``query`` asks that something be remembered."""
     return any(
-        _REMEMBER.search(sentence) or _REMEMBER_OTHER.search(sentence)
-        for sentence in _SENTENCE_END.split(query)
+        _REMEMBER.search(sentence) or REMEMBER_OTHER.search(sentence)
+        for sentence in SENTENCE_END.split(query)
     )
 
 
 def asks_kept_other(query: str) -> bool:
     """Whether a sentence of ``query`` asks to remember in French, German, Spanish or Romanian."""
-    return any(_REMEMBER_OTHER.search(sentence) for sentence in _SENTENCE_END.split(query))
-
-
-def asks_kept_fact_other(query: str) -> bool:
-    """Whether ``query`` opens with a request to remember one stated fact in the four languages."""
-    offset = 0
-    for sentence in _SENTENCE_END.split(query):
-        start = query.find(sentence, offset)
-        offset = start + len(sentence)
-        found = _REMEMBER_OTHER.search(sentence)
-        if found is None:
-            continue
-        rest = query[start + found.end() :]
-        opener = _FACT_AFTER.match(rest)
-        if opener is None and _FACT_IN.search(found.group()) is None:
-            return False
-        fact = _THANKS.sub("", rest[opener.end() :] if opener else rest)
-        before = _THANKS.sub("", query[: start + found.start()])
-        alone = _SECOND_CLAUSE.search(fact) is None and _ASKS_OF_YOU.search(fact) is None
-        return re.search(r"\w", before) is None and alone
-    return False
+    return any(REMEMBER_OTHER.search(sentence) for sentence in SENTENCE_END.split(query))
 
 
 def asks_kept_alone(query: str) -> bool:
     """Whether ``query`` asks to remember in English, or in another language with one clause."""
-    if any(_REMEMBER.search(sentence) for sentence in _SENTENCE_END.split(query)):
+    if any(_REMEMBER.search(sentence) for sentence in SENTENCE_END.split(query)):
         return True
-    other = _REMEMBER_OTHER.search(query)
+    other = REMEMBER_OTHER.search(query)
     if other is None:
         return False
-    rest = _THANKS.sub("", query[other.end() :].lstrip(" ,:"))
-    return _SECOND_CLAUSE.search(rest) is None
+    rest = THANKS.sub("", query[other.end() :].lstrip(" ,:"))
+    return SECOND_CLAUSE.search(rest) is None
 
 
 def actions_asked(query: str) -> list[str]:
     """The clauses of ``query`` beside an English request to remember that ask for an action."""
     found: list[str] = []
-    for sentence in _SENTENCE_END.split(query):
+    for sentence in SENTENCE_END.split(query):
         request = _REMEMBER.search(sentence)
         if request is None:
             found.extend(match.group() for match in _ACTION.finditer(sentence))

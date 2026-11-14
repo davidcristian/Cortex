@@ -1,9 +1,8 @@
 # A request to remember read only before que keeps the forget tool at a comma
 
-**Status:** open, actionable
+**Status:** done 2026-11-14
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-13
 
 `forget_unrequested` refuses the forget tool on a request to remember in French, German, Spanish
 or Romanian that a comma or colon follows, then one statement of a fact
@@ -31,3 +30,8 @@ position `_asks_not_kept` reads, so a wider verb form there changes which tools 
 ## History
 
 - 2026-11-13: filed when the four language statement was read at a comma or colon.
+- 2026-11-14: done. `asks_kept_fact_other` (now `fact_request.py`) also reads `recuerda`,
+  `retiens` and `reține` alone before a comma when one fact stated with a copula follows,
+  without widening `REMEMBER_OTHER`, so the readers that share it are unchanged. `Retiens, oublie
+  mon code.` and `Recuerda, borra mi código.` keep the tool. The Spanish store turn stored the row
+  in 4 of 4 draws with no forget call ([readings](../../readings/forget-refusal-stated-fact.md)).
