@@ -24,17 +24,18 @@ since `actions_asked` reads the store verb itself as one.
 Every string literal of `brain/packages/*/tests` in the fix, every backticked span of
 `docs/readings`, `docs/refinements/tasks`, `docs/host/tasks` and `docs/adr`, the last person
 message of every request in the run's proxy log, and eight store requests in Italian, Portuguese,
-Dutch and Polish: 26965 strings. Each went through both readers of both builds, with the ten file
+Dutch and Polish: 26977 strings. Each went through both readers of both builds, with the ten file
 tools and `spawn_subagents` listed. The start build leaves a side effect tool out on 814 strings
-and refuses the sidecar tools on 803; the fix on 838 and 823. 25 strings changed, each from every
+and refuses the sidecar tools on 803; the fix on 840 and 825. 27 strings changed, each from every
 tool kept, and each opens with a store verb before a fact the fix reads:
 
-- 13 lose both side effect tools and have the sidecar tools refused: `Save my phone number 0721
+- 15 lose both side effect tools and have the sidecar tools refused: `Save my phone number 0721
   555 019.`, `Keep my phone number 0721 555 019.`, `Memorize my phone number 0721 555 019.`,
   `Write down my phone number 0721 555 019.`, `Store this: my phone is 0721 555 019.`, `Please
   save that my code is 4242.`, `Write this down: our wifi password is hunter2`, `Save my door code
   4417.`, `Record our gate PIN 0042.`, `Keep my passport number X1234567.`, `Store my address 12
-  Mill Lane.`, `Save that my shoe size is 43.` and `Store this: my draft is ready.`
+  Mill Lane.`, `Save that my shoe size is 43.`, `Store this: my draft is ready.`, `Save my code
+  4242 then forget it.` and `Save this: my PIN is 4242 off the record.`
 - 7 have the sidecar tools refused and keep a side effect tool the fact names or a second clause
   asks for: `Store this: my alarm code is 4242.`, `Save this: my alarm code is 5528.`, `Record
   that my alarm code is 5528.` and `Store my alarm code 5528.` keep `schedule_task`, `Save that my
@@ -111,6 +112,29 @@ reads no store verb. The note build is the start build with one change, `unkept_
   with no phone row, and of those the draws whose reply ends with the note.
 
 The rule: the note change holds when every n draw that stores nothing shows the note and no n draw
-that stores the row shows it. If every n draw stores the row, the row decides nothing and
-[task 1202](../refinements/tasks/1202-a-store-request-whose-turn-stores-nothing-shows-no-note.md)
-stays open with this row as its next one.
+that stores the row shows it. If every n draw stores the row, the row decides nothing and the
+note reader stays as it is.
+
+## The note on a store turn that stores nothing: what was drawn
+
+Drawn from 03:57 to 04:01 on 2026-11-15, proxy log lines 121 to 153, SM clock 0.58 of
+`clocks.max.sm`. Log `draw-note.log` and rows `draws-note.jsonl`, in the directory named above.
+
+| Row | Build | Draws | Draws that stored no phone row | Of those, with the note | Draws with the row and the note |
+| --- | --- | --- | --- | --- | --- |
+| s | start | 12 | 3 | 0 | 0 |
+| n | note | 12 | 1 | 1 | 0 |
+
+**Result: the rule holds.** The one n draw that stored nothing called `list_allowed_directories`
+and replied `I've saved your phone number: 0721 555 019.`, and the brain added the note. Three
+other n draws called `set_volume`, one of them `schedule_task` twice as well; each call failed, the
+row was stored and no note followed. One of those replied that the number was saved `to your
+reminders`.
+
+The replay of the 26977 strings through `unkept_note_due` with the reply `Got it.`: the start
+build shows the note on 938 and the note build on 983. The 45 newly due strings are the ones
+`stores_fact` reads and `asks_not_kept` does not. 25 are store requests listed above. The other 20
+are messages the tool readers leave alone (`Save my draft 2.`, `Record my screen for 10 seconds.`,
+`Keep my volume at 40.`, `Save my locker 42.`), where the note's text is still true on a turn that
+stores nothing. A message that also asks not to keep (`Save my code 4242 then forget it.`, `Save
+this: my PIN is 4242 off the record.`) is due no note on either build.

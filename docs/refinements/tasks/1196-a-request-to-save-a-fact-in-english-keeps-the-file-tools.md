@@ -38,5 +38,6 @@ saved your phone number: 0721 555 019.` with no note
   one. The start build stored the phone row in 9 of 12 draws; the replay and the fix's draws are in
   the [readings](../../readings/store-request-unasked-tools.md). Step 3: `claims_kept` reads
   `saved` only before `in memory`, and `unkept_note_due` reads the request with `asks_kept`, so the
-  reply showed no note in 3 of 3 start build draws that stored nothing
-  ([task 1202](1202-a-store-request-whose-turn-stores-nothing-shows-no-note.md)).
+  reply showed no note in 3 of 3 start build draws that stored nothing. `unkept_note_due` now
+  reads `stores_fact` beside `asks_kept`, and the one draw of 12 that stored nothing on a build
+  with that change alone showed the note.

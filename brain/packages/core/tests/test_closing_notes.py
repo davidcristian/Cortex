@@ -179,3 +179,55 @@ def test_a_reply_saying_the_value_was_not_kept_still_shows_the_note() -> None:
     reply = "I could not save that, so please send it again."
     shown = _shown(_forget(), (_DELETED,), _NEW_VALUE, reply=reply)
     assert shown == reply + UNKEPT_CLAIM_NOTE
+
+
+_SAVED = "I've saved your phone number: 0721 555 019."
+
+
+@pytest.mark.parametrize(
+    ("taint", "runs", "query"),
+    [
+        (TaintLedger(tainted=True), (_READ,), "Save my phone number 0721 555 019."),
+        (TaintLedger(tainted=True, opaque=True), (), "Store this: my phone is 0721 555 019."),
+        (TaintLedger(tainted=True), (_READ,), "Save my locker 42."),
+    ],
+    ids=["file", "picture", "no-value-name"],
+)
+def test_a_request_to_store_a_fact_that_stays_out_of_memory_shows_the_note(
+    *, taint: TaintLedger, runs: tuple[ToolRun, ...], query: str
+) -> None:
+    assert _shown(taint, runs, query, reply=_SAVED) == _SAVED + UNKEPT_CLAIM_NOTE
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Save the report to my notes folder.",
+        "Store this file in /tmp.",
+        "Save me a seat.",
+        "Don't save my phone number 0721 555 019.",
+        "Salva il mio numero 0721 555 019.",
+    ],
+)
+def test_a_store_verb_before_no_stated_fact_shows_no_note(query: str) -> None:
+    reply = "I've saved it."
+    assert _shown(TaintLedger(tainted=True), (_READ,), query, reply=reply) == reply
+
+
+def test_a_request_to_store_a_fact_that_is_kept_shows_no_note() -> None:
+    query = "Save my phone number 0721 555 019."
+    assert _shown(TaintLedger(), (), query, reply=_SAVED) == _SAVED
+
+
+@pytest.mark.parametrize(
+    ("query", "due"),
+    [
+        ("Save my phone number 0721 555 019.", True),
+        ("Save my code 4242 then forget it.", False),
+        ("Save this: my PIN is 4242 off the record.", False),
+    ],
+)
+def test_a_request_to_store_a_fact_is_due_the_note_unless_it_asks_not_to_keep(
+    *, query: str, due: bool
+) -> None:
+    assert unkept_note_due(query, "Got it.") is due

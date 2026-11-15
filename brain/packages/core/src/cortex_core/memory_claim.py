@@ -4,6 +4,7 @@ import re
 from collections.abc import Sequence
 
 from cortex_core.conversation import ToolRun
+from cortex_core.fact_request import stores_fact
 from cortex_core.file_request import asks_files
 from cortex_core.forget_unnamed import row_words
 from cortex_core.memory_claim_other import claims_kept_other, keeps_held, names_spared_other
@@ -150,7 +151,8 @@ def unkept_note_due(
         claims_kept_other(reply) and not names_spared_other(reply, spared)
     )
     claimed = claimed or (forget_called and claims_updated(reply))
-    return claimed or (asks_kept(query) and not asks_not_kept(query)) or _asks_kept_beside(query)
+    asked = (asks_kept(query) or stores_fact(query)) and not asks_not_kept(query)
+    return claimed or asked or _asks_kept_beside(query)
 
 
 def states_value(query: str) -> bool:
