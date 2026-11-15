@@ -74,6 +74,55 @@ listed and 0 calls changed among the 171,769 calls, the 42,356 value calls, the 
 the 172 messages holding no value and the 305 calls in the four unread languages. Of 5,514 cases
 of the test strings, 2 changed, both `Forget everything else, my card stays.` keeping the card.
 
+## Drawn after the card changes, 2026-11-15
+
+The stack brain `cortexn23-brain-1` rebuilt from the commit holding the day's card changes up to
+the reasons for the four unread cells (the rows the message permits, the table of forms and
+every row kept under an unread role), engine build `b12375-9d25e0014`, default `judge` recall,
+through the recording proxy (lines 786 to 851). Four exchanges were stored once through the
+model, `Remember that my locker code is 4242.`, `Remember that my card is 4111 1111 1111 4242.`,
+`Remember that my phone is 0721 555 4242.` and `Remember that my gym code is 7391.`, and the
+same four rows were copied back into `memories` before each draw. One message a draw in a new
+chat, every card approved. The SM clock read 0.58 of its maximum before and after.
+
+| Message | Draws | Forget calls | Rows the cards list | Listed rows the message keeps | Rows to delete left stored | Untrue sentences |
+| --- | --- | --- | --- | --- | --- | --- |
+| `Forget everything but my card.` | 3 | 9: `locker code`, `phone` and `gym code` in each draw | 9 | 0 | 0 | 0 |
+| `Forget all 4242 except the card.` | 2 | 4: `locker code` and `phone` | 4 | 0 | 0 | 0 |
+| `Forget everything, my card stays.` | 2 | 0 | 0 | 0 | 6 | 2 |
+| `Forget my gym code.` | 2 | 2: `7391` | 2 | 0 | 0 | 0 |
+| `Uită tot în afară de card.` | 2 | 0 | 0 | 0 | 6 | 2 |
+| `What is my locker code?` | 1 | 0 | 0 | 0 | 0 | 0 |
+
+No card listed a row its message keeps, and each card listed the one row its call named. The
+second message left the card and the gym code stored. The recall turn answered `Your locker code
+is 4242.`
+
+The third and fifth messages deleted nothing. Their first requests held the card row alone:
+recall ranked it, and `with_forget_reach` adds the nearest rows only beside a keep clause that
+`asks_to_forget_keeping` reads. The model made no call and wrote `I've cleared all other memories
+while keeping your card information` and `am păstrat doar informația despre cardul tău și am
+șters restul memoriilor`. Each English reply ended with `UNFORGOTTEN_CLAIM_NOTE` and each
+Romanian one with `UNCALLED_FORGET_NOTE` in Romanian, after `UNKEPT_CLAIM_NOTE`, which the
+reply's `Am reținut.` made due. So each of the four untrue sentences is followed by a true note
+that nothing was deleted. In a unit call the card keeps every row of the third message with any
+call text, and lists the card for the fifth with the text `card` or `4242`, since `tot` is not
+read. Both are filed. Logs `*.jsonl`, `*.log` and `*.left.txt` in
+`/home/david/.cache/cortex-run/2026-11-15/slot14/`; scripts `draws.sh` and `probe.py` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/bd106a1a-a17f-4ca5-8841-82294e4917a8/scratchpad/slot14/`.
+
+## The day's four card changes replayed together, 2026-11-15
+
+The build before the rows the message permits, the build holding only that change and the
+build holding all four, over the pools above. From the first to the second, 0 of 73,579 calls
+whose text holds a digit changed, 0 of 54,461 calls of a text holding no digit beside a message
+holding no value changed, and the value calls and the test strings gave the same bytes. From the first to the last, 0
+rows are newly listed among the generated messages. The word sets of `forget_clauses.py` built
+before the table of forms and after it are the same but for `toute`, `jede`, `jeden` and
+`jedes`. Those four list 82 rows of the test strings, each asked for, and the locker code and
+the phone of `Vergeet jede card 4242.`, which the message does not name; English `every` lists
+them too, and the form is filed.
+
 ## The four blocked cells replayed, 2026-11-15
 
 With every row kept under an unread role, `toate`, `doar`, `seulement` and `también` were each

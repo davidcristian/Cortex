@@ -20,6 +20,7 @@ or `4242` ([readings](../../readings/forget-everything-unread-role.md)):
 | `Vergiss alles bis auf die Karte.` | `alles` is left unread, since Dutch has it too |
 | `Olvida todo, la tarjeta se queda.` | `todo` is left unread, since Portuguese has it too |
 | `Uită tot, cardul rămâne.` | `tot` also means still and is a Dutch word |
+| `Uită tot în afară de card.` | the same word; the phrase for apart from is read as an unread role |
 
 ## What to do
 
@@ -38,3 +39,8 @@ or `4242` ([readings](../../readings/forget-everything-unread-role.md)):
 
 - 2026-11-15: filed from the replay of the forget of everything read by role
   ([readings](../../readings/forget-everything-unread-role.md)).
+- 2026-11-15: checked against the rule of the unread role. No form above is covered without
+  reading a new word: the form with no clause mark needs a word for stays or the limits of step
+  3 kept, and the others need the set of step 2, read only to keep. `Uită tot în afară de card.`
+  drew no forget call on the stack brain
+  ([readings](../../readings/forget-everything-unread-role.md#drawn-after-the-card-changes-2026-11-15)).

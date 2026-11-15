@@ -177,7 +177,7 @@ call named and both rows were deleted, as in the earlier a1 draws: the role of `
 card` is not read, and the card keeps every row under it only for a call text holding the value.
 With the text `card` the same message keeps the card in a unit call. In g1 the
 card listed the gym code and showed the card row as kept under `INSIDE_LINE`. Logs `A-*.jsonl`
-and `B-*.jsonl` in `/home/david/.cache/cortex-run/2026-11-15/slot10/`.
+and `B-*.jsonl` in `/home/david/.cache/cortex-run/2026-11-15/slot10/`. The rows were drawn again after the later card changes ([readings](forget-everything-unread-role.md#drawn-after-the-card-changes-2026-11-15)).
 
 ## The reach beside the defences already there, 2026-11-15
 
