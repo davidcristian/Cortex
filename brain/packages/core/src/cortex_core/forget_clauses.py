@@ -3,10 +3,9 @@
 import re
 from collections.abc import Iterator
 
-_WORD = re.compile(r"[^\W\d_]{3,}")
-EVERY = frozenset(
-    _WORD.findall("all every everywhere everything partout tout tous toutes überall alle todas")
-)
+from cortex_core import forget_forms as forms
+
+EVERY = forms.words(forms.ALL)
 _TOKEN = re.compile(r"[^\W_]+|[,;.!?:]")
 _MARKS = frozenset(",;.!?:")
 # Only a keep verb's own forms, since "guardian", "keepsake" or "mantenimiento" can name a fact.
@@ -15,20 +14,18 @@ KEEP = re.compile(
     r"|guard(?:a[rs]?|e[ns]?)|mant[eé]n(?:er|ga[ns]?|l[oa]s?)?|p[ăa]str\w*"
 )
 # No word that can also mean minus or less, such as "moins", "menos" or "mai puțin".
-EXCEPT = frozenset(
-    _WORD.findall("except excluding sauf hormis excepté außer ausgenommen excepto salvo exceptând")
-)
+EXCEPT = forms.words(forms.EXCEPT)
 # Too common a word to open a keep clause alone, so only after a word for all: "all but".
-_BUT = frozenset({"but"})
-NOT = frozenset({"not", "t", "never", "nicht", "nie", "pas", "ne", "jamais", "no", "nunca", "nu"})
+_BUT = forms.words(forms.ALL_BUT)
+NOT = forms.words(forms.NOT)
 _LEAD = frozenset(
     {"but", "and", "yet", "do", "don", "is", "isn", "s", "aber", "und", "mais", "et", "pero", "dar"}
 )
 _NAMING = frozenset({"the", "a", "an", "my", "your", "our", "his", "her", "their", "its"})
-AND = frozenset({"and", "or", "et", "ou", "und", "oder", "y", "o", "și", "şi", "sau"})
+AND = forms.words(forms.AND)
 # Romanian "o" is a pronoun before a verb, as in "cartela o păstrez", so it starts no keep clause.
 _LIST = AND - {"o"}
-_CONTRAST = frozenset({"but", "yet", "aber", "mais", "pero", "dar"})
+_CONTRAST = forms.words(forms.BUT)
 FORGET = re.compile(
     r"forg[eo]t\w*|delet\w*|remov\w*|eras\w*|oubli\w*|effac\w*|vergiss\w*|vergess\w*"
     r"|l[oö]sch\w*|olvid\w*|borr[ae]\w*|uit\w*|[șş]terg\w*"
@@ -116,15 +113,12 @@ def after_but(query: str) -> list[str]:
 
 
 # A relative word after the value opens a remark about it, as in "4242 that I texted".
-_RELATIVE = frozenset({"that", "which", "where", "que", "qu", "qui", "dont", "où", "donde", "care"})
+_RELATIVE = forms.words(forms.RELATIVE)
 
 
 # A word adding a row to a forget, as in "also my phone" or "my phone as well".
-_ADD = frozenset({"too", "also", "plus", "aussi", "également", "auch", "ebenfalls"})
-_OWNER = frozenset(
-    {"the", "my", "le", "la", "les", "l", "mon", "ma", "mes", "der", "die", "das", "den", "mein"}
-    | {"meine", "meinen"}
-)
+_ADD = forms.words(forms.ALSO)
+_OWNER = forms.words(forms.OWNER)
 # Only the words for and: a word for or between two rows asks for one of them, not both.
 _JOIN = _LIST & _LEAD
 
@@ -152,15 +146,14 @@ def _adds(clause: list[str], named: frozenset[str]) -> bool:
 
 
 # A word placing a value in a row or naming whose row it is, as in "4242 on my card".
-_PLACE = frozenset(
-    {"on", "of", "for", "from", "in", "at", "de", "du", "sur", "pour", "dans", "auf", "von", "vom"}
-    | {"für", "del", "en", "para", "pe"}
-)
+_PLACE = forms.words(forms.PLACE)
 WHOSE = _OWNER | frozenset(
     {"your", "our", "el", "los", "las", "mi", "mis", "tu", "tus", "su", "ton", "ta", "tes"}
 )
 # A word saying which row the value is, as in "4242, that is my card" or "4242, only the card".
-_WHICH = frozenset({"it", "that", "which", "this", "is", "was", "i", "mean", "only", "just"})
+_WHICH = frozenset({"it", "that", "which", "this", "is", "was", "i", "mean"}) | forms.words(
+    forms.ONLY
+)
 
 
 def _runs(query: str, value: str) -> Iterator[tuple[list[str], bool | None]]:

@@ -224,3 +224,27 @@ rows), a word for all with a limit then an added row (`Forget all 4242, only the
 phone.`: 105) and an added row beside `stays` (382 over four forms). The reading of an added row
 by the value call is filed. `Forget that.`, `Yes, forget it.`, `Forget what I just told you.` and
 `Forget everything but my card.` list the same rows as before with every call text.
+
+## The words read for a form, by language, 2026-11-15
+
+Each translation of a word English reads was replayed as a filled cell of the table of forms
+(`forget_forms.py`) over the messages and call texts of the section above, the 42,356 generated
+messages with the value as the call text, 5,334 test strings and 61 requests in Italian,
+Portuguese, Dutch and Polish. A cell is filled only when no row newly listed is kept or not asked.
+
+| Cells filled | Replay | Asked to delete | Either way | Not asked | Asked to keep |
+| --- | --- | --- | --- | --- | --- |
+| Every translation | every call text | 2,510 | 413 | 374 | 92 |
+| Every translation | value call | 3,268 | 748 | 341 | 30 |
+| `nur`, `toute`, `jede`, `jeden`, `jedes` | value call | 490 | 92 | 96 | 0 |
+| `toute`, `jede`, `jeden`, `jedes` | every replay | 0 | 0 | 0 | 0 |
+
+The 92 rows by word: `toate` 50, `toate` with `doar` 22, `doar` 2, `seulement` 6, `también` 12.
+Each is a row the message says stays (`rămâne`, `reste`, `se queda`) and names again, as in
+`Oublie tout, la carte reste, seulement la carte.` with the call text `carte`; English lists the
+same row today, which is filed. `nur` lists a locker code no clause of `Vergiss alle 4242, die
+Karte auch, nur das Handy.` asks for. `todos` and `alles` changed `Esqueça todos os 4242.` and `Verwijder alles,
+de card ook.`, which the card does not read. So only the last row is filled. No generated message
+holds its words: with `tous les` or `toutes les` swapped for `toute`, and `alle` for each German
+form, 2,227 French and 1,960 German messages list the rows of the unswapped message. Of the 1,604
+messages of at most one clause, 602 still keep a row asked to delete (505 with every cell filled).
