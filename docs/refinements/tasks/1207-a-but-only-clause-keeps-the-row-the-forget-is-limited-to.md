@@ -13,12 +13,17 @@ words after `but` as words that may ask to keep a row, and no reader has a word 
 keeps a row, the safe direction, and the kept note shows it
 ([readings](../../readings/forget-keep-except.md#a-word-for-but-after-the-forget-verb-2026-11-15)).
 
+With a word for all, `Forget all 4242 but only the card.` and `Forget every 4242 but just the
+card.` keep the card and delete the locker and phone rows, which the message does not ask to
+delete. That is not the card's safe direction.
+
 ## What to do
 
-1. Write tests first: both messages delete the card and keep the locker and the phone; `Forget all
-   4242 but the card only.` and `Forget all 4242 but not only the card.` keep the card.
-2. Decide on a replay between a positively matched shape that needs no new word list and declining
-   the form, since the row is kept and shown.
+1. Write tests first: all four messages delete the card and keep the locker and the phone; `Forget
+   all 4242 but the card only.` and `Forget all 4242 but not only the card.` keep the card.
+2. Replay a positively matched shape that needs no new word list: the rows named after `but only`
+   are the rows to delete, and every other row is kept. The two forms without a word for all may
+   be declined, since their row is kept and shown; the two with one may not.
 3. Replay every string literal of the brain's forget tests through the card before and after: each
    row newly deleted must be one the message asks to delete.
 
