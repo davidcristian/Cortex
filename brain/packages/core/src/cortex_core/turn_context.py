@@ -10,6 +10,7 @@ from cortex_core.dispatch import ToolDispatcher
 from cortex_core.dispatch_round import ToolLoopContext
 from cortex_core.errors import EmbedderError, MemoryDataError, MemoryStoreError
 from cortex_core.events import FORGOING_STATE, StatusUpdate
+from cortex_core.forget_reach import with_forget_reach
 from cortex_core.guardrail import OutputGuardrail
 from cortex_core.handoff import EscalationSlot
 from cortex_core.inference import GenerationBounds
@@ -138,6 +139,7 @@ async def _recalled_context(
         hits = await caps.memory.recall(
             query, k=DEFAULT_RECALL_K, session_id=context.session_id, turn_id=context.turn_id
         )
+        hits = await with_forget_reach(query, caps.memory, hits, session_id=context.session_id)
     except MemoryDataError:
         # Caught first and re-raised, ahead of the base class below: a stopped server comes back
         # and these turns are a bridge, while a row that cannot be decoded is decoded no better

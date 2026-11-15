@@ -78,6 +78,12 @@ class MemoryRecaller:
         scopes = self._scope.read_scopes(session_id)
         return await self._store.find_value(value, limit=limit, scopes=scopes)
 
+    async def nearest(self, query: str, *, session_id: str, limit: int) -> Sequence[MemoryRecord]:
+        """The ``limit`` memories nearest ``query`` that the chat can recall, unranked."""
+        embedding = await self._embedder.embed(embedding_input(query))
+        scopes = self._scope.read_scopes(session_id)
+        return [hit.record for hit in await self._store.search(embedding, k=limit, scopes=scopes)]
+
     async def recall(
         self, query: str, *, k: int, session_id: str, turn_id: str
     ) -> Sequence[ScoredMemory]:

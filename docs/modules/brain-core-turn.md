@@ -74,7 +74,7 @@ after the window, one saying a handoff's deep reply is not stored (`tool_replay.
 
 - `memory` (a `MemoryRecaller`, ADR-0008): before inference the engine recalls the top
   `DEFAULT_RECALL_K` (5) memories for the user text within the turn's scope and prepends any hits as
-  a `Role.SYSTEM` message that is never stored, each trusted hit after its age (`memory_age.py`).
+  a `Role.SYSTEM` message that is never stored, each trusted hit after its age (`memory_age.py`). On a message that `asks_to_forget` (`memory_request.py`) or `asks_to_forget_keeping` (`forget_unnamed.py`) reads as a request to forget, `with_forget_reach` (`forget_reach.py`) adds after the ranked hits up to `FORGET_REACH_LIMIT` (5) rows the rank left out: each row `MemoryRecaller.find_value` finds for a whole value the message names (`whole_values`), or, when the message names no value beside a fact to keep, the rows `MemoryRecaller.nearest` returns; the added rows are aged, fenced and cut as the ranked hits are, a store failure while reading them answers the turn without memory, and any other message reads the store once ([readings](../readings/forget-everything-but-call.md#the-rows-and-the-card-reading-together-2026-11-15)).
   The hits share `RECALL_CHAR_BUDGET` (6000 characters) through `fit_recalled` (`recall_budget.py`),
   and one past its share is cut with a marker. A `tainted` memory is fenced on one line with the
   turn nonce, taints the turn (ADR-0019), names its own record id as the turn's source and gives the

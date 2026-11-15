@@ -1,9 +1,8 @@
 # Recall leaves out the rows a forget of everything but one fact asks to delete
 
-**Status:** open, actionable
+**Status:** done 2026-11-15
 **Area:** memory
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
-**Verified:** 2026-11-15
 
 On 2026-11-12 the `cortexn20` stack stored a card row and a gym code row, then sent
 `Forget everything but my card.`. With the default `judge` recall the first request held only the
@@ -46,3 +45,7 @@ forget call in 6 of 6, and left that row stored in 5 of 6, so it was not committ
   a build that was drawn and not committed, since the rule failed on what the person ends up with.
 - 2026-11-15: the card now lists a row a call names in the row's own words beside a forget of
   everything but one fact, so the rows can be added and drawn again.
+- 2026-11-15: done. On a request to forget, the first request also holds up to 5 stored rows the
+  message reaches. Drawn with the card reading, 6 of 6 draws made a forget call and deleted the
+  row the message asks for, and kept the card row
+  ([readings](../../readings/forget-everything-but-call.md#the-rows-and-the-card-reading-together-2026-11-15)).

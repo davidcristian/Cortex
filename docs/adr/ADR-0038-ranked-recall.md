@@ -76,7 +76,7 @@ what a memory says cannot do without.
    numbered list, each note after its age ([ADR-0008](ADR-0008-memory-v1.md) decision 4), under the
    JSON-schema-constrained `ORDER_ENVELOPE` ([ADR-0028](ADR-0028-grammar-constrained-subagents.md)),
    and turns the order into keys in (0, 1]. `CORTEX_MEMORY_RECALL` defaults to `judge`; `raw` is the
-   opt-out that restores the founding behaviour. Its fallback (default `RAW_RECALL_POLICY`, which
+   opt-out that restores the founding behaviour. A message asking to forget adds the stored rows it reaches after the ranked ones, whatever the policy ([ADR-0075](ADR-0075-forget-chosen-memories.md)). Its fallback (default `RAW_RECALL_POLICY`, which
    `recall_policy_from_config` does not override) takes an unreachable model, a reply outside the
    envelope, a truncated one, an order of nothing that exists and an empty pool, and the ranking
    then uses the fallback's basis, so the record says what ranked. `rank_bounds(k)` is `24 + 8k`

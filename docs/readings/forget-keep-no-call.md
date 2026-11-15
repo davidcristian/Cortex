@@ -225,7 +225,7 @@ end with the note naming the rows still in memory, 4 also with `UNFORGOTTEN_CLAI
 `claims_forgotten` does not read the fifth, `I've removed the locker code and phone number`; such a
 reply now ends with that note too ([readings](forget-everything-but-call.md#a-removal-named-after-calls-that-kept-every-row-2026-11-15)).
 The earlier reply to `Forget all 4242, only the card.` that asked whether to keep a deleted card
-ended with the count note, which was due and is true. The next row is B with that card
-reading, on e1 and v1 under this rule. Scripts `draws.sh`, `ident.sh` and `analyze.py`, logs
+ended with the count note, which was due and is true. The next row, B with that card
+reading, passed this rule ([readings](forget-everything-but-call.md#the-rows-and-the-card-reading-together-2026-11-15)). Scripts `draws.sh`, `ident.sh` and `analyze.py`, logs
 `A-*.log` and `B-*.log`, and the B change as `reach.patch` with its 20 tests and 11 mutation rows,
 are in `/home/david/.cache/cortex-run/2026-11-15/slot8/`.
