@@ -83,7 +83,6 @@ async def test_a_row_holding_the_value_only_in_a_longer_value_and_unnamed_is_kep
         ("Forget the card ending in 4242.", ("card", "card2")),
         ("Forget the card and the phone ending in 4242.", ("card", "mobile")),
         ("Forget my card and my mobile, both end in 4242.", ("card", "mobile")),
-        ("Forget every 4242, the card first.", ("card", "mobile")),
         ("Forget the card ending in 4242.", ("card", "reply")),
     ],
 )

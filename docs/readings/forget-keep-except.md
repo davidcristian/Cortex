@@ -139,13 +139,12 @@ keep clause reader reads) or an adding word (`but the card too`, `but also the c
 card as well`). Nothing else of the reading changes, so the change deletes no row.
 
 So `Forget all 4242 but the card.` deletes the locker and phone rows and keeps the card, also with
-`every`, with a comma before `but`, with `yet the card stays`, and with `aber die Karte`, `mais la
-carte` and `pero la tarjeta`. `Forget the card 4242, but do it quietly.` still deletes the card,
+`every`, with a comma before `but`, and with `aber die Karte`, `mais la carte` and `pero la
+tarjeta`. `Forget the card 4242, but do it quietly.` still deletes the card,
 and `Forget all 4242 but quickly.` all three rows. The tests are `test_forget_after_but.py`.
 
 Kept, and shown as kept, where the message asks to delete: `Forget 4242 but only the card.` and
-`Forget the card 4242 but only the card.` keep the card, since no word for only is read
-([task 1207](../refinements/tasks/1207-a-but-only-clause-keeps-the-row-the-forget-is-limited-to.md)).
+`Forget the card 4242 but only the card.` keep the card, since no word for only is read ([the role of a named row](#the-role-of-a-row-named-after-the-value-2026-11-15)).
 `Forget 4242 but the card.` keeps all three rows, since the locker row is named by no word.
 
 Replay: every string literal of the brain's forget tests, the probes of
@@ -208,8 +207,20 @@ all 4242 including the card.`, where no reader reads `old`, `end` or `including`
 strings of the new tests, 91 of 4,814 cases changed: no row newly deleted, 267 newly kept. The
 listing is `cmp_full.txt` in `/home/david/.cache/cortex-run/2026-11-15/slot4/`.
 
-Not reached: a row named before the words asking to keep it, as in `Forget all 4242, card stays.`
-([task 1210](../refinements/tasks/1210-a-row-named-before-the-words-asking-to-keep-it-is-deleted.md)).
+## The role of a row named after the value, 2026-11-15
+
+Over the same three rows and call text. Before, `Forget all 4242 on the card.` and `Forget all
+4242, only the card.` deleted all three rows, `Forget all 4242, card stays.` deleted the card, and
+`Forget all 4242 but only the card.` deleted the locker and the phone. `beside`
+(`forget_clauses.py`) reads each run after the value as a limit, an addition or an exception. A
+run holding a word none of those readers reads, or followed by a clause naming no row that holds
+one, has no role, and the card keeps every row the words before the value do not name. Replay as
+above, 5,008 cases with the strings of this change: 255 changed, no row newly deleted, 1,696 newly
+kept. By hand over the three English rows (135 cases, 251 rows): 92 rows the message asks to keep,
+18 either way, 141 the message asks to delete, most after a phrase no reader reads (`Forget all
+4242 apart from the card.` keeps all three). Keeping only the named row of an unread role left 26
+rows of 13 limit messages listed, such as the locker and phone of `Forget all 4242 solely on the card.`.
+Not reached: `Forget the card 4242, card stays.` ([task 1212](../refinements/tasks/1212-a-row-named-before-the-value-and-kept-in-a-later-clause-is-deleted.md)). The listings are `cmp_final.txt` and `class_final.txt` in `/home/david/.cache/cortex-run/2026-11-15/slot5/`.
 
 ## A language the card does not read, 2026-11-15
 

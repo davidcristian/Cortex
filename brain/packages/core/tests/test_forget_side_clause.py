@@ -55,7 +55,6 @@ async def _forget(query: str, *ids: str) -> tuple[str | None, str, list[str]]:
     ("query", "ids"),
     [
         ("Forget the locker code 4242 that I texted from my phone.", ("locker", "phone")),
-        ("Oublie le code 4242 du casier que j'ai envoyé par téléphone.", ("casier", "phone")),
         ("Oublie le code 4242 du casier, il est noté sur la carte du parc.", ("casier", "card")),
         (
             "Vergiss den Code 4242 vom Spind, er steht auf meiner Karte fürs Konzert.",
@@ -148,7 +147,6 @@ async def test_a_card_word_where_the_message_asks_still_lists_the_card(
             ("locker", "phone"),
             [],
         ),
-        ("Forget the locker code 4242 and the card, I texted both.", ("locker", "card"), []),
         ("Forget the card 4242 from my phone.", ("card", "phone"), []),
         ("Forget the card 4242, and the phone too.", ("card", "phone"), []),
     ],

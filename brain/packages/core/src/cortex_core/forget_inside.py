@@ -3,7 +3,18 @@
 import re
 from collections.abc import Iterable, Sequence
 
-from cortex_core.forget_clauses import after_but, after_value, asking, clauses
+from cortex_core.forget_clauses import (
+    ADDITION,
+    EXCEPTION,
+    LIMIT,
+    UNREAD,
+    after_but,
+    after_value,
+    asking,
+    before_value,
+    beside,
+    clauses,
+)
 from cortex_core.forget_kinds import MINUS, names, read_kinds
 from cortex_core.forget_languages import FUNCTION, readings
 from cortex_core.forget_unnamed import just_said, quantifies, row_words, unnamed
@@ -200,27 +211,44 @@ def kept_rows(
     ids = {row.id for row in kept}
     whole = [row for row in rows if unclear and row.id not in ids and _whole(row.text, text)]
     every = [*kept, *whole, *_unnamed_groups(rows, within, text, stamp.query)]
-    every.extend(_may_keep(rows, stamp.query, text))
+    every.extend(_may_keep(rows, within, stamp.query, text))
     return list({row.id: row for row in every}.values())
 
 
-def _may_keep(rows: Sequence[MemoryRecord], query: str, text: str) -> list[MemoryRecord]:
+def _request(row: MemoryRecord) -> set[str]:
+    """The words of the request of ``row`` that can name it."""
+    return row_words(row.text.split(_REPLY, 1)[0])
+
+
+def _may_keep(
+    rows: Sequence[MemoryRecord], within: Sequence[MemoryRecord], query: str, text: str
+) -> list[MemoryRecord]:
     """The ``rows`` ``query`` may ask to keep: each a word names after a word for minus in a
-    clause, as the card of ``Uită codul 4242 mai puțin cel de pe card``, or in ``after_but``, and
-    each whose request a word of ``after_value`` names."""
+    clause, in ``after_but`` or in ``after_value``, and each ``_by_role`` keeps for the role of a
+    row of ``rows`` or ``within`` named ``beside`` the value."""
     after = after_but(query)
     for clause in clauses(query):
         at = next((at for at, token in enumerate(clause) if token in MINUS), len(clause))
         after.extend(clause[at + 1 :])
     words = _content(query, " ".join(after))
-    asked = {row.id: row_words(row.text.split(_REPLY, 1)[0]) for row in rows}
+    asked = {row.id: _request(row) for row in rows}
     named = {word for word in _content(query) if any(names({word}, row) for row in asked.values())}
     codes = {word for clause in clauses(query) for word in clause if code_word(word)}
     kept = _content(query, " ".join(after_value(query, text, frozenset(named | codes))))
+    inner = [_request(row) for row in within]
+    beyond = {word for word in _content(query) if any(names({word}, row) for row in inner)}
+    roles = beside(query, text, frozenset(named | beyond | codes), MINUS)
+    kept |= roles[EXCEPTION]
+    limit, every = roles[LIMIT] & named, quantifies(query)
+    unread = bool(roles[UNREAD] & (named | beyond))
+    head = _content(query, " ".join(before_value(query, text))) | roles[LIMIT] | roles[ADDITION]
     return [
         row
         for row in rows
-        if names(words, row_words(row.text)) or names(kept & named, asked[row.id])
+        if names(words, row_words(row.text))
+        or names(kept & named, asked[row.id])
+        or (unread and not names(head & named, asked[row.id]))
+        or (every and bool(limit) and not names(limit, asked[row.id]))
     ]
 
 

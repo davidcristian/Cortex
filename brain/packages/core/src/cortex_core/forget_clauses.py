@@ -1,6 +1,7 @@
 """Split a forget message into the part asking to forget and the clauses asking to keep."""
 
 import re
+from collections.abc import Iterator
 
 _WORD = re.compile(r"[^\W\d_]{3,}")
 EVERY = frozenset(
@@ -162,13 +163,10 @@ _WHOSE = _OWNER | frozenset(
 _WHICH = frozenset({"it", "that", "which", "this", "is", "was", "i", "mean", "only", "just"})
 
 
-def after_value(query: str, value: str, named: frozenset[str]) -> list[str]:
-    """The words of ``query`` after ``value`` that may ask to keep the rows they name: of each run
-    to a clause mark or forget verb, those from the first word no reader reads before a word of
-    ``named``, or all before a negation; none of a run adding a row or holding a keep clause."""
+def _runs(query: str, value: str) -> Iterator[tuple[list[str], bool]]:
+    """Each run of ``query`` after ``value``, to a clause mark or forget verb, and whether its
+    clause holds a keep clause from where the run starts."""
     wanted = [token for token in _TOKEN.findall(value.lower()) if token not in _MARKS]
-    read = named | _PLACE | _WHOSE | _WHICH | _AND
-    found: list[str] = []
     seen = False
     for clause in clauses(query):
         start = 0 if seen else _after(clause, wanted)
@@ -176,13 +174,72 @@ def after_value(query: str, value: str, named: frozenset[str]) -> list[str]:
             continue
         seen = True
         verb = (at for at in range(start, len(clause)) if FORGET.fullmatch(clause[at]))
-        run = clause[start : next(verb, len(clause))]
+        yield clause[start : next(verb, len(clause))], any(_keeping(clause)[start:])
+
+
+def after_value(query: str, value: str, named: frozenset[str]) -> list[str]:
+    """The words of ``query`` after ``value`` that may ask to keep the rows they name: of each run
+    to a clause mark or forget verb, those from the first word no reader reads before a word of
+    ``named``, or all before a negation; none of a run adding a row or holding a keep clause."""
+    read = named | _PLACE | _WHOSE | _WHICH | _AND
+    found: list[str] = []
+    for run, keeps in _runs(query, value):
         last = max((at for at, word in enumerate(run) if word in named), default=0)
-        adds = run[-2:] == ["as", "well"] or not _ADD.isdisjoint(run)
-        told = adds or any(_keeping(clause)[start:])
+        told = keeps or run[-2:] == ["as", "well"] or not _ADD.isdisjoint(run)
         unread = (at for at in range(last) if run[at] not in read and not run[at].isdigit())
         negated = not NOT.isdisjoint(run[last + 1 :])
         found.extend([] if told else run[next(unread, 0 if negated else len(run)) :])
+    return found
+
+
+LIMIT, ADDITION, EXCEPTION, UNREAD = "limit", "addition", "exception", "unread"
+_ONE = frozenset({"one", "ones"})
+
+
+def _role(run: list[str], named: frozenset[str]) -> str:
+    """What ``run`` asks for the rows it names: ``ADDITION`` with an adding word at an end or a
+    word for and first, ``EXCEPTION`` after a word for but, else ``LIMIT``; ``UNREAD`` when a
+    word between is none of ``named`` and none a reader of that role reads."""
+    body = run[1:] if run[0] in _AND | _CONTRAST else run
+    tail = 2 if body[-2:] == ["as", "well"] else len(_ADD.intersection(body[-1:]))
+    head = len(_ADD.intersection(body[:1]))
+    adds = run[0] in _AND or bool(head or tail)
+    core = body[head : len(body) - tail]
+    core = core[: len(core) - len(_ONE.intersection(core[-1:]))]
+    excepts = run[0] in _CONTRAST and not adds
+    read = named | _WHOSE | _AND | (frozenset[str]() if excepts else _PLACE | _WHICH)
+    if not all(word in read or word.isdigit() for word in core):
+        return UNREAD
+    return ADDITION if adds else EXCEPTION if excepts else LIMIT
+
+
+def beside(
+    query: str, value: str, named: frozenset[str], minus: frozenset[str]
+) -> dict[str, set[str]]:
+    """The words of ``named`` in the runs of ``query`` after ``value``, by the ``_role`` of their
+    run, ``UNREAD`` when a later run naming no row holds a word no reader reads: none of a run
+    holding a keep clause, a negation or a word of ``minus``, which the keep clause readers read."""
+    found: dict[str, set[str]] = {LIMIT: set(), ADDITION: set(), EXCEPTION: set(), UNREAD: set()}
+    read = _PLACE | _WHOSE | _WHICH | _AND | _ADD
+    for run, keeps in _runs(query, value):
+        words = named.intersection(run)
+        if words and not keeps and (NOT | minus).isdisjoint(run):
+            found[_role(run, named)] |= words
+        elif not words and not all(word in read or word.isdigit() for word in run):
+            unread = found[LIMIT] | found[ADDITION] | found[EXCEPTION] | found[UNREAD]
+            found = {LIMIT: set(), ADDITION: set(), EXCEPTION: set(), UNREAD: unread}
+    return found
+
+
+def before_value(query: str, value: str) -> list[str]:
+    """The words of each clause of ``query`` before the last place it holds ``value``, which name
+    the rows the message asks to forget, as ``the card`` of ``Forget the card 4242``."""
+    wanted = [token for token in _TOKEN.findall(value.lower()) if token not in _MARKS]
+    size = len(wanted)
+    found: list[str] = []
+    for clause in clauses(query):
+        places = [at for at in range(len(clause) - size + 1) if clause[at : at + size] == wanted]
+        found.extend(clause[: max(places, default=0)])
     return found
 
 
