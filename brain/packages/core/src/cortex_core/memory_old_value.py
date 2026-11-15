@@ -3,12 +3,14 @@
 import re
 
 from cortex_core.errors import MemoryStoreError
-from cortex_core.fact_statement import FACT_VALUE
+from cortex_core.fact_request import fact_asked
+from cortex_core.fact_statement import FACT_POSSESSED, FACT_VALUE
 from cortex_core.forget_clauses import NOT
 from cortex_core.forget_languages import FUNCTION
 from cortex_core.memory_claim import claims_kept
 from cortex_core.memory_claim_other import claims_kept_other, stated
 from cortex_core.memory_claim_update import claims_updated
+from cortex_core.memory_request import asks_not_kept
 from cortex_core.memory_values import joined
 from cortex_core.note_language import in_language
 from cortex_core.recall import MemoryRecaller
@@ -64,6 +66,7 @@ _FUNCTION = frozenset(word for words in FUNCTION.values() for word in words) | f
 )
 _SEPARATOR = re.compile(r"[ ./-]+")
 _STATED = re.compile(rf"\W*{FACT_VALUE}", re.IGNORECASE)
+_POSSESSED = re.compile(rf"\W*{FACT_POSSESSED}", re.IGNORECASE)
 _STORED = re.compile(FACT_VALUE, re.IGNORECASE | re.MULTILINE)
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
 # The words a statement can add before a stored fact's words to say it gives the fact a new value.
@@ -118,11 +121,15 @@ def _digit(text: str) -> bool:
 
 
 async def _replaced(memory: MemoryRecaller, query: str, session_id: str) -> str:
-    """The value with a digit a stored row states for the fact ``query`` alone states with no
-    negation, the same possessive and another value with a digit, in the row's fact words and
-    words of change only."""
-    stated = _STATED.fullmatch(query.strip())
-    if stated is None or not NOT.isdisjoint(re.findall(r"\w+", query.lower())):
+    """The value with a digit a stored row states for the fact ``query`` states, alone or after a
+    request to store or remember it, with no negation, the same possessive and another value with
+    a digit, in the row's fact words and words of change only."""
+    asked = None if asks_not_kept(query) else fact_asked(query)
+    text = (query if asked is None else asked).strip()
+    stated = _STATED.fullmatch(text)
+    if stated is None and asked is not None:
+        stated = _POSSESSED.fullmatch(text)
+    if stated is None or not NOT.isdisjoint(re.findall(r"\w+", text.lower())):
         return ""
     # "My sister is vegan." beside "my sister is Ana" gives her another detail, not a new value.
     value, owner = stated.group("value").rstrip(".!"), stated.group("owner").lower()

@@ -3,7 +3,13 @@
 import re
 
 from cortex_core.fact_statement import POSSESSED_VALUE, STATED_OTHER, STATEMENT
-from cortex_core.memory_request import REMEMBER_OTHER, SECOND_CLAUSE, SENTENCE_END, THANKS
+from cortex_core.memory_request import (
+    REMEMBER,
+    REMEMBER_OTHER,
+    SECOND_CLAUSE,
+    SENTENCE_END,
+    THANKS,
+)
 
 # An English imperative to store, then the fact: "Store this: my phone is 0721 555 019."
 _STORE = re.compile(
@@ -12,6 +18,8 @@ _STORE = re.compile(
     re.IGNORECASE,
 )
 _STORED = re.compile(rf"(?:{STATEMENT}|{POSSESSED_VALUE})\s*", re.IGNORECASE)
+# What stands between an English request to remember and its fact: "this:", "that", a comma.
+_FACT_AFTER_REMEMBER = re.compile(r"^(?:\s+(?:this|that|it)\b)?[\s,:]*(?:that\s+)?", re.IGNORECASE)
 # A remember verb alone before a comma, as in "Recuerda, mi código es 4242."
 _BARE = re.compile(r"\W*(?:recuerd[ae]|ret(?:enez|iens)|re[țţt]ine)(?=\s*,)", re.IGNORECASE)
 _FACT_AFTER = re.compile(r"^[\s,:]*(?:(?:que|dass|c[ăa])\b|qu['\u2019])?\s*", re.IGNORECASE)
@@ -36,6 +44,15 @@ def fact_stored(query: str) -> str | None:
 def stores_fact(query: str) -> bool:
     """Whether ``query`` asks in English to store one fact it states with a value."""
     return fact_stored(query) is not None
+
+
+def fact_asked(query: str) -> str | None:
+    """The text after an English request to store one fact, or to remember, that opens ``query``."""
+    stored = fact_stored(query)
+    found = REMEMBER.match(query)
+    if stored is not None or found is None:
+        return stored
+    return _FACT_AFTER_REMEMBER.sub("", query[found.end() :], count=1)
 
 
 def asks_kept_fact_other(query: str) -> bool:

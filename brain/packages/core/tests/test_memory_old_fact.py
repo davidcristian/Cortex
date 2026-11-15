@@ -136,3 +136,86 @@ async def test_a_statement_turn_beside_the_old_row_ends_with_the_note() -> None:
     events = engine.handle_turn("s", "My alarm code is now 5528.", turn_id="t")
     reply = "".join([event.text async for event in events if isinstance(event, TextDelta)])
     assert reply == "Got it, your alarm code is 5528." + old_value_note("4826", "en")
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Save this: my alarm code is 5528.",
+        "Store my alarm code 5528.",
+        "Record that my alarm code is 5528.",
+        "Remember that my alarm code is 5528.",
+        "Please remember my alarm code is 5528.",
+        "Remember this: my alarm code is 5528.",
+        "Remember, my alarm code is 5528.",
+        "Remember my alarm code 5528.",
+        "Note that my alarm code is 5528.",
+        "Keep in mind that my alarm code is 5528.",
+        "Don't forget my alarm code is 5528.",
+        "Write down my alarm code 5528.",
+        "Save my new alarm code 5528.",
+    ],
+)
+async def test_a_request_to_store_a_stored_fact_with_another_value_names_the_old_value(
+    query: str,
+) -> None:
+    assert await _held(query, "User: Remember that my gym code is 1111.", _ALARM) == "4826"
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Don't save my alarm code 5528.",
+        "Don't store my alarm code 5528.",
+        "Never record that my alarm code is 5528.",
+        "Don't remember that my alarm code is 5528.",
+        "Please don't save this: my alarm code is 5528.",
+        "Remember not to save my alarm code 5528.",
+        "Remember that my alarm code is not 5528.",
+        "Save my door code 5528.",
+        "Remember that my door code is 5528.",
+        "Save my alarm code 4826.",
+        "Remember that my alarm code is 4826.",
+        "Store my alarm code was 5528.",
+        "Remember that my alarm code was 5528.",
+        "Remember that her alarm code is 5528.",
+        "Remember that my alarm code is 5528?",
+        "Remember to change my alarm code to 5528.",
+        "Remember that my alarm code is 5528. Thanks for the help.",
+        "Store my alarm code 5528 and my door code 1234.",
+        "I always store my alarm code 5528 on paper.",
+        "We record that my alarm code is 5528.",
+        "My alarm code 5528.",
+        "Remember.",
+        "Save this: my alarm code is 5528 off the record.",
+        "If I ask, remember that my alarm code is 5528.",
+        "Remember my alarm code 5528 should be changed.",
+        "Store my alarm code v2.",
+    ],
+)
+async def test_a_request_that_stores_no_new_value_of_a_stored_fact_names_none(query: str) -> None:
+    assert await _held(query, _ALARM) == ""
+
+
+@pytest.mark.parametrize(
+    ("query", "row"),
+    [
+        ("Save my draft 3.", "User: My draft is 2 pages."),
+        ("Don't forget my card 4242.", "User: Remember that my card is 4111."),
+        ("Store my code review 3.", "User: My code review is 2 days late."),
+        ("Keep my volume at 40.", "User: My volume is 30."),
+    ],
+)
+async def test_a_request_to_store_a_number_after_no_word_naming_a_value_names_none(
+    query: str, row: str
+) -> None:
+    assert await _held(query, row) == ""
+
+
+async def test_a_store_request_turn_beside_the_old_row_ends_with_the_note() -> None:
+    _, caps = await _rig(_ALARM)
+    backend = ScriptedInferenceBackend([[TextChunk("Saved, your alarm code is 5528.")]])
+    engine = TurnEngine(InMemorySessionStore(), backend, SystemClock(), capabilities=caps)
+    events = engine.handle_turn("s", "Save this: my alarm code is 5528.", turn_id="t")
+    reply = "".join([event.text async for event in events if isinstance(event, TextDelta)])
+    assert reply == "Saved, your alarm code is 5528." + old_value_note("4826", "en")

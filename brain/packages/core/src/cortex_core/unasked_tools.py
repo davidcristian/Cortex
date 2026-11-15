@@ -4,7 +4,7 @@ import re
 from collections.abc import Sequence
 
 from cortex_core.fact_request import fact_stored
-from cortex_core.fact_statement import STATEMENT
+from cortex_core.fact_statement import STATEMENT, VALUE_NAMES
 from cortex_core.forget_unrequested import RETRACT_WORDS
 from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
 from cortex_core.memory_request import actions_asked, asks_kept, asks_kept_alone, asks_not_kept
@@ -124,10 +124,7 @@ _ASKS_TO_NOTE = re.compile(
 # A store verb also saves a file, so a fact with no "is" counts only after a word that names a
 # value ("my phone number 0721 555 019"). "Save my draft 2." keeps every tool.
 _STATEMENT = re.compile(rf"{STATEMENT}\s*", re.IGNORECASE)
-_VALUE_NAME = re.compile(
-    r"\b(?:numbers?|codes?|pins?|passwords?|passcodes?|address|birthday)\s+(?=\S*[\d@])",
-    re.IGNORECASE,
-)
+_VALUE_NAME = re.compile(rf"\b{VALUE_NAMES}\s+(?=\S*[\d@])", re.IGNORECASE)
 
 
 def _stores_a_value(query: str) -> str | None:

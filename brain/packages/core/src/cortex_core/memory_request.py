@@ -143,7 +143,7 @@ _REMOVE = re.compile(
     re.IGNORECASE,
 )
 # "Keep it in mind for him" keeps a fact for someone else, and "keep him in mind" weighs a person.
-_REMEMBER = re.compile(
+REMEMBER = re.compile(
     rf"{_OPENS}(?:remember(?!{_NOT_TO_KEEP}{_MESSAGE})"
     r"|keep\s+(?:(?:it|this|that|these)\s+)?in\s+mind(?!\s+for\s+(?:him|her|them)\b)"
     rf"|{_NOT}\s+forget"
@@ -204,7 +204,7 @@ def _asks_not_kept(sentence: str) -> bool:
         return True
     if _DONT_KEEP_OTHER.search(sentence) or _FORGET_OTHER.search(sentence):
         return True
-    remember = _REMEMBER.search(sentence)
+    remember = REMEMBER.search(sentence)
     starts = len(sentence) if remember is None else remember.start()
     # The words after a request to remember are what to keep unless they name the message:
     # "never record calls" is a rule to keep, "don't save this" is not.
@@ -232,7 +232,7 @@ def asks_to_forget(query: str) -> bool:
 def asks_kept(query: str) -> bool:
     """Whether a sentence of ``query`` asks that something be remembered."""
     return any(
-        _REMEMBER.search(sentence) or REMEMBER_OTHER.search(sentence)
+        REMEMBER.search(sentence) or REMEMBER_OTHER.search(sentence)
         for sentence in SENTENCE_END.split(query)
     )
 
@@ -244,7 +244,7 @@ def asks_kept_other(query: str) -> bool:
 
 def asks_kept_alone(query: str) -> bool:
     """Whether ``query`` asks to remember in English, or in another language with one clause."""
-    if any(_REMEMBER.search(sentence) for sentence in SENTENCE_END.split(query)):
+    if any(REMEMBER.search(sentence) for sentence in SENTENCE_END.split(query)):
         return True
     other = REMEMBER_OTHER.search(query)
     if other is None:
@@ -257,7 +257,7 @@ def actions_asked(query: str) -> list[str]:
     """The clauses of ``query`` beside an English request to remember that ask for an action."""
     found: list[str] = []
     for sentence in SENTENCE_END.split(query):
-        request = _REMEMBER.search(sentence)
+        request = REMEMBER.search(sentence)
         if request is None:
             found.extend(match.group() for match in _ACTION.finditer(sentence))
             continue

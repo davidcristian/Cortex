@@ -36,3 +36,12 @@ FACT_VALUE = (
     rf"\b(?P<owner>my|our|his|her|their)\s+(?P<fact>(?:[\w'\u2019-]+\s+){{1,6}}?)"
     rf"(?:is|are)\s+(?P<value>{_VALUE_WORD}(?:\s+{_VALUE_WORD}){{0,3}}?)[.!]?[ \t]*$"
 )
+# A word that names a value, so a number after it is its value with no "is" between them.
+VALUE_NAMES = r"(?:numbers?|codes?|pins?|passwords?|passcodes?|address|birthday)"
+_DIGIT_WORD = rf"(?=\d){_VALUE_WORD}"
+# The same present value with no copula: a word naming a value, then words that each start with
+# a digit, as in "my alarm code 5528". "my draft 2" and "my code 8426 should go" state none.
+FACT_POSSESSED = (
+    rf"\b(?P<owner>my|our)\s+(?P<fact>(?:[\w'\u2019-]+\s+){{0,5}}?{VALUE_NAMES}\s+)"
+    rf"(?P<value>{_DIGIT_WORD}(?:\s+{_DIGIT_WORD}){{0,3}})[ \t]*$"
+)

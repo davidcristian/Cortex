@@ -149,3 +149,52 @@ Drawn from 00:09 to 00:12 on 2026-11-14, proxy log lines 135 to 165, no forget c
 read 0.58 of its maximum before and after. Every item of the rule holds. One w reply
 said it also had the other phone number on file, which is true. The script `draw.sh` and the logs
 `draw.log` and `draws.jsonl` are in the slot directory above.
+
+## A request to store or remember before the statement, 2026-11-15
+
+`_replaced` read only a message that is one statement from its start, so a request to store the
+same fact got no note. Beside a stored `Remember that my alarm code is 4826.`, with no model:
+
+| Message | Note before | Note after |
+| --- | --- | --- |
+| `My alarm code is 5528.` | `4826` | `4826` |
+| `Save this: my alarm code is 5528.` | none | `4826` |
+| `Store my alarm code 5528.` | none | `4826` |
+| `Record that my alarm code is 5528.` | none | `4826` |
+| `Remember that my alarm code is 5528.` | none | `4826` |
+| `Don't forget my alarm code is 5528.` | none | `4826` |
+| `Don't save my alarm code 5528.` | none | none |
+| `Save this: my alarm code is 5528 off the record.` | none | none |
+| `Save my door code 5528.` | none | none |
+| `Save my alarm code 4826.` | none | none |
+
+The reader now takes the text after a request that opens the message: `fact_stored`, the reader
+of `stores_fact`, or the request to remember that `asks_kept` reads, unless `asks_not_kept` reads
+the message. That text is then read as the bare statement is, and negation is read in it alone.
+With no `is` the text counts only as a word naming a value and then words that each start with a
+digit, the same word list the tool readers use, so `Save my draft 3.` beside `My draft is 2
+pages.` and `Remember my code 8426 should be zapped.` name nothing. The note only shows, so a
+misread costs a note and never a row.
+
+### Replay through HEAD and the change
+
+Every string literal of the brain's tests and every backticked string of `docs/readings/`, 19,698
+strings, went through `_replaced` at HEAD and with the change. Each string was read beside one
+row at a time, a row `Remember that <possessive> <words> is 90909.` for every run of words after a
+possessive in the string up to its first copula or digit, with and without `new`, `current` and
+`actual`.
+
+| | HEAD | The change |
+| --- | --- | --- |
+| Strings with a note | 49 | 160 |
+| Notes newly shown | | 111 |
+| Notes newly dropped | | 0 |
+
+The 111 strings name 115 rows. Every one opens with a request to store or remember and names the
+row of the fact it then states: 96 state it with `is` or `are`, 19 with no copula. One of them,
+`Remember my landlord is Mr. Weber. Zap 8426.`, has its only digit after a sentence end, which the
+bare statement `My pet is Rex. Room 12.` also does at HEAD. No French, German, Spanish or Romanian
+string gains a note: a bare statement in those languages gets none either, since the fact and the
+stored row are both read in English only. The scripts `replay.py`, `diff.py`, `verify.py` and
+`mutate.py`, and the lists `before.json`, `after.json` and `replay-diff.txt`, are in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/bd106a1a-a17f-4ca5-8841-82294e4917a8/scratchpad/slot16/`.
