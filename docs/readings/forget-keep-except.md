@@ -210,3 +210,30 @@ listing is `cmp_full.txt` in `/home/david/.cache/cortex-run/2026-11-15/slot4/`.
 
 Not reached: a row named before the words asking to keep it, as in `Forget all 4242, card stays.`
 ([task 1210](../refinements/tasks/1210-a-row-named-before-the-words-asking-to-keep-it-is-deleted.md)).
+
+## A language the card does not read, 2026-11-15
+
+Over the same three rows and call text. `Verwijder alle 4242 behalve de kaart.` and `Verwijder
+alle 4242 maar de kaart.` delete all three rows: `alle` is a German word for all, and no word of
+either message names a row or is read by a reader. The forget tool needs the person's approval
+(`confirm_required`), and its card lists the three rows under `Deletes for good, with no undo,
+these 3 remembered exchanges:` before any delete, with no kept line, so the card row is in the
+list the person approves.
+
+Declined 2026-11-15, with no Dutch word added. `behalve de kaart` names no row by a word the card
+reads, and neither does `but quickly`, `aber schnell`, `mais vite` or `pero rápido` after a word
+for all and the value. Each of those four deletes all three rows, and `test_forget_after_but.py`
+asserts it of `Forget all 4242 but quickly.`. A shape keeping every listed row when a content
+word after the value names no row was
+replayed over the strings of the section above, 4,832 cases with its own messages: 510 cases
+changed and 2,272 rows were newly kept, among them all three rows of those four messages and the
+card of `Forget the card 4242, but do it quietly.`. The shape of the section above covers the
+form once a word the card reads names the row: `Verwijder alle 4242 behalve de card.` keeps the
+card.
+
+Of 38 forget requests in Italian, Portuguese, Dutch and Polish replayed through the card without
+and with the change of the section above, 4 list fewer rows, each keeping a card named after a
+word the card does not read (`tranne la card`, `oprócz card`, `behalve de card`, `behalve mijn
+card`). The other 34 list the same rows, among them every request naming a value alone:
+`Verwijder alle 4242.` deletes all three rows and `Dimentica 4242.` keeps them, as before. The
+listing of the declined shape is `cmp_a.txt` in `/home/david/.cache/cortex-run/2026-11-15/slot4/`.
