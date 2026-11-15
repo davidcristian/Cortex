@@ -293,6 +293,6 @@ def _unnamed_groups(
     words, word = content(query), not any(char.isdigit() for char in text)
     named = {row.id for row in (*rows, *within) if names(words, row_words(row.text))}
     apart = told > 0 and not any(char.isdigit() for char in query)
-    if quantifies(query) or not (named or apart):
+    if quantifies(query, [row.text for row in (*rows, *within)]) or not (named or apart):
         return []
     return [row for row in rows if row.id not in named and (word or _in_longer(row.text, text))]

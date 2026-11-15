@@ -108,7 +108,7 @@ that removes exactly those rows and holds against a turn in flight. This record 
    names another matched row or a row the turn deleted, and no word such as `everywhere` or
    `all` asks for every row: one within two words of a value (or alone in the clause after
    one), outside a clause asking to keep and not before `about` or `else`, so a closing `that's
-   all` keeps the rows. A message naming the value beside a label deleted the second
+   all` keeps the rows, and with no word between it and a value after it that names a matched row or is a kind word, so `Forget every card 4242.` lists the card alone. A message naming the value beside a label deleted the second
    fact in 6 of 8 draws; a message whose words name no stored fact asks for every row, unless a
    compound code word such as `passcode` names a fact no row holds. When a clause asks to keep
    (a keep verb form not negated, a word for except such as `except`, `sauf` or `außer`, `but`

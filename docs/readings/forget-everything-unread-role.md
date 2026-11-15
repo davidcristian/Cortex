@@ -119,9 +119,33 @@ whose text holds a digit changed, 0 of 54,461 calls of a text holding no digit b
 holding no value changed, and the value calls and the test strings gave the same bytes. From the first to the last, 0
 rows are newly listed among the generated messages. The word sets of `forget_clauses.py` built
 before the table of forms and after it are the same but for `toute`, `jede`, `jeden` and
-`jedes`. Those four list 82 rows of the test strings, each asked for, and the locker code and
-the phone of `Vergeet jede card 4242.`, which the message does not name; English `every` lists
-them too, and the form is filed.
+`jedes`. Those four list 82 rows of the test strings, each asked for.
+
+## A row named between a word for all and the value, 2026-11-15
+
+`Forget every card 4242.` listed the locker code and the phone with the card, and so did each
+word for all of the table of forms. `quantifies` (`forget_unnamed.py`) now reads the rows: a word
+between the word for all and a value after it that names a matched row, or is a kind word, stops
+the word for all asking for every row, so the message reads as `Forget the card 4242.` does. A
+limit after the value still keeps the rows it does not name, as in `Forget every locker 4242 on
+the card.`. Replayed before and after:
+
+| Replay | Calls | Newly listed | Newly kept |
+| --- | --- | --- | --- |
+| generated pools, every call text | 171,769 | 0 | 0 |
+| value calls, the keep readers and the forms of everything | same bytes | 0 | 0 |
+| `Vergeet jede card 4242.` in the unread languages | 4 of 305 changed | 0 | 5, none asked for |
+| word for all, row word, value, with each tail | 135,135 | 0 | 7,290 |
+
+The last row is 19,305 messages over the generator's rows in five languages: each word for all
+of the table, then a row word bare or with its article, then `4242`, alone and with each tail. Of
+the 7,290 rows newly kept, 6,930 are not asked for, 120 are asked to keep, 0 are either way and
+240 are asked to delete, each after an adding word no reader reads, as in `Uită all cardul 4242,
+dulapul de asemenea.`. Two forms still list a row the message does not ask for, and both are
+filed. A row word in a form no stored row holds is not read: 600 rows of the Romanian `dulapul`,
+and `Forget all lockers 4242.`. A call text holding a digit the message lacks lists the row it
+names: 1,440 rows, the same before and after. Scripts `kindgen.py`, `kindsum.py` and `replay.sh`
+in `/tmp/claude-1000/-home-david-Files-Git-Cortex/bd106a1a-a17f-4ca5-8841-82294e4917a8/scratchpad/slot15/`.
 
 ## The four blocked cells replayed, 2026-11-15
 
