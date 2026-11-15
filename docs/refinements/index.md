@@ -89,7 +89,7 @@ never a reading of what the tree does now.
 - **[R-1219](tasks/1219-the-result-texts-a-model-reads-give-an-untrue-reason-for-a-row-kept-under-an-unread-role.md)** The result texts a model reads give an untrue reason for a row kept under an unread role (memory). Its claim was checked against the code on 2026-11-15.
 - **[R-1220](tasks/1220-the-kept-note-does-not-say-how-to-ask-for-a-row-it-names.md)** The kept note does not say how to ask for a row it names (memory). Its claim was checked against the code on 2026-11-15.
 - **[R-1221](tasks/1221-the-forms-the-forget-card-reads-in-english-are-not-all-read-in-the-other-four-languages.md)** The forms the forget card reads in English are not all read in the other four languages (memory). Its claim was checked against the code on 2026-11-15.
-- **[R-1224](tasks/1224-a-forget-call-naming-a-row-the-message-does-not-name-deletes-it-when-it-matches-no-other-row.md)** A forget call naming a row the message does not name deletes it when it matches no other row (memory). Its claim was checked against the code on 2026-11-15.
+- **[R-1225](tasks/1225-a-forget-call-naming-a-row-beside-a-value-a-code-word-or-a-mixed-text-still-deletes-it.md)** A forget call naming a row beside a value, a code word or a mixed text still deletes it (memory). Its claim was checked against the code on 2026-11-15.
 
 ### Actionable, once a port changes (1)
 
@@ -665,7 +665,7 @@ never a reading of what the tree does now.
 - [R-1219](tasks/1219-the-result-texts-a-model-reads-give-an-untrue-reason-for-a-row-kept-under-an-unread-role.md) The result texts a model reads give an untrue reason for a row kept under an unread role. open, actionable.
 - [R-1220](tasks/1220-the-kept-note-does-not-say-how-to-ask-for-a-row-it-names.md) The kept note does not say how to ask for a row it names. open, actionable.
 - [R-1221](tasks/1221-the-forms-the-forget-card-reads-in-english-are-not-all-read-in-the-other-four-languages.md) The forms the forget card reads in English are not all read in the other four languages. open, actionable.
-- [R-1224](tasks/1224-a-forget-call-naming-a-row-the-message-does-not-name-deletes-it-when-it-matches-no-other-row.md) A forget call naming a row the message does not name deletes it when it matches no other row. open, actionable.
+- [R-1225](tasks/1225-a-forget-call-naming-a-row-beside-a-value-a-code-word-or-a-mixed-text-still-deletes-it.md) A forget call naming a row beside a value, a code word or a mixed text still deletes it. open, actionable.
 
 ### orchestrator
 

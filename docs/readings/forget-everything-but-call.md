@@ -48,6 +48,45 @@ reader reads, or does not ask for. Scripts `gen9.py`, `run_words.py`, `cmp_words
 `run.py`, `poolcmp.py` and log `replay_all3.log` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/bd106a1a-a17f-4ca5-8841-82294e4917a8/scratchpad/slot9/`.
 
+## A call naming a row the message does not name, 2026-11-15
+
+Unit calls through `ForgetChosenTool` over an in-memory store, at the build before that day's
+card changes (`git archive` of the published commit), at the build before this change and at the
+tree. The first two builds gave the same rows, so the day's card changes did not make these.
+
+| Message | Rows stored | Call text | Both earlier builds | Tree |
+| --- | --- | --- | --- | --- |
+| `Forget my gym code.` | card, gym code | `card` | card deleted | both kept |
+| `Forget my locker code.` | locker code, card, phone | `phone` | phone deleted | all kept |
+| `Forget all codes but my card.` | locker code, card, phone | `phone` | phone deleted | all kept |
+| `Forget my gym code.`, two calls | card, gym code | `gym code`, then `card` | both deleted | card kept |
+| `Forget what I just told you.`, `Please do it.`, `Forget that.` | card, gym code | `card` | card deleted | card deleted |
+| `Forget my gym code.` | locker code, card, phone | `phone` | phone deleted | phone deleted |
+| `Forget the 4242 of my locker.` | locker code, card, phone | `phone` | phone deleted | phone deleted |
+| `Forget my locker code.` | locker code, card, phone | `my card is 4111` | card deleted | card deleted |
+
+A match of a call text holding no digit was kept only when a word of the message named another
+row the same call matched. `forget_named` now reads the store as `keep_named` does: in a message
+holding no digit, a word of the part asking to forget that names the request of any stored row,
+or of a row the turn deleted, keeps each match no word of the message names. A word for all that
+ends a clause or is before a word for and asks for every row, so it keeps none this way. The last
+three rows of the table are not fixed and are filed.
+
+Replay, the build before the change against the tree:
+
+| Pool | Cases | Call texts | Changed | Rows newly listed | Rows newly kept |
+| --- | --- | --- | --- | --- | --- |
+| 2,522 forget strings of the tests and `docs/readings/`, over 3 rows and over 18 | 5,266 | the string's number, or `4242` | 0 | 0 | 0 |
+| Generated heads and tails in five languages, with what each row is asked | 42,356 | the value | 0 | 0 | 0 |
+| The same generator with the six heads asking for everything, and every single tail | 14,183 | the value and each row's own word | not counted | 0 | 1,072 |
+
+Of the 1,072 newly kept rows, 698 are rows the message does not ask for, 56 it asks to keep, 20
+it names in a role no reader reads, and 298 it asks to delete. All 298 are in Romanian messages
+that start `Uită toate`, a word for all the card does not read. Scripts `replay_final.sh`,
+`dcases.py`, `dlang.py` and log `replay_final2.log` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/bd106a1a-a17f-4ca5-8841-82294e4917a8/scratchpad/slot10/`,
+with slot 9's generator and runners.
+
 ## A removal named after calls that kept every row, 2026-11-15
 
 A draw earlier that day answered `Forget all 4242 except the card.`, after four forget calls that

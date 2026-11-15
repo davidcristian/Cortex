@@ -130,7 +130,7 @@ def _read(texts: Sequence[str], text: str, query: str, pattern: re.Pattern[str])
     return asked if named else query
 
 
-def _content(query: str, part: str | None = None) -> set[str]:
+def content(query: str, part: str | None = None) -> set[str]:
     """The words of ``part``, by default ``query``, that can name a fact, less the function words
     of the readings of ``query``."""
     function = {word for language in readings(query) for word in FUNCTION.get(language, ())}
@@ -157,7 +157,7 @@ def _ends(
     words = row_words(read)
     named = any(names(words, row_words(row)) for row in texts)
     said = None if named or kinds else just_said(list(records), chat, held)
-    unasked = bool(_content(query)) and pattern.search(query) is None
+    unasked = bool(content(query)) and pattern.search(query) is None
     kind, said_words = read_kinds(query), row_words(query)
     return {
         record.id: record.id != said
@@ -193,20 +193,21 @@ def inside(
     )
 
 
-def kept_rows(
+def kept_rows(  # noqa: PLR0913 -- each reader of the kept rows reads its own part of the call
     rows: Sequence[MemoryRecord],
     within: Sequence[MemoryRecord],
     text: str,
     stamp: TurnStamp,
     deleted: Sequence[MemoryRecord],
     read: frozenset[str] = frozenset(),
+    told: Sequence[MemoryRecord] = (),
 ) -> list[MemoryRecord]:
     """The ``rows`` ``unnamed`` keeps beside the kept rows ``within``, and each holding ``text``
     whole when one is kept and the message holds ``text`` beside words naming no row."""
     inner = {row.id for row in within}
     every = unnamed([*rows, *within], text, stamp.query, deleted, stamp.session_id, read)
     kept = [row for row in every if row.id not in inner]
-    pattern, words = _bounded(text), _content(stamp.query)
+    pattern, words = _bounded(text), content(stamp.query)
     unclear = (
         bool(within and words)
         and pattern is not None
@@ -214,12 +215,12 @@ def kept_rows(
         and all(words.isdisjoint(row_words(row.text)) for row in (*rows, *within))
     )
     whole = [row for row in rows if unclear and row not in kept and _whole(row.text, text)]
-    every = [*kept, *whole, *_unnamed_groups(rows, within, text, stamp.query)]
+    every = [*kept, *whole, *_unnamed_groups(rows, within, text, stamp.query, len(told))]
     every.extend(_may_keep(rows, within, stamp.query, text))
     return list({row.id: row for row in every}.values())
 
 
-def _request(row: MemoryRecord) -> set[str]:
+def request(row: MemoryRecord) -> set[str]:
     """The words of the request of ``row`` that can name it."""
     return row_words(row.text.split(_REPLY, 1)[0])
 
@@ -227,10 +228,10 @@ def _request(row: MemoryRecord) -> set[str]:
 def _restated(query: str, text: str, named: frozenset[str], rows: list[set[str]]) -> set[str]:
     """The words of ``named`` that ``query`` names to forget and again to keep: in a clause asking
     to keep whose other words each name only ``rows`` those words do not, or in ``kept_again``."""
-    forgot = _content(query, " ".join(parts(query)[0]))
+    forgot = content(query, " ".join(parts(query)[0]))
     found = kept_again(query, text, named)
     for clause in clauses(query):
-        held = _content(query, " ".join(parts(" ".join(clause))[1])) - EXCEPT
+        held = content(query, " ".join(parts(" ".join(clause))[1])) - EXCEPT
         held = {word for word in held if not KEEP.fullmatch(word)}
         again = held & forgot
         others = [[row for row in rows if names({word}, row)] for word in held - forgot]
@@ -249,20 +250,20 @@ def _may_keep(
     for clause in clauses(query):
         at = next((at for at, token in enumerate(clause) if token in MINUS), len(clause))
         after.extend(clause[at + 1 :])
-    words = _content(query, " ".join(after))
-    asked = {row.id: _request(row) for row in rows}
-    named = {word for word in _content(query) if any(names({word}, row) for row in asked.values())}
+    words = content(query, " ".join(after))
+    asked = {row.id: request(row) for row in rows}
+    named = {word for word in content(query) if any(names({word}, row) for row in asked.values())}
     codes = {word for clause in clauses(query) for word in clause if code_word(word)}
-    kept = _content(query, " ".join(after_value(query, text, frozenset(named | codes))))
-    inner = [_request(row) for row in within]
-    beyond = {word for word in _content(query) if any(names({word}, row) for row in inner)}
+    kept = content(query, " ".join(after_value(query, text, frozenset(named | codes))))
+    inner = [request(row) for row in within]
+    beyond = {word for word in content(query) if any(names({word}, row) for row in inner)}
     known = frozenset(named | beyond | codes)
     roles = beside(query, text, known, MINUS)
     again = _restated(query, text, known, [*asked.values(), *inner]) & named
     kept |= roles[EXCEPTION]
     limit, every = roles[LIMIT] & named, quantifies(query)
     unread = bool(roles[UNREAD] & (named | beyond))
-    head = _content(query, " ".join(before_value(query, text))) | roles[LIMIT] | roles[ADDITION]
+    head = content(query, " ".join(before_value(query, text))) | roles[LIMIT] | roles[ADDITION]
     return [
         row
         for row in rows
@@ -284,17 +285,14 @@ def _in_longer(record: str, text: str) -> bool:
 
 
 def _unnamed_groups(
-    rows: Sequence[MemoryRecord], within: Sequence[MemoryRecord], text: str, query: str
+    rows: Sequence[MemoryRecord], within: Sequence[MemoryRecord], text: str, query: str, told: int
 ) -> list[MemoryRecord]:
     """The ``rows`` holding ``text`` only inside a longer value, or matched by a ``text`` holding
     no digit, that no word or kind of ``query`` names, when it names another of ``rows`` or
-    ``within``."""
-    if quantifies(query):
-        return []
-    words, word = _content(query), not any(char.isdigit() for char in text)
+    ``within``, or one of ``told`` more rows when ``query`` holds no digit."""
+    words, word = content(query), not any(char.isdigit() for char in text)
     named = {row.id for row in (*rows, *within) if names(words, row_words(row.text))}
-    return [
-        row
-        for row in rows
-        if named and row.id not in named and (word or _in_longer(row.text, text))
-    ]
+    apart = told > 0 and not any(char.isdigit() for char in query)
+    if quantifies(query) or not (named or apart):
+        return []
+    return [row for row in rows if row.id not in named and (word or _in_longer(row.text, text))]

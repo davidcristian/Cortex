@@ -78,9 +78,9 @@ async def test_a_message_naming_no_word_keeps_the_rows_other_chats_stored(query:
     assert (card, said, left) == (None, f"{KEPT_ALL}.", ["gym", "shed"])
 
 
-async def test_a_label_text_is_not_read_against_the_message() -> None:
+async def test_a_label_text_naming_a_row_beside_a_message_naming_another_keeps_it() -> None:
     _, _, _, left = await _forget("padlock", _ASKED, ("gym", _GYM), ("shed", _SHED))
-    assert left == ["gym"]
+    assert left == ["gym", "shed"]
 
 
 @pytest.mark.parametrize(

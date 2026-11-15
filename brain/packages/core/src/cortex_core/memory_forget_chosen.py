@@ -6,7 +6,7 @@ from dataclasses import dataclass, replace
 
 from cortex_core.errors import MemoryStoreError
 from cortex_core.forget_inside import INSIDE_ALL, INSIDE_LINE, inside, kept_rows
-from cortex_core.forget_keep_named import keep_named
+from cortex_core.forget_keep_named import forget_named, keep_named
 from cortex_core.forget_longer import LONGER_ALL, beside, longer, longer_lines
 from cortex_core.forget_results import (
     ALREADY_DELETED,
@@ -194,6 +194,7 @@ class ForgetChosenTool:
             inner -= {record.id for record, _, _ in extra}
             within = [record for record in matches if record.id in inner]
             named, read = await keep_named(self._store, self._scope, call, FORGET_CHOSEN_LIMIT + 1)
+            told = await forget_named(self._store, self._scope, call, FORGET_CHOSEN_LIMIT + 1, gone)
         except MemoryStoreError as err:
             return unavailable(err), None
         if not small:
@@ -203,7 +204,7 @@ class ForgetChosenTool:
             return (ALREADY_DELETED if about_deleted(_text(call), deleted) else NONE_FOUND), None
         left_out = len(found) + len(extra) > FORGET_CHOSEN_LIMIT
         rows = [*found, *(row for row, _, _ in extra)]
-        kept = kept_rows(rows, within, _text(call), call.stamp, gone, read)
+        kept = kept_rows(rows, within, _text(call), call.stamp, gone, read, told)
         held = {record.id for record in kept}
         far = [row for row in longer(rows, _text(call), call.stamp.query) if row.id not in held]
         spared = {row.id: _excerpt(row, _text(call)) for row in (*kept, *within, *far)}

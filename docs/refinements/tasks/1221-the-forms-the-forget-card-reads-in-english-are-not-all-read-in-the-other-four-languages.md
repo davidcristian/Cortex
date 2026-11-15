@@ -53,3 +53,7 @@ las 4242, solo la tarjeta.` and `Uită toate 4242, doar cardul.` keep every row,
 
 - 2026-11-15: filed from the generated messages of at most one clause
   ([readings](../../readings/forget-keep-except.md#the-role-of-a-row-named-after-the-value-2026-11-15)).
+- 2026-11-15: a call text holding no digit now keeps each row no word of the message names when
+  another stored row is named, so `Uită toate, cardul de asemenea.` with the call text `phone`
+  keeps a phone it deleted before: 298 such rows in the generated messages
+  ([readings](../../readings/forget-everything-but-call.md#a-call-naming-a-row-the-message-does-not-name-2026-11-15)).
