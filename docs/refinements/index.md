@@ -90,8 +90,8 @@ never a reading of what the tree does now.
 - **[R-1219](tasks/1219-the-result-texts-a-model-reads-give-an-untrue-reason-for-a-row-kept-under-an-unread-role.md)** The result texts a model reads give an untrue reason for a row kept under an unread role (memory). Its claim was checked against the code on 2026-11-15.
 - **[R-1220](tasks/1220-the-kept-note-does-not-say-how-to-ask-for-a-row-it-names.md)** The kept note does not say how to ask for a row it names (memory). Its claim was checked against the code on 2026-11-15.
 - **[R-1221](tasks/1221-the-forms-the-forget-card-reads-in-english-are-not-all-read-in-the-other-four-languages.md)** The forms the forget card reads in English are not all read in the other four languages (memory). Its claim was checked against the code on 2026-11-15.
-- **[R-1222](tasks/1222-a-forget-of-every-row-but-one-keeps-a-row-the-call-names-in-the-rows-own-words.md)** A forget of every row but one keeps a row the call names in the row's own words (memory). Its claim was checked against the code on 2026-11-15.
 - **[R-1223](tasks/1223-a-reply-saying-rows-were-removed-after-calls-that-kept-every-row-gets-no-note-that-nothing-was-forgotten.md)** A reply saying rows were removed after calls that kept every row gets no note that nothing was forgotten (memory). Its claim was checked against the code on 2026-11-15.
+- **[R-1224](tasks/1224-a-forget-call-naming-a-row-the-message-does-not-name-deletes-it-when-it-matches-no-other-row.md)** A forget call naming a row the message does not name deletes it when it matches no other row (memory). Its claim was checked against the code on 2026-11-15.
 
 ### Actionable, once a port changes (1)
 
@@ -667,8 +667,8 @@ never a reading of what the tree does now.
 - [R-1219](tasks/1219-the-result-texts-a-model-reads-give-an-untrue-reason-for-a-row-kept-under-an-unread-role.md) The result texts a model reads give an untrue reason for a row kept under an unread role. open, actionable.
 - [R-1220](tasks/1220-the-kept-note-does-not-say-how-to-ask-for-a-row-it-names.md) The kept note does not say how to ask for a row it names. open, actionable.
 - [R-1221](tasks/1221-the-forms-the-forget-card-reads-in-english-are-not-all-read-in-the-other-four-languages.md) The forms the forget card reads in English are not all read in the other four languages. open, actionable.
-- [R-1222](tasks/1222-a-forget-of-every-row-but-one-keeps-a-row-the-call-names-in-the-rows-own-words.md) A forget of every row but one keeps a row the call names in the row's own words. open, actionable.
 - [R-1223](tasks/1223-a-reply-saying-rows-were-removed-after-calls-that-kept-every-row-gets-no-note-that-nothing-was-forgotten.md) A reply saying rows were removed after calls that kept every row gets no note that nothing was forgotten. open, actionable.
+- [R-1224](tasks/1224-a-forget-call-naming-a-row-the-message-does-not-name-deletes-it-when-it-matches-no-other-row.md) A forget call naming a row the message does not name deletes it when it matches no other row. open, actionable.
 
 ### orchestrator
 

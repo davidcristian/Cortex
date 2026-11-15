@@ -193,7 +193,7 @@ class ForgetChosenTool:
             # A row also holding the value whole, in other separators, is listed rather than kept.
             inner -= {record.id for record, _, _ in extra}
             within = [record for record in matches if record.id in inner]
-            named = await keep_named(self._store, self._scope, call, FORGET_CHOSEN_LIMIT + 1)
+            named, read = await keep_named(self._store, self._scope, call, FORGET_CHOSEN_LIMIT + 1)
         except MemoryStoreError as err:
             return unavailable(err), None
         if not small:
@@ -203,7 +203,7 @@ class ForgetChosenTool:
             return (ALREADY_DELETED if about_deleted(_text(call), deleted) else NONE_FOUND), None
         left_out = len(found) + len(extra) > FORGET_CHOSEN_LIMIT
         rows = [*found, *(row for row, _, _ in extra)]
-        kept = kept_rows(rows, within, _text(call), call.stamp, gone)
+        kept = kept_rows(rows, within, _text(call), call.stamp, gone, read)
         held = {record.id for record in kept}
         far = [row for row in longer(rows, _text(call), call.stamp.query) if row.id not in held]
         spared = {row.id: _excerpt(row, _text(call)) for row in (*kept, *within, *far)}

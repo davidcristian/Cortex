@@ -217,15 +217,15 @@ returned all three rows (the judge answered `[0, 1, 2]`). With the row in the re
 names it in the row's words, and the card keeps a row the message does not name: the texts `gym
 code`, `gym`, `locker code`, `phone` and `0721 555 4242` each returned `KEPT_ALL` with no card, as
 did `4242` in e1, whose part asking to forget holds only `everything`. Only `4242` in v1 listed the
-locker and phone rows and kept the card, once in each build
-([task 1222](../refinements/tasks/1222-a-forget-of-every-row-but-one-keeps-a-row-the-call-names-in-the-rows-own-words.md)).
+locker and phone rows and kept the card, once in each build; the card has since been changed to
+list such a row ([readings](forget-everything-but-call.md)).
 A's untrue sentences say the card is all memory holds (3), that the other memories were forgotten
 (1) or that the tool cannot keep a row (1), and each reply ends with `UNCALLED_FORGET_NOTE`. B's say the rows were forgotten or removed; all 5
 end with the note naming the rows still in memory, 4 also with `UNFORGOTTEN_CLAIM_NOTE`, and
 `claims_forgotten` does not read the fifth, `I've removed the locker code and phone number`
 ([task 1223](../refinements/tasks/1223-a-reply-saying-rows-were-removed-after-calls-that-kept-every-row-gets-no-note-that-nothing-was-forgotten.md)).
 The earlier reply to `Forget all 4242, only the card.` that asked whether to keep a deleted card
-ended with the count note, which was due and is true. The next row is B with the card reading of
-task 1222, on e1 and v1 under this rule. Scripts `draws.sh`, `ident.sh` and `analyze.py`, logs
+ended with the count note, which was due and is true. The next row is B with that card
+reading, on e1 and v1 under this rule. Scripts `draws.sh`, `ident.sh` and `analyze.py`, logs
 `A-*.log` and `B-*.log`, and the B change as `reach.patch` with its 20 tests and 11 mutation rows,
 are in `/home/david/.cache/cortex-run/2026-11-15/slot8/`.

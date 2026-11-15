@@ -54,8 +54,8 @@ def test_an_except_clause_beside_a_code_word_and_a_value_lists_the_row_holding_i
     assert _kept("4242", query, _CARD, _CODE) == ["card"]
 
 
-def test_an_except_clause_beside_no_word_and_no_value_lists_no_row() -> None:
-    assert _kept("4242", "Forget everything except my card.", _CARD, _CODE) == ["card", "code"]
+def test_an_except_clause_after_a_forget_of_everything_lists_each_row_it_does_not_name() -> None:
+    assert _kept("4242", "Forget everything except my card.", _CARD, _CODE) == ["card"]
 
 
 @pytest.mark.parametrize(
@@ -130,11 +130,15 @@ def test_an_except_word_names_no_fact_to_keep(word: str) -> None:
 
 
 @pytest.mark.parametrize(
-    "query",
-    ["Forget everything but my card.", "Forget all but my card.", "Forget them all but my card."],
+    ("query", "kept"),
+    [
+        ("Forget everything but my card.", ["card"]),
+        ("Forget all but my card.", ["card"]),
+        ("Forget them all but my card.", ["card", "code"]),
+    ],
 )
-def test_but_after_a_word_for_all_keeps_the_row_it_names(query: str) -> None:
-    assert (_kept("4242", query, _CARD, _CODE), keep_words(query)) == (["card", "code"], {"card"})
+def test_but_after_a_word_for_all_keeps_the_row_it_names(query: str, kept: list[str]) -> None:
+    assert (_kept("4242", query, _CARD, _CODE), keep_words(query)) == (kept, {"card"})
 
 
 @pytest.mark.parametrize(
@@ -158,7 +162,7 @@ def test_a_keep_verb_after_but_still_lists_the_row_before_it() -> None:
     assert (_kept("4242", query, _CARD, _CODE), keep_words(query)) == (["code"], {"short"})
 
 
-async def test_a_forget_of_everything_but_the_card_deletes_no_row() -> None:
+async def test_a_forget_of_everything_but_the_card_deletes_each_other_row() -> None:
     store = InMemoryMemoryStore()
     for record in (_CARD, _CODE):
         await store.add(record)
@@ -168,4 +172,8 @@ async def test_a_forget_of_everything_but_the_card_deletes_no_row() -> None:
     card = await tool.card(call)
     await tool.invoke(call)
     hits = await store.search((1.0, 0.0), k=10)
-    assert (card, sorted(hit.record.id for hit in hits)) == (None, ["card", "code"])
+    assert card is not None
+    assert ("Code 4242" in card.split(KEPT_LINE)[0], [hit.record.id for hit in hits]) == (
+        True,
+        ["card"],
+    )

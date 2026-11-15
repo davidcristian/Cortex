@@ -25,9 +25,9 @@ _LEAD = frozenset(
     {"but", "and", "yet", "do", "don", "is", "isn", "s", "aber", "und", "mais", "et", "pero", "dar"}
 )
 _NAMING = frozenset({"the", "a", "an", "my", "your", "our", "his", "her", "their", "its"})
-_AND = frozenset({"and", "or", "et", "ou", "und", "oder", "y", "o", "și", "şi", "sau"})
+AND = frozenset({"and", "or", "et", "ou", "und", "oder", "y", "o", "și", "şi", "sau"})
 # Romanian "o" is a pronoun before a verb, as in "cartela o păstrez", so it starts no keep clause.
-_LIST = _AND - {"o"}
+_LIST = AND - {"o"}
 _CONTRAST = frozenset({"but", "yet", "aber", "mais", "pero", "dar"})
 FORGET = re.compile(
     r"forg[eo]t\w*|delet\w*|remov\w*|eras\w*|oubli\w*|effac\w*|vergiss\w*|vergess\w*"
@@ -156,7 +156,7 @@ _PLACE = frozenset(
     {"on", "of", "for", "from", "in", "at", "de", "du", "sur", "pour", "dans", "auf", "von", "vom"}
     | {"für", "del", "en", "para", "pe"}
 )
-_WHOSE = _OWNER | frozenset(
+WHOSE = _OWNER | frozenset(
     {"your", "our", "el", "los", "las", "mi", "mis", "tu", "tus", "su", "ton", "ta", "tes"}
 )
 # A word saying which row the value is, as in "4242, that is my card" or "4242, only the card".
@@ -187,7 +187,7 @@ def after_value(query: str, value: str, named: frozenset[str]) -> list[str]:
     """The words of ``query`` after ``value`` that may ask to keep the rows they name: of each run
     to a clause mark or forget verb, those from the first word no reader reads before a word of
     ``named``, or all before a negation; none of a run adding a row or holding a keep clause."""
-    read = named | _PLACE | _WHOSE | _WHICH | _AND
+    read = named | _PLACE | WHOSE | _WHICH | AND
     found: list[str] = []
     for run, keeps in _runs(query, value):
         last = max((at for at, word in enumerate(run) if word in named), default=0)
@@ -206,14 +206,14 @@ def _role(run: list[str], named: frozenset[str]) -> str:
     """What ``run`` asks for the rows it names: ``ADDITION`` with an adding word at an end or a
     word for and first, ``EXCEPTION`` after a word for but, else ``LIMIT``; ``UNREAD`` when a
     word between is none of ``named`` and none a reader of that role reads."""
-    body = run[1:] if run[0] in _AND | _CONTRAST else run
+    body = run[1:] if run[0] in AND | _CONTRAST else run
     tail = 2 if body[-2:] == ["as", "well"] else len(_ADD.intersection(body[-1:]))
     head = len(_ADD.intersection(body[:1]))
-    adds = run[0] in _AND or bool(head or tail)
+    adds = run[0] in AND or bool(head or tail)
     core = body[head : len(body) - tail]
     core = core[: len(core) - len(_ONE.intersection(core[-1:]))]
     excepts = run[0] in _CONTRAST and not adds
-    read = named | _WHOSE | _AND | (frozenset[str]() if excepts else _PLACE | _WHICH)
+    read = named | WHOSE | AND | (frozenset[str]() if excepts else _PLACE | _WHICH)
     if not all(word in read or word.isdigit() for word in core):
         return UNREAD
     return ADDITION if adds else EXCEPTION if excepts else LIMIT
@@ -226,7 +226,7 @@ def beside(
     run, ``UNREAD`` when a later run naming no row holds a word no reader reads: none of a run
     with a keep clause, a negation or a word of ``minus``, no limit or addition before a clause."""
     found: dict[str, set[str]] = {LIMIT: set(), ADDITION: set(), EXCEPTION: set(), UNREAD: set()}
-    read = _PLACE | _WHOSE | _WHICH | _AND | _ADD
+    read = _PLACE | WHOSE | _WHICH | AND | _ADD
     for run, keeps in _runs(query, value):
         words = named.intersection(run)
         if words and not keeps and (NOT | minus).isdisjoint(run):
@@ -291,7 +291,7 @@ def asking(query: str, value: str, named: frozenset[str] = frozenset()) -> str:
     found: list[str] = []
     asked, keeps = True, False
     for piece in (piece for clause in clauses(query) for piece in _cut(clause, wanted)):
-        joins = asked and piece[0] in _AND
+        joins = asked and piece[0] in AND
         adds = _adds(piece, named)
         asked = joins or _asks(piece) or _after(piece, wanted) is not None or (adds and not keeps)
         keeps = keeps if adds else _keeping(piece)[-1]

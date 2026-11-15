@@ -98,7 +98,7 @@ async def test_a_word_for_but_after_the_forget_verb_keeps_each_row_its_clause_na
     ("query", "ids", "left"),
     [
         ("Forget every 4242, but not the card.", _ENGLISH, ["card"]),
-        ("Forget all but the card.", _ENGLISH, ["card", "locker", "phone"]),
+        ("Forget all but the card.", _ENGLISH, ["card", "phone"]),
         ("Forget every 4242 but keep the card.", _ENGLISH, ["card", "phone"]),
         ("Forget my phone 4242 but keep Anna's phone.", _ENGLISH, ["card", "locker"]),
     ],

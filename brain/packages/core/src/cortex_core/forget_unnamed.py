@@ -3,7 +3,7 @@
 import re
 from collections.abc import Iterable, Mapping
 
-from cortex_core.forget_clauses import EVERY, EXCEPT, FORGET, KEEP, clauses, parts
+from cortex_core.forget_clauses import AND, EVERY, EXCEPT, FORGET, KEEP, WHOSE, clauses, parts
 from cortex_core.forget_kinds import kinds, names, read_kinds
 from cortex_core.forget_languages import FUNCTION, readings
 from cortex_core.memory import MemoryRecord
@@ -97,7 +97,7 @@ def row_words(text: str) -> set[str]:
     return _words(plain) | _stems(plain)
 
 
-def _row_names(text: str) -> set[str]:
+def row_names(text: str) -> set[str]:
     """The words of a stored exchange a forget part or keep clause can name it by."""
     return row_words(text) | _kinds(_PREFIX.sub("\n", text))
 
@@ -118,19 +118,32 @@ def _lists(
     """Whether a forget part naming ``listed``, or only the whole ``values``, names the row; with
     ``every``, a row of a kind of the table holding one as the last group of a longer value too."""
     request = text.split(_REPLY, 1)[0]
-    ends = every and bool(kinds(_row_names(text))) and not values.isdisjoint(_last_groups(request))
+    ends = every and bool(kinds(row_names(text))) and not values.isdisjoint(_last_groups(request))
     held = ends or not values.isdisjoint(whole_values(request))
-    return names(listed, _row_names(text), kind=kind) or held
+    return names(listed, row_names(text), kind=kind) or held
 
 
-def _whole(rows: list[MemoryRecord], query: str, keep: set[str], language: str) -> set[str]:
-    """The whole values of a forget part naming no word, when each word of its keep clause names
-    a row of ``rows``, so a keep clause read in part lists no row; else none."""
-    words, kind = keep - FUNCTION.get(language, frozenset()), read_kinds(query)
-    names_all = all(
-        any(names({word}, _row_names(row.text), kind=kind) for row in rows) for word in words
+def _keep_read(
+    rows: list[MemoryRecord], kind: frozenset[str], words: set[str], read: frozenset[str]
+) -> bool:
+    """Whether each of ``words``, a keep clause's, names a row of ``rows`` or is one of ``read``,
+    the words naming another stored row, so a keep clause read in part lists no row."""
+    return bool(words) and all(
+        word in read or any(names({word}, row_names(row.text), kind=kind) for row in rows)
+        for word in words
     )
-    return set(whole_values(" ".join(parts(query)[0]))) if words and names_all else set()
+
+
+def _all_else(query: str, keep: set[str]) -> bool:
+    """Whether ``query`` asks for every row its keep clause does not name: the part asking to
+    forget is a forget verb then a word for all, and the keep clause is one opening word then only
+    words of ``keep``, for the or my, or for and."""
+    match parts(query):
+        case ([verb, every], [_, *named]):
+            plain = FORGET.fullmatch(verb) is not None and every in EVERY
+            return plain and (keep | WHOSE | AND).issuperset(named)
+        case _:
+            return False
 
 
 def _split(query: str, language: str) -> tuple[set[str], set[str], set[str] | None, bool]:
@@ -160,7 +173,7 @@ def asks_to_forget_keeping(query: str) -> bool:
 def asks_to_keep(text: str, query: str) -> bool:
     """Whether a clause of ``query`` asking to keep names a fact of the row ``text``, or all."""
     kept = keep_words(query)
-    return not _REST.isdisjoint(parts(query)[1]) or not kept.isdisjoint(_row_names(text))
+    return not _REST.isdisjoint(parts(query)[1]) or not kept.isdisjoint(row_names(text))
 
 
 def quantifies(query: str) -> bool:
@@ -206,17 +219,39 @@ def unnamed(
     query: str,
     deleted: Iterable[MemoryRecord] = (),
     session_id: str | None = None,
+    read: frozenset[str] = frozenset(),
 ) -> list[MemoryRecord]:
-    """The ``records`` to keep, each a reading of ``query`` in one of its ``readings`` keeps."""
+    """The ``records`` to keep, each a reading of ``query`` in one of its ``readings`` keeps.
+    ``read`` are the words of its keep clauses naming a stored row outside ``records``."""
     rows, deleted = list(records), list(deleted)
     if not query.strip():
         return []
-    kept = {
-        record.id
-        for language in readings(query)
-        for record in _unnamed(rows, text, query, deleted, session_id, language)
-    }
+    kept = set[str]()
+    for language in readings(query):
+        beside = _beside_keep(rows, query, language, read)
+        found = _unnamed(rows, text, query, deleted, session_id, language)
+        kept |= {record.id for record in (found if beside is None else beside)}
     return [record for record in rows if record.id in kept]
+
+
+def _beside_keep(
+    rows: list[MemoryRecord], query: str, language: str, read: frozenset[str]
+) -> list[MemoryRecord] | None:
+    """The ``rows`` to keep beside a keep clause of ``query``: each it names or neither ``_lists``
+    nor ``_all_else`` lists, so a misread keeps the row; ``None`` when it has no keep clause."""
+    _, keep, listed, _ = _split(query, language)
+    if listed is None:
+        return None
+    words, kind = keep - FUNCTION.get(language, frozenset()), read_kinds(query)
+    told = not listed and _keep_read(rows, kind, words, read)
+    values = set(whole_values(" ".join(parts(query)[0]))) if told else set[str]()
+    every, rest = _other_kinds(query, keep, language), told and _all_else(query, words)
+    return [
+        record
+        for record in rows
+        if not (rest or _lists(record.text, listed, values, kind=kind, every=every))
+        or names(keep, row_names(record.text))
+    ]
 
 
 def _unnamed(
@@ -227,20 +262,10 @@ def _unnamed(
     session_id: str | None,
     language: str,
 ) -> list[MemoryRecord]:
-    """The ``rows`` to keep: with a keep clause, each it names or ``_lists`` does not list; else
-    each whose request holds a value of ``text`` and no word of ``query``, unless it asks for
-    every row, or names nothing and is the row ``just_said`` reads beside ``deleted``."""
-    words, keep, listed, compound = _split(query, language)
-    if listed is not None:
-        # A clause asks to keep: list only a row a whole word or value names; a misread keeps it.
-        values = set[str]() if listed else _whole(rows, query, keep, language)
-        every = _other_kinds(query, keep, language)
-        return [
-            record
-            for record in rows
-            if not _lists(record.text, listed, values, kind=read_kinds(query), every=every)
-            or names(keep, _row_names(record.text))
-        ]
+    """The ``rows`` to keep with no keep clause: each whose request holds a value of ``text`` and
+    no word of ``query``, unless it asks for every row, or names nothing and is the row
+    ``just_said`` reads beside ``deleted``."""
+    words, _, _, compound = _split(query, language)
     asked, values = _keys(query), _keys(text) - _keys(query) or _keys(text)
     named = compound or _named(rows, words, deleted)
     every = values <= asked and (not named or quantifies(query))

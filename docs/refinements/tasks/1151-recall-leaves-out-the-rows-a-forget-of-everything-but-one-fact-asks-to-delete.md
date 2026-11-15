@@ -25,19 +25,17 @@ forget call in 6 of 6, and left that row stored in 5 of 6, so it was not committ
 
 ## What to do
 
-1. Build the card reading of
-   [task 1222](1222-a-forget-of-every-row-but-one-keeps-a-row-the-call-names-in-the-rows-own-words.md)
-   first or in the same change: beside a keep clause (`except`, `everything but`) the rows alone
-   turn "the card is all I hold" into "I forgot it" over a row still stored. On
+1. Add the rows again, now that the card lists a row a call names in the row's own words beside
+   a keep clause ([readings](../../readings/forget-everything-but-call.md)): the rows alone
+   turned "the card is all I hold" into "I forgot it" over a row still stored. On
    `Forget all 4242 apart from the card.`, which the card reads with no keep clause, the rows alone
-   deleted the locker and phone rows and kept the card in 2 of 2 draws.
-2. Add the rows again: on a message `asks_to_forget` or `asks_to_forget_keeping` reads,
+   deleted the locker and phone rows and kept the card in 2 of 2 draws. On a message `asks_to_forget` or `asks_to_forget_keeping` reads,
    `assemble_inference_messages` adds after the ranked rows at most 5 the rank left out, from
    `MemoryRecaller.find_value` for each `whole_values` key of the message, or from a search of the
    message with no policy when it names no value beside a fact to keep. Render them with the
    ranked rows, so a tainted row is fenced and `fit_recalled` cuts each. A message asking to forget
    nothing must read the store once.
-3. Draw rows e1 and v1 of the readings under the rule written there, and count what the person
+2. Draw rows e1 and v1 of the readings under the rule written there, and count what the person
    ends up with.
 
 ## History
@@ -47,6 +45,6 @@ forget call in 6 of 6, and left that row stored in 5 of 6, so it was not committ
 - 2026-11-15: the premise was confirmed from the recording proxy's log and the rows were added in
   a build that was drawn and not committed, since the rule failed on what the person ends up with.
   Filed
-  [task 1222](1222-a-forget-of-every-row-but-one-keeps-a-row-the-call-names-in-the-rows-own-words.md)
-  and
   [task 1223](1223-a-reply-saying-rows-were-removed-after-calls-that-kept-every-row-gets-no-note-that-nothing-was-forgotten.md).
+- 2026-11-15: the card now lists a row a call names in the row's own words beside a forget of
+  everything but one fact, so the rows can be added and drawn again.

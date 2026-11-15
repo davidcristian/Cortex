@@ -33,8 +33,8 @@ Unit calls over the same two rows with the call text `4242`. Before, `Forget eve
 card.` and `Forget all but my card.` opened no keep clause, since `but` opens one only before a
 negation: the reader named the card row by `card`, kept only the code row, and the card listed the
 row the person asked to keep. `but` now also opens a clause right after a word for all (`_BUT` and
-`_EVERY` in `forget_unnamed.py`), so `everything but`, `all but` and `them all but` keep both rows
-and show no card, the same as `Forget everything except my card.`. A `but` after any other word or
+`_EVERY` in `forget_unnamed.py`), so `everything but`, `all but` and `them all but` kept both rows
+and showed no card ([since 2026-11-15](forget-everything-but-call.md) only the last does). A `but` after any other word or
 after a clause mark opens none, so `Forget my card 4242, but quickly.`, `Forget all of my card 4242,
 but quickly.`, `Forget everything, but my card first.`, `Forget all my card numbers but quickly.`,
 `Forget it but quickly.` and `Forget 4242 but do it now.` read as before. A misread such as

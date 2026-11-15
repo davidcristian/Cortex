@@ -199,11 +199,12 @@ def kept_rows(
     text: str,
     stamp: TurnStamp,
     deleted: Sequence[MemoryRecord],
+    read: frozenset[str] = frozenset(),
 ) -> list[MemoryRecord]:
     """The ``rows`` ``unnamed`` keeps beside the kept rows ``within``, and each holding ``text``
     whole when one is kept and the message holds ``text`` beside words naming no row."""
     inner = {row.id for row in within}
-    every = unnamed([*rows, *within], text, stamp.query, deleted, stamp.session_id)
+    every = unnamed([*rows, *within], text, stamp.query, deleted, stamp.session_id, read)
     kept = [row for row in every if row.id not in inner]
     pattern, words = _bounded(text), _content(stamp.query)
     unclear = (
@@ -212,8 +213,7 @@ def kept_rows(
         and pattern.search(stamp.query) is not None
         and all(words.isdisjoint(row_words(row.text)) for row in (*rows, *within))
     )
-    ids = {row.id for row in kept}
-    whole = [row for row in rows if unclear and row.id not in ids and _whole(row.text, text)]
+    whole = [row for row in rows if unclear and row not in kept and _whole(row.text, text)]
     every = [*kept, *whole, *_unnamed_groups(rows, within, text, stamp.query)]
     every.extend(_may_keep(rows, within, stamp.query, text))
     return list({row.id: row for row in every}.values())
