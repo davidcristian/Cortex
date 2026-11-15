@@ -163,9 +163,10 @@ _WHOSE = _OWNER | frozenset(
 _WHICH = frozenset({"it", "that", "which", "this", "is", "was", "i", "mean", "only", "just"})
 
 
-def _runs(query: str, value: str) -> Iterator[tuple[list[str], bool]]:
+def _runs(query: str, value: str) -> Iterator[tuple[list[str], bool | None]]:
     """Each run of ``query`` after ``value``, to a clause mark or forget verb, and whether its
-    clause holds a keep clause from where the run starts."""
+    clause holds a keep clause from where the run starts: ``None`` for the words before a keep
+    clause that opens inside a run, less the words leading into it, which are a run of their own."""
     wanted = [token for token in _TOKEN.findall(value.lower()) if token not in _MARKS]
     seen = False
     for clause in clauses(query):
@@ -174,7 +175,12 @@ def _runs(query: str, value: str) -> Iterator[tuple[list[str], bool]]:
             continue
         seen = True
         verb = (at for at in range(start, len(clause)) if FORGET.fullmatch(clause[at]))
-        yield clause[start : next(verb, len(clause))], any(_keeping(clause)[start:])
+        end, flags = next(verb, len(clause)), _keeping(clause)
+        keep = next((at for at in range(start, end) if flags[at]), start)
+        lead = next((at for at in range(keep, start, -1) if clause[at - 1] not in _LEAD), start)
+        if lead > start:
+            yield clause[start:lead], None
+        yield clause[keep:end], any(flags[keep:])
 
 
 def after_value(query: str, value: str, named: frozenset[str]) -> list[str]:
@@ -218,13 +224,14 @@ def beside(
 ) -> dict[str, set[str]]:
     """The words of ``named`` in the runs of ``query`` after ``value``, by the ``_role`` of their
     run, ``UNREAD`` when a later run naming no row holds a word no reader reads: none of a run
-    holding a keep clause, a negation or a word of ``minus``, which the keep clause readers read."""
+    with a keep clause, a negation or a word of ``minus``, no limit or addition before a clause."""
     found: dict[str, set[str]] = {LIMIT: set(), ADDITION: set(), EXCEPTION: set(), UNREAD: set()}
     read = _PLACE | _WHOSE | _WHICH | _AND | _ADD
     for run, keeps in _runs(query, value):
         words = named.intersection(run)
         if words and not keeps and (NOT | minus).isdisjoint(run):
-            found[_role(run, named)] |= words
+            role = _role(run, named)
+            found[role] |= set() if keeps is None and role in (LIMIT, ADDITION) else words
         elif not words and not all(word in read or word.isdigit() for word in run):
             unread = found[LIMIT] | found[ADDITION] | found[EXCEPTION] | found[UNREAD]
             found = {LIMIT: set(), ADDITION: set(), EXCEPTION: set(), UNREAD: unread}

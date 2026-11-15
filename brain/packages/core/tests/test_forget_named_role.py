@@ -40,6 +40,8 @@ _ROWS = {
     "dulap": "User: Ține minte că codul de la dulap este 4242.\nAssistant: Notat.",
     "cardul": "User: Ține minte că cardul meu este 4111 1111 1111 4242.\nAssistant: Notat.",
     "telefonul": "User: Ține minte că telefonul meu este 0721 555 4242.\nAssistant: Notat.",
+    "old": "User: Remember that my old card is 4111 1111 1111 4242.\nAssistant: Noted.",
+    "new": "User: Remember that my new card is 5500 0000 0000 4242.\nAssistant: Noted.",
 }
 _ENGLISH = ("locker", "card", "phone")
 _FRENCH = ("casier", "carte", "telephone")
@@ -114,6 +116,10 @@ async def _forget(query: str, *ids: str) -> tuple[str | None, list[str]]:
         ("Forget all 4242, the card, no.", _ENGLISH),
         ("Forget 4242, the card, I need it.", _ENGLISH),
         ("Forget all 4242 on the card, thanks.", _ENGLISH),
+        ("Forget all 4242, the card stays except the phone.", _ENGLISH),
+        ("Forget all 4242 apart from the card except the phone.", _ENGLISH),
+        ("Forget all 4242 but the card except the phone.", _ENGLISH),
+        ("Olvida todas las 4242, la tarjeta se queda excepto el teléfono.", _SPANISH),
     ],
 )
 async def test_a_row_named_beside_the_value_in_a_role_no_reader_reads_keeps_every_row(
@@ -174,6 +180,11 @@ async def test_a_forget_of_every_value_limited_to_a_row_keeps_the_other_rows(
         ("Forget the card 4242, the card one, thanks.", _ENGLISH, ["locker", "phone"]),
         ("Forget the card 4242 and the phone, keep the phone.", _ENGLISH, ["locker", "phone"]),
         ("Forget the card 4242, keep the card statement.", _ENGLISH, ["locker", "phone"]),
+        ("Forget the card 4242, keep the card and the statement.", _ENGLISH, ["locker", "phone"]),
+        ("Forget the card 4242, keep the phone and the locker.", _ENGLISH, ["locker", "phone"]),
+        ("Forget my old card 4242, keep the new card.", ("old", "new"), ["new"]),
+        ("Forget all 4242 on the card but not the phone.", _ENGLISH, ["locker", "phone"]),
+        ("Forget all 4242 and the card except the phone.", _ENGLISH, ["locker", "phone"]),
     ],
 )
 async def test_a_row_the_message_asks_for_in_words_a_reader_reads_is_still_deleted(
@@ -194,6 +205,11 @@ async def test_a_row_the_message_asks_for_in_words_a_reader_reads_is_still_delet
         ("Forget the card 4242 except the card.", _ENGLISH),
         ("Forget the card 4242, not the card.", _ENGLISH),
         ("Forget the card 4242, keep the card, keep the phone.", _ENGLISH),
+        ("Forget the card 4242, keep the card and the phone.", _ENGLISH),
+        ("Forget the card 4242 except the card and the phone.", _ENGLISH),
+        ("Forget the card 4242, keep the phone except the card.", _ENGLISH),
+        ("Oublie la carte 4242, garde la carte et le téléphone.", _FRENCH),
+        ("Vergiss die Karte 4242, behalte die Karte und das Handy.", _GERMAN),
         ("Oublie la carte 4242, mais garde la carte.", _FRENCH),
         ("Vergiss die Karte 4242, die Karte bleibt.", _GERMAN),
         ("Olvida la tarjeta 4242, la tarjeta se queda.", _SPANISH),
@@ -259,6 +275,7 @@ def test_beside_reads_the_role_of_a_row_named_after_the_value(query: str, role: 
         "Forget all 4242 quickly.",
         "Forget the card 4242.",
         "Forget all 4242 except the card.",
+        "Forget all 4242 quickly except the card.",
         "Forget all 4242, keep the card.",
         "Forget all 4242, the card not.",
         "Forget all 4242 minus the card.",
@@ -269,6 +286,23 @@ def test_beside_reads_no_role_without_a_row_named_after_the_value_outside_a_keep
     query: str,
 ) -> None:
     assert not any(beside(query, "4242", _CARD, _MINUS).values())
+
+
+@pytest.mark.parametrize(
+    ("query", "roles"),
+    [
+        ("Forget all 4242, the card stays except the phone.", {UNREAD: {"card"}}),
+        ("Forget all 4242 but the card except the phone.", {EXCEPTION: {"card"}}),
+        ("Forget all 4242 on the card but not the phone.", {}),
+        ("Forget all 4242 and the card except the phone.", {}),
+        ("Forget all 4242, only the phone, on the card except the bag.", {UNREAD: {"phone"}}),
+    ],
+)
+def test_beside_reads_only_a_role_that_keeps_a_row_from_the_words_before_a_keep_clause(
+    query: str, roles: dict[str, set[str]]
+) -> None:
+    found = beside(query, "4242", frozenset({"card", "phone"}), _MINUS)
+    assert {name: words for name, words in found.items() if words} == roles
 
 
 def test_before_value_reads_the_words_of_each_clause_before_its_last_value() -> None:
