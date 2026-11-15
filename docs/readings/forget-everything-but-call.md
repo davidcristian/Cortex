@@ -247,4 +247,4 @@ Karte auch, nur das Handy.` asks for. `todos` and `alles` changed `Esqueça todo
 de card ook.`, which the card does not read. So only the last row is filled. No generated message
 holds its words: with `tous les` or `toutes les` swapped for `toute`, and `alle` for each German
 form, 2,227 French and 1,960 German messages list the rows of the unswapped message. Of the 1,604
-messages of at most one clause, 602 still keep a row asked to delete (505 with every cell filled).
+messages of at most one clause, 602 still keep a row asked to delete (505 with every cell filled). The four cells of the 92 rows were replayed again once that form was read and stay empty ([readings](forget-everything-unread-role.md#the-four-blocked-cells-replayed-2026-11-15)).

@@ -117,6 +117,7 @@ async def test_a_word_for_all_is_read_in_each_form_its_language_requires(
         ("Olvida el código 4242, mi teléfono también.", _SPANISH),
         ("Uită toate 4242.", _ROMANIAN),
         ("Uită toate 4242, doar cardul.", _ROMANIAN),
+        ("Olvida 4242, la tarjeta también, solo el teléfono.", _SPANISH),
         ("Uită tot 4242.", _ROMANIAN),
         ("Uită codul 4242, cardul de asemenea.", _ROMANIAN),
         ("Vergiss alles 4242.", _GERMAN),
@@ -142,6 +143,9 @@ async def test_a_word_whose_cell_is_empty_for_a_written_reason_lists_no_row(
         ("Uită toate, cardul rămâne, dulapul rămâne.", _ROMANIAN, "dulap"),
         ("Uită toate, cardul rămâne, doar cardul.", _ROMANIAN, "cardul"),
         ("Uită 4242 de pe card doar de pe dulap dar nu dulapul.", _ROMANIAN, "4242"),
+        ("Uită 4242 doar de pe dulap exceptând dulapul.", _ROMANIAN, "4242"),
+        ("Uită toate 4242, dulapul rămâne.", _ROMANIAN, "4242"),
+        ("Uită tot, cardul rămâne, doar cardul.", _ROMANIAN, "cardul"),
     ],
 )
 async def test_a_row_the_message_keeps_stays_where_the_translated_word_is_unread(
@@ -152,6 +156,11 @@ async def test_a_row_the_message_keeps_stays_where_the_translated_word_is_unread
 
 async def test_a_german_word_for_only_beside_an_added_row_lists_no_row_not_asked_for() -> None:
     assert await _gone("Vergiss alle 4242, die Karte auch, nur das Handy.", _GERMAN) == ["karte"]
+
+
+async def test_a_french_word_for_only_beside_an_added_row_lists_no_row_not_asked_for() -> None:
+    query = "Oublie tous les 4242, la carte aussi, seulement le téléphone."
+    assert await _gone(query, _FRENCH) == ["carte"]
 
 
 async def test_a_todo_row_is_named_by_its_word() -> None:
