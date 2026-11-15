@@ -23,23 +23,17 @@ _COMMON = frozenset(
 )
 _TOPIC = frozenset({"about", "else", "sur", "über", "sobre"})
 _REST = EVERY | frozenset({"rest", "reste", "others"})
-KEPT_LINE = "Kept, since your message names none of their words or asks to keep them:"
+KEPT_LINE = "Kept, since your message was not read as meaning them:"
 KEPT_ALL = (
     "nothing was forgotten: each remembered exchange holding that value is about something the "
     "user's message does not name or asks to keep, so each was kept"
 )
-KEPT_NOTE = (
-    "\n\n(Still in memory, since your message names none of their words or asks to keep them:"
-)
+KEPT_NOTE = "\n\n(Still in memory, since your message was not read as meaning them:"
 KEPT_NOTES = {
-    "fr": "\n\n(Toujours en mémoire, car votre message demande de les garder ou ne nomme aucun "
-    "de leurs mots :",
-    "de": "\n\n(Noch gespeichert, weil Ihre Nachricht darum bittet, sie zu behalten, oder keines "
-    "ihrer Wörter nennt:",
-    "es": "\n\n(Todavía en memoria, porque tu mensaje pide guardarlos o no nombra ninguna de sus "
-    "palabras:",
-    "ro": "\n\n(Încă în memorie, pentru că mesajul tău cere să fie păstrate sau nu numește niciun "
-    "cuvânt al lor:",
+    "fr": "\n\n(Toujours en mémoire, car votre message n'a pas été lu comme les visant :",
+    "de": "\n\n(Noch gespeichert, weil Ihre Nachricht nicht als auf sie bezogen gelesen wurde:",
+    "es": "\n\n(Todavía en memoria, porque tu mensaje no se leyó como referido a ellos:",
+    "ro": "\n\n(Încă în memorie, pentru că mesajul tău nu a fost citit ca referindu-se la ele:",
 }
 _TURNS = 32
 

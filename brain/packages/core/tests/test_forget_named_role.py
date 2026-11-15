@@ -1,3 +1,4 @@
+import re
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -13,13 +14,14 @@ from cortex_core import (
 from cortex_core.forget_clauses import (
     ADDITION,
     EXCEPTION,
+    FORGET,
     LIMIT,
     UNREAD,
     before_value,
     beside,
     kept_again,
 )
-from cortex_core.forget_unnamed import KEPT_LINE
+from cortex_core.forget_unnamed import KEPT_LINE, KEPT_NOTE, KEPT_NOTES, kept_note
 from cortex_core.tools import TurnStamp
 
 _AT = datetime(2026, 11, 15, 6, 0, 0, tzinfo=UTC)
@@ -310,3 +312,30 @@ def test_before_value_reads_the_words_of_each_clause_before_its_last_value() -> 
     words = "forget the locker 4242 and my phone ending i mean"
     assert before_value(query, "4242") == words.split()
     assert before_value("Forget the card.", "4242") == []
+
+
+_NAMES_NO_WORD = ("names none", "nomme aucun", "keines ihrer", "no nombra", "nu numește")
+_ASKS_TO_KEEP = ("asks to keep", "de les garder", "zu behalten", "guardarlos", "fie păstrate")
+
+
+async def test_a_row_the_message_names_in_a_role_no_reader_reads_is_shown_with_a_true_reason() -> (
+    None
+):
+    card, left = await _forget("Forget the locker 4242 including the phone.", *_ENGLISH)
+    assert left == ["card", "phone"]
+    assert card is not None
+    lines = card.splitlines()
+    assert "phone" in lines[lines.index(KEPT_LINE) + 1]
+    assert "not read as meaning them" in KEPT_LINE
+    assert not any(reason in KEPT_LINE for reason in (*_NAMES_NO_WORD, *_ASKS_TO_KEEP))
+
+
+@pytest.mark.parametrize("language", ["en", "fr", "de", "es", "ro"])
+def test_the_kept_note_gives_no_reason_untrue_of_a_row_kept_under_an_unread_role(
+    language: str,
+) -> None:
+    head = KEPT_NOTE if language == "en" else KEPT_NOTES[language]
+    note = kept_note(["my phone is 0721 555 4242"], language)
+    assert note == f"{head}\n- my phone is 0721 555 4242)"
+    assert not any(reason in note for reason in (*_NAMES_NO_WORD, *_ASKS_TO_KEEP))
+    assert not any(FORGET.fullmatch(word) for word in re.findall(r"\w+", head.lower()))
