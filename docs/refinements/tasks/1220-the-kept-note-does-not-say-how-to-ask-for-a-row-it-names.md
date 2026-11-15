@@ -12,8 +12,9 @@ my card is 4111 1111 1111 4242.` and `Remember that my phone is 0721 555 4242.`,
 4242 including the phone.` keeps the phone, and `Forget the phone 4242.` then lists and deletes
 it, so a message naming only that row and the value is one such form. ADR-0075 states that the
 note asks for nothing, and `test_the_kept_note_names_each_row_and_asks_for_no_forget`
-(`test_forget_just_said.py`) fails a note holding the word `forget`. The reason for that rule is
-in no document, so a sentence saying how to ask needs the rule's reason found first.
+(`test_forget_just_said.py`) fails a note holding the word `forget`. The ADR and the rule written
+before the draws (`docs/readings/forget-what-was-just-said.md`) state this where they name the
+note and give no reason there, so a sentence saying how to ask needs that reason found first.
 
 ## What to do
 
