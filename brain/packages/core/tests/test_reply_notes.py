@@ -8,6 +8,7 @@ import pytest
 import cortex_core
 from cortex_core.forget_claim import (
     HANDED_CLAIM_NOTE,
+    HANDED_CLAIM_NOTES,
     UNFORGOTTEN_CLAIM_NOTE,
     UNFORGOTTEN_CLAIM_NOTES,
 )
@@ -68,7 +69,15 @@ def test_text_the_model_wrote_stays(reply: str) -> None:
     assert model_text(reply) == reply
 
 
-@pytest.mark.parametrize("claim", [UNFORGOTTEN_CLAIM_NOTE, *UNFORGOTTEN_CLAIM_NOTES.values()])
+@pytest.mark.parametrize(
+    "claim",
+    [
+        UNFORGOTTEN_CLAIM_NOTE,
+        *UNFORGOTTEN_CLAIM_NOTES.values(),
+        HANDED_CLAIM_NOTE,
+        *HANDED_CLAIM_NOTES.values(),
+    ],
+)
 @pytest.mark.parametrize("after", [(), (UNCALLED_FORGET_NOTE,), (_as_appended(REPLY_NOTES[0]),)])
 def test_a_reply_closed_by_the_claim_note_is_corrected(claim: str, after: tuple[str, ...]) -> None:
     assert claim_corrected(_reply("I deleted your code.", claim, *after))
@@ -79,10 +88,10 @@ def test_a_reply_closed_by_the_claim_note_is_corrected(claim: str, after: tuple[
     [
         "I deleted your code.",
         _reply("I deleted your code.", UNCALLED_FORGET_NOTE),
-        _reply("I deleted your code.", HANDED_CLAIM_NOTE),
         UNFORGOTTEN_CLAIM_NOTE + "\n\nI deleted your code.",
         "Done." + UNFORGOTTEN_CLAIM_NOTE.rstrip(")"),
         "Done. " + UNFORGOTTEN_CLAIM_NOTE.lstrip("\n"),
+        HANDED_CLAIM_NOTE + "\n\nI deleted your code.",
     ],
 )
 def test_a_reply_with_no_claim_note_at_its_end_is_not_corrected(reply: str) -> None:

@@ -93,11 +93,21 @@ and `draws.jsonl`, in the slot directory above.
 
 ## A reply the brain closed as a false claim, 2026-11-14
 
-`claim_corrected` (`reply_notes.py`) reads whether `UNFORGOTTEN_CLAIM_NOTE`, in any of its five
-languages, is among the notes the brain appended to an earlier reply. `forget_open` then reads that
-reply's words as naming no forget, since the note already told the person that nothing was
-forgotten and to ask again in a message of its own. A forget run and a person's message that
-`asks_to_forget` reads still open it.
+`claim_corrected` (`reply_notes.py`) reads whether `UNFORGOTTEN_CLAIM_NOTE` or `HANDED_CLAIM_NOTE`,
+in any of their five languages, is among the notes the brain appended to an earlier reply.
+`forget_open` then reads that reply's words as naming no forget, since the note already told the
+person that nothing was forgotten. A forget run and a person's message that `asks_to_forget` reads
+still open it.
+
+`HANDED_CLAIM_NOTE` closes the cortex's reply on a turn its calls hand to the deep model. That turn
+stores two assistant messages under one turn id: the cortex's reply with its notes
+(`TurnEngine.handle_turn`), then the deep model's (`BrainPhase._persist`), and `_exchange`
+(`tool_loop.py`) reads the last one. After a handoff the deep model answered, the note is
+therefore not in the text read. The deep phase appends its reply only after its stream ends, so a
+handoff whose stream is closed early stores none, and the cortex's reply closed by the note is
+then the last of its turn. This is read from the code and was not drawn on a stack. Before
+2026-11-15 the reader took only `UNFORGOTTEN_CLAIM_NOTE`, and such a reply's false claim of a
+delete kept the forget tool on the next plain fact.
 
 **Replay.** The three test files keep every earlier result (794 tests). The stored chats of
 `cortexn22` (111 chats, 4 messages with an earlier exchange) and proxy lines 1 to 454 (3 distinct

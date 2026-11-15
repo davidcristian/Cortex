@@ -25,12 +25,13 @@ from cortex_core import (
     TextDelta,
     ToolCall,
     ToolDispatcher,
+    ToolRun,
     ToolSpec,
     TurnCapabilities,
     TurnEngine,
 )
 from cortex_core.dispatch import UNASKED_MSG
-from cortex_core.forget_claim import UNFORGOTTEN_CLAIM_NOTE
+from cortex_core.forget_claim import HANDED_CLAIM_NOTE, UNFORGOTTEN_CLAIM_NOTE
 from cortex_core.forget_unrequested import FORGET_UNREQUESTED_MSG
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 
@@ -248,6 +249,15 @@ def _said(role: Role, text: str, turn_id: str) -> Message:
 
 
 async def _handoff(exchanges: Sequence[tuple[str, str]], query: str) -> list[str]:
+    earlier = [
+        _said(role, text, f"t{turn}")
+        for turn, exchange in enumerate(exchanges)
+        for role, text in zip((Role.USER, Role.ASSISTANT), exchange, strict=True)
+    ]
+    return await _handed(earlier, query)
+
+
+async def _handed(earlier: Sequence[Message], query: str) -> list[str]:
     calls: list[str] = []
 
     async def forget(arguments: Mapping[str, object]) -> str:
@@ -258,11 +268,6 @@ async def _handoff(exchanges: Sequence[tuple[str, str]], query: str) -> list[str
     spec = ToolSpec(name=FORGET_CHOSEN_TOOL_NAME, description="", parameters={})
     registry = InMemoryToolRegistry({FORGET_CHOSEN_TOOL_NAME: (spec, forget)})
     tools = ToolDispatcher(registry, RecordingAuditSink(), TickingClock())
-    earlier = [
-        _said(role, text, f"t{turn}")
-        for turn, exchange in enumerate(exchanges)
-        for role, text in zip((Role.USER, Role.ASSISTANT), exchange, strict=True)
-    ]
     escalate = ToolCall(id="e1", name="escalate", arguments={})
     working = [
         *earlier,
@@ -307,3 +312,34 @@ async def test_a_handoff_reads_the_last_reply_before_its_own_turn(
 ) -> None:
     exchanges = [("What do you have about my alarm?", f"Your alarm code is 4826. {reply}")]
     assert await _handoff(exchanges, query) == ran
+
+
+_CLAIM = "I have removed your alarm code from my memory."
+
+
+@pytest.mark.parametrize(
+    ("replies", "ran"),
+    [
+        ((_CLAIM,), [FORGET_CHOSEN_TOOL_NAME]),
+        # A handoff the deep model never answered: the cortex's reply is the turn's last.
+        ((_CLAIM + HANDED_CLAIM_NOTE,), []),
+        # A handoff turn stores the cortex's reply, then the deep model's, and the last is read.
+        ((_CLAIM + HANDED_CLAIM_NOTE, "Here is the plan for your week."), []),
+        ((_CLAIM + HANDED_CLAIM_NOTE, _CLAIM), [FORGET_CHOSEN_TOOL_NAME]),
+    ],
+)
+async def test_a_statement_after_a_handed_turn_reads_its_last_reply_and_the_claim_note(
+    *, replies: tuple[str, ...], ran: list[str]
+) -> None:
+    said = [_said(Role.ASSISTANT, reply, "t0") for reply in replies]
+    earlier = [_said(Role.USER, "Plan my week in depth.", "t0"), *said]
+    assert await _handed(earlier, "My alarm code is 5528.") == ran
+
+
+async def test_a_statement_after_a_handed_turn_that_ran_a_forget_runs_the_forget() -> None:
+    cortex = replace(
+        _said(Role.ASSISTANT, _CLAIM + HANDED_CLAIM_NOTE, "t0"),
+        runs=(ToolRun(name=FORGET_CHOSEN_TOOL_NAME, ok=True),),
+    )
+    earlier = [_said(Role.USER, "Plan my week in depth.", "t0"), cortex]
+    assert await _handed(earlier, "My alarm code is 5528.") == [FORGET_CHOSEN_TOOL_NAME]

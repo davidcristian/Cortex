@@ -151,7 +151,12 @@ def _at_end(notes: tuple[str, ...]) -> re.Pattern[str]:
 
 
 _NOTE_AT_END = _at_end(REPLY_NOTES)
-_CLAIM_AT_END = _at_end(_forms(UNFORGOTTEN_CLAIM_NOTE, UNFORGOTTEN_CLAIM_NOTES))
+_CLAIM_AT_END = _at_end(
+    (
+        *_forms(UNFORGOTTEN_CLAIM_NOTE, UNFORGOTTEN_CLAIM_NOTES),
+        *_forms(HANDED_CLAIM_NOTE, HANDED_CLAIM_NOTES),
+    )
+)
 
 
 def model_text(reply: str) -> str:
