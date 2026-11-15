@@ -31,6 +31,5 @@ card's safe direction. The start build `cec7c748f` and HEAD `c0e02329e` do the s
   `Forget 4242, except the card.` lists only the locker row. The replay changed 20 of 3,252
   cases, 60 rows newly deleted and none newly kept
   ([readings](../../readings/forget-keep-except.md)). Left open:
-  [task 1203](1203-a-but-after-a-word-for-all-and-a-value-opens-no-keep-clause.md),
   [task 1204](1204-a-word-for-all-in-a-clause-holding-a-keep-verb-keeps-a-last-group-of-another-kind.md)
   and [task 1206](1206-a-german-article-in-a-keep-clause-keeps-every-row-holding-it.md).

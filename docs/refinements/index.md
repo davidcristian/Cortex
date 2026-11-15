@@ -81,10 +81,10 @@ never a reading of what the tree does now.
 - **[R-1198](tasks/1198-a-request-to-store-a-new-value-of-a-fact-names-no-old-value.md)** A request to store a new value of a fact names no old value (memory). Its claim was checked against the code on 2026-11-14.
 - **[R-1199](tasks/1199-a-request-to-remember-that-a-value-is-outdated-refuses-the-forget-tool-outside-english.md)** A request to remember that a value is outdated refuses the forget tool outside English (memory). Its claim was checked against the code on 2026-11-14.
 - **[R-1200](tasks/1200-a-reply-closed-by-the-handoff-claim-note-still-opens-a-forget.md)** A reply closed by the handoff claim note still opens a forget (memory). Its claim was checked against the code on 2026-11-14.
-- **[R-1203](tasks/1203-a-but-after-a-word-for-all-and-a-value-opens-no-keep-clause.md)** A but after a word for all and a value opens no keep clause (memory). Its claim was checked against the code on 2026-11-15.
 - **[R-1204](tasks/1204-a-word-for-all-in-a-clause-holding-a-keep-verb-keeps-a-last-group-of-another-kind.md)** A word for all in a clause holding a keep verb keeps a last group of another kind (memory). Its claim was checked against the code on 2026-11-15.
 - **[R-1205](tasks/1205-a-first-item-before-a-comma-in-a-list-adding-rows-is-a-remark.md)** A first item before a comma in a list adding rows is a remark (memory). Its claim was checked against the code on 2026-11-15.
 - **[R-1206](tasks/1206-a-german-article-in-a-keep-clause-keeps-every-row-holding-it.md)** A German article in a keep clause keeps every row holding it (memory). Its claim was checked against the code on 2026-11-15.
+- **[R-1207](tasks/1207-a-but-only-clause-keeps-the-row-the-forget-is-limited-to.md)** A but only clause keeps the row the forget is limited to (memory). Its claim was checked against the code on 2026-11-15.
 
 ### Actionable, once a port changes (1)
 
@@ -651,10 +651,10 @@ never a reading of what the tree does now.
 - [R-1199](tasks/1199-a-request-to-remember-that-a-value-is-outdated-refuses-the-forget-tool-outside-english.md) A request to remember that a value is outdated refuses the forget tool outside English. open, actionable.
 - [R-1200](tasks/1200-a-reply-closed-by-the-handoff-claim-note-still-opens-a-forget.md) A reply closed by the handoff claim note still opens a forget. open, actionable.
 - [R-1201](tasks/1201-a-clause-adding-two-rows-to-a-forget-is-a-remark.md) A clause adding two rows to a forget is a remark. done 2026-11-15.
-- [R-1203](tasks/1203-a-but-after-a-word-for-all-and-a-value-opens-no-keep-clause.md) A but after a word for all and a value opens no keep clause. open, actionable.
 - [R-1204](tasks/1204-a-word-for-all-in-a-clause-holding-a-keep-verb-keeps-a-last-group-of-another-kind.md) A word for all in a clause holding a keep verb keeps a last group of another kind. open, actionable.
 - [R-1205](tasks/1205-a-first-item-before-a-comma-in-a-list-adding-rows-is-a-remark.md) A first item before a comma in a list adding rows is a remark. open, actionable.
 - [R-1206](tasks/1206-a-german-article-in-a-keep-clause-keeps-every-row-holding-it.md) A German article in a keep clause keeps every row holding it. open, actionable.
+- [R-1207](tasks/1207-a-but-only-clause-keeps-the-row-the-forget-is-limited-to.md) A but only clause keeps the row the forget is limited to. open, actionable.
 
 ### orchestrator
 

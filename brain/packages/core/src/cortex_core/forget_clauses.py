@@ -95,6 +95,25 @@ def parts(query: str) -> tuple[list[str], list[str]]:
     return forget, keep
 
 
+def after_but(query: str) -> list[str]:
+    """The words of ``query`` after a word for but that follows a forget verb, to the end of its
+    clause, which may ask to keep the rows they name: none of a clause that then holds a forget
+    verb or a keep clause, or adds a row, as in ``but the card too``."""
+    found: list[str] = []
+    forgot = False
+    for clause in clauses(query):
+        verbs = [at for at, token in enumerate(clause) if FORGET.fullmatch(token)]
+        first = -1 if forgot else min(verbs, default=len(clause))
+        buts = (at for at, token in enumerate(clause) if at > first and token in _CONTRAST)
+        cut = next(buts, len(clause))
+        forgot = forgot or bool(verbs)
+        rest = clause[cut + 1 :]
+        adds = rest[-2:] == ["as", "well"] or not _ADD.isdisjoint(rest)
+        told = adds or any(_keeping(clause)[cut:]) or any(at > cut for at in verbs)
+        found.extend([] if told else rest)
+    return found
+
+
 # A relative word after the value opens a remark about it, as in "4242 that I texted".
 _RELATIVE = frozenset({"that", "which", "where", "que", "qu", "qui", "dont", "où", "donde", "care"})
 

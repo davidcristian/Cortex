@@ -119,3 +119,45 @@ card with that change and with this one added. 20 cases from 10 strings changed,
 with a word for all beside a keep clause of kind words. 60 rows are newly deleted and none newly
 kept: each is a card or phone row, in one of the five languages, of the kind the keep clause does
 not name. The listing is `cmp2.txt` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/bd106a1a-a17f-4ca5-8841-82294e4917a8/scratchpad/slot2/`.
+
+## A word for but after the forget verb, 2026-11-15
+
+Over `Remember that my locker code is 4242.`, `Remember that my card is 4111 1111 1111 4242.` and
+`Remember that my phone is 0721 555 4242.`, with the call text `4242`. Before, `Forget all 4242 but
+the card.` deleted all three rows and `Forget 4242 but the card.` deleted only the card, the row
+each message asks to keep. `but` opened a keep clause only right after a word for all (`all but`),
+since `but quickly` or `but do it now` asks to keep nothing, so the words after it were read as
+naming a row to delete.
+
+The reader cannot tell from the words alone whether such a clause asks to keep, so the rows it
+names are kept. `after_but` (`forget_clauses.py`) returns the words after `but`, `yet`, `aber`,
+`mais`, `pero` or `dar` that follows a forget verb, to the end of the clause, and `kept_rows`
+(`forget_inside.py`) keeps each matched row one of them names, by a shared word or a kind of the
+table, as it does for a word after a word for minus. It returns no word of a clause that then
+holds a forget verb (`but delete the card`), a keep clause (`but keep Anna's phone`, which the
+keep clause reader reads) or an adding word (`but the card too`, `but also the card`, `but the
+card as well`). Nothing else of the reading changes, so the change deletes no row.
+
+So `Forget all 4242 but the card.` deletes the locker and phone rows and keeps the card, also with
+`every`, with a comma before `but`, with `yet the card stays`, and with `aber die Karte`, `mais la
+carte` and `pero la tarjeta`. `Forget the card 4242, but do it quietly.` still deletes the card,
+and `Forget all 4242 but quickly.` all three rows. The tests are `test_forget_after_but.py`.
+
+Kept, and shown as kept, where the message asks to delete: `Forget 4242 but only the card.` and
+`Forget the card 4242 but only the card.` keep the card, since no word for only is read
+([task 1207](../refinements/tasks/1207-a-but-only-clause-keeps-the-row-the-forget-is-limited-to.md)).
+`Forget 4242 but the card.` keeps all three rows, since the locker row is named by no word.
+
+Replay: every string literal of the brain's forget tests, the probes of
+[forget-remark-about-the-value.md](forget-remark-about-the-value.md) and the pools and cases of
+[forget-added-list.md](forget-added-list.md), through the card without and with the change. Over
+the 3,252 cases of the strings that existed before it, 6 cases from 3 strings changed: no row
+newly deleted, 14 newly kept. One string is a message, `Forget everything, but my card first.`,
+which now keeps the card rows and can be read as asking to; the other two are a reply text and a
+result text that hold `but` after `removed` or `forgot`. With the strings of the new tests, 44 of
+3,338 cases from 22 strings changed: no row newly deleted, 140 newly kept, each a row the words
+after the word for but name. Of 38 further probes, 18 changed, each keeping such a row, among them
+`Olvida 4242, voy a dar la tarjeta a mi hermano.`, where `dar` is a Spanish verb and the card row
+is kept. Dutch `maar`, Italian `ma` and Polish `ale` are not read, as before. The listings are
+`cmp.txt` and `cases5.after3.txt` in
+`/tmp/claude-1000/-home-david-Files-Git-Cortex/bd106a1a-a17f-4ca5-8841-82294e4917a8/scratchpad/slot3/`.

@@ -17,7 +17,7 @@ same keep for a row holding the value only inside a longer value is in
 - **A word for minus.** Over `Remember that my card is 4111 1111 1111 4242.` and the gym code,
   `Uită codul 4242 mai puțin cel de pe card.` (forget the code 4242 less the one on the card)
   with the call text `4242` deleted the card and kept the gym code, since no word for minus opens
-  a keep clause and `card` names the card row. `_after_minus` keeps every matched row a word after
+  a keep clause and `card` names the card row. `_may_keep` keeps every matched row a word after
   a word for minus in its clause names. Its minus words are `MINUS` of `forget_kinds.py`, the set
   `read_kinds` already reads, so no word list grew. The card stays, the gym code stays as before,
   and the kept note names both. `Forget my card 4242 minus the gym one.` lists the card alone.

@@ -3,7 +3,7 @@
 import re
 from collections.abc import Iterable, Sequence
 
-from cortex_core.forget_clauses import asking, clauses
+from cortex_core.forget_clauses import after_but, asking, clauses
 from cortex_core.forget_kinds import MINUS, names, read_kinds
 from cortex_core.forget_languages import FUNCTION, readings
 from cortex_core.forget_unnamed import just_said, quantifies, row_words, unnamed
@@ -199,14 +199,14 @@ def kept_rows(
     ids = {row.id for row in kept}
     whole = [row for row in rows if unclear and row.id not in ids and _whole(row.text, text)]
     every = [*kept, *whole, *_unnamed_groups(rows, within, text, stamp.query)]
-    every.extend(_after_minus(rows, stamp.query))
+    every.extend(_may_keep(rows, stamp.query))
     return list({row.id: row for row in every}.values())
 
 
-def _after_minus(rows: Sequence[MemoryRecord], query: str) -> list[MemoryRecord]:
-    """The ``rows`` a word after a word for minus in a clause of ``query`` names, as the card of
-    ``Uită codul 4242 mai puțin cel de pe card``, which may ask to keep them."""
-    after: list[str] = []
+def _may_keep(rows: Sequence[MemoryRecord], query: str) -> list[MemoryRecord]:
+    """The ``rows`` ``query`` may ask to keep: each a word names after a word for minus in a
+    clause, as the card of ``Uită codul 4242 mai puțin cel de pe card``, or ``after_but``."""
+    after = after_but(query)
     for clause in clauses(query):
         at = next((at for at, token in enumerate(clause) if token in MINUS), len(clause))
         after.extend(clause[at + 1 :])
