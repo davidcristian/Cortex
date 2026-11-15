@@ -1,9 +1,8 @@
 # A forget of every value except one kind keeps a row of another kind
 
-**Status:** open, actionable
+**Status:** done 2026-11-15
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-13
 
 With the rows `Remember that my locker code is 4242.`, `Retiens que ma carte est 4111 1111 1111
 4242.` and `Remember that my phone is 0721 555 4242.`, the call text `4242` and the message
@@ -25,3 +24,13 @@ card's safe direction. The start build `cec7c748f` and HEAD `c0e02329e` do the s
 ## History
 
 - 2026-11-13: filed by the first audit of the night.
+- 2026-11-15: done with a narrower shape than step 2. Listing every row the keep clause does
+  not name deleted a `Handy` row for `Forget every 4242 except the phone.` in the replay, so a
+  last group is listed only when each word of the keep clause is a kind word of the table and the
+  row names another kind of it. The message lists the locker and phone rows and keeps the card;
+  `Forget 4242, except the card.` lists only the locker row. The replay changed 20 of 3,252
+  cases, 60 rows newly deleted and none newly kept
+  ([readings](../../readings/forget-keep-except.md)). Left open:
+  [task 1203](1203-a-but-after-a-word-for-all-and-a-value-opens-no-keep-clause.md),
+  [task 1204](1204-a-word-for-all-in-a-clause-holding-a-keep-verb-keeps-a-last-group-of-another-kind.md)
+  and [task 1206](1206-a-german-article-in-a-keep-clause-keeps-every-row-holding-it.md).

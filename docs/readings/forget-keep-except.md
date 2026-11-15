@@ -85,3 +85,37 @@ that row, and 7 of the 8 replies said the card was the only memory stored while 
 stored, with no note ([forget-keep-no-call.md](forget-keep-no-call.md)). The eighth said other memories were cleared and ended with the
 note that nothing was forgotten. Script `live.sh` and log `live.log` in the slot directory above;
 the stack is described in `stack.md` one directory up.
+
+## A word for all beside a keep clause of kind words, 2026-11-15
+
+Over `Remember that my locker code is 4242.`, `Retiens que ma carte est 4111 1111 1111 4242.` and
+`Remember that my phone is 0721 555 4242.`, with the call text `4242`. Before, `Forget every 4242
+except the card.` listed only the locker row: beside a keep clause a value alone listed a row only
+by its whole value, and the phone row holds `4242` as the last group of a longer value.
+
+A wider shape, every row the keep clause does not name, was replayed first and not kept. For
+`Forget every 4242 except the phone.` it deleted `Merke dir, mein Handy ist 0721 555 4242.`, a row
+the message asks to keep, since no word of the kind table reads `Handy` as a phone. It also deleted
+a row holding `4242` as an amount or only in its reply.
+
+`unnamed` now lists a row holding the value as the last group of a longer whole value when all of
+these hold (`_other_kinds` and `_lists` in `forget_unnamed.py`): a word for all is beside the value
+(`quantifies`), no word for all is inside a keep clause, no code word is outside one, each content
+word of the keep clause is a word of the kind table (`forget_kinds.py`), and the row names a kind
+of that table. A row the keep clause names is kept as before. So the message above deletes the
+locker and phone rows and keeps the card, in English, French, German and Spanish, and `Forget 4242,
+except the card.` still lists only the locker row.
+
+Kept as before: a badge `9000 4242` and the `Handy` row, which name no kind of the table; every row
+for `except the passport`, which names no row; the phone for `except every card`, `except all the
+cards`, `every code 4242 except the card` and `everything about 4242 except the card`; and every
+row for `Șterge toate 4242 exceptând cardul.`, since `EVERY` has no Romanian word. `Forget every
+4242 but keep the card.` also keeps the phone, since `quantifies` reads no clause holding a keep
+verb ([task 1204](../refinements/tasks/1204-a-word-for-all-in-a-clause-holding-a-keep-verb-keeps-a-last-group-of-another-kind.md)).
+The tests are `test_forget_every_except.py`.
+
+Replay: the strings, pools and cases of [forget-added-list.md](forget-added-list.md), through the
+card with that change and with this one added. 20 cases from 10 strings changed, each a message
+with a word for all beside a keep clause of kind words. 60 rows are newly deleted and none newly
+kept: each is a card or phone row, in one of the five languages, of the kind the keep clause does
+not name. The listing is `cmp2.txt` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/bd106a1a-a17f-4ca5-8841-82294e4917a8/scratchpad/slot2/`.

@@ -4,13 +4,14 @@ import re
 from collections.abc import Iterable, Mapping
 
 from cortex_core.forget_clauses import EVERY, EXCEPT, FORGET, KEEP, clauses, parts
-from cortex_core.forget_kinds import names, read_kinds
+from cortex_core.forget_kinds import kinds, names, read_kinds
 from cortex_core.forget_languages import FUNCTION, readings
 from cortex_core.memory import MemoryRecord
 from cortex_core.memory_values import code_stem, code_word, digit_runs, kind_word, whole_values
 from cortex_core.note_language import ENGLISH, in_language, message_language
 
 _WORD = re.compile(r"[^\W\d_]{3,}")
+_GROUP = re.compile(r"[^\W_]+")
 _REPLY = "\nAssistant: "
 _PREFIX = re.compile(r"\AUser: |\nAssistant: ")
 _COMMON = frozenset(
@@ -112,10 +113,20 @@ def _named(rows: list[MemoryRecord], words: set[str], deleted: Iterable[MemoryRe
     return any(names(words, row_words(record.text)) for record in (*rows, *deleted))
 
 
-def _lists(text: str, listed: set[str], values: set[str], *, kind: frozenset[str]) -> bool:
-    """Whether a forget part naming ``listed``, or only the whole ``values``, names the row."""
-    held = whole_values(text.split(_REPLY, 1)[0])
-    return names(listed, _row_names(text), kind=kind) or not values.isdisjoint(held)
+def _last_groups(request: str) -> set[str]:
+    """The last group of each whole value of ``request``, as ``4242`` of ``0721 555 4242``."""
+    return {_GROUP.findall(form.lower())[-1] for form in whole_values(request).values()}
+
+
+def _lists(
+    text: str, listed: set[str], values: set[str], *, kind: frozenset[str], every: bool = False
+) -> bool:
+    """Whether a forget part naming ``listed``, or only the whole ``values``, names the row; with
+    ``every``, a row of a kind of the table holding one as the last group of a longer value too."""
+    request = text.split(_REPLY, 1)[0]
+    ends = every and bool(kinds(_row_names(text))) and not values.isdisjoint(_last_groups(request))
+    held = ends or not values.isdisjoint(whole_values(request))
+    return names(listed, _row_names(text), kind=kind) or held
 
 
 def _whole(rows: list[MemoryRecord], query: str, keep: set[str], language: str) -> set[str]:
@@ -175,6 +186,15 @@ def quantifies(query: str) -> bool:
     return False
 
 
+def _other_kinds(query: str, keep: set[str], language: str) -> bool:
+    """Whether ``query`` asks for every row but the kinds it keeps: ``quantifies``, each word
+    ``keep`` of its keep clauses a kind word, none a word for all, and no code word outside them."""
+    forget, kept = parts(query)
+    named = all(kinds({word}) for word in keep - FUNCTION.get(language, frozenset()))
+    plain = EVERY.isdisjoint(kept) and not any(map(code_word, forget))
+    return quantifies(query) and named and plain
+
+
 def just_said(
     rows: list[MemoryRecord], session_id: str | None, deleted: Iterable[MemoryRecord] = ()
 ) -> str | None:
@@ -213,17 +233,18 @@ def _unnamed(
     session_id: str | None,
     language: str,
 ) -> list[MemoryRecord]:
-    """The ``rows`` to keep: with a keep clause, each no word or value outside it names or it names;
-    else each whose request holds a value of ``text`` and no word of ``query``, unless it asks
-    for every row, or names nothing and is the row ``just_said`` reads beside ``deleted``."""
+    """The ``rows`` to keep: with a keep clause, each it names or ``_lists`` does not list; else
+    each whose request holds a value of ``text`` and no word of ``query``, unless it asks for
+    every row, or names nothing and is the row ``just_said`` reads beside ``deleted``."""
     words, keep, listed, compound = _split(query, language)
     if listed is not None:
         # A clause asks to keep: list only a row a whole word or value names; a misread keeps it.
         values = set[str]() if listed else _whole(rows, query, keep, language)
+        every = _other_kinds(query, keep, language)
         return [
             record
             for record in rows
-            if not _lists(record.text, listed, values, kind=read_kinds(query))
+            if not _lists(record.text, listed, values, kind=read_kinds(query), every=every)
             or names(keep, _row_names(record.text))
         ]
     asked, values = _keys(query), _keys(text) - _keys(query) or _keys(text)
