@@ -154,3 +154,45 @@ and `phone` pass on the committed build.
 Scripts `draws.sh`, `ident.sh`, `ident2.sh`, `analyze.py`, `identcmp.py` and `ident2cmp.py` in the
 slot directory above; logs `B-*.log`, `B-*.jsonl` and `ident*.log` in
 `/home/david/.cache/cortex-run/2026-11-15/slot9/`.
+
+## The committed build redrawn, 2026-11-15
+
+Rows e1 and v1 again under the same rule, on the stack brain rebuilt from the commit holding the
+card reading, the note and `with_forget_reach`, with two rows added before the draws: a1, the three
+v1 facts then `Forget all 4242 apart from the card.`, and g1, the two e1 facts then `Forget my gym
+code.`. Same engine build, proxy, recall and approval as above (proxy log lines 625 to 770). The
+SM clock read 0.58 of its maximum before and after. No body listened, so a row counts as deleted
+when an approved card listed it.
+
+| Row | Draws | Forget calls | Card lists a row to delete | Rows to delete left stored | Card lists a row to keep | Replies with an untrue sentence |
+| --- | --- | --- | --- | --- | --- | --- |
+| e1 | 3 | 4: `gym code` twice, `4242` once, then one that matched no row left | 3 of 3 | 0 | 0 | 0 |
+| v1 | 3 | 6, `locker code` then `0721 555 4242` or `phone` | 3 of 3, both rows | 0 | 0 | 0 |
+| a1 | 2 | 4, `locker code` then `phone` | 2 of 2, both rows | 0 | 0 | 0 |
+| g1 | 2 | 2, text `4242` | 2 of 2 | 0 | 0 | 0 |
+
+The committed build matches the drawn one on e1 and v1. In a1 each card listed the one row its
+call named and both rows were deleted, as in the earlier a1 draws: the role of `apart from the
+card` is not read, and the card keeps every row under it only for a call text holding the value.
+With the text `card` the same message deletes the card in a unit call, which is filed. In g1 the
+card listed the gym code and showed the card row as kept under `INSIDE_LINE`. Logs `A-*.jsonl`
+and `B-*.jsonl` in `/home/david/.cache/cortex-run/2026-11-15/slot10/`.
+
+## The reach beside the defences already there, 2026-11-15
+
+Unit runs of `assemble_inference_messages` over an in-memory store (`reach_audit.py`, same
+directory as the replay above).
+
+| Defence | What was run | Result |
+| --- | --- | --- |
+| Framing and taint | a tainted row holding `4242` and an instruction, reached and not ranked | inside the untrusted fence with the turn's nonce; the ledger is tainted and holds the row's id, as for a ranked row |
+| Limits | 300 rows of 900 characters holding `4242`, `Forget 4242.` | 10 rows, the 5 ranked and the 5 oldest holding the value, each cut to 600 characters inside the one recall budget; a turn asking a question holds 5 |
+| Scope | a session scope, a row of another chat holding the value | not reached by value or by nearness |
+| Trigger | `Don't forget my card 4242.`, `I forgot my code 4242.`, `How do I make you forget 4242?`, and requests in Italian, Portuguese, Dutch and Polish | no row reached |
+| Trigger | `Can you forget things like 4242?` | read as a request; 2 rows reached, framed as above |
+| Logs | the added lines of the change | none writes a log line |
+| State | `forget_reach.py` | one function over the store's reads; it keeps nothing between turns |
+
+A reached row goes through `_render_memory_context` with the ranked ones, so the fence and the
+ledger treat both alike. What the table leaves open is filed: the smaller share each row gets, no
+line saying more rows hold the value, and the recall audit record, which holds only ranked rows.
