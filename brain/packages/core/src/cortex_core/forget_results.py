@@ -2,9 +2,11 @@
 
 from cortex_core.errors import MemoryStoreError
 from cortex_core.forget_inside import forgot_within
+from cortex_core.memory import MemoryRecord
 from cortex_core.memory_values import whole_values
 
 FORGET_CHOSEN_LIMIT = 20
+_EXCERPT_CHARS = 60
 
 NONE_FOUND = (
     "nothing was forgotten: no remembered exchange contains that exact text, so tell the user "
@@ -103,3 +105,11 @@ def forgot(removed: int, holding: int, kept: int, inner: int = 0, text: str | No
         "remembered exchanges still hold a number a deleted one held, so that number is still "
         "remembered; a forget of the number itself would remove them"
     )
+
+
+def excerpt(record: MemoryRecord, text: str) -> str:
+    """One line of ``record`` around the first place it contains ``text``."""
+    flat = " ".join(record.text.split())
+    start = max(flat.lower().find(" ".join(text.lower().split())) - _EXCERPT_CHARS, 0)
+    end = start + 2 * _EXCERPT_CHARS + len(text)
+    return ("..." if start else "") + flat[start:end] + ("..." if end < len(flat) else "")

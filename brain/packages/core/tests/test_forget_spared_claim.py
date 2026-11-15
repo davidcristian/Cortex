@@ -105,9 +105,8 @@ async def _first_then(query: str) -> tuple[str | None, tuple[str, ...] | None]:
     return card, (await tool.invoke(later)).spared
 
 
-async def test_a_forget_reports_every_row_it_kept_until_a_later_call_deletes_it() -> None:
-    card, spared = await _first_then("Forget my bike lock code 7319.")
-    assert (card is not None, spared) == (True, ())
+async def test_a_later_call_by_words_keeps_the_row_the_value_of_the_message_did_not_list() -> None:
+    assert await _first_then("Forget my bike lock code 7319.") == (None, _SPARED)
 
 
 async def test_a_later_call_by_words_keeps_the_row_a_keep_clause_names() -> None:

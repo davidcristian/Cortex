@@ -70,7 +70,8 @@ row the same call matched. `forget_named` now reads the store as `keep_named` do
 holding no digit, a word of the part asking to forget that names the request of any stored row,
 or of a row the turn deleted, keeps each match no word of the message names. A word for all that
 ends a clause or is before a word for and asks for every row, so it keeps none this way. The last
-three rows of the table are not fixed and are filed.
+three rows of the table are not fixed by this read: the second is kept by the rows the message
+permits, in the last section, and the first and third are filed.
 
 Replay, the build before the change against the tree:
 
@@ -174,7 +175,7 @@ when an approved card listed it.
 The committed build matches the drawn one on e1 and v1. In a1 each card listed the one row its
 call named and both rows were deleted, as in the earlier a1 draws: the role of `apart from the
 card` is not read, and the card keeps every row under it only for a call text holding the value.
-With the text `card` the same message deletes the card in a unit call, which is filed. In g1 the
+With the text `card` the same message keeps the card in a unit call. In g1 the
 card listed the gym code and showed the card row as kept under `INSIDE_LINE`. Logs `A-*.jsonl`
 and `B-*.jsonl` in `/home/david/.cache/cortex-run/2026-11-15/slot10/`.
 
@@ -196,3 +197,30 @@ directory as the replay above).
 A reached row goes through `_render_memory_context` with the ranked ones, so the fence and the
 ledger treat both alike. What the table leaves open is filed: the smaller share each row gets, no
 line saying more rows hold the value, and the recall audit record, which holds only ranked rows.
+
+## The message permits and the call selects, 2026-11-15
+
+The card now builds, for a call text holding no digit, the card for each whole value of the
+message and lists a match only when that card lists it, or when a word of the forget part names
+it, it holds no value of the message as a whole group and no role keeps it. Replayed before and
+after: 24,555 messages (the recorded word cases, and every fourth case of the two generated
+mixes of head, tail and row in five languages), each with the value, each row's own word,
+`code` and two mixed texts as the call text, 171,769 calls.
+
+| Count | Before to after |
+| --- | --- |
+| Rows newly listed | 0 |
+| Calls holding a digit, or beside a message without its value, that changed | 0 |
+| Word calls beside a message holding its value that list a row the value call does not | 0 of 44,740 after |
+| Rows newly kept that the generator marks asked to keep | 1,612 |
+| Rows newly kept that it marks either way | 500 |
+| Rows newly kept that it marks not asked | 3,073 |
+| Rows newly kept that it marks asked to delete | 2,953 |
+| Rows newly kept with no mark | 14 |
+
+Each of the 2,953 is a row the call by value keeps too. The largest groups are a plain head with
+one or two added rows (`Forget 4242, the card too.` keeps the phone and the locker code: 284
+rows), a word for all with a limit then an added row (`Forget all 4242, only the card, also the
+phone.`: 105) and an added row beside `stays` (382 over four forms). The reading of an added row
+by the value call is filed. `Forget that.`, `Yes, forget it.`, `Forget what I just told you.` and
+`Forget everything but my card.` list the same rows as before with every call text.

@@ -63,6 +63,7 @@ async def _forget(query: str, text: str, *ids: str) -> tuple[str, list[str]]:
         ("Forget my gym code.", "my card", _TWO),
         ("Forget all codes but my card.", "phone", _THREE),
         ("Forget my locker code.", "phone", _THREE),
+        ("Forget 4242, the card too.", "phone", _THREE),
         ("Forget my locker code but keep my card.", "phone", _THREE),
         ("Oublie le code du casier.", "carte", ("casier", "carte")),
     ],
@@ -89,7 +90,6 @@ async def test_a_call_naming_a_row_beside_a_message_naming_another_stored_row_ke
         ("Forget my gym code and my card.", "card", _TWO, ["gym"]),
         ("Forget everything but my card.", "phone", _THREE, ["card", "locker"]),
         ("Forget my locker code and 0721 555 4242.", "0721 555 4242", _THREE, ["card", "locker"]),
-        ("Forget 4242, the card too.", "phone", _THREE, ["card", "locker"]),
         (
             "Forget everything, the card too, the phone too.",
             "locker code",

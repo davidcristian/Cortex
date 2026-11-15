@@ -8,6 +8,8 @@ from cortex_core.errors import MemoryStoreError
 from cortex_core.forget_inside import INSIDE_ALL, INSIDE_LINE, inside, kept_rows
 from cortex_core.forget_keep_named import forget_named, keep_named
 from cortex_core.forget_longer import LONGER_ALL, beside, longer, longer_lines
+from cortex_core.forget_permit import call_text as _text
+from cortex_core.forget_permit import permitted
 from cortex_core.forget_results import (
     ALREADY_DELETED,
     FORGET_CHOSEN_LIMIT,
@@ -22,6 +24,9 @@ from cortex_core.forget_results import (
     unavailable,
     unlisted,
 )
+from cortex_core.forget_results import (
+    excerpt as _excerpt,
+)
 from cortex_core.forget_unnamed import KEPT_ALL, KEPT_LINE, KeptRows, asks_to_keep
 from cortex_core.memory import MemoryRecord
 from cortex_core.memory_values import code_runs, short_groups, undated_runs, whole_values
@@ -31,24 +36,9 @@ from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
 
 FORGET_CHOSEN_TOOL_NAME = "forget_memories"
 
-_EXCERPT_CHARS = 60
 _PENDING_CALLS = 32
 _TOKEN = re.compile(r"[^\W_]+")
 _WORD = re.compile(r"[^\W\d_]{4,}")
-
-
-def _text(call: ToolCall) -> str:
-    """The text the call names, stripped; empty when the argument is missing or not a string."""
-    value = call.arguments.get("text")
-    return value.strip() if isinstance(value, str) else ""
-
-
-def _excerpt(record: MemoryRecord, text: str) -> str:
-    """One line of ``record`` around the first place it contains ``text``."""
-    flat = " ".join(record.text.split())
-    start = max(flat.lower().find(" ".join(text.lower().split())) - _EXCERPT_CHARS, 0)
-    end = start + 2 * _EXCERPT_CHARS + len(text)
-    return ("..." if start else "") + flat[start:end] + ("..." if end < len(flat) else "")
 
 
 def _values(records: Sequence[MemoryRecord]) -> dict[str, str]:
@@ -171,6 +161,13 @@ class ForgetChosenTool:
                     holders.add(record.id)
         return len(holders)
 
+    async def _listing(self, call: ToolCall) -> tuple[str, ...] | str:
+        """The ids a card for ``call`` lists, or the result text of a call that lists none."""
+        probe = ForgetChosenTool(self._store, self._scope)
+        probe._deleted_rows, probe._deleted_turns = self._deleted_rows, self._deleted_turns
+        shown, _ = await probe._choose(call)
+        return shown.ids if isinstance(shown, _Chosen) else shown
+
     async def card(self, call: ToolCall) -> str | None:
         """List the stored memories the delete will remove; ``None`` when it removes none."""
         shown, card = await self._choose(call)
@@ -194,7 +191,9 @@ class ForgetChosenTool:
             inner -= {record.id for record, _, _ in extra}
             within = [record for record in matches if record.id in inner]
             named, read = await keep_named(self._store, self._scope, call, FORGET_CHOSEN_LIMIT + 1)
-            told = await forget_named(self._store, self._scope, call, FORGET_CHOSEN_LIMIT + 1, gone)
+            seen = [*gone, *matches, *(row for row, _, _ in extra)]
+            told = await forget_named(self._store, self._scope, call, FORGET_CHOSEN_LIMIT + 1, seen)
+            allowed = await permitted(call, told, self._listing)
         except MemoryStoreError as err:
             return unavailable(err), None
         if not small:
@@ -205,6 +204,7 @@ class ForgetChosenTool:
         left_out = len(found) + len(extra) > FORGET_CHOSEN_LIMIT
         rows = [*found, *(row for row, _, _ in extra)]
         kept = kept_rows(rows, within, _text(call), call.stamp, gone, read, told)
+        kept += [row for row in rows if not (allowed is None or row.id in allowed or row in kept)]
         held = {record.id for record in kept}
         far = [row for row in longer(rows, _text(call), call.stamp.query) if row.id not in held]
         spared = {row.id: _excerpt(row, _text(call)) for row in (*kept, *within, *far)}

@@ -69,7 +69,7 @@ def forgot_within(removed: int, inner: int) -> str:
     )
 
 
-def _bounded(text: str) -> re.Pattern[str] | None:
+def bounded(text: str) -> re.Pattern[str] | None:
     """A search for ``text`` that no letter or digit touches at an end whose word holds a digit."""
     head, tail = _HEAD.search(text), _TAIL.search(text)
     before = head is not None and any(char.isdigit() for char in head.group())
@@ -180,7 +180,7 @@ def inside(
     """The ids of ``records`` holding ``text`` only inside a longer value, or, given the message
     ``query``, only as groups of a longer value it does not name. ``held`` are the rows just
     deleted and ``session_id`` the calling chat."""
-    pattern, deleted = _bounded(text), tuple(held)
+    pattern, deleted = bounded(text), tuple(held)
     if pattern is None:
         return frozenset()
     read = _read([row.text for row in (*deleted, *records)], text, query, pattern)
@@ -207,7 +207,7 @@ def kept_rows(  # noqa: PLR0913 -- each reader of the kept rows reads its own pa
     inner = {row.id for row in within}
     every = unnamed([*rows, *within], text, stamp.query, deleted, stamp.session_id, read)
     kept = [row for row in every if row.id not in inner]
-    pattern, words = _bounded(text), content(stamp.query)
+    pattern, words = bounded(text), content(stamp.query)
     unclear = (
         bool(within and words)
         and pattern is not None
@@ -216,7 +216,7 @@ def kept_rows(  # noqa: PLR0913 -- each reader of the kept rows reads its own pa
     )
     whole = [row for row in rows if unclear and row not in kept and _whole(row.text, text)]
     every = [*kept, *whole, *_unnamed_groups(rows, within, text, stamp.query, len(told))]
-    every.extend(_may_keep(rows, within, stamp.query, text))
+    every.extend(may_keep(rows, within, stamp.query, text))
     return list({row.id: row for row in every}.values())
 
 
@@ -240,7 +240,7 @@ def _restated(query: str, text: str, named: frozenset[str], rows: list[set[str]]
     return found & named
 
 
-def _may_keep(
+def may_keep(
     rows: Sequence[MemoryRecord], within: Sequence[MemoryRecord], query: str, text: str
 ) -> list[MemoryRecord]:
     """The ``rows`` ``query`` may ask to keep: each a word names after a word for minus in a

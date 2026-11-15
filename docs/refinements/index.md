@@ -89,9 +89,9 @@ never a reading of what the tree does now.
 - **[R-1219](tasks/1219-the-result-texts-a-model-reads-give-an-untrue-reason-for-a-row-kept-under-an-unread-role.md)** The result texts a model reads give an untrue reason for a row kept under an unread role (memory). Its claim was checked against the code on 2026-11-15.
 - **[R-1220](tasks/1220-the-kept-note-does-not-say-how-to-ask-for-a-row-it-names.md)** The kept note does not say how to ask for a row it names (memory). Its claim was checked against the code on 2026-11-15.
 - **[R-1221](tasks/1221-the-forms-the-forget-card-reads-in-english-are-not-all-read-in-the-other-four-languages.md)** The forms the forget card reads in English are not all read in the other four languages (memory). Its claim was checked against the code on 2026-11-15.
-- **[R-1225](tasks/1225-a-forget-call-naming-a-row-beside-a-value-a-code-word-or-a-mixed-text-still-deletes-it.md)** A forget call naming a row beside a value, a code word or a mixed text still deletes it (memory). Its claim was checked against the code on 2026-11-15.
-- **[R-1226](tasks/1226-a-forget-call-naming-a-row-by-a-word-beside-an-unread-role-or-a-limit-deletes-it.md)** A forget call naming a row by a word beside an unread role or a limit deletes it (memory). Its claim was checked against the code on 2026-11-15.
+- **[R-1225](tasks/1225-a-forget-call-naming-a-row-beside-a-code-word-or-in-a-text-holding-a-digit-still-deletes-it.md)** A forget call naming a row beside a code word or in a text holding a digit still deletes it (memory). Its claim was checked against the code on 2026-11-15.
 - **[R-1227](tasks/1227-the-rows-a-forget-request-reaches-shrink-each-rows-share-and-are-not-in-the-recall-audit.md)** The rows a forget request reaches shrink each row's share and are not in the recall audit (memory). Its claim was checked against the code on 2026-11-15.
+- **[R-1228](tasks/1228-a-forget-of-a-value-with-an-added-row-keeps-the-other-rows-holding-the-value.md)** A forget of a value with an added row keeps the other rows holding the value (memory). Its claim was checked against the code on 2026-11-15.
 
 ### Actionable, once a port changes (1)
 
@@ -667,9 +667,9 @@ never a reading of what the tree does now.
 - [R-1219](tasks/1219-the-result-texts-a-model-reads-give-an-untrue-reason-for-a-row-kept-under-an-unread-role.md) The result texts a model reads give an untrue reason for a row kept under an unread role. open, actionable.
 - [R-1220](tasks/1220-the-kept-note-does-not-say-how-to-ask-for-a-row-it-names.md) The kept note does not say how to ask for a row it names. open, actionable.
 - [R-1221](tasks/1221-the-forms-the-forget-card-reads-in-english-are-not-all-read-in-the-other-four-languages.md) The forms the forget card reads in English are not all read in the other four languages. open, actionable.
-- [R-1225](tasks/1225-a-forget-call-naming-a-row-beside-a-value-a-code-word-or-a-mixed-text-still-deletes-it.md) A forget call naming a row beside a value, a code word or a mixed text still deletes it. open, actionable.
-- [R-1226](tasks/1226-a-forget-call-naming-a-row-by-a-word-beside-an-unread-role-or-a-limit-deletes-it.md) A forget call naming a row by a word beside an unread role or a limit deletes it. open, actionable.
+- [R-1225](tasks/1225-a-forget-call-naming-a-row-beside-a-code-word-or-in-a-text-holding-a-digit-still-deletes-it.md) A forget call naming a row beside a code word or in a text holding a digit still deletes it. open, actionable.
 - [R-1227](tasks/1227-the-rows-a-forget-request-reaches-shrink-each-rows-share-and-are-not-in-the-recall-audit.md) The rows a forget request reaches shrink each row's share and are not in the recall audit. open, actionable.
+- [R-1228](tasks/1228-a-forget-of-a-value-with-an-added-row-keeps-the-other-rows-holding-the-value.md) A forget of a value with an added row keeps the other rows holding the value. open, actionable.
 
 ### orchestrator
 
