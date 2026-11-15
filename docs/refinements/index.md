@@ -85,8 +85,8 @@ never a reading of what the tree does now.
 - **[R-1205](tasks/1205-a-first-item-before-a-comma-in-a-list-adding-rows-is-a-remark.md)** A first item before a comma in a list adding rows is a remark (memory). Its claim was checked against the code on 2026-11-15.
 - **[R-1206](tasks/1206-a-german-article-in-a-keep-clause-keeps-every-row-holding-it.md)** A German article in a keep clause keeps every row holding it (memory). Its claim was checked against the code on 2026-11-15.
 - **[R-1207](tasks/1207-a-but-only-clause-keeps-the-row-the-forget-is-limited-to.md)** A but only clause keeps the row the forget is limited to (memory). Its claim was checked against the code on 2026-11-15.
-- **[R-1208](tasks/1208-a-phrase-for-except-that-no-reader-holds-deletes-the-row-it-names.md)** A phrase for except that no reader holds deletes the row it names (memory). Its claim was checked against the code on 2026-11-15.
 - **[R-1209](tasks/1209-a-dutch-forget-of-every-value-except-one-row-deletes-that-row.md)** A Dutch forget of every value except one row deletes that row (memory). Its claim was checked against the code on 2026-11-15.
+- **[R-1210](tasks/1210-a-row-named-before-the-words-asking-to-keep-it-is-deleted.md)** A row named before the words asking to keep it is deleted (memory). Its claim was checked against the code on 2026-11-15.
 
 ### Actionable, once a port changes (1)
 
@@ -657,8 +657,8 @@ never a reading of what the tree does now.
 - [R-1205](tasks/1205-a-first-item-before-a-comma-in-a-list-adding-rows-is-a-remark.md) A first item before a comma in a list adding rows is a remark. open, actionable.
 - [R-1206](tasks/1206-a-german-article-in-a-keep-clause-keeps-every-row-holding-it.md) A German article in a keep clause keeps every row holding it. open, actionable.
 - [R-1207](tasks/1207-a-but-only-clause-keeps-the-row-the-forget-is-limited-to.md) A but only clause keeps the row the forget is limited to. open, actionable.
-- [R-1208](tasks/1208-a-phrase-for-except-that-no-reader-holds-deletes-the-row-it-names.md) A phrase for except that no reader holds deletes the row it names. open, actionable.
 - [R-1209](tasks/1209-a-dutch-forget-of-every-value-except-one-row-deletes-that-row.md) A Dutch forget of every value except one row deletes that row. open, actionable.
+- [R-1210](tasks/1210-a-row-named-before-the-words-asking-to-keep-it-is-deleted.md) A row named before the words asking to keep it is deleted. open, actionable.
 
 ### orchestrator
 

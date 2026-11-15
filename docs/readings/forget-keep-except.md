@@ -161,3 +161,52 @@ after the word for but name. Of 38 further probes, 18 changed, each keeping such
 is kept. Dutch `maar`, Italian `ma` and Polish `ale` are not read, as before. The listings are
 `cmp.txt` and `cases5.after3.txt` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/bd106a1a-a17f-4ca5-8841-82294e4917a8/scratchpad/slot3/`.
+
+## Words after the value that no reader reads, 2026-11-15
+
+Over the same three rows and call text. Before, `Forget all 4242 apart from the card.` deleted all
+three rows, and so did the same message with `other than`, `besides`, `save`, `aside from`, `with
+the exception of`, `without`, `, leave the card` and `, I still need the card`, and `Vergiss alle
+4242 bis auf die Karte.` and `Oublie tous les 4242 à part la carte.` over the German and French
+rows. `Forget 4242 apart from the card.` and `Forget 4242 not the card.` deleted only the card.
+No reader holds these phrases, so `card` named a row to delete.
+
+No phrase was added. A row the message names after the value is now listed only when a reader
+reads every word before its name. `after_value` (`forget_clauses.py`) takes each run of words
+after the first place the message holds the call's text, to a clause mark or a forget verb. Up to
+the last word naming a matched row, a word is read when it names a matched row by the row's
+request, or is a number, a code word, a word for and or or, a placing word (`on`, `of`, `for`,
+`from`, `in`, `at`, `de`, `du`, `sur`, `pour`, `dans`, `auf`, `von`, `vom`, `für`, `del`, `en`,
+`para`, `pe`), a word for the or my, or an identifying word (`it`, `that`, `which`, `this`, `is`,
+`was`, `I mean`, `only`, `just`). From the first word that is none of these, the words may ask to
+keep the rows they name, and `kept_rows` (`forget_inside.py`) keeps those rows under `KEPT_LINE`.
+A negation after the last row name does the same for the whole run, as in `the card not`. A run
+holding an adding word or a keep clause is left to the readers of those. Nothing else of the
+reading changes, so the change deletes no row.
+
+So each message above with a word for all deletes the locker and phone rows and keeps the card.
+`Forget 4242 apart from the card.` keeps all three rows, since no word names the locker or the
+phone. A message in a language the card does not read keeps a row it names by a word the card
+reads: `Verwijder alle 4242 behalve de card.` keeps the card. Still deleted: the card for `Forget
+4242 on the card.`, `Forget 4242, my card.`, `Forget 4242, only the card.`, `Forget 4242, that is
+my card.`, `Oublie le 4242 de ma carte.` and `Șterge 4242 de pe card.`, the phone for `Forget
+4242, and the phone.`, and all three rows for `Forget the card 4242, the phone and the locker
+too.`. The tests are `test_forget_after_value.py`.
+
+Replay: every string literal of the brain's forget tests, the backticked messages of the
+`forget-*.md` readings, the pools of the two sections above and 115 probes written for this
+change, each over the three English rows and over 18 rows in five languages, through the card
+without and with the change. Over the 4,750 cases of the strings that existed before the new
+tests, 80 cases from 43 messages changed: no row newly deleted, 230 newly kept. Of those rows,
+180 from 30 messages are rows the message asks to keep: the phrases above, `Forget 4242 not the
+card.`, and `ohne`, `abgesehen von`, `hors`, `à l'exception de`, `aparte de`, `a excepción de`,
+`în afară de` and `cu excepția`. 32 rows from 10 messages are named in a remark that can be read
+either way, such as `Forget 4242 that I texted from my phone.` and `Forget 4242, I cancelled the
+card.`. 18 rows from 3 messages are rows the message asks to delete, kept and shown as kept:
+`Forget 4242, it is my old card.`, `Forget 4242, it is the end of my phone number.` and `Forget
+all 4242 including the card.`, where no reader reads `old`, `end` or `including`. With the
+strings of the new tests, 91 of 4,814 cases changed: no row newly deleted, 267 newly kept. The
+listing is `cmp_full.txt` in `/home/david/.cache/cortex-run/2026-11-15/slot4/`.
+
+Not reached: a row named before the words asking to keep it, as in `Forget all 4242, card stays.`
+([task 1210](../refinements/tasks/1210-a-row-named-before-the-words-asking-to-keep-it-is-deleted.md)).

@@ -150,6 +150,42 @@ def _adds(clause: list[str], named: frozenset[str]) -> bool:
     return all(_item(item, named) for item in items)
 
 
+# A word placing a value in a row or naming whose row it is, as in "4242 on my card".
+_PLACE = frozenset(
+    {"on", "of", "for", "from", "in", "at", "de", "du", "sur", "pour", "dans", "auf", "von", "vom"}
+    | {"für", "del", "en", "para", "pe"}
+)
+_WHOSE = _OWNER | frozenset(
+    {"your", "our", "el", "los", "las", "mi", "mis", "tu", "tus", "su", "ton", "ta", "tes"}
+)
+# A word saying which row the value is, as in "4242, that is my card" or "4242, only the card".
+_WHICH = frozenset({"it", "that", "which", "this", "is", "was", "i", "mean", "only", "just"})
+
+
+def after_value(query: str, value: str, named: frozenset[str]) -> list[str]:
+    """The words of ``query`` after ``value`` that may ask to keep the rows they name: of each run
+    to a clause mark or forget verb, those from the first word no reader reads before a word of
+    ``named``, or all before a negation; none of a run adding a row or holding a keep clause."""
+    wanted = [token for token in _TOKEN.findall(value.lower()) if token not in _MARKS]
+    read = named | _PLACE | _WHOSE | _WHICH | _AND
+    found: list[str] = []
+    seen = False
+    for clause in clauses(query):
+        start = 0 if seen else _after(clause, wanted)
+        if start is None:
+            continue
+        seen = True
+        verb = (at for at in range(start, len(clause)) if FORGET.fullmatch(clause[at]))
+        run = clause[start : next(verb, len(clause))]
+        last = max((at for at, word in enumerate(run) if word in named), default=0)
+        adds = run[-2:] == ["as", "well"] or not _ADD.isdisjoint(run)
+        told = adds or any(_keeping(clause)[start:])
+        unread = (at for at in range(last) if run[at] not in read and not run[at].isdigit())
+        negated = not NOT.isdisjoint(run[last + 1 :])
+        found.extend([] if told else run[next(unread, 0 if negated else len(run)) :])
+    return found
+
+
 def _asks(clause: list[str]) -> bool:
     """Whether ``clause`` holds a forget verb or a clause asking to keep."""
     return any(FORGET.fullmatch(word) or _opens_keep(clause, at) for at, word in enumerate(clause))

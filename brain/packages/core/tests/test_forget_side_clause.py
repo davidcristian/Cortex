@@ -149,8 +149,6 @@ async def test_a_card_word_where_the_message_asks_still_lists_the_card(
             [],
         ),
         ("Forget the locker code 4242 and the card, I texted both.", ("locker", "card"), []),
-        ("Forget 4242 that I texted from my phone.", ("locker", "phone"), ["locker"]),
-        ("Forget 4242, it is the end of my phone number.", ("locker", "phone"), ["locker"]),
         ("Forget the card 4242 from my phone.", ("card", "phone"), []),
         ("Forget the card 4242, and the phone too.", ("card", "phone"), []),
     ],

@@ -3,7 +3,7 @@
 import re
 from collections.abc import Iterable, Sequence
 
-from cortex_core.forget_clauses import after_but, asking, clauses
+from cortex_core.forget_clauses import after_but, after_value, asking, clauses
 from cortex_core.forget_kinds import MINUS, names, read_kinds
 from cortex_core.forget_languages import FUNCTION, readings
 from cortex_core.forget_unnamed import just_said, quantifies, row_words, unnamed
@@ -17,6 +17,7 @@ _TAIL = re.compile(r"[^\W_]+\Z")
 _KIND = re.compile(r"\b(?:cards?|accounts?|ibans?)\b", re.IGNORECASE)
 _WORD = re.compile(r"[^\W\d_]{3,}")
 _FUNCTION = frozenset(word for words in FUNCTION.values() for word in words)
+_REPLY = "\nAssistant: "
 
 INSIDE_LINE = "Kept, since they hold that text only inside a longer value:"
 INSIDE_ALL = (
@@ -199,19 +200,28 @@ def kept_rows(
     ids = {row.id for row in kept}
     whole = [row for row in rows if unclear and row.id not in ids and _whole(row.text, text)]
     every = [*kept, *whole, *_unnamed_groups(rows, within, text, stamp.query)]
-    every.extend(_may_keep(rows, stamp.query))
+    every.extend(_may_keep(rows, stamp.query, text))
     return list({row.id: row for row in every}.values())
 
 
-def _may_keep(rows: Sequence[MemoryRecord], query: str) -> list[MemoryRecord]:
+def _may_keep(rows: Sequence[MemoryRecord], query: str, text: str) -> list[MemoryRecord]:
     """The ``rows`` ``query`` may ask to keep: each a word names after a word for minus in a
-    clause, as the card of ``Uită codul 4242 mai puțin cel de pe card``, or ``after_but``."""
+    clause, as the card of ``Uită codul 4242 mai puțin cel de pe card``, or in ``after_but``, and
+    each whose request a word of ``after_value`` names."""
     after = after_but(query)
     for clause in clauses(query):
         at = next((at for at, token in enumerate(clause) if token in MINUS), len(clause))
         after.extend(clause[at + 1 :])
     words = _content(query, " ".join(after))
-    return [row for row in rows if names(words, row_words(row.text))]
+    asked = {row.id: row_words(row.text.split(_REPLY, 1)[0]) for row in rows}
+    named = {word for word in _content(query) if any(names({word}, row) for row in asked.values())}
+    codes = {word for clause in clauses(query) for word in clause if code_word(word)}
+    kept = _content(query, " ".join(after_value(query, text, frozenset(named | codes))))
+    return [
+        row
+        for row in rows
+        if names(words, row_words(row.text)) or names(kept & named, asked[row.id])
+    ]
 
 
 def _in_longer(record: str, text: str) -> bool:
