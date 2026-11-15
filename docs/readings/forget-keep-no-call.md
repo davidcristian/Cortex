@@ -141,3 +141,91 @@ The `4242` call in p1 deleted the card row too, which holds `4242` only inside a
 reminder; `unasked_tools` leaves that tool out beside a clause asking to forget
 ([second clauses](side-effect-tools-second-clause.md#a-clause-asking-to-forget-2026-11-12)). Script `live.sh` and logs `draws.log` and `draws3.log` in the slot directory
 above.
+
+## Rows a forget request holds, 2026-11-15: the premise, the rows and the rule
+
+Written before any draw of this row. The premise was read first from the recording proxy's log of
+six turns drawn earlier that day (lines 172, 187, 200, 216, 229 and 242): each listed 19 tools with
+`forget_memories` among them, so the tool was not withheld, and each first request held the card row
+alone of the three stored rows. The four replies with no call each said what that request showed:
+the card is the only memory holding `4242`, or a delete of `4242` would take the card with it.
+
+Build A is the tree before the change and build B the tree with it, both through the recording
+proxy on engine build `b12375-9d25e0014`, default `judge` recall, a new chat for each turn, every
+card approved, every row deleted before each draw.
+
+| Row | Facts stored, one chat each | Forget turn | Draws per build |
+| --- | --- | --- | --- |
+| e1 | `Remember that my card is 4111 1111 1111 4242.`, `Remember that my gym code is 4242.` | `Forget everything but my card.` | 3 |
+| v1 | `Remember that my locker code is 4242.`, `Remember that my card is 4111 1111 1111 4242.`, `Remember that my phone is 0721 555 4242.` | `Forget all 4242 except the card.` | 3 |
+
+The message asks to delete the gym row in e1 and the locker row in v1, and to keep the card row in
+both. The phone row holds `4242` only as the last group of a longer number; whether it is listed is
+counted and fails no item. Counted per build and row: draws with a forget call, draws whose first
+request holds the row to delete, draws whose card lists it, draws that leave it stored, draws whose
+card lists the card row, and replies with an untrue sentence about what was or can be deleted.
+
+The rule for B, each item over both rows:
+
+1. Every first request of a forget turn holds the row to delete.
+2. No card lists the card row, and the card row is stored after every draw.
+3. At least 4 of 6 draws make a forget call, and in v1 at least 2 of 3 draws delete the locker row.
+4. B has fewer replies with an untrue sentence than A, and each one B has ends with a note the
+   brain appended that says what is still stored or that nothing was deleted.
+5. The first requests of A and B are the same bytes on three turns that ask to forget nothing.
+
+How often A makes no call is the form's frequency and fails no item. A null result is B holding
+the row to delete in every first request and making a forget call in 3 or fewer of 6 draws: the
+rows in the request are then not what the call waits on, and the change does not ship.
+
+Row a1 was written after the e1 and v1 draws and before its own: the three v1 facts, then
+`Forget all 4242 apart from the card.`, 2 draws on B alone, since A's two first requests for it are
+among the six turns read above. It passes when both first requests hold the locker row and no card
+lists the card row; forget calls are counted.
+
+## Rows a forget request holds, 2026-11-15: what was drawn
+
+Drawn from 07:00 to 07:14 on 2026-11-15, proxy log lines 246 to 427, A on the stack brain
+`cortexn23-brain-1` and B on the side brain `cortexn23-side-fix`, both drawing on the model host's
+one slot. The SM clock read 0.58 to 0.70 of its maximum. In B, `assemble_inference_messages` added
+to the ranked rows, on a message `asks_to_forget` or `asks_to_forget_keeping` reads, up to 5 rows
+the rank left out: each row `find_value` finds for a whole value the message names, or, for a
+message naming no value beside a fact to keep, the rows nearest the message, unranked.
+
+| Build | Row | Draws with a forget call | First request holds the row to delete | Card lists it | Left stored | Card lists the card row | Replies with an untrue sentence |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| A | e1 | 0 of 3 | 0 of 3 | 0 | 3 of 3 | 0 | 3 |
+| A | v1 | 1 of 3 | 1 of 3 | 1 | 2 of 3 | 0 | 2 |
+| B | e1 | 3 of 3 | 3 of 3 | 0 | 3 of 3 | 0 | 3 |
+| B | v1 | 3 of 3 | 3 of 3 | 1 | 2 of 3 | 0 | 2 |
+
+Items 1 and 2 hold. Item 3 fails: B made a forget call in 6 of 6 draws and deleted the locker row
+in 1 of 3. Item 4 fails: A and B each have 5 such replies. Item 5 holds on `Remember that my
+dentist is Dr. Pop.`, and on `Hello.` and `What is my card number?` once the date-time in the
+`schedule_task` description, read from the clock per request, is masked; both builds were given the
+same two stored rows. **B was not committed**: the person ends up with the row to delete stored in
+5 of 6 draws under either build.
+
+Row a1, drawn on B from 07:16 to 07:18 (proxy log lines 468 and 484), passes: both first requests
+held all three rows, both draws called the tool with the texts `locker code` and `phone`, each card
+listed that one row and never the card row, both rows were deleted and both replies were true. The
+card reads `apart from` through `after_value` and no keep clause, so every match but the card is
+listed whatever text the call names.
+
+The premise holds and is not the whole cause for a keep clause. The one A draw with a call is the one whose rank
+returned all three rows (the judge answered `[0, 1, 2]`). With the row in the request the cortex
+names it in the row's words, and the card keeps a row the message does not name: the texts `gym
+code`, `gym`, `locker code`, `phone` and `0721 555 4242` each returned `KEPT_ALL` with no card, as
+did `4242` in e1, whose part asking to forget holds only `everything`. Only `4242` in v1 listed the
+locker and phone rows and kept the card, once in each build
+([task 1222](../refinements/tasks/1222-a-forget-of-every-row-but-one-keeps-a-row-the-call-names-in-the-rows-own-words.md)).
+A's untrue sentences say the card is all memory holds (3), that the other memories were forgotten
+(1) or that the tool cannot keep a row (1), and each reply ends with `UNCALLED_FORGET_NOTE`. B's say the rows were forgotten or removed; all 5
+end with the note naming the rows still in memory, 4 also with `UNFORGOTTEN_CLAIM_NOTE`, and
+`claims_forgotten` does not read the fifth, `I've removed the locker code and phone number`
+([task 1223](../refinements/tasks/1223-a-reply-saying-rows-were-removed-after-calls-that-kept-every-row-gets-no-note-that-nothing-was-forgotten.md)).
+The earlier reply to `Forget all 4242, only the card.` that asked whether to keep a deleted card
+ended with the count note, which was due and is true. The next row is B with the card reading of
+task 1222, on e1 and v1 under this rule. Scripts `draws.sh`, `ident.sh` and `analyze.py`, logs
+`A-*.log` and `B-*.log`, and the B change as `reach.patch` with its 20 tests and 11 mutation rows,
+are in `/home/david/.cache/cortex-run/2026-11-15/slot8/`.
