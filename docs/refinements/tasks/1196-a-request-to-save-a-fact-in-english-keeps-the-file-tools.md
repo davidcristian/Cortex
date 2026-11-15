@@ -1,9 +1,8 @@
 # A request to save a fact in English keeps the file tools
 
-**Status:** open, actionable
+**Status:** done 2026-11-15
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-14
 
 `unasked_sidecar_tools` and `unasked_tools` (`unasked_tools.py`) withhold the file and side effect
 tools only on a message that `asks_kept` or `asks_kept_alone` (`memory_request.py`) reads as a
@@ -29,3 +28,15 @@ saved your phone number: 0721 555 019.` with no note
 
 - 2026-11-14: filed when the forget refusal read English store requests and the store turn draws
   lost the row to a file tool call on both builds.
+- 2026-11-15: done, with a narrower reader than step 2 names. `stores_fact` alone also reads
+  `Save my draft 2.`, `Record my screen for 10 seconds.` and `Keep my volume at 40.`, where the
+  same verb saves a file or asks for an action. Both tool readers read `_stores_a_value`
+  (`unasked_tools.py`) instead: `fact_stored` (`fact_request.py`) reads the message, and the fact
+  is a statement with `is` or its value follows `number`, `code`, `PIN`, `password`, `passcode`,
+  `address` or `birthday`. Any other object of a store verb keeps every tool. `unasked_tools`
+  searches only the fact for a second action, since `actions_asked` reads the store verb itself as
+  one. The start build stored the phone row in 9 of 12 draws; the replay and the fix's draws are in
+  the [readings](../../readings/store-request-unasked-tools.md). Step 3: `claims_kept` reads
+  `saved` only before `in memory`, and `unkept_note_due` reads the request with `asks_kept`, so the
+  reply showed no note in 3 of 3 start build draws that stored nothing
+  ([task 1202](1202-a-store-request-whose-turn-stores-nothing-shows-no-note.md)).

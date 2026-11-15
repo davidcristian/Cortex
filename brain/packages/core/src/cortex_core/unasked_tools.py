@@ -3,6 +3,8 @@
 import re
 from collections.abc import Sequence
 
+from cortex_core.fact_request import fact_stored
+from cortex_core.fact_statement import STATEMENT
 from cortex_core.forget_unrequested import RETRACT_WORDS
 from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
 from cortex_core.memory_request import actions_asked, asks_kept, asks_kept_alone, asks_not_kept
@@ -119,6 +121,21 @@ _ASKS_TO_NOTE = re.compile(
     r"|her|their|the)\b|(?-i:[A-Z]))[\w'\u2019-]*(?:\s+[^\s?]+){2,}?)\s*\??\s*$",
     re.IGNORECASE,
 )
+# A store verb also saves a file, so a fact with no "is" counts only after a word that names a
+# value ("my phone number 0721 555 019"). "Save my draft 2." keeps every tool.
+_STATEMENT = re.compile(rf"{STATEMENT}\s*", re.IGNORECASE)
+_VALUE_NAME = re.compile(
+    r"\b(?:numbers?|codes?|pins?|passwords?|passcodes?|address|birthday)\s+(?=\S*[\d@])",
+    re.IGNORECASE,
+)
+
+
+def _stores_a_value(query: str) -> str | None:
+    """The fact an English request to store states with "is" or after a word naming a value."""
+    fact = fact_stored(query)
+    if fact is None or not (_STATEMENT.fullmatch(fact) or _VALUE_NAME.search(fact)):
+        return None
+    return fact
 
 
 def _asks_a_source(query: str, sidecar: Sequence[ToolSpec]) -> bool:
@@ -134,10 +151,13 @@ def _asks_a_source(query: str, sidecar: Sequence[ToolSpec]) -> bool:
 
 def unasked_tools(query: str) -> frozenset[str]:
     """The tools left out of a turn whose ``query`` asks to remember and names no use for them."""
-    if not asks_kept_alone(query):
+    kept = asks_kept_alone(query)
+    fact = None if kept else _stores_a_value(query)
+    if not kept and fact is None:
         return frozenset()
     timed = _WHEN.search(query) is not None
-    for action in actions_asked(query):
+    # The store verb itself reads as an action, so only the fact after it is searched for one.
+    for action in actions_asked(query if fact is None else fact):
         if not timed and _FORGETS.match(action):
             continue
         if not any(asked.search(action) for asked in _ASKED.values()):
@@ -150,7 +170,8 @@ def unasked_sidecar_tools(query: str, specs: Sequence[ToolSpec]) -> frozenset[st
     sidecar = [spec for spec in specs if spec.sidecar or spec.calls_sidecar]
     question = _ASKS_TO_NOTE.match(query)
     text = query if question is None else question["fact"]
-    if (question is None and not asks_kept(query)) or _asks_a_source(text, sidecar):
+    asked = question is not None or asks_kept(query) or _stores_a_value(query) is not None
+    if not asked or _asks_a_source(text, sidecar):
         return frozenset()
     return frozenset(spec.name for spec in sidecar)
 

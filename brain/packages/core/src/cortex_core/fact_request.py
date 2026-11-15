@@ -25,11 +25,17 @@ _ASKS_OF_YOU = re.compile(
 )
 
 
+def fact_stored(query: str) -> str | None:
+    """The one fact ``query`` asks in English to store and states with a value, or ``None``."""
+    found = _STORE.match(query)
+    if found is None or SENTENCE_END.search(query.strip()) is not None:
+        return None
+    return query[found.end() :] if _STORED.fullmatch(query, found.end()) else None
+
+
 def stores_fact(query: str) -> bool:
     """Whether ``query`` asks in English to store one fact it states with a value."""
-    found = _STORE.match(query)
-    one_sentence = SENTENCE_END.search(query.strip()) is None
-    return found is not None and one_sentence and _STORED.fullmatch(query, found.end()) is not None
+    return fact_stored(query) is not None
 
 
 def asks_kept_fact_other(query: str) -> bool:

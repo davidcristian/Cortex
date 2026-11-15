@@ -1219,3 +1219,118 @@ async def test_a_reply_saying_it_has_no_access_after_no_refused_file_call_has_no
     query: str, call: str
 ) -> None:
     assert await _shown_with(query, _TOOLS, call) == _NO_ACCESS
+
+
+_STORE_A_FACT = "Save my phone number 0721 555 019."
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        _STORE_A_FACT,
+        "Store this: my phone is 0721 555 019.",
+        "Keep my phone number 0721 555 019.",
+        "Write down my phone number 0721 555 019.",
+        "Memorize my phone number 0721 555 019.",
+        "Please save that my code is 4242.",
+        "Write this down: our wifi password is hunter2",
+        "Save my door code 4417.",
+        "Record our gate PIN 0042.",
+        "Keep my passport number X1234567.",
+        "Store my address 12 Mill Lane.",
+        "Save that my shoe size is 43.",
+        "Store this: my draft is ready.",
+    ],
+)
+def test_an_english_request_to_store_a_fact_asks_for_no_tool(query: str) -> None:
+    assert unasked_tools(query) == _BOTH
+    assert unasked_sidecar_tools(query, _sidecar(*_FILE_TOOLS)) == set(_FILE_TOOLS)
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Save the report to my notes folder.",
+        "Store this file in /tmp.",
+        "Save my draft 2.",
+        "Save my report 2024.",
+        "Store our budget sheet 2025.",
+        "Keep my essay v2.",
+        "Save my invoice 20391.",
+        "Save my address book 2.",
+        "Store my code review 3.",
+        "Save my file 2.",
+        "Store my folder 2024.",
+        "Save my document 3.",
+        "Keep my document 3 open.",
+        "Save my chapter 3 as a PDF.",
+        "Save my draft as version 2.",
+        "Record my screen for 10 seconds.",
+        "Record my meeting at 3.",
+        "Keep my volume at 40.",
+        "Save my alarm 7.",
+        "Store my playlist 3 on the speaker.",
+        "Record my email ana.pop@example.com",
+        "Save me a seat.",
+        "Save my phone number.",
+        "My phone is 0721 555 019, save it.",
+        "Save my phone number 0721. Thanks!",
+        "Salva il mio numero 0721 555 019.",
+        "Guarda o meu número 0721 555 019.",
+        "Bewaar mijn nummer 0721 555 019.",
+        "Zapisz mój numer 0721 555 019.",
+    ],
+)
+def test_a_store_verb_before_a_file_or_no_named_value_keeps_every_tool(query: str) -> None:
+    assert unasked_tools(query) == frozenset()
+    assert unasked_sidecar_tools(query, _sidecar(*_FILE_TOOLS)) == frozenset()
+
+
+@pytest.mark.parametrize(
+    ("query", "left_out"),
+    [
+        ("Store this: my alarm code is 4242.", _VOLUME),
+        ("Save that my speaker volume is 40.", _SCHEDULE),
+        ("Save my code 4242 and ring me.", _NEITHER),
+        ("Save my code 4242 and mute it.", _SCHEDULE),
+    ],
+)
+def test_a_stored_fact_that_names_a_tool_or_a_second_action_keeps_it(
+    query: str, left_out: frozenset[str]
+) -> None:
+    assert unasked_tools(query) == left_out
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Save this: my report is in /tmp.",
+        "Store that our file is report.pdf",
+        "Save my email address ana.pop@example.com",
+        "Keep it: my draft is 2 pages.",
+        "Save that my code is 4242 and list files",
+    ],
+)
+def test_a_stored_fact_that_names_a_source_keeps_every_sidecar_tool(query: str) -> None:
+    assert unasked_sidecar_tools(query, _sidecar(*_FILE_TOOLS)) == frozenset()
+
+
+async def test_a_turn_that_asks_to_store_a_fact_is_offered_neither_tool() -> None:
+    backend = _Backend()
+    await _turn(_STORE_A_FACT, backend)
+    assert backend.offered == [["look", _FILE_TOOLS[0]]]
+
+
+async def test_a_file_tool_called_on_a_request_to_store_a_fact_is_refused() -> None:
+    backend = _Backend([ToolCall(id="c1", name=_FILE_TOOLS[0], arguments={})])
+    ran, audit = await _turn(_STORE_A_FACT, backend)
+    assert ran == []
+    assert [(record.ok, record.detail) for record in audit.records] == [(False, UNASKED_MSG)]
+
+
+async def test_a_file_tool_called_on_a_request_to_save_a_file_runs() -> None:
+    backend = _Backend([ToolCall(id="c1", name=_FILE_TOOLS[0], arguments={})])
+    ran, audit = await _turn("Save the report to my notes folder.", backend)
+    assert backend.offered[0] == [SET_VOLUME_TOOL_NAME, SCHEDULE_TOOL_NAME, "look", _FILE_TOOLS[0]]
+    assert ran == [_FILE_TOOLS[0]]
+    assert [record.ok for record in audit.records] == [True]
