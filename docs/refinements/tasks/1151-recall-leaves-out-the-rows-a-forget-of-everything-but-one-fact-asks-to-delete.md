@@ -26,3 +26,7 @@ that nothing was deleted on such a turn.
 
 - 2026-11-12: filed from the draw with recall set to `raw` made while adding
   `UNCALLED_FORGET_NOTE`.
+- 2026-11-15: `Forget all 4242 except the card.` over a locker code, a card and a phone sharing
+  `4242` made no forget call in 2 of 2 draws on the `cortexn23` stack, and each reply said the
+  card is the only memory holding `4242`
+  ([task 1215](1215-a-forget-of-every-value-but-one-row-is-refused-with-an-untrue-account-of-the-tool.md)).
