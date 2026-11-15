@@ -56,10 +56,23 @@ The 4,827 rows are the other rows of the same messages: `Forget everything, the 
 with the call text `phone` kept nothing before and keeps the phone now, since a limit to the card
 would keep it. A separate set of 172 messages holding no value, in the five languages with six
 call texts each, lists 302 rows asked to keep before and 83 after. The 83 are under a word for
-all the card does not read (`alles`, `todo`, `toate`, `tot`), which is filed with three English
+all the card does not read (`alles`, `todo`, `toate`, `tot`), which is filed with two English
 forms that still list the card: no clause mark before the row (`Forget everything my card
-stays.`), a verb the card does not read as a forget (`Wipe everything, my card stays.`) and
-`Forget everything else, my card stays.`.
+stays.`) and a verb the card does not read as a forget (`Wipe everything, my card stays.`).
+
+## A topic word that ends its clause, 2026-11-15
+
+`everything` read no word for all followed by a topic word (`about`, `else`, `sur`, `über`,
+`sobre`), so `Forget everything else, my card stays.` deleted the card for the call text `card`
+or `4242`. A topic word that ends its clause opens no topic, so the word for all before it is
+now read, and that message and `Forget all else. My card stays.` keep every row. `Forget
+everything else.`, `Forget everything else about my card.` and `Forget everything else, also the
+card.` list what they listed before. No word was added to a set.
+
+Replayed over the messages above, the build before the change against the tree: 0 rows newly
+listed and 0 calls changed among the 171,769 calls, the 42,356 value calls, the 1,032 calls of
+the 172 messages holding no value and the 305 calls in the four unread languages. Of 5,514 cases
+of the test strings, 2 changed, both `Forget everything else, my card stays.` keeping the card.
 
 ## The four blocked cells replayed, 2026-11-15
 

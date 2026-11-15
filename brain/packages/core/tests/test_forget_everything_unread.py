@@ -76,6 +76,9 @@ async def _deleted(query: str, ids: tuple[str, ...] = _THREE) -> set[str]:
         ("Forget what stays the same.", _THREE, {"locker", "card", "phone"}),
         ("Do not forget everything, my card stays.", _THREE, set[str]()),
         ("Everything fine, forget my card.", _THREE, {"card"}),
+        ("Forget everything else.", _THREE, {"locker", "card", "phone"}),
+        ("Forget everything else about my card.", _THREE, {"card"}),
+        ("Forget everything else, also the card.", _THREE, {"card"}),
         ("Oublie tout sauf la carte.", ("casier", "carte"), {"casier"}),
         ("Vergiss alle, die Karte bleibt.", ("spind", "karte"), set[str]()),
         ("Olvida todas excepto la tarjeta.", ("gimnasio", "tarjeta"), {"gimnasio"}),
@@ -112,6 +115,8 @@ async def test_a_forget_of_everything_in_a_form_a_reader_reads_lists_what_it_lis
         ("Forget everything on my card, la carte stays.", _THREE),
         ("Forget everything apart from my address, 4242 that is.", (*_THREE, "address")),
         ("Forget everything from today, my card stays.", _THREE),
+        ("Forget everything else, my card stays.", _THREE),
+        ("Forget all else. My card stays.", _THREE),
     ],
 )
 async def test_a_forget_of_everything_naming_a_row_in_a_form_no_reader_reads_keeps_every_row(
@@ -153,6 +158,9 @@ async def test_a_read_limit_beside_a_row_in_an_unread_form_lists_only_the_limit(
         ("Please delete all of it.", (0, 2)),
         ("All good, forget everything.", (1, 1)),
         ("Forget everything about my gym.", None),
+        ("Forget everything else, my card stays.", (0, 1)),
+        ("Forget everything else.", (0, 1)),
+        ("Forget everything else today.", None),
         ("Forget all 4242, card stays.", None),
         ("Do not forget everything.", None),
         ("Everything fine, forget my card.", None),

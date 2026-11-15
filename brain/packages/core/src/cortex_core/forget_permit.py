@@ -62,14 +62,16 @@ async def permitted(
 
 def everything(query: str) -> tuple[int, int] | None:
     """The clause of ``query`` and the place in it of the first word for all after a forget verb,
-    with no negation before it, no topic word next and no value after it in the clause."""
+    with no negation before it, no value after it in the clause and no topic word next, unless
+    that word ends the clause."""
     for index, clause in enumerate(clauses(query)):
         verb = next((at for at, token in enumerate(clause) if FORGET.fullmatch(token)), None)
         for at, token in enumerate(clause):
             rest = clause[at + 1 :]
             plain = verb is not None and verb < at and NOT.isdisjoint(clause[:at])
             valued = any(char.isdigit() for char in "".join(rest))
-            if plain and token in EVERY and not valued and TOPIC.isdisjoint(rest[:1]):
+            topic = len(rest) > 1 and not TOPIC.isdisjoint(rest[:1])
+            if plain and token in EVERY and not valued and not topic:
                 return index, at
     return None
 

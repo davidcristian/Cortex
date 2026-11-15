@@ -17,7 +17,6 @@ or `4242` ([readings](../../readings/forget-everything-unread-role.md)):
 | `Forget everything my card stays.` | no clause mark: `my card` opens as a limit does |
 | `Wipe everything, my card stays.` | `wipe` and `clear` are no forget verb of `FORGET` |
 | `Everything must go, my card stays.` | no forget verb before the word for all |
-| `Forget everything else, my card stays.` | `else` is a topic word (`TOPIC`) |
 | `Vergiss alles bis auf die Karte.` | `alles` is left unread, since Dutch has it too |
 | `Olvida todo, la tarjeta se queda.` | `todo` is left unread, since Portuguese has it too |
 | `Uită tot, cardul rămâne.` | `tot` also means still and is a Dutch word |
