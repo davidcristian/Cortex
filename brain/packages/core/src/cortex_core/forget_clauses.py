@@ -231,6 +231,20 @@ def beside(
     return found
 
 
+def kept_again(query: str, value: str, named: frozenset[str]) -> set[str]:
+    """The words of ``named`` in a run of ``query`` after ``value`` whose ``_role`` is ``UNREAD``,
+    past the last place the run holds ``value``; none of a run with a keep clause or negation."""
+    wanted = [token for token in _TOKEN.findall(value.lower()) if token not in _MARKS]
+    size = len(wanted)
+    found: set[str] = set()
+    for run, keeps in _runs(query, value):
+        ends = (at + size for at in range(len(run) - size + 1) if run[at : at + size] == wanted)
+        words = named.intersection(run[max(ends, default=0) :])
+        if words and not keeps and NOT.isdisjoint(run) and _role(run, named) == UNREAD:
+            found |= words
+    return found
+
+
 def before_value(query: str, value: str) -> list[str]:
     """The words of each clause of ``query`` before the last place it holds ``value``, which name
     the rows the message asks to forget, as ``the card`` of ``Forget the card 4242``."""

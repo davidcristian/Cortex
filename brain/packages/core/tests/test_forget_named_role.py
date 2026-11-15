@@ -17,6 +17,7 @@ from cortex_core.forget_clauses import (
     UNREAD,
     before_value,
     beside,
+    kept_again,
 )
 from cortex_core.forget_unnamed import KEPT_LINE
 from cortex_core.tools import TurnStamp
@@ -168,12 +169,59 @@ async def test_a_forget_of_every_value_limited_to_a_row_keeps_the_other_rows(
         ("Forget the locker code 4242 and the card, I texted both.", _ENGLISH, ["card", "phone"]),
         ("Forget all 4242, please, only the card.", _ENGLISH, ["locker", "phone"]),
         ("Oublie le code 4242 du casier, la carte reste.", _FRENCH, ["carte", "telephone"]),
+        ("Forget the card 4242, my phone is new.", _ENGLISH, ["locker", "phone"]),
+        ("Forget the card 4242, I don't need the card.", _ENGLISH, ["locker", "phone"]),
+        ("Forget the card 4242, the card one, thanks.", _ENGLISH, ["locker", "phone"]),
+        ("Forget the card 4242 and the phone, keep the phone.", _ENGLISH, ["locker", "phone"]),
+        ("Forget the card 4242, keep the card statement.", _ENGLISH, ["locker", "phone"]),
     ],
 )
 async def test_a_row_the_message_asks_for_in_words_a_reader_reads_is_still_deleted(
     query: str, ids: tuple[str, ...], left: list[str]
 ) -> None:
     assert (await _forget(query, *ids))[1] == left
+
+
+@pytest.mark.parametrize(
+    ("query", "ids"),
+    [
+        ("Forget the card 4242, card stays.", _ENGLISH),
+        ("Forget the card 4242. The card stays.", _ENGLISH),
+        ("Forget 4242 on the card, the card stays.", _ENGLISH),
+        ("Forget the card 4242, keep the card.", _ENGLISH),
+        ("Forget the card 4242, but keep the card.", _ENGLISH),
+        ("Keep the card, forget the card 4242.", _ENGLISH),
+        ("Forget the card 4242 except the card.", _ENGLISH),
+        ("Forget the card 4242, not the card.", _ENGLISH),
+        ("Forget the card 4242, keep the card, keep the phone.", _ENGLISH),
+        ("Oublie la carte 4242, mais garde la carte.", _FRENCH),
+        ("Vergiss die Karte 4242, die Karte bleibt.", _GERMAN),
+        ("Olvida la tarjeta 4242, la tarjeta se queda.", _SPANISH),
+        ("Uită cardul 4242, cardul rămâne.", _ROMANIAN),
+        ("Uită cardul 4242, dar păstrează cardul.", _ROMANIAN),
+    ],
+)
+async def test_a_row_named_to_forget_and_again_to_keep_is_kept(
+    query: str, ids: tuple[str, ...]
+) -> None:
+    assert (await _forget(query, *ids))[1] == sorted(ids)
+
+
+@pytest.mark.parametrize(
+    ("query", "words"),
+    [
+        ("Forget the card 4242, card stays.", {"card"}),
+        ("Forget the card 4242, my phone is new.", set[str]()),
+        ("Forget the locker 4242 and my card ending 4242.", set[str]()),
+        ("Forget the card 4242, keep the card.", set[str]()),
+        ("Forget the card 4242, only the card.", set[str]()),
+        ("Forget the card 4242, do not keep the card.", set[str]()),
+    ],
+)
+def test_kept_again_reads_a_row_named_past_the_value_in_a_run_of_unread_role(
+    query: str, words: set[str]
+) -> None:
+    assert kept_again(query, "4242", _CARD) == words
 
 
 @pytest.mark.parametrize(

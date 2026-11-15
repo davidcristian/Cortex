@@ -5,7 +5,9 @@ from collections.abc import Iterable, Sequence
 
 from cortex_core.forget_clauses import (
     ADDITION,
+    EXCEPT,
     EXCEPTION,
+    KEEP,
     LIMIT,
     UNREAD,
     after_but,
@@ -14,6 +16,8 @@ from cortex_core.forget_clauses import (
     before_value,
     beside,
     clauses,
+    kept_again,
+    parts,
 )
 from cortex_core.forget_kinds import MINUS, names, read_kinds
 from cortex_core.forget_languages import FUNCTION, readings
@@ -220,6 +224,18 @@ def _request(row: MemoryRecord) -> set[str]:
     return row_words(row.text.split(_REPLY, 1)[0])
 
 
+def _restated(query: str, text: str, named: frozenset[str]) -> set[str]:
+    """The words of ``named`` that ``query`` names to forget and again to keep: in a clause asking
+    to keep with no other word naming a fact, or in ``kept_again`` after the value ``text``."""
+    forgot = _content(query, " ".join(parts(query)[0]))
+    found = kept_again(query, text, named)
+    for clause in clauses(query):
+        held = _content(query, " ".join(parts(" ".join(clause))[1])) - EXCEPT
+        held = {word for word in held if not KEEP.fullmatch(word)}
+        found |= held if held <= forgot else set()
+    return found & named
+
+
 def _may_keep(
     rows: Sequence[MemoryRecord], within: Sequence[MemoryRecord], query: str, text: str
 ) -> list[MemoryRecord]:
@@ -238,6 +254,7 @@ def _may_keep(
     inner = [_request(row) for row in within]
     beyond = {word for word in _content(query) if any(names({word}, row) for row in inner)}
     roles = beside(query, text, frozenset(named | beyond | codes), MINUS)
+    again = _restated(query, text, frozenset(named | beyond | codes)) & named
     kept |= roles[EXCEPTION]
     limit, every = roles[LIMIT] & named, quantifies(query)
     unread = bool(roles[UNREAD] & (named | beyond))
@@ -247,6 +264,7 @@ def _may_keep(
         for row in rows
         if names(words, row_words(row.text))
         or names(kept & named, asked[row.id])
+        or names(again, asked[row.id])
         or (unread and not names(head & named, asked[row.id]))
         or (every and bool(limit) and not names(limit, asked[row.id]))
     ]
