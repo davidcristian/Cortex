@@ -21,7 +21,7 @@ _COMMON = frozenset(
         "erase memory"
     )
 )
-_TOPIC = frozenset({"about", "else", "sur", "über", "sobre"})
+TOPIC = frozenset({"about", "else", "sur", "über", "sobre"})
 _REST = EVERY | frozenset({"rest", "reste", "others"})
 KEPT_LINE = "Kept, since your message was not read as meaning them:"
 KEPT_ALL = (
@@ -183,7 +183,7 @@ def quantifies(query: str) -> bool:
         if any(KEEP.fullmatch(token) for token in clause):
             continue
         for at, token in enumerate(clause):
-            if token not in EVERY or (at + 1 < len(clause) and clause[at + 1] in _TOPIC):
+            if token not in EVERY or (at + 1 < len(clause) and clause[at + 1] in TOPIC):
                 continue
             beside = [*clause[max(0, at - 2) : at], *clause[at + 1 : at + 3]]
             if len(clause) == 1 and index:

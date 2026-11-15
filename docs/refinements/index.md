@@ -92,7 +92,7 @@ never a reading of what the tree does now.
 - **[R-1225](tasks/1225-a-forget-call-naming-a-row-beside-a-code-word-or-in-a-text-holding-a-digit-still-deletes-it.md)** A forget call naming a row beside a code word or in a text holding a digit still deletes it (memory). Its claim was checked against the code on 2026-11-15.
 - **[R-1227](tasks/1227-the-rows-a-forget-request-reaches-shrink-each-rows-share-and-are-not-in-the-recall-audit.md)** The rows a forget request reaches shrink each row's share and are not in the recall audit (memory). Its claim was checked against the code on 2026-11-15.
 - **[R-1228](tasks/1228-a-forget-of-a-value-with-an-added-row-keeps-the-other-rows-holding-the-value.md)** A forget of a value with an added row keeps the other rows holding the value (memory). Its claim was checked against the code on 2026-11-15.
-- **[R-1229](tasks/1229-a-forget-of-everything-deletes-a-row-its-message-keeps-in-a-form-no-reader-reads.md)** A forget of everything deletes a row its message keeps in a form no reader reads (memory). Its claim was checked against the code on 2026-11-15.
+- **[R-1230](tasks/1230-a-forget-of-everything-in-a-form-the-card-does-not-take-as-one-lists-a-row-its-message-keeps.md)** A forget of everything in a form the card does not take as one lists a row its message keeps (memory). Its claim was checked against the code on 2026-11-15.
 
 ### Actionable, once a port changes (1)
 
@@ -671,7 +671,7 @@ never a reading of what the tree does now.
 - [R-1225](tasks/1225-a-forget-call-naming-a-row-beside-a-code-word-or-in-a-text-holding-a-digit-still-deletes-it.md) A forget call naming a row beside a code word or in a text holding a digit still deletes it. open, actionable.
 - [R-1227](tasks/1227-the-rows-a-forget-request-reaches-shrink-each-rows-share-and-are-not-in-the-recall-audit.md) The rows a forget request reaches shrink each row's share and are not in the recall audit. open, actionable.
 - [R-1228](tasks/1228-a-forget-of-a-value-with-an-added-row-keeps-the-other-rows-holding-the-value.md) A forget of a value with an added row keeps the other rows holding the value. open, actionable.
-- [R-1229](tasks/1229-a-forget-of-everything-deletes-a-row-its-message-keeps-in-a-form-no-reader-reads.md) A forget of everything deletes a row its message keeps in a form no reader reads. open, actionable.
+- [R-1230](tasks/1230-a-forget-of-everything-in-a-form-the-card-does-not-take-as-one-lists-a-row-its-message-keeps.md) A forget of everything in a form the card does not take as one lists a row its message keeps. open, actionable.
 
 ### orchestrator
 

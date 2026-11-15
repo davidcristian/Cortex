@@ -32,9 +32,9 @@ cell above filled.
 
 ## What to do
 
-1. After task 1229 (a row the message says stays), replay `seulement`, `también`, `doar` and
-   the Romanian words for all again and fill each cell whose replay lists no row the message
-   keeps or does not ask for.
+1. A forget of everything now keeps a row the message says stays, so replay `seulement`,
+   `también`, `doar` and the Romanian words for all again and fill each cell whose replay lists
+   no row the message keeps or does not ask for.
 2. `nur`: the 96 rows are over 15 generated forms in which another clause adds or keeps a row,
    the largest `Vergiss alle 4242, die Karte auch, nur das Handy.` (24 rows, the locker code).
    English `only` does the same today: `Forget all 4242, the card too, only the phone.` deletes
@@ -54,5 +54,7 @@ cell above filled.
   another stored row is named, so `Uită toate, cardul de asemenea.` with the call text `phone`
   keeps a phone it deleted before: 298 such rows in the generated messages
   ([readings](../../readings/forget-everything-but-call.md#a-call-naming-a-row-the-message-does-not-name-2026-11-15)).
-- 2026-11-15: the stays form that blocks four cells is task
-  [1229](1229-a-forget-of-everything-deletes-a-row-its-message-keeps-in-a-form-no-reader-reads.md).
+- 2026-11-15: a forget of everything now keeps every row once it names one in a role no reader
+  reads ([readings](../../readings/forget-everything-unread-role.md)), which the four cells
+  waited for; the forms it does not take as one are task
+  [1230](1230-a-forget-of-everything-in-a-form-the-card-does-not-take-as-one-lists-a-row-its-message-keeps.md).

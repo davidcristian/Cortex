@@ -1,0 +1,166 @@
+from datetime import UTC, datetime, timedelta
+
+import pytest
+
+from cortex_core import (
+    FORGET_CHOSEN_TOOL_NAME,
+    GLOBAL_MEMORY_SCOPE,
+    ForgetChosenTool,
+    InMemoryMemoryStore,
+    MemoryRecord,
+    ToolCall,
+)
+from cortex_core.forget_permit import everything
+from cortex_core.forget_unnamed import KEPT_ALL
+from cortex_core.tools import TurnStamp
+
+_AT = datetime(2026, 11, 15, 9, 0, 0, tzinfo=UTC)
+_ROWS = {
+    "locker": "User: Remember that my locker code is 4242.\nAssistant: Noted.",
+    "card": "User: Remember that my card is 4111 1111 1111 4242.\nAssistant: Noted.",
+    "phone": "User: Remember that my phone is 0721 555 4242.\nAssistant: Noted.",
+    "gym": "User: Remember that my gym opens at noon.\nAssistant: Noted.",
+    "address": "User: Remember that my address is Elm Street.\nAssistant: Noted.",
+    "carte": "User: Retiens que ma carte est 4111 1111 1111 4242.\nAssistant: Noté.",
+    "casier": "User: Retiens que le code du casier est 4242.\nAssistant: Noté.",
+    "karte": "User: Merke dir, meine Karte ist 4111 1111 1111 4242.\nAssistant: Notiert.",
+    "spind": "User: Merke dir, der Code vom Spind ist 4242.\nAssistant: Notiert.",
+    "tarjeta": "User: Recuerda que mi tarjeta es 4111 1111 1111 4242.\nAssistant: Anotado.",
+    "gimnasio": "User: Recuerda que el código del gimnasio es 4242.\nAssistant: Anotado.",
+}
+_THREE = ("locker", "card", "phone")
+_TEXTS = {"locker": "locker code", "karte": "Karte", "spind": "Spind"}
+
+
+async def _forget(query: str, text: str, ids: tuple[str, ...]) -> tuple[set[str], str]:
+    store = InMemoryMemoryStore()
+    for i, name in enumerate(ids):
+        at = _AT + timedelta(minutes=i)
+        row = MemoryRecord(id=name, text=_ROWS[name], embedding=(1.0, 0.0), at=at, session_id="a")
+        await store.add(row)
+    tool = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
+    stamp = TurnStamp(session_id="chat-new", turn_id="t1", query=query)
+    call = ToolCall(id="c1", name=FORGET_CHOSEN_TOOL_NAME, arguments={"text": text}, stamp=stamp)
+    await tool.card(call)
+    result = await tool.invoke(call)
+    left = {hit.record.id for hit in await store.search((1.0, 0.0), k=10)}
+    return set(ids) - left, result.content
+
+
+async def _deleted(query: str, ids: tuple[str, ...] = _THREE) -> set[str]:
+    gone: set[str] = set()
+    for text in (*(_TEXTS.get(name, name) for name in ids), "4242", "code"):
+        gone |= (await _forget(query, text, ids))[0]
+    return gone
+
+
+@pytest.mark.parametrize(
+    ("query", "ids", "gone"),
+    [
+        ("Forget everything.", _THREE, {"locker", "card", "phone"}),
+        ("Forget everything but my card.", _THREE, {"locker", "phone"}),
+        ("Forget everything except my card.", _THREE, {"locker", "phone"}),
+        ("Forget everything, also the card.", _THREE, {"locker", "card", "phone"}),
+        ("Forget everything, my card too.", _THREE, {"locker", "card", "phone"}),
+        ("Forget everything, only the card.", _THREE, {"locker", "card", "phone"}),
+        ("Forget everything on my card.", _THREE, {"card"}),
+        ("Forget everything about my gym.", ("gym", "card"), {"gym"}),
+        ("Forget everything about my stay.", _THREE, {"locker", "card", "phone"}),
+        ("Forget everything I told you today.", _THREE, {"locker", "card", "phone"}),
+        ("Forget all of that.", _THREE, {"locker", "card", "phone"}),
+        ("Forget the card that stays in my wallet.", _THREE, {"card"}),
+        ("Forget all my card numbers.", _THREE, {"card"}),
+        ("Forget all my card numbers but quickly.", _THREE, {"card"}),
+        ("Delete all of my card details from memory.", _THREE, {"card"}),
+        ("Forget everything on my card please.", _THREE, {"card"}),
+        ("Forget what stays the same.", _THREE, {"locker", "card", "phone"}),
+        ("Do not forget everything, my card stays.", _THREE, set[str]()),
+        ("Everything fine, forget my card.", _THREE, {"card"}),
+        ("Oublie tout sauf la carte.", ("casier", "carte"), {"casier"}),
+        ("Vergiss alle, die Karte bleibt.", ("spind", "karte"), set[str]()),
+        ("Olvida todas excepto la tarjeta.", ("gimnasio", "tarjeta"), {"gimnasio"}),
+    ],
+)
+async def test_a_forget_of_everything_in_a_form_a_reader_reads_lists_what_it_listed(
+    query: str, ids: tuple[str, ...], gone: set[str]
+) -> None:
+    assert await _deleted(query, ids) == gone
+
+
+@pytest.mark.parametrize(
+    ("query", "ids"),
+    [
+        ("Forget everything, my card stays.", _THREE),
+        ("Forget everything, leave my card.", _THREE),
+        ("Forget everything, the card stays, the phone too.", _THREE),
+        ("Forget everything, the card stays, only the card.", _THREE),
+        ("Forget everything apart from the card.", _THREE),
+        ("Forget everything. My card stays.", _THREE),
+        ("Forget everything and my card stays.", _THREE),
+        ("Delete all of it, my card stays.", _THREE),
+        ("Forget everything, my locker code stays.", _THREE),
+        ("Forget everything, the code stays.", _THREE),
+        ("Forget everything, my card 4242 stays.", _THREE),
+        ("Oublie tout, la carte reste.", ("casier", "carte")),
+        ("Oublie tout, laisse la carte.", ("casier", "carte")),
+        ("Oublie tout à part la carte.", ("casier", "carte")),
+        ("Vergiss alle, lass die Karte.", ("spind", "karte")),
+        ("Vergiss alle bis auf die Karte.", ("spind", "karte")),
+        ("Olvida todas, la tarjeta se queda.", ("gimnasio", "tarjeta")),
+        ("Olvida todas, deja la tarjeta.", ("gimnasio", "tarjeta")),
+        ("Forget everything, la carte stays.", ("casier", "carte")),
+        ("Forget everything on my card, la carte stays.", _THREE),
+        ("Forget everything apart from my address, 4242 that is.", (*_THREE, "address")),
+        ("Forget everything from today, my card stays.", _THREE),
+    ],
+)
+async def test_a_forget_of_everything_naming_a_row_in_a_form_no_reader_reads_keeps_every_row(
+    query: str, ids: tuple[str, ...]
+) -> None:
+    assert await _deleted(query, ids) == set()
+
+
+async def test_a_forget_of_everything_keeping_every_row_says_each_was_kept() -> None:
+    gone, said = await _forget("Forget everything, my card stays.", "card", _THREE)
+    assert (gone, said) == (set(), f"{KEPT_ALL}.")
+
+
+_LIMITED = "Forget everything on my card, the phone stays."
+_NUMBERS = "Forget all my card numbers, the phone stays."
+
+
+@pytest.mark.parametrize(
+    ("query", "text", "gone"),
+    [
+        (_LIMITED, "card", {"card"}),
+        (_LIMITED, "phone", set[str]()),
+        (_LIMITED, "locker code", set[str]()),
+        (_LIMITED, "4242", {"card"}),
+        (_NUMBERS, "card", {"card"}),
+        (_NUMBERS, "phone", set[str]()),
+    ],
+)
+async def test_a_read_limit_beside_a_row_in_an_unread_form_lists_only_the_limit(
+    query: str, text: str, gone: set[str]
+) -> None:
+    assert (await _forget(query, text, _THREE))[0] == gone
+
+
+@pytest.mark.parametrize(
+    ("query", "place"),
+    [
+        ("Forget everything, my card stays.", (0, 1)),
+        ("Please delete all of it.", (0, 2)),
+        ("All good, forget everything.", (1, 1)),
+        ("Forget everything about my gym.", None),
+        ("Forget all 4242, card stays.", None),
+        ("Do not forget everything.", None),
+        ("Everything fine, forget my card.", None),
+        ("All of you forget my card.", None),
+        ("Forget my card.", None),
+    ],
+)
+def test_the_word_for_all_of_a_forget_of_everything_is_found(
+    query: str, place: tuple[int, int] | None
+) -> None:
+    assert everything(query) == place

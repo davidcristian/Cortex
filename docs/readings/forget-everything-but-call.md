@@ -241,8 +241,8 @@ Portuguese, Dutch and Polish. A cell is filled only when no row newly listed is 
 
 The 92 rows by word: `toate` 50, `toate` with `doar` 22, `doar` 2, `seulement` 6, `también` 12.
 Each is a row the message says stays (`rămâne`, `reste`, `se queda`) and names again, as in
-`Oublie tout, la carte reste, seulement la carte.` with the call text `carte`; English lists the
-same row today, which is filed. `nur` lists a locker code no clause of `Vergiss alle 4242, die
+`Oublie tout, la carte reste, seulement la carte.` with the call text `carte`, a form read since
+([readings](forget-everything-unread-role.md)). `nur` lists a locker code no clause of `Vergiss alle 4242, die
 Karte auch, nur das Handy.` asks for. `todos` and `alles` changed `Esqueça todos os 4242.` and `Verwijder alles,
 de card ook.`, which the card does not read. So only the last row is filled. No generated message
 holds its words: with `tous les` or `toutes les` swapped for `toute`, and `alle` for each German

@@ -6,10 +6,10 @@ from dataclasses import dataclass, replace
 
 from cortex_core.errors import MemoryStoreError
 from cortex_core.forget_inside import INSIDE_ALL, INSIDE_LINE, inside, kept_rows
-from cortex_core.forget_keep_named import forget_named, keep_named
+from cortex_core.forget_keep_named import keep_named
 from cortex_core.forget_longer import LONGER_ALL, beside, longer, longer_lines
 from cortex_core.forget_permit import call_text as _text
-from cortex_core.forget_permit import permitted
+from cortex_core.forget_permit import message_rows
 from cortex_core.forget_results import (
     ALREADY_DELETED,
     FORGET_CHOSEN_LIMIT,
@@ -192,8 +192,7 @@ class ForgetChosenTool:
             within = [record for record in matches if record.id in inner]
             named, read = await keep_named(self._store, self._scope, call, FORGET_CHOSEN_LIMIT + 1)
             seen = [*gone, *matches, *(row for row, _, _ in extra)]
-            told = await forget_named(self._store, self._scope, call, FORGET_CHOSEN_LIMIT + 1, seen)
-            allowed = await permitted(call, told, self._listing)
+            told, allowed = await message_rows(self._store, self._scope, call, seen, self._listing)
         except MemoryStoreError as err:
             return unavailable(err), None
         if not small:
