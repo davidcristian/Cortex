@@ -105,7 +105,8 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
     stored = shared and not withheld and (claims_chat_only(reply) or claims_unsaved(reply))
     # A refused call deleted nothing, and no reader names every way to claim it did. A reply saying
     # it kept the fact and naming no removal is the common end of a plain request to remember.
-    unforgotten = unforgotten_claim(made, reply, unmatched=taint.forget_unmatched) or (
+    kept = bool(taint.forget_kept or taint.forget_inside or taint.forget_longer)
+    unforgotten = unforgotten_claim(made, reply, unmatched=taint.forget_unmatched, kept=kept) or (
         taint.forget_refused and (not claims_kept(reply) or names_removal(reply))
     )
     unfound = unfound_claim(made, reply, unmatched=taint.forget_unmatched)

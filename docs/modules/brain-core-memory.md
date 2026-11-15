@@ -191,7 +191,7 @@ pool down to the hits one turn sees. The turn that calls it is in
   claim a round streams before a card the person denies ends with the note too
   ([readings](../readings/forget-after-delete-provoked.md#a-claim-before-a-denied-card-the-draws-2026-11-07)). It also appends the note when `TaintLedger.forget_refused` says a call was
   refused as unasked and either `claims_kept` does not read the reply or `names_removal` does, which
-  reads a statement naming a removal in any words with no negation in its clause. The handoff record keeps `forget_refused`, `forget_calls` and `forget_unmatched`, so a cortex
+  reads a statement naming a removal in any words with no negation in its clause. It appends the note too when a forget call of the turn kept every row it matched (`TaintLedger.forget_kept`, `forget_inside` or `forget_longer` holds a row), no forget call deleted a memory and `names_removal` reads the reply (`unforgotten_claim` with `kept`), before the note naming the kept rows ([readings](../readings/forget-everything-but-call.md#a-removal-named-after-calls-that-kept-every-row-2026-11-15)). The handoff record keeps `forget_refused`, `forget_calls` and `forget_unmatched`, so a cortex
   forget that matched nothing before a handoff still counts as one in the deep phase.
   `run_round` sets `TaintLedger.forget_numbers_left` from each `forget_memories` result that
   deleted rows with no match left (`numbers_left` is `None` on every other result, a denied card

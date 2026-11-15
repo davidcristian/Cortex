@@ -47,3 +47,28 @@ is one its message asks to delete: none is a row the message asks to keep, names
 reader reads, or does not ask for. Scripts `gen9.py`, `run_words.py`, `cmp_words.py`, `replay.py`,
 `run.py`, `poolcmp.py` and log `replay_all3.log` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/bd106a1a-a17f-4ca5-8841-82294e4917a8/scratchpad/slot9/`.
+
+## A removal named after calls that kept every row, 2026-11-15
+
+A draw earlier that day answered `Forget all 4242 except the card.`, after four forget calls that
+each returned `KEPT_ALL`, with "I have updated your memories. I've removed the locker code and
+phone number, but I've kept your card number." while both rows were stored. `claims_forgotten`
+does not read that reply, since `removed` names no memory in its sentence, so the reply ended with
+the note naming the kept rows and without `UNFORGOTTEN_CLAIM_NOTE`.
+
+Unit calls of `unforgotten_claim` and `limit_notes`, same day. On a turn in which a forget call
+kept every row it matched (`TaintLedger.forget_kept`, `forget_inside` or `forget_longer` holds a
+row) and no forget call deleted a memory, the note is now also due when `names_removal` reads the
+reply. Its first sentence, that no forget call in the turn deleted a memory, is true on every such
+turn. It shows before the note naming the kept rows.
+
+| Reply after calls that kept every row | Before | After |
+| --- | --- | --- |
+| `I've updated your memories and removed the locker code and phone number.` | kept rows note only | `UNFORGOTTEN_CLAIM_NOTE`, then the kept rows note |
+| `The locker code is gone now.` | kept rows note only | `UNFORGOTTEN_CLAIM_NOTE`, then the kept rows note |
+| `Your locker code and your phone number are still stored.` | kept rows note only | the same |
+| `Nothing was removed.`, `I have not deleted the locker code.`, `Should I remove the locker code?` | kept rows note only | the same |
+| Any of the first two after a later call deleted a row | no `UNFORGOTTEN_CLAIM_NOTE` | the same |
+
+The reader is English only; a reply in another note language is read by `claims_forgotten_other`
+as before. The tests are in `test_forget_kept_claim.py`.

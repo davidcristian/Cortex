@@ -44,7 +44,5 @@ forget call in 6 of 6, and left that row stored in 5 of 6, so it was not committ
   `UNCALLED_FORGET_NOTE`.
 - 2026-11-15: the premise was confirmed from the recording proxy's log and the rows were added in
   a build that was drawn and not committed, since the rule failed on what the person ends up with.
-  Filed
-  [task 1223](1223-a-reply-saying-rows-were-removed-after-calls-that-kept-every-row-gets-no-note-that-nothing-was-forgotten.md).
 - 2026-11-15: the card now lists a row a call names in the row's own words beside a forget of
   everything but one fact, so the rows can be added and drawn again.

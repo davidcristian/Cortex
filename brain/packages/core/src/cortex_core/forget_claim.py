@@ -125,10 +125,14 @@ def deleted_memory(runs: Sequence[ToolRun], unmatched: int) -> bool:
     return sum(run.ok and run.name == FORGET_CHOSEN_TOOL_NAME for run in runs) > unmatched
 
 
-def unforgotten_claim(runs: Sequence[ToolRun], reply: str, *, unmatched: int = 0) -> bool:
-    """Whether ``reply`` says something was forgotten that no forget call among ``runs`` deleted."""
+def unforgotten_claim(
+    runs: Sequence[ToolRun], reply: str, *, unmatched: int = 0, kept: bool = False
+) -> bool:
+    """Whether ``reply`` says something was forgotten that no forget call among ``runs`` deleted;
+    with ``kept``, a call having kept every row it matched, whether it names a removal at all."""
     claimed = claims_forgotten(reply) or claims_forgotten_other(reply)
-    return not deleted_memory(runs, unmatched) and claimed
+    named = kept and names_removal(reply)
+    return not deleted_memory(runs, unmatched) and (claimed or named)
 
 
 def unforgotten_note(runs: Sequence[ToolRun], language: str) -> str:

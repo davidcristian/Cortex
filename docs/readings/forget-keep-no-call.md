@@ -222,8 +222,8 @@ list such a row ([readings](forget-everything-but-call.md)).
 A's untrue sentences say the card is all memory holds (3), that the other memories were forgotten
 (1) or that the tool cannot keep a row (1), and each reply ends with `UNCALLED_FORGET_NOTE`. B's say the rows were forgotten or removed; all 5
 end with the note naming the rows still in memory, 4 also with `UNFORGOTTEN_CLAIM_NOTE`, and
-`claims_forgotten` does not read the fifth, `I've removed the locker code and phone number`
-([task 1223](../refinements/tasks/1223-a-reply-saying-rows-were-removed-after-calls-that-kept-every-row-gets-no-note-that-nothing-was-forgotten.md)).
+`claims_forgotten` does not read the fifth, `I've removed the locker code and phone number`; such a
+reply now ends with that note too ([readings](forget-everything-but-call.md#a-removal-named-after-calls-that-kept-every-row-2026-11-15)).
 The earlier reply to `Forget all 4242, only the card.` that asked whether to keep a deleted card
 ended with the count note, which was due and is true. The next row is B with that card
 reading, on e1 and v1 under this rule. Scripts `draws.sh`, `ident.sh` and `analyze.py`, logs
