@@ -23,8 +23,8 @@ Set these in the host environment or in a `.env` file beside the compose files.
 | Variable | Meaning | Example |
 |---|---|---|
 | `CORTEX_MODELS_DIR` | host directory holding the GGUFs, mounted read-only | `./models` |
-| `CORTEX_MODEL_FILE_CORTEX` | cortex GGUF path relative to that directory (LM Studio nests it under `publisher/repo/`) | `google/gemma-4-12B-it-qat-q4_0-gguf/gemma-4-12b-it-qat-q4_0.gguf` |
-| `CORTEX_MODEL_FILE_CORTEX_MMPROJ` | the multimodal projector, relative to the same directory. Setting it adds llama.cpp's `--mmproj` pair to the cortex tier's argv, which makes `GET /props` report `modalities.vision` and makes the brain offer `capture_screen` (ADR-0029). Empty (the default) starts text-only. See [vision.md](vision.md) | `google/gemma-4-12B-it-qat-q4_0-gguf/mmproj-gemma-4-12b-it-qat-q4_0.gguf` |
+| `CORTEX_MODEL_FILE_CORTEX` | cortex GGUF path relative to that directory (LM Studio nests it under `publisher/repo/`) | `unsloth/gemma-4-12B-it-qat-GGUF/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf` |
+| `CORTEX_MODEL_FILE_CORTEX_MMPROJ` | the multimodal projector, relative to the same directory. Setting it adds llama.cpp's `--mmproj` pair to the cortex tier's argv, which makes `GET /props` report `modalities.vision` and makes the brain offer `capture_screen` (ADR-0029). Empty (the default) starts text-only. See [vision.md](vision.md) | `unsloth/gemma-4-12B-it-qat-GGUF/mmproj-F32.gguf` |
 | `CORTEX_IMAGE_MAX_TOKENS` | how many tokens one picture may occupy, and with it how much of a 4K screen the cortex can read. `1024` is the default, paired with `CORTEX_BODY_CAPTURE_MAX_EDGE=2048` on the brain; `0` hands the budget back to the model, which reads 13% of a 4K screen. Never set llama.cpp's `--image-max-tokens` by hand instead. See [inference-measurements.md](inference-measurements.md) | `1024` |
 | `CORTEX_CTX_SIZE` | context window (KV size). Set it: the model default of 262144 alone uses about 8 GB | `16384` |
 | `CORTEX_REPLY_THINKING` | keeps the model's deliberation on for a user's own reply. `false` skips it and shortens the wait rather than the answer: 11.8 to 18.1 s before the first word with it on, 0.4 s with it off for an answer of the same size. It costs answer quality on hard questions and empties the thinking status the overlay shows. `false` is a request to the model's chat template, not a guarantee, so check your model first (see [inference-measurements.md](inference-measurements.md)) | `true` |
@@ -211,15 +211,15 @@ candidates](../readings/deep-candidates.md), [two tiers on one card](../readings
 | Subagent (pick) | **gemma-4-E4B** (CPU) | q4_0 (QAT) | 4.9 GB, ~2.5 GiB RSS | n/a | 38 s |
 | Subagent (override) | Qwen3.5-2B (CPU) | Q4_K_M | 1.19 GB, ~893 MiB RSS | n/a | ~14.5 s |
 | **Brain (pick)** | **gemma-4-31B** | q4_0 (QAT) | 18.7 GB (8K ctx) | n/a | 99.6 s |
-| Brain (alternate) | Qwen3.6-27B | Q4_K_M | 16.1 GB (8K ctx) | n/a | 109.5 s |
+| Brain (alternate) | Qwen3.8-27B | UD-Q4_K_M | 15,744 to 15,770 MiB above the idle card (8K ctx) | n/a | not read |
 | Embedder (pick) | **nomic-embed-text-v1.5** (CPU) | Q8_0 | 0.146 GB, ~18 MiB RSS | n/a | ~1.2 s |
 
 The two cortex rows and the embedder are 2026-06-29, both subagent rows 2026-07-03, and the two
 brain rows 2026-08-04 through the `model-host` sidecar with the cortex evicted first at
 `CORTEX_CTX_SIZE_BRAIN=8192` and `-ngl 99`. Every row but the two cortex ones was taken with no
-power cap, so those load times do not compare. The mount now holds only a `UD-Q4_K_XL` and a
-`Q8_0` of Qwen3.5-9B, so runs of that candidate since 2026-09-06 load
-`unsloth/Qwen3.5-9B-GGUF/Qwen3.5-9B-UD-Q4_K_XL.gguf`.
+power cap, so those load times do not compare. Every gemma and Qwen3.5 row was taken on a file the
+mount no longer holds, and the alternate's row is from 2026-09-26
+([R-1238](../refinements/tasks/1238-the-lineups-readings-were-drawn-on-files-the-mount-no-longer-holds.md)).
 
 The VRAM budget is a deliberate 14 GB soft cap (`CORTEX_VRAM_SOFT_CAP_GB`), leaving about 10 GB
 of the 24 GB card for a second monitor and games. The cortex reservation is 8.6 GiB, so 5.4 GiB

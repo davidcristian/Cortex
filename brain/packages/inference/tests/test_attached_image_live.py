@@ -31,8 +31,8 @@ from cortex_model_manager import ModelHostConfig
 
 _IMAGE = os.environ.get("CORTEX_LLAMA_IMAGE", "cortex-model-host")
 _MODELS_DIR = os.environ.get("CORTEX_MODELS_DIR", "/srv/models")
-_CORTEX = "google/gemma-4-12B-it-qat-q4_0-gguf/gemma-4-12b-it-qat-q4_0.gguf"
-_MMPROJ = "google/gemma-4-12B-it-qat-q4_0-gguf/mmproj-gemma-4-12b-it-qat-q4_0.gguf"
+_CORTEX = "unsloth/gemma-4-12B-it-qat-GGUF/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf"
+_MMPROJ = "unsloth/gemma-4-12B-it-qat-GGUF/mmproj-F32.gguf"
 _CONTAINER = "cortex-attach-probe"
 _PORT = 8080
 _HEALTH_TIMEOUT_S = 180

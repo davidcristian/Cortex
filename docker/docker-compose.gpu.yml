@@ -51,7 +51,7 @@ services:
       # The resident cortex model. -ngl 99 puts every layer on the GPU, and --ctx-size is explicit
       # because llama.cpp's own default pre-allocates a KV cache too large for the card.
       # CORTEX_MODEL_FILE_CORTEX_MMPROJ names the multimodal projector; empty starts it text-only.
-      CORTEX_MODEL_FILE_CORTEX: "${CORTEX_MODEL_FILE_CORTEX:-google/gemma-4-12B-it-qat-q4_0-gguf/gemma-4-12b-it-qat-q4_0.gguf}"
+      CORTEX_MODEL_FILE_CORTEX: "${CORTEX_MODEL_FILE_CORTEX:-unsloth/gemma-4-12B-it-qat-GGUF/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf}"
       CORTEX_MODEL_FILE_CORTEX_MMPROJ: "${CORTEX_MODEL_FILE_CORTEX_MMPROJ:-}"
       # How many tokens one picture may occupy. 1024 is the default, paired with
       # CORTEX_BODY_CAPTURE_MAX_EDGE=2048 on the brain; 0 hands the budget back to the model.

@@ -36,30 +36,37 @@ class Pick(NamedTuple):
 PICKS: tuple[Pick, ...] = (
     Pick(
         "gemma-4-12B-qat-q4_0",
-        "google/gemma-4-12B-it-qat-q4_0-gguf/gemma-4-12b-it-qat-q4_0.gguf",
+        "unsloth/gemma-4-12B-it-qat-GGUF/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf",
         99,
     ),
-    Pick("gemma-4-E4B-qat-q4_0", "google/gemma-4-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf", 0),
     Pick(
-        "gemma-4-31B-qat-q4_0", "google/gemma-4-31B-it-qat-q4_0-gguf/gemma-4-31B_q4_0-it.gguf", 99
+        "gemma-4-E4B-qat-q4_0",
+        "unsloth/gemma-4-E4B-it-qat-GGUF/gemma-4-E4B-it-qat-UD-Q4_K_XL.gguf",
+        0,
     ),
-    Pick("Qwen3.5-2B-Q4_K_M", "unsloth/Qwen3.5-2B-GGUF/Qwen3.5-2B-Q4_K_M.gguf", 99),
+    Pick(
+        "gemma-4-31B-qat-q4_0",
+        "unsloth/gemma-4-31B-it-qat-GGUF/gemma-4-31B-it-qat-UD-Q4_K_XL.gguf",
+        99,
+    ),
+    Pick("Qwen3.5-2B-Q4_K_M", "unsloth/Qwen3.5-2B-MTP-GGUF/Qwen3.5-2B-Q4_K_M.gguf", 99),
     Pick("Qwen3.8-27B-UD-Q4_K_M", "unsloth/Qwen3.8-27B-GGUF/Qwen3.8-27B-UD-Q4_K_M.gguf", 99),
     Pick(
-        "gemma-4-E2B-qat-q4_0", "google/gemma-4-E2B-it-qat-q4_0-gguf/gemma-4-E2B_q4_0-it.gguf", 99
-    ),
-    Pick("Qwen3.5-0.8B-Q8_0", "unsloth/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q8_0.gguf", 99),
-    Pick("Qwen3.5-4B-Q4_K_M", "unsloth/Qwen3.5-4B-GGUF/Qwen3.5-4B-Q4_K_M.gguf", 99),
-    Pick("Qwen3.5-9B-UD-Q4_K_XL", "unsloth/Qwen3.5-9B-GGUF/Qwen3.5-9B-UD-Q4_K_XL.gguf", 99),
-    Pick(
-        "gemma-4-26B-A4B-qat-q4_0",
-        "google/gemma-4-26B-A4B-it-qat-q4_0-gguf/gemma-4-26B_q4_0-it.gguf",
+        "gemma-4-E2B-qat-q4_0",
+        "unsloth/gemma-4-E2B-it-qat-GGUF/gemma-4-E2B-it-qat-UD-Q4_K_XL.gguf",
         99,
     ),
-    Pick("Qwen3.6-27B-Q4_K_M", "unsloth/Qwen3.6-27B-GGUF/Qwen3.6-27B-Q4_K_M.gguf", 99),
+    Pick("Qwen3.5-0.8B-Q8_0", "unsloth/Qwen3.5-0.8B-MTP-GGUF/Qwen3.5-0.8B-Q8_0.gguf", 99),
+    Pick("Qwen3.5-4B-Q4_K_M", "unsloth/Qwen3.5-4B-MTP-GGUF/Qwen3.5-4B-Q4_K_M.gguf", 99),
+    Pick("Qwen3.5-9B-Q4_K_M", "unsloth/Qwen3.5-9B-MTP-GGUF/Qwen3.5-9B-Q4_K_M.gguf", 99),
+    Pick(
+        "gemma-4-26B-A4B-qat-q4_0",
+        "unsloth/gemma-4-26B-A4B-it-qat-GGUF/gemma-4-26B-A4B-it-qat-UD-Q4_K_XL.gguf",
+        99,
+    ),
     Pick(
         "Qwen3.6-35B-A3B-UD-Q3_K_XL",
-        "unsloth/Qwen3.6-35B-A3B-GGUF/Qwen3.6-35B-A3B-UD-Q3_K_XL.gguf",
+        "unsloth/Qwen3.6-35B-A3B-MTP-GGUF/Qwen3.6-35B-A3B-UD-Q3_K_XL.gguf",
         99,
     ),
 )

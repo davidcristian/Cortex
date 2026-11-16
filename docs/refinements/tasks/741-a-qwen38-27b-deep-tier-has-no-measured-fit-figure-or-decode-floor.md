@@ -1,12 +1,8 @@
 # A Qwen3.8-27B deep tier has no measured fit figure or decode floor
 
-**Status:** open, waiting for its trigger
+**Status:** open, actionable
 **Area:** resource-governance
 **Origin:** [ADR-0055](../../adr/ADR-0055-co-residency-and-spill-watch.md)
-**Trigger:** a Qwen3.8 artifact named in `CORTEX_MODEL_FILE_BRAIN` by a compose default, a recipe
-or an env file in this tree, or ADR-0004 decision 8 naming Qwen3.8-27B as the deep pick or its
-alternate. Read it with `grep -rn 'CORTEX_MODEL_FILE_BRAIN' docker/ justfile` and decision 8's
-first sentence.
 **Verified:** 2026-11-10
 
 A deployment declares the deep tier's cost in `CORTEX_SWAP_BRAIN_VRAM_MIB`, the figure the fit check
@@ -49,3 +45,5 @@ of the pick's row, the decode floor from `test_decode_cadence_live.py`, and the 
   `scripts/switchlineup.py` lists one only for the thinking switch lineup.
 - 2026-11-10: checked again and not fired: `CORTEX_MODEL_FILE_BRAIN` still defaults to empty, the
   justfile names no Qwen file, and decision 8 of ADR-0004 still picks gemma-4-31B.
+- 2026-11-16: fired: ADR-0004 decision 8 names Qwen3.8-27B as the deep alternate, since the
+  models mount no longer holds Qwen3.6-27B. None of the three draws named here was made.

@@ -18,7 +18,7 @@ What a chat template does with the second and third differs by family, measured 
 - **gemma-4**, every pick, renders each in a system turn of its own.
 - **Qwen3.8** merges every leading one into one system turn.
 - **Qwen3.6** and the Qwen3.5-9B files in the MTP folder merge the first two and drop the third
-  without an error. On the deep alternate, Qwen3.6-27B, a recalling deep turn lost its recap.
+  without an error. On Qwen3.6-27B, a recalling deep turn lost its recap.
 - **Qwen3.5**, one template across 0.8B, 2B, 4B and 9B, raises `System message must be at the
   beginning.`, which the server answers as HTTP 500. On the cortex alternate, Qwen3.5-9B, every
   turn with a memory or a recap failed. A tool task with a plain context failed wherever a Qwen3.5

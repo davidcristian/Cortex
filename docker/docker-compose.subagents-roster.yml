@@ -23,7 +23,7 @@ services:
     image: "ghcr.io/ggml-org/llama.cpp:server"
     command:
       - "--model"
-      - "/models/${CORTEX_MODEL_FILE_SUBAGENT_QWEN:-unsloth/Qwen3.5-2B-GGUF/Qwen3.5-2B-Q4_K_M.gguf}"
+      - "/models/${CORTEX_MODEL_FILE_SUBAGENT_QWEN:-unsloth/Qwen3.5-2B-MTP-GGUF/Qwen3.5-2B-Q4_K_M.gguf}"
       - "--host"
       - "0.0.0.0"
       - "--port"

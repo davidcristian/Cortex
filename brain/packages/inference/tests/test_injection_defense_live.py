@@ -108,46 +108,47 @@ class Model:
         return self.tier != SUBAGENT_TIER
 
 
-_GG = "google/gemma-4"
+_GG = "unsloth/gemma-4"
 _QU = "unsloth/Qwen3.5"
 _QB = "unsloth/Qwen3.6"
 
 CORTEX_CANDIDATES: tuple[Model, ...] = (
     Model(
         "gemma-4-12B (cortex pick)",
-        f"{_GG}-12B-it-qat-q4_0-gguf/gemma-4-12b-it-qat-q4_0.gguf",
+        f"{_GG}-12B-it-qat-GGUF/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf",
         tier=CORTEX_TIER,
     ),
-    Model("Qwen3.5-9B (cortex)", f"{_QU}-9B-GGUF/Qwen3.5-9B-UD-Q4_K_XL.gguf", tier=CORTEX_TIER),
+    Model("Qwen3.5-9B (cortex)", f"{_QU}-9B-MTP-GGUF/Qwen3.5-9B-Q4_K_M.gguf", tier=CORTEX_TIER),
 )
 SUBAGENT_CANDIDATES: tuple[Model, ...] = (
     Model(
-        "gemma-4-E2B", f"{_GG}-E2B-it-qat-q4_0-gguf/gemma-4-E2B_q4_0-it.gguf", tier=SUBAGENT_TIER
+        "gemma-4-E2B",
+        f"{_GG}-E2B-it-qat-GGUF/gemma-4-E2B-it-qat-UD-Q4_K_XL.gguf",
+        tier=SUBAGENT_TIER,
     ),
     Model(
         "gemma-4-E4B (subagent pick)",
-        f"{_GG}-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf",
+        f"{_GG}-E4B-it-qat-GGUF/gemma-4-E4B-it-qat-UD-Q4_K_XL.gguf",
         tier=SUBAGENT_TIER,
     ),
-    Model("Qwen3.5-0.8B", f"{_QU}-0.8B-GGUF/Qwen3.5-0.8B-Q8_0.gguf", tier=SUBAGENT_TIER),
-    Model("Qwen3.5-2B", f"{_QU}-2B-GGUF/Qwen3.5-2B-Q4_K_M.gguf", tier=SUBAGENT_TIER),
-    Model("Qwen3.5-4B", f"{_QU}-4B-GGUF/Qwen3.5-4B-Q4_K_M.gguf", tier=SUBAGENT_TIER),
+    Model("Qwen3.5-0.8B", f"{_QU}-0.8B-MTP-GGUF/Qwen3.5-0.8B-Q8_0.gguf", tier=SUBAGENT_TIER),
+    Model("Qwen3.5-2B", f"{_QU}-2B-MTP-GGUF/Qwen3.5-2B-Q4_K_M.gguf", tier=SUBAGENT_TIER),
+    Model("Qwen3.5-4B", f"{_QU}-4B-MTP-GGUF/Qwen3.5-4B-Q4_K_M.gguf", tier=SUBAGENT_TIER),
 )
 BRAIN_CANDIDATES: tuple[Model, ...] = (
     Model(
         "gemma-4-31B (brain)",
-        f"{_GG}-31B-it-qat-q4_0-gguf/gemma-4-31B_q4_0-it.gguf",
+        f"{_GG}-31B-it-qat-GGUF/gemma-4-31B-it-qat-UD-Q4_K_XL.gguf",
         tier=BRAIN_TIER,
     ),
     Model(
         "gemma-4-26B-A4B (brain)",
-        f"{_GG}-26B-A4B-it-qat-q4_0-gguf/gemma-4-26B_q4_0-it.gguf",
+        f"{_GG}-26B-A4B-it-qat-GGUF/gemma-4-26B-A4B-it-qat-UD-Q4_K_XL.gguf",
         tier=BRAIN_TIER,
     ),
-    Model("Qwen3.6-27B (brain)", f"{_QB}-27B-GGUF/Qwen3.6-27B-Q4_K_M.gguf", tier=BRAIN_TIER),
     Model(
         "Qwen3.6-35B-A3B (brain)",
-        f"{_QB}-35B-A3B-GGUF/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf",
+        f"{_QB}-35B-A3B-MTP-GGUF/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf",
         tier=BRAIN_TIER,
     ),
     Model(
@@ -959,15 +960,15 @@ async def test_injection_defense(model: Model, switch: Switch, placement: Placem
 VISION_MODELS: tuple[Model, ...] = (
     Model(
         "gemma-4-12B (cortex pick)",
-        f"{_GG}-12B-it-qat-q4_0-gguf/gemma-4-12b-it-qat-q4_0.gguf",
+        f"{_GG}-12B-it-qat-GGUF/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf",
         tier=CORTEX_TIER,
-        mmproj=f"{_GG}-12B-it-qat-q4_0-gguf/mmproj-gemma-4-12b-it-qat-q4_0.gguf",
+        mmproj=f"{_GG}-12B-it-qat-GGUF/mmproj-F32.gguf",
     ),
     Model(
         "Qwen3.5-9B (cortex alt)",
-        f"{_QU}-9B-GGUF/Qwen3.5-9B-UD-Q4_K_XL.gguf",
+        f"{_QU}-9B-MTP-GGUF/Qwen3.5-9B-Q4_K_M.gguf",
         tier=CORTEX_TIER,
-        mmproj=f"{_QU}-9B-GGUF/mmproj-F32.gguf",
+        mmproj=f"{_QU}-9B-MTP-GGUF/mmproj-F32.gguf",
     ),
 )
 

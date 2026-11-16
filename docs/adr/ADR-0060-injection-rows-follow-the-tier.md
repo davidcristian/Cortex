@@ -81,8 +81,8 @@ also ran at half their tier's window, and for a while the text rows included no 
 - A row's count describes the server the stack starts. `test_switch_rows.py` requires a shipped
   text-only row to equal the model host's argv for the tier with only the artifact and port changed,
   the CPU row's caps and thread count in order, and the switch rows to differ by the setting alone.
-- The cortex alternative is measured as `Qwen3.5-9B-UD-Q4_K_XL.gguf`, the 4-bit quant the models
-  mount holds, since the `Q4_K_M` the candidate set names is not there.
+- The cortex alternative's rows were drawn on `Qwen3.5-9B-UD-Q4_K_XL.gguf`; the harness names the
+  `Q4_K_M` the models mount holds.
 - On the current lineup the two switch forms produce the same table, and at the engine's sampler
   each CPU row's counts fall inside the range its card row predicts and read apart or not apart as
   the card row does, so resistance reads as a property of the candidate rather than of the

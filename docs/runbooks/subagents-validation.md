@@ -48,7 +48,7 @@ happening; a GPU path that cannot be made to do the second proves nothing by doi
 
 ```bash
 CORTEX_MODELS_DIR=/srv/models \
-  CORTEX_MODEL_FILE_SUBAGENT_GPU=google/gemma-4-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf \
+  CORTEX_MODEL_FILE_SUBAGENT_GPU=unsloth/gemma-4-E4B-it-qat-GGUF/gemma-4-E4B-it-qat-UD-Q4_K_XL.gguf \
   CORTEX_SUBAGENTS_GPU_ENDPOINT=http://model-host:8083 \
   docker compose --project-directory . -f docker/docker-compose.yml \
   -f docker/docker-compose.gpu.yml -f docker/docker-compose.subagents.yml \

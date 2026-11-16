@@ -1,10 +1,8 @@
 # The deep tier cannot set a template's reasoning effort or preserve flag
 
-**Status:** open, waiting for its trigger
+**Status:** open, actionable
 **Area:** inference-model-manager
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Trigger:** ADR-0004 names a Qwen3.8 artifact as a pick or alternate for any tier, or the maintainer
-picks the step two names below.
 **Verified:** 2026-11-10
 
 The Qwen3.8 template reads `reasoning_effort` (`xhigh` by default, `high` rendered as `xhigh`,
@@ -61,3 +59,5 @@ and the maintainer declines step two.
 - 2026-11-10: checked again and not fired: ADR-0004 has no commit since 2026-10-25 and lists the
   Qwen3.8 artifacts as candidates only, no pick is recorded here, and `GenerationBounds` still has
   no effort field.
+- 2026-11-16: fired: ADR-0004 decision 8 names Qwen3.8-27B as the deep alternate, since the
+  models mount no longer holds Qwen3.6-27B. Nothing named here is built yet.

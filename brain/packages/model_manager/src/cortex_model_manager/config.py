@@ -15,7 +15,7 @@ from cortex_model_manager.supervisor import (
 )
 from cortex_model_manager.tiers import TierArgs, drafter_flags, image_budget_flags, tier_spec
 
-DEFAULT_CORTEX_FILE = "google/gemma-4-12B-it-qat-q4_0-gguf/gemma-4-12b-it-qat-q4_0.gguf"
+DEFAULT_CORTEX_FILE = "unsloth/gemma-4-12B-it-qat-GGUF/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf"
 
 DEFAULT_BRAIN_MODEL = "brain"
 

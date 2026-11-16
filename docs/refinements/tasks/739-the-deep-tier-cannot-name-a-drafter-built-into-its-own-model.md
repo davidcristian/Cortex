@@ -1,12 +1,8 @@
 # The deep tier cannot name a drafter built into its own model
 
-**Status:** open, waiting for its trigger
+**Status:** open, actionable
 **Area:** inference-model-manager
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Trigger:** a Qwen3.8 artifact or a file under `Qwen3.6-27B-MTP-GGUF` named in
-`CORTEX_MODEL_FILE_BRAIN` by a compose default, a recipe or an env file in this tree, or ADR-0004
-decision 8 naming Qwen3.8-27B as the deep pick or its alternate. Read it with
-`grep -rn 'CORTEX_MODEL_FILE_BRAIN' docker/ justfile` and decision 8's first sentence.
 **Verified:** 2026-11-10
 
 `drafter_flags` in `tiers.py` returns `--model-draft PATH --spec-type draft-mtp` for a named
@@ -46,3 +42,6 @@ asks of the pick's drafter.
   justfile names no Qwen file.
 - 2026-11-10: checked again and not fired: `CORTEX_MODEL_FILE_BRAIN` still defaults to empty, the
   justfile names no Qwen file, and decision 8 of ADR-0004 still picks gemma-4-31B.
+- 2026-11-16: fired: ADR-0004 decision 8 names Qwen3.8-27B as the deep alternate, since the
+  models mount no longer holds Qwen3.6-27B. Every Qwen3.5 and Qwen3.6 file on the mount now has
+  the layer in its own file too. Nothing named here is built yet.

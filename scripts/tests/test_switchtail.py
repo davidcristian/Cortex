@@ -9,7 +9,7 @@ from switchtail import closes, main, marked, publish, read, tail
 
 ASK = "What does each of them pay?"
 BUILD = "b10680-d7bd3bfca"
-MODEL_PATH = "/models/unsloth/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q8_0.gguf"
+MODEL_PATH = "/models/unsloth/Qwen3.5-0.8B-MTP-GGUF/Qwen3.5-0.8B-Q8_0.gguf"
 N_CTX = 8192
 # The four renderings below were taken from real servers on llama.cpp build
 # `b10666-4e97ac86e`, running Qwen3.5-0.8B Q8_0 and gemma-4-E4B QAT q4_0.

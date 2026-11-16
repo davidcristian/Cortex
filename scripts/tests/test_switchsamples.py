@@ -9,7 +9,7 @@ from switchsamples import Cell, ProbeError, load
 
 ASK = "What does each of them pay?"
 BUILD = "b10680-d7bd3bfca"
-MODEL_PATH = "/models/unsloth/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q8_0.gguf"
+MODEL_PATH = "/models/unsloth/Qwen3.5-0.8B-MTP-GGUF/Qwen3.5-0.8B-Q8_0.gguf"
 N_CTX = 8192
 # Both renderings as they came off a real server on llama.cpp build `b10666-4e97ac86e`.
 NATIVE_OPEN = f"<|im_start|>user\n{ASK}<|im_end|>\n<|im_start|>assistant\n<think>\n"

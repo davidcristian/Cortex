@@ -110,7 +110,7 @@ over-reporting is the direction a privacy indicator should fail in.
 1. Name the projector beside the model, in the repo-root `.env`. It ships under the same read-only
    models mount, so no extra bind is needed.
    ```
-   CORTEX_MODEL_FILE_CORTEX_MMPROJ=google/gemma-4-12B-it-qat-q4_0-gguf/mmproj-gemma-4-12b-it-qat-q4_0.gguf
+   CORTEX_MODEL_FILE_CORTEX_MMPROJ=unsloth/gemma-4-12B-it-qat-GGUF/mmproj-F32.gguf
    ```
 2. `just up-gpu`, then confirm the server reports the capability with
    `curl -s http://127.0.0.1:8080/props | jq .modalities`. `{"vision": true, ...}` is what the
@@ -133,7 +133,7 @@ over-reporting is the direction a privacy indicator should fail in.
    ```
    docker run -d --name cortex-nommproj --gpus all -p 127.0.0.1:8085:8085 \
      -v "$CORTEX_MODELS_DIR:/models:ro" ghcr.io/ggml-org/llama.cpp:server-cuda \
-     --model /models/google/gemma-4-12B-it-qat-q4_0-gguf/gemma-4-12b-it-qat-q4_0.gguf \
+     --model /models/unsloth/gemma-4-12B-it-qat-GGUF/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf \
      --host 0.0.0.0 --port 8085 -ngl 99 --ctx-size 16384 --parallel 1 --jinja
    cd brain && uv run pytest -m integration --no-cov \
      packages/inference/tests/test_backend_live.py -k projector

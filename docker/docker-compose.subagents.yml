@@ -48,7 +48,7 @@ services:
     # per-subagent CPU ask.
     command:
       - "--model"
-      - "/models/${CORTEX_MODEL_FILE_SUBAGENT:-google/gemma-4-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf}"
+      - "/models/${CORTEX_MODEL_FILE_SUBAGENT:-unsloth/gemma-4-E4B-it-qat-GGUF/gemma-4-E4B-it-qat-UD-Q4_K_XL.gguf}"
       - "--host"
       - "0.0.0.0"
       - "--port"

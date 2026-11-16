@@ -49,7 +49,7 @@ _ASK = (
 # The E4B answers the bill question with no thought on about one draw in five, so its file gets a
 # question whose control deliberated on every draw of four runs (thinking-switch readings).
 _ASK_BY_FILE = {
-    "gemma-4-E4B_q4_0-it.gguf": (
+    "gemma-4-E4B-it-qat-UD-Q4_K_XL.gguf": (
         "On an island, knights always tell the truth and knaves always lie. A says that B is a "
         "knave. B says that A and C are the same kind. Is C a knight or a knave?"
     ),

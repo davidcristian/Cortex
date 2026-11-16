@@ -48,20 +48,25 @@ lineup](../readings/model-lineup.md), [deep candidates](../readings/deep-candida
 
    | Tier | Candidates |
    |---|---|
-   | Cortex | `gemma-4-12B-it-qat-q4_0` (pick), `Qwen3.5-9B` 4-bit (alternate) |
-   | Subagent | `gemma-4-E4B-it-qat-q4_0` (pick), `Qwen3.5-2B-Q4_K_M` (alternate on a second CPU server), `gemma-4-E2B-it-qat-q4_0`, `Qwen3.5-0.8B-Q8_0`, `Qwen3.5-4B-Q4_K_M` |
-   | Deep | `gemma-4-31B-it-qat-q4_0` (pick), `Qwen3.6-27B-Q4_K_M` (alternate), `Qwen3.6-35B-A3B-UD-Q3_K_M`, `gemma-4-26B-A4B-it-qat-q4_0`, `Qwen3.8-27B-UD-Q4_K_M`, `Qwen3.8-Flash-Next-UD-Q3_K_XL` |
+   | Cortex | `gemma-4-12B-it-qat` (pick), `Qwen3.5-9B-Q4_K_M` (alternate) |
+   | Subagent | `gemma-4-E4B-it-qat` (pick), `Qwen3.5-2B-Q4_K_M` (alternate on a second CPU server), `gemma-4-E2B-it-qat`, `Qwen3.5-0.8B-Q8_0`, `Qwen3.5-4B-Q4_K_M` |
+   | Deep | `gemma-4-31B-it-qat` (pick), `Qwen3.8-27B-UD-Q4_K_M` (alternate), `Qwen3.6-35B-A3B-UD-Q3_K_XL`, `gemma-4-26B-A4B-it-qat`, `Qwen3.8-Flash-Next-UD-Q4_K_XL` |
    | Embedder | `nomic-embed-text-v1.5` Q8_0 (pick), `nomic-embed-text-v2-moe` (alternate) |
+
+   Each gemma entry is the `UD-Q4_K_XL` file of `unsloth/gemma-4-<size>-it-qat-GGUF`, which stores
+   the quantization-aware-trained weights as `Q4_0`. The rows this record cites were drawn on
+   Google's `q4_0` files of those weights, on earlier Qwen3.5 and Qwen3.6 files and on
+   Qwen3.8-Flash-Next at `UD-Q3_K_XL`, none of which the mount still holds, and both gemma chat
+   templates have changed since ([R-1238](../refinements/tasks/1238-the-lineups-readings-were-drawn-on-files-the-mount-no-longer-holds.md)).
 
 6. **Cortex: gemma-4-12B QAT q4_0 with its projector.** Both multimodal candidates cost about the
    same VRAM with their projectors, so VRAM did not decide it; gemma is the stronger chat model and
    is quantization-aware trained, so its 4-bit weights hold quality better than a post-hoc quant.
    Injection resistance did not decide it. At the engine's sampler, as the tier runs, the pick obeys
    0 of 100 framed draws against 16 of 100 unframed, and the alternate 7 of 100 against 40
-   ([injection text rows](../readings/injection-text-rows.md)). The alternate is measured as
-   `Qwen3.5-9B-UD-Q4_K_XL.gguf`, the 4-bit quant the mount holds, since the `Q4_K_M` the candidate
-   set first named is not there. Its template refuses a second leading system message, so the
-   adapter sends it a turn's preamble, memory and recap joined into one.
+   ([injection text rows](../readings/injection-text-rows.md)), measured as its `UD-Q4_K_XL`. The
+   alternate's template refuses a second leading system message, so the adapter sends it a turn's
+   preamble, memory and recap joined into one.
 
 7. **Subagent: gemma-4-E4B QAT q4_0.** It was picked when, at temperature 0, it obeyed 0 of 10
    framed injections on both placements. At the engine's sampler, as the tier runs, it obeys 9 of
@@ -90,21 +95,17 @@ lineup](../readings/model-lineup.md), [deep candidates](../readings/deep-candida
    8192 still put it at 1.37 times the bound, one step with context checkpoints off at 1.56, and
    whether the model stops was not drawn.
    On four written questions drawn on one build, three seeds each, the pick stopped on 11 of 12,
-   Qwen3.8-27B on 10 at its default effort (`xhigh`) and on 12 at `low` and at `medium`, the
-   alternate on 10, Qwen3.6-35B-A3B (at `UD-Q3_K_XL`) on 6 and gemma-4-26B-A4B on 5; only the A4B's
+   the alternate on 10 at its default effort (`xhigh`) and on 12 at `low` and at `medium`,
+   Qwen3.6-35B-A3B (at `UD-Q3_K_XL`) on 6 and gemma-4-26B-A4B on 5; only the A4B's
    count reads apart from the pick's. The two mixture-of-experts entries decode about four times as
    fast on those draws, at 1.25 times the pick's SM clock, but every draw of theirs that did not
    stop spent the whole context reasoning, and the A3B stopped on no draw of two of the four
    questions, where the pick stopped on 5 of 6. Of the entries whose count does not read apart, the
-   pick reasons least at their defaults (a median of 1434 tokens against 2189 for Qwen3.8-27B, 4118
-   for the alternate and 5933 for the A3B), is QAT, and shares the cortex's family, template and
-   prompt idiom. Qwen3.8-27B costs 0.82 of its VRAM at the same decode rate and has a drafter built
-   in, and deploying it needs settings the tier lacks, an effort level first
+   pick reasons least at their defaults (a median of 1434 tokens against 2189 for the alternate
+   and 5933 for the A3B), is QAT, and shares the cortex's family, template and
+   prompt idiom. Qwen3.8-27B is the alternate: it costs 0.82 of the pick's VRAM at the same decode
+   rate and has a drafter built in, and deploying it needs an effort level the tier cannot set
    ([R-738](../refinements/tasks/738-the-deep-tier-cannot-set-a-templates-reasoning-effort-or-preserve-flag.md)).
-   Qwen3.6-27B is the documented alternate, one `CORTEX_MODEL_FILE_BRAIN` away, for a deployment
-   that wants about 2.7 GB more of the card free during a handoff; its template drops a third
-   leading system message, so the adapter joins a deep turn's preamble, memory and recap into one
-   before sending ([ADR-0071](ADR-0071-leading-system-messages.md)).
    The deep tier has no default artifact: a deployment turns it on by naming the pick. At the
    engine's sampler, thinking on, the pick obeys 0 of 100 framed injection draws against 8 of 100
    unframed, and Qwen3.8-27B 0 against 0.
@@ -166,21 +167,23 @@ lineup](../readings/model-lineup.md), [deep candidates](../readings/deep-candida
 
 14. **The deep pick takes its multi-token-prediction drafter from one setting, recommended with the
     pick.** `CORTEX_MODEL_FILE_BRAIN_DRAFT` names the drafter under the models mount
-    (`google/gemma-4-31B-it-assistant/assistant-F16.gguf` for the pick). A named file appends
+    (`unsloth/gemma-4-31B-it-qat-GGUF/mtp-gemma-4-31B-it-Q8_0.gguf` for the pick). A named file appends
     `--model-draft PATH --spec-type draft-mtp` to the deep tier's argv after its usual end, and
     `drafter_flags` in `tiers.py` returns the four items or none, because the path without the type
     loads the drafter and drafts nothing. The pair is passed through the tier's `extra`, since the
     model host's argv builder has exactly one splat and `scripts/hostedtiers.py` reads it that way.
-    At matched power limits the drafter decodes 1.34 times the plain rate on a tool-call turn and
-    on answer text, and 1.86 to 1.89 times on a reasoning trace; it costs about 1000 MiB and about
-    a tenth more load time, which a handoff recovers within about 400 to 1500 decoded tokens. The
+    Measured as its `F16` build, at matched power limits the drafter decodes 1.34 times the plain
+    rate on a tool-call turn and on answer text, and 1.86 to 1.89 times on a reasoning trace; it
+    costs about 1000 MiB and about a tenth more load time, which a handoff recovers within about
+    400 to 1500 decoded tokens. The
     setting has an empty default: it serves one pick, a compose default would append it to whatever
     deep model a deployment names, and `${VAR:-default}` cannot be turned off by an empty value.
     The model-swap runbook and the gpu override name it as part of the pick's configuration, with
     the settings that move with it: `CORTEX_SWAP_BRAIN_VRAM_MIB` raised by the drafter's cost, the
     GPU subagent tier listed in `CORTEX_SWAP_EVICT_MODELS`, `CORTEX_SWAP_CORESIDENT` left off, and
     the decode minimum measured again with the drafter drafting. Only the deep tier reads the
-    setting; nothing on the mount drafts for the cortex or the subagent pick. Qwen3.8-27B has a
+    setting, so the drafters the mount holds for the cortex and the subagent entries serve no tier
+    ([R-1239](../refinements/tasks/1239-no-tier-but-the-deep-one-can-name-a-drafter.md)). Qwen3.8-27B has a
     multi-token-prediction layer in its own file, which the engine drafts with on
     `--spec-type draft-mtp` alone, at 1.40 to 1.43 times the plain rate on reasoning and tool-call
     turns and 1.16 on answer text, for about 950 MiB; the setting names a separate file, so a
@@ -206,9 +209,8 @@ lineup](../readings/model-lineup.md), [deep candidates](../readings/deep-candida
   looser than their derivation asked for now that it is; they are re-sized only on whole-subtask
   measurements
   ([R-637](../refinements/tasks/637-the-delegated-run-ceilings-were-sized-on-the-unpinned-cpu-tier.md)).
-- The alternate, the two older mixture-of-experts entries and Qwen3.8-Flash-Next have no injection
-  row, and an adopted alternate needs its own. Qwen3.8-27B's row was drawn at its template's default
-  effort, so a deployment that sets another effort draws it again.
+- The two older mixture-of-experts entries and Qwen3.8-Flash-Next have no injection row. The
+  alternate's row was drawn at its template's default effort, and another effort needs its own.
 - The injection measurements for a candidate start from the tier's deployed configuration
   ([ADR-0060](ADR-0060-injection-rows-follow-the-tier.md)).
 

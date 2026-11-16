@@ -14,8 +14,8 @@ from cortex_model_manager.tiers import drafter_flags
 
 _BIN = "/app/llama-server"
 _BIND_ALL = "0.0.0.0"  # noqa: S104 - asserted as the flag value, not bound by this process
-_CORTEX_GGUF = "google/gemma-4-12B-it-qat-q4_0-gguf/gemma-4-12b-it-qat-q4_0.gguf"
-_DRAFTER_GGUF = "google/gemma-4-31B-it-assistant/assistant-F16.gguf"
+_CORTEX_GGUF = "unsloth/gemma-4-12B-it-qat-GGUF/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf"
+_DRAFTER_GGUF = "unsloth/gemma-4-31B-it-qat-GGUF/mtp-gemma-4-31B-it-Q8_0.gguf"
 _DRAFT_FLAG = "--model-draft"
 
 

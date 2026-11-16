@@ -22,18 +22,20 @@ the models are at `/srv/models` inside WSL (Windows `D:\Software\AI\...`), so se
 which resolves `D:`.
 
 `CORTEX_MODEL_FILE_SUBAGENT` names the artifact, defaulting to
-`google/gemma-4-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf`. **The override changes what a
+`unsloth/gemma-4-E4B-it-qat-GGUF/gemma-4-E4B-it-qat-UD-Q4_K_XL.gguf`. **The override changes what a
 tool-less subagent answers, not only how fast.** All five entries were measured through the
 shipped constrained reply path at 288 seeded runs each, 1440 in all, and they answer the same
-narrow work between 42 and 77 of 96 ([reply envelope](../readings/reply-envelope.md), 2026-09-11):
+narrow work between 42 and 77 of 96 ([reply envelope](../readings/reply-envelope.md), 2026-09-11,
+on the files the mount held then:
+[R-1238](../refinements/tasks/1238-the-lineups-readings-were-drawn-on-files-the-mount-no-longer-holds.md)):
 
 | override | answers, shipped constrained path | the thing to know |
 | --- | --- | --- |
-| `gemma-4-E4B_q4_0-it.gguf` (default) | 77 of 96, against 71 without the shipped sentence | the model every sentence and flag here was tuned on; hands the report back on 14 of 32 summarizations |
-| `unsloth/Qwen3.5-4B-GGUF/Qwen3.5-4B-Q4_K_M.gguf` | 70 of 96, against 86 without it | the largest weights of the five; hands the report back on 24 of 32 summarizations |
-| `unsloth/Qwen3.5-2B-GGUF/Qwen3.5-2B-Q4_K_M.gguf` (roster alternate) | 59 of 96, against 70 without it | the cheap override, weaker against injection; hands the report back on 27 of 32 summarizations |
-| `gemma-4-E2B_q4_0-it.gguf` | 54 of 96, against 89 without it | hands the report back on 31 of 32 summarizations, and loses answers to a reasoning channel a delegated run drops |
-| `unsloth/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q8_0.gguf` | 42 of 96, the same without it | answers an extraction on 6 draws of 32, and its own unconstrained lookup falls under the floor |
+| `gemma-4-E4B-it-qat-UD-Q4_K_XL.gguf` (default) | 77 of 96, against 71 without the shipped sentence | the model every sentence and flag here was tuned on; hands the report back on 14 of 32 summarizations |
+| `unsloth/Qwen3.5-4B-MTP-GGUF/Qwen3.5-4B-Q4_K_M.gguf` | 70 of 96, against 86 without it | the largest weights of the five; hands the report back on 24 of 32 summarizations |
+| `unsloth/Qwen3.5-2B-MTP-GGUF/Qwen3.5-2B-Q4_K_M.gguf` (roster alternate) | 59 of 96, against 70 without it | the cheap override, weaker against injection; hands the report back on 27 of 32 summarizations |
+| `gemma-4-E2B-it-qat-UD-Q4_K_XL.gguf` | 54 of 96, against 89 without it | hands the report back on 31 of 32 summarizations, and loses answers to a reasoning channel a delegated run drops |
+| `unsloth/Qwen3.5-0.8B-MTP-GGUF/Qwen3.5-0.8B-Q8_0.gguf` | 42 of 96, the same without it | answers an extraction on 6 draws of 32, and its own unconstrained lookup falls under the floor |
 
 Prefer the default. The E2B and the 0.8B are the two to override to last: the E2B loses answers to
 a channel nobody reads, and the 0.8B mostly hands the instruction or the report back. A report
@@ -60,7 +62,7 @@ and again in `model_alias`; `GET /v1/models` reports the same string as the mode
 
 ```bash
 curl -s http://127.0.0.1:8082/props   # the default entry; :8083 is the roster alternate
-# -> ... "model_path":"/models/google/gemma-4-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf" ...
+# -> ... "model_path":"/models/unsloth/gemma-4-E4B-it-qat-GGUF/gemma-4-E4B-it-qat-UD-Q4_K_XL.gguf" ...
 ```
 
 That path is `CORTEX_MODEL_FILE_SUBAGENT` joined under `/models`, so it says which row you chose
@@ -214,7 +216,7 @@ To check a tier by hand, start one standalone CPU server with the same flags and
 ```bash
 docker run -d --name e4b-probe --cpus 4 -p 127.0.0.1:8090:8090 -v /srv/models:/models:ro \
   ghcr.io/ggml-org/llama.cpp:server \
-  --model /models/google/gemma-4-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf \
+  --model /models/unsloth/gemma-4-E4B-it-qat-GGUF/gemma-4-E4B-it-qat-UD-Q4_K_XL.gguf \
   --host 0.0.0.0 --port 8090 -ngl 0 --threads 4 \
   --jinja --chat-template-kwargs '{"enable_thinking": false}' \
   --cache-ram 0 \
