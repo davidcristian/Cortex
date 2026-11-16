@@ -238,7 +238,7 @@ lineup](../readings/model-lineup.md), [deep candidates](../readings/deep-candida
   [ADR-0043](ADR-0043-subagent-server-flags.md),
   [ADR-0049](ADR-0049-thinking-switch-and-trace-budget.md),
   [ADR-0059](ADR-0059-prompt-cache-per-tier.md),
-  [ADR-0060](ADR-0060-injection-rows-follow-the-tier.md).
+  [ADR-0060](ADR-0060-injection-rows-follow-the-tier.md), [ADR-0077](ADR-0077-model-card-settings.md).
 - Runbooks: [llamacpp-gpu](../runbooks/llamacpp-gpu.md),
   [subagents-cpu](../runbooks/subagents-cpu.md), [model-swap](../runbooks/model-swap.md),
   [memory-pgvector](../runbooks/memory-pgvector.md).

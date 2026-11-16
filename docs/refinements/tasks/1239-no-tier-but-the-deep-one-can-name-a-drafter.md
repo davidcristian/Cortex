@@ -12,8 +12,9 @@
 `unsloth/gemma-4-<size>-it-qat-GGUF/mtp-gemma-4-<size>-it-Q8_0.gguf` of architecture
 `gemma4-assistant`, so the cortex and the GPU subagent tier have one on disk that no setting loads.
 
-What the model cards say about drafters, read 2026-11-16, is not measured here. Three points
-decide the work:
+What the model cards say about drafters is in decision 5 of
+[ADR-0077](../../adr/ADR-0077-model-card-settings.md), and none of it is measured here. Three
+points decide the work:
 
 - The gemma cards draft 4 tokens at a time. The model host passes no `--spec-draft-n-max`, and
   the engine's default is 3.
