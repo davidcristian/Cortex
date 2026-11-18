@@ -22,6 +22,7 @@ _SUBAGENT_TAIL = (
     "0",
 )
 _SERVER_LOGGER = "cortex_model_manager.server"
+_OWN_LAYER = ("--spec-type", "draft-mtp", "--spec-draft-n-max", "5")
 
 
 def _drafting(file: str, length: str = "3") -> tuple[str, ...]:
@@ -179,8 +180,9 @@ def test_a_draft_length_of_zero_is_refused(monkeypatch: pytest.MonkeyPatch, vari
 
 
 def test_the_drafter_flags_are_one_run_or_nothing() -> None:
-    assert drafter_flags("", 3) == ()
-    assert drafter_flags("/models/d.gguf", 4) == (
+    assert drafter_flags("", 3, "/models/m.gguf") == ()
+    assert drafter_flags("", 3, "") == ()
+    assert drafter_flags("/models/d.gguf", 4, "/models/m.gguf") == (
         _DRAFT_FLAG,
         "/models/d.gguf",
         "--spec-type",
@@ -188,6 +190,43 @@ def test_the_drafter_flags_are_one_run_or_nothing() -> None:
         "--spec-draft-n-max",
         "4",
     )
+
+
+def test_a_drafter_that_is_the_model_file_keeps_the_type_and_length_and_names_no_file() -> None:
+    assert drafter_flags("/models/m.gguf", 5, "/models/m.gguf") == _OWN_LAYER
+
+
+@pytest.mark.parametrize(
+    ("model", "file", "drafter", "length"),
+    [
+        (
+            "cortex",
+            "CORTEX_MODEL_FILE_CORTEX",
+            "CORTEX_MODEL_FILE_CORTEX_DRAFT",
+            "CORTEX_DRAFT_LENGTH",
+        ),
+        (
+            "brain",
+            "CORTEX_MODEL_FILE_BRAIN",
+            "CORTEX_MODEL_FILE_BRAIN_DRAFT",
+            "CORTEX_DRAFT_LENGTH_BRAIN",
+        ),
+        (
+            "subagent-gpu-2",
+            "CORTEX_MODEL_FILE_SUBAGENT_GPU",
+            "CORTEX_MODEL_FILE_SUBAGENT_GPU_DRAFT",
+            "CORTEX_DRAFT_LENGTH_SUBAGENT_GPU",
+        ),
+    ],
+)
+def test_a_tier_named_as_its_own_drafter_drafts_with_its_layer_and_loads_no_second_file(
+    monkeypatch: pytest.MonkeyPatch, model: str, file: str, drafter: str, length: str
+) -> None:
+    settings = {file: "deep/own.gguf", drafter: "deep/own.gguf", length: "5"}
+    argv = _argv(model, monkeypatch, **settings)
+    assert argv[-4:] == _OWN_LAYER
+    assert _DRAFT_FLAG not in argv
+    assert argv.count("/models/deep/own.gguf") == 1
 
 
 def test_flags_added_to_a_tier_follow_its_own() -> None:

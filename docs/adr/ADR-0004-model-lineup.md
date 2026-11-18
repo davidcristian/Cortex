@@ -168,9 +168,9 @@ lineup](../readings/model-lineup.md), [deep candidates](../readings/deep-candida
 14. **The deep pick takes its multi-token-prediction drafter from one setting, recommended with the
     pick.** `CORTEX_MODEL_FILE_BRAIN_DRAFT` names the drafter under the models mount
     (`unsloth/gemma-4-31B-it-qat-GGUF/mtp-gemma-4-31B-it-Q8_0.gguf` for the pick). A named file appends
-    `--model-draft PATH --spec-type draft-mtp --spec-draft-n-max 3` to the deep tier's argv, and
-    `drafter_flags` in `tiers.py` returns the six items or none, because the path without the type
-    loads the drafter and drafts nothing. They are passed through the tier's `extra`, since the
+    `--model-draft PATH --spec-type draft-mtp --spec-draft-n-max 3` to the deep tier's argv; the
+    deep file's own name appends the last four items and drafts with the layer inside that file.
+    A path without the type drafts nothing. They are passed through the tier's `extra`, since the
     model host's argv builder has exactly one splat and `scripts/hostedtiers.py` reads it that way.
     Measured as its `F16` build, at matched power limits the drafter decodes 1.34 times the plain
     rate on a tool-call turn and on answer text, and 1.86 to 1.89 times on a reasoning trace; it

@@ -82,7 +82,7 @@ The cards were read on 2026-11-16, when the models mount moved to the files
    | Flash attention | on, and off for gemma-4-E4B | unset, the engine's `auto` | open, R-1240 |
    | Draft length of the gemma entries | 4 | 3 on every tier | kept: decision 7 |
    | Drafter file of the gemma entries | the `Q4_0` file | the `Q8_0` file | kept: the mount holds the `Q8_0` file and every row was drawn with it |
-   | Drafter inside a Qwen file | `--spec-type draft-mtp` with no drafter file | the flag is passed only with a file | open, [R-739](../refinements/tasks/739-the-deep-tier-cannot-name-a-drafter-built-into-its-own-model.md) |
+   | Drafter inside a Qwen file | `--spec-type draft-mtp` with no drafter file | the same once a tier's drafter setting names the tier's own file; no Qwen file drafts unless named | kept: decision 7 |
    | `reasoning_effort` and `preserve_thinking` on Qwen3.8 | settings the template reads | neither is sent | open, [R-738](../refinements/tasks/738-the-deep-tier-cannot-set-a-templates-reasoning-effort-or-preserve-flag.md) |
    | Embedder prefix | on every string | none | open, [R-1241](../refinements/tasks/1241-the-embedder-is-sent-no-task-prefix.md) |
    | Image token budget | one of the five listed | 1024 | kept: chosen on this machine's readings ([ADR-0029](ADR-0029-vision-screen-capture.md)) |
@@ -104,7 +104,10 @@ The cards were read on 2026-11-16, when the models mount moved to the files
    wrote at 1.76 times the no-draft rate, against 1.73 at 2 and 1.61 at 4, the length the gemma
    cards recommend. At the subagent's 8K it wrote at 1.60 times, and 4 to 6 were slower
    ([readings](../readings/tier-drafters.md)). The deep tier's 3 is the engine's own default,
-   which its rows were drawn at.
+   which the pick's rows were drawn at. The Qwen3.8-27B Q4 file wrote fastest at 5 at 16K and
+   20K and at 3 at 24K, where 4 is over the card's budget
+   ([readings](../readings/nvfp4-deep-tier.md)), so 3 is the longest length that fits at every
+   context the layer fits at, and a deployment of that file at 16K or 20K sets 5.
 
    A GPU subagent server of more than one slot is given a drafter only when its file is listed.
    Every listed file is a gemma file, whose card names no slot limit, and the subagent pick was
@@ -113,11 +116,13 @@ The cards were read on 2026-11-16, when the models mount moved to the files
    one slot (decision 5). Leaving the drafter out costs rate only, where refusing the
    configuration would stop a slot shape that ran before the setting existed.
 
-   A Qwen entry has no listed drafter: its layer is in the model file, which no setting drafts
-   with ([R-739](../refinements/tasks/739-the-deep-tier-cannot-name-a-drafter-built-into-its-own-model.md)),
-   and Qwen3.5-2B and Qwen3.5-0.8B wrote slower with drafting at every context drawn. The cortex
-   drafts with its projector loaded, where a turn with a picture answered and most drafted tokens
-   were accepted.
+   A tier drafts with the layer inside its own model file when its drafter setting names that
+   file. `drafter_flags` then writes `--spec-type draft-mtp` and the draft length with no
+   `--model-draft`, so the model is not loaded a second time. The Qwen3.8-27B Q4 file wrote at
+   1.75 times its no-draft rate that way at 24K and a draft length of 3. A Qwen entry has no
+   listed drafter, so none drafts unless named: Qwen3.5-2B and Qwen3.5-0.8B wrote slower with
+   drafting at every context drawn. The cortex drafts with its projector loaded, where a turn
+   with a picture answered and most drafted tokens were accepted.
 
 ## Consequences
 

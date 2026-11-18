@@ -75,11 +75,14 @@ def image_budget_flags(budget: int) -> tuple[str, ...]:
     )
 
 
-def drafter_flags(path: str, length: int) -> tuple[str, ...]:
+def drafter_flags(path: str, length: int, model_path: str) -> tuple[str, ...]:
     """A tier's MTP drafter with its speculative type and draft length, or nothing for none."""
     if not path:
         return ()
-    return ("--model-draft", path, "--spec-type", _DRAFT_MTP, "--spec-draft-n-max", str(length))
+    flags = ("--model-draft", path, "--spec-type", _DRAFT_MTP, "--spec-draft-n-max", str(length))
+    # A drafter that is the tier's own model file is the layer inside it, which the engine
+    # drafts with when no drafter file is named.
+    return flags[2:] if path == model_path else flags
 
 
 def with_flags(tier: TierArgs, flags: tuple[str, ...]) -> TierArgs:

@@ -65,8 +65,8 @@ the choice changes the file ADR-0004 names for an entry, and no compose default.
 Recommended: A now, and B once R-1245 has drawn the Qwen NVFP4 file's rows and they are no worse
 than the Q4 file's. The Qwen NVFP4 file takes less of the card, reads a prompt nearly twice as
 fast and writes faster without drafting, and its lower rate with drafting is the one cost.
-[R-739](739-the-deep-tier-cannot-name-a-drafter-built-into-its-own-model.md) applies to it as it
-does to the Q4 file, so a deployment of either drafts nothing today. C is not recommended on these
+A deployment of either Qwen file drafts with the file's own layer once
+`CORTEX_MODEL_FILE_BRAIN_DRAFT` names that file again. C is not recommended on these
 rows: the gemma NVFP4 file costs more card memory, writes more slowly in the split run this budget
 needs, and gets nothing from the drafter ADR-0004 recommends with the pick.
 

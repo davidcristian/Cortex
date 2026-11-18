@@ -157,9 +157,9 @@ class ModelHostConfig(BaseSettings):
         ge=_UNRESTRICTED_REASONING,
         validation_alias="CORTEX_REASONING_BUDGET_BRAIN",
     )
-    # The deep tier's multi-token-prediction drafter. Empty starts the tier as before; naming a
-    # file decoded at 1.86 to 1.89 times the plain rate for about 1000 MiB more, which this
-    # stack's card cannot hold beside the GPU subagent tier.
+    # The deep tier's multi-token-prediction drafter. Empty starts the tier without one; the
+    # deep file's own name drafts with the layer inside that file. The pick's drafter decoded at
+    # 1.86 to 1.89 times the plain rate for about 1000 MiB more.
     brain_draft_file: str = Field(default="", validation_alias="CORTEX_MODEL_FILE_BRAIN_DRAFT")
     brain_draft_length: int = Field(
         default=DEFAULT_BRAIN_DRAFT_LENGTH, gt=0, validation_alias="CORTEX_DRAFT_LENGTH_BRAIN"
@@ -213,6 +213,7 @@ class ModelHostConfig(BaseSettings):
                     *drafter_flags(
                         self._path(drafter_file(self.cortex_draft_file, self.cortex_file)),
                         self.cortex_draft_length,
+                        self._path(self.cortex_file),
                     ),
                 ),
             ),
@@ -227,7 +228,11 @@ class ModelHostConfig(BaseSettings):
                     "--cache-ram",
                     _NO_PROMPT_CACHE,
                     *self._reasoning(self.brain_reasoning_budget),
-                    *drafter_flags(self._path(self.brain_draft_file), self.brain_draft_length),
+                    *drafter_flags(
+                        self._path(self.brain_draft_file),
+                        self.brain_draft_length,
+                        self._path(self.brain_file),
+                    ),
                 ),
             ),
             *(
@@ -269,6 +274,7 @@ class ModelHostConfig(BaseSettings):
         return drafter_flags(
             self._path(drafter_file(self.subagent_gpu_draft_file, self.subagent_gpu_file)),
             self.subagent_gpu_draft_length,
+            self._path(self.subagent_gpu_file),
         )
 
     def _vision(self) -> tuple[str, ...]:

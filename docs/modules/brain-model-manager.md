@@ -136,11 +136,11 @@ compares the two, so retune both or neither. `RosterError` is a boot-time miscon
   ([ADR-0077](../adr/ADR-0077-model-card-settings.md) decision 7, ADR-0004 decision 14).
   `drafter_flags` in `tiers.py` builds `--model-draft PATH --spec-type draft-mtp --spec-draft-n-max N`
   as one run through the tier's `extra`, because the path alone loads the drafter and drafts nothing.
+  A drafter named as the tier's own model file is the layer inside it, so the run leaves the path out.
   Unset, the cortex and each GPU subagent server take the drafter `drafters.py` lists beside their
-  file, and none when the setting is empty; the deep tier drafts only with a named file, which costs
-  997 to 1020 MiB and evicts the GPU subagent tier. A subagent server of several slots drafts only on
-  a listed file, and `undrafted()` names the drafter left out for the boot warning. `with_flags`
-  adds the subagent's drafter flags after the `extra` that `scripts/hostedtiers.py` reads.
+  file, and none when empty; the deep tier drafts only when named, which costs 997 to 1020 MiB and
+  evicts the GPU subagent tier. A server of several slots drafts only on a listed file, `undrafted()`
+  names the one left out, and `with_flags` adds flags after the `extra` `scripts/hostedtiers.py` reads.
 
 ## Invariants
 

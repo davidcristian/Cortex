@@ -1,9 +1,8 @@
 # The deep tier cannot name a drafter built into its own model
 
-**Status:** open, actionable
+**Status:** done 2026-11-18
 **Area:** inference-model-manager
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-11-10
 
 `drafter_flags` in `tiers.py` returns `--model-draft PATH --spec-type draft-mtp` for a named
 `CORTEX_MODEL_FILE_BRAIN_DRAFT` and nothing otherwise (ADR-0004 decision 14), because the pick's
@@ -45,3 +44,11 @@ asks of the pick's drafter.
 - 2026-11-16: fired: ADR-0004 decision 8 names Qwen3.8-27B as the deep alternate, since the
   models mount no longer holds Qwen3.6-27B. Every Qwen3.5 and Qwen3.6 file on the mount now has
   the layer in its own file too. Nothing named here is built yet.
+- 2026-11-18: done. The premise held in the code: `drafter_flags` wrote the type only after a
+  `--model-draft` path. The engine side is now run: the model baseline drew the Qwen3.8-27B Q4
+  and NVFP4 files on build b12375 with `--spec-type draft-mtp` and no `--model-draft`
+  ([readings](../../readings/nvfp4-deep-tier.md)). A tier whose drafter setting names the tier's
+  own model file now gets the type and its draft length with no second file, on every tier. The
+  deep tier's draft length stays 3: the Q4 file wrote fastest at 5 at 16K and 20K and at 3 at
+  24K, where 4 is over the card's budget. No Qwen file was added to `drafters.py`, so none drafts
+  unless a deployment names it, and that deployment measures `CORTEX_SWAP_BRAIN_VRAM_MIB` again.
