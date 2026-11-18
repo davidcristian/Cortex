@@ -29,7 +29,7 @@ format is in [adr/README.md](adr/README.md). A new non-obvious decision becomes
 | [ADR-0001: Founding architecture](adr/ADR-0001-architecture.md) | Hexagonal on both sides, two languages joined by a gRPC contract and no FFI, external state as swap safety, Redis and pgvector. |
 | [ADR-0002: Toolchain and check mechanics](adr/ADR-0002-toolchain-checks.md) | Nightly Rust for branch coverage, `scripts/` as its own project, the `_generated` marker, tests outside source. |
 | [ADR-0003: Stub codegen and packaging](adr/ADR-0003-generated-stubs.md) | Committed stubs so no build needs protoc, `just proto` to regenerate, tonic and grpcio, the `#[ignore]`d Rust live suite. |
-| [ADR-0004: Model lineup](adr/ADR-0004-model-lineup.md) | The candidates per tier, logical model ids, models read-only from the host mount, the picks per tier, and the 14 GB soft cap. |
+| [ADR-0004: Model lineup](adr/ADR-0004-model-lineup.md) | The candidates per tier, logical model ids, models read-only from the host mount, the picks per tier, and the 16 GB soft cap. |
 | [ADR-0005: llama.cpp as the inference engine](adr/ADR-0005-llamacpp-engine.md) | One `llama-server` per model behind the OpenAI-compatible API, a swap as process lifecycle, and a per-tier stall timeout. |
 | [ADR-0006: CI performance](adr/ADR-0006-check-performance.md) | Path-filtered CI through the in-repo classifier that fails safe, run cancellation on pull requests, actions locked to a SHA, parallel checks. |
 | [ADR-0007: Model Manager v1 and the llama.cpp adapter](adr/ADR-0007-model-manager-inference.md) | The `ModelManager` port, the httpx backend behind the unchanged `InferenceBackend`. |

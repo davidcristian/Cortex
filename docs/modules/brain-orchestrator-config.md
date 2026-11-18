@@ -29,9 +29,9 @@ follows is the prefix, the defaults other parts depend on, and the validation.
   decision 9). A Redis URL whose authority the client cannot read, such as a password holding an
   unencoded `/`, raises `RuntimeConfigError` naming the variable and not its value, since the
   client's own error prints the password's first segment as a port; an `@` left after the
-  authority is refused too, since a numeric first segment reads as a port and is printed. `vram_soft_cap_gb: float = 14.0` and `cortex_reservation_gb: float = 8.6` are the
+  authority is refused too, since a numeric first segment reads as a port and is printed. `vram_soft_cap_gb: float = 16.0` and `cortex_reservation_gb: float = 8.6` are the
   GPU budget the `SubagentPlacer` fit-tests against, re-measured 2026-08-07: the shipped tier peaks
-  at 8573 MiB above the desktop's own floor, leaving 5.4 GiB of subagent headroom (ADR-0012
+  at 8573 MiB above the desktop's own floor, leaving 7.4 GiB of subagent headroom (ADR-0012
   decision 14). `history_char_budget: int = 24000` (`0` turns windowing off, ADR-0014 decision 4),
   `history_summary: bool = True` (ADR-0038 decision 20; a fold decodes 61 to 163 tokens and costs
   2.9 s to 6.2 s) and `history_recap_min_chars: int = 2000`, clamped to the budget by the builder,
@@ -123,7 +123,7 @@ ADR-0009 decision 8), `call_timeout_s =
   subagent's ask and the pool's ceilings all default to a module constant rather than a literal
   inside `Field(...)`, so `scripts/crosscheck.py` can compare the declaration with every place
   `docker/docker-compose.subagents.yml` and the roster override write it; `vram_gb` is the measured
-  3.5 GiB, above the 3338 to 3410 MiB the GPU-placed tier costs, so one spawn fits the headroom and
+  3.5 GiB, above the 3338 to 3410 MiB the GPU-placed tier costs, so two spawns fit the headroom and
   the next overflows, and `memory_gb` the measured 3.0, about 2.5 GiB of RSS rounded up so two are
   admitted (ADR-0012 decision 14). The flat fields define the roster's default entry and each
   `CORTEX_SUBAGENTS_ROSTER__<name>` adds one alternate as a JSON `SubagentRosterEntry`, whose

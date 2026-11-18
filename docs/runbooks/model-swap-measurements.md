@@ -109,7 +109,7 @@ first if a refusal ever looks wrong.
 **A handoff also changes what the subagent placer will admit.** The residency scope charges
 `CORTEX_SWAP_BRAIN_VRAM_MIB` against `CORTEX_VRAM_SOFT_CAP_GB` for the length of a handoff, in
 place of `CORTEX_VRAM_CORTEX_GB`, so a GPU-placed spawn during a co-resident handoff is fit-tested
-against the card as it is. At the shipped 14 GB cap that window leaves nothing at all, so the
+against the card as it is. At the shipped 16 GB cap that window leaves nothing at all, so the
 measured 3.5 GiB subagent request is GPU-placed outside a handoff, overflows to the CPU server
 while the deep model is resident, and is GPU-placed again once the cortex is back. Delegated work
 through a co-resident handoff may therefore be slower than the same work outside one, and a

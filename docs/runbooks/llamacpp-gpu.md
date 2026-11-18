@@ -221,9 +221,9 @@ power cap, so those load times do not compare. Every gemma and Qwen3.5 row was t
 mount no longer holds, and the alternate's row is from 2026-09-26
 ([R-1238](../refinements/tasks/1238-the-lineups-readings-were-drawn-on-files-the-mount-no-longer-holds.md)).
 
-The VRAM budget is a deliberate 14 GB soft cap (`CORTEX_VRAM_SOFT_CAP_GB`), leaving about 10 GB
-of the 24 GB card for a second monitor and games. The cortex reservation is 8.6 GiB, so 5.4 GiB
-of headroom is left, which holds exactly one 3.5 GiB subagent request. Placement is cortex on the
+The VRAM budget is a deliberate 16 GB soft cap (`CORTEX_VRAM_SOFT_CAP_GB`), leaving about 8 GB
+of the 24 GB card for a second monitor and games. The cortex reservation is 8.6 GiB, so 7.4 GiB
+of headroom is left, which holds two 3.5 GiB subagent requests. Placement is cortex on the
 GPU, embedder on the CPU (`CORTEX_NGL=0`), subagents into a pool the cortex sizes within budget,
 deep model hybrid if it does not fit, all as per-`llama-server` flags. A GPU placement decision is
 not a GPU process: `CORTEX_SUBAGENTS_GPU_ENDPOINT` still defaults to the CPU server, so a stack

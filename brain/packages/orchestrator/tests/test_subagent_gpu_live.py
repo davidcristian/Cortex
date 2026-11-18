@@ -137,7 +137,7 @@ async def test_a_spawn_that_fits_the_headroom_runs_on_the_gpu_tier() -> None:
     if not config.vram_gb <= headroom < 2 * config.vram_gb:
         pytest.skip(
             f"this arm needs a headroom holding exactly one spawn: ask={config.vram_gb} GB "
-            f"against headroom={headroom} GB (leave CORTEX_VRAM_SOFT_CAP_GB at its shipped value)"
+            f"against headroom={headroom} GB (set CORTEX_VRAM_SOFT_CAP_GB=14 on the shipped ask)"
         )
     seen: list[PlacementTarget] = []
     result = await _spawn_two(seen)

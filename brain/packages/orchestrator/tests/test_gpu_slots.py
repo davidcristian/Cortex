@@ -19,6 +19,8 @@ from cortex_session import RedisSessionStore
 _CPU = "http://llama-subagent:8082"
 _ONE = "http://model-host:8083"
 _TWO = "http://model-host:8083,http://model-host:8084"
+_THREE = f"{_TWO},http://model-host:8085"
+_BUDGET = ("CORTEX_VRAM_SOFT_CAP_GB", "CORTEX_VRAM_CORTEX_GB", "CORTEX_SUBAGENTS_VRAM_GB")
 
 
 def _subagents(gpu_endpoint: str, gpu_parallel: int = 1) -> SubagentsConfig:
@@ -84,7 +86,17 @@ def test_a_gpu_slot_the_budget_never_places_a_spawn_on_is_reported_at_boot(
     assert _warned(caplog) == warned
 
 
-async def test_run_from_env_reports_a_second_gpu_server_the_shipped_budget_cannot_use(
+def test_the_shipped_budget_places_a_spawn_on_each_of_the_two_shipped_servers(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    for name in _BUDGET:
+        monkeypatch.delenv(name, raising=False)
+    with caplog.at_level(logging.WARNING):
+        warn_of_unplaced_gpu_slots(_subagents(_TWO), BrainRuntimeConfig())
+    assert _warned(caplog) == []
+
+
+async def test_run_from_env_reports_a_third_gpu_server_the_shipped_budget_cannot_use(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
     monkeypatch.setenv("CORTEX_TOOLS_BACKEND", "mcp")
@@ -92,8 +104,8 @@ async def test_run_from_env_reports_a_second_gpu_server_the_shipped_budget_canno
     monkeypatch.setenv("CORTEX_TOOLS_CALL_TIMEOUT_S", "3000")
     monkeypatch.setenv("CORTEX_SUBAGENTS_BACKEND", "llamacpp")
     monkeypatch.setenv("CORTEX_SUBAGENTS_ENDPOINT", _CPU)
-    monkeypatch.setenv("CORTEX_SUBAGENTS_GPU_ENDPOINT", _TWO)
-    for name in ("CORTEX_VRAM_SOFT_CAP_GB", "CORTEX_VRAM_CORTEX_GB", "CORTEX_SUBAGENTS_VRAM_GB"):
+    monkeypatch.setenv("CORTEX_SUBAGENTS_GPU_ENDPOINT", _THREE)
+    for name in _BUDGET:
         monkeypatch.delenv(name, raising=False)
     server = FakeServer()
 
@@ -109,4 +121,4 @@ async def test_run_from_env_reports_a_second_gpu_server_the_shipped_budget_canno
             ),
             timeout=10,
         )
-    assert _warned(caplog) == [(2, 1)]
+    assert _warned(caplog) == [(3, 2)]

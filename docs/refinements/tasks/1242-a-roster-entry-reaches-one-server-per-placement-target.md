@@ -9,7 +9,9 @@ Two subagents of one model run at the same time in two ways: as two slots of one
 loads the weights once, or as two servers of one slot, each with its own weights and context.
 
 Both shapes are built for the GPU-placed tier, and a server per subagent is its default
-([ADR-0018](../../adr/ADR-0018-heterogeneous-subagents.md) decision 12). Each endpoint setting
+([ADR-0018](../../adr/ADR-0018-heterogeneous-subagents.md) decision 12): the tier starts two
+servers of one slot, and the 16 GB soft cap places a spawn on each
+([ADR-0012](../../adr/ADR-0012-resource-governance.md) decision 14). Each endpoint setting
 lists one server or several, a spawn leases one slot of the server with the most free
 (`MultiServerModelManager` in `brain/packages/core/src/cortex_core/model.py`), the model host
 starts `CORTEX_SUBAGENTS_GPU_SERVERS` servers of `CORTEX_SUBAGENTS_GPU_PARALLEL` slots, and both
@@ -34,19 +36,14 @@ What remains, in the order to do it:
      in the `CORTEX_SUBAGENTS_ENDPOINT` default, set the `CORTEX_SUBAGENTS_PARALLEL` default to 1,
      and decide whether the alternate entry gets a second server too. `flagcheck.py` reads a new
      service from its model variable; prove it by removing a flag from the new one.
-2. **The server count defaults to 1, not 2.** The shipped budget places one spawn on the GPU at a
-   time: the 14 GB soft cap less the 8.6 GiB cortex reservation leaves room for one 3.5 GiB ask
-   (ADR-0012 decision 14). A default of two servers needs a soft cap above 15.6 GiB, and the soft
-   cap is a policy value of the user. Proposal for the 24 GB card: two servers, since both shapes
-   fit the 18,177 MiB model budget beside the cortex in the readings above.
-3. **Nothing compares the three settings that name the tier's servers**: the count the model host
+2. **Nothing compares the three settings that name the tier's servers**: the count the model host
    reads, the addresses in `CORTEX_SUBAGENTS_GPU_ENDPOINT` and the ids in
    `CORTEX_SWAP_EVICT_MODELS`. The VRAM budget is compared with the GPU slots at boot
    (`warn_of_unplaced_gpu_slots`), which reports a server the budget has no room for and not a
    server the endpoint setting leaves out.
-4. **`stop_grace_period: 45s`** on `model-host` in `docker/docker-compose.gpu.yml` is sized for
-   three children. Each further subagent server is one more child to stop.
-5. **The tier names no drafter**, so the main reason for the default has no effect until
+3. **`stop_grace_period: 45s`** on `model-host` in `docker/docker-compose.gpu.yml` is sized for
+   three children, and the default tier of two servers makes four.
+4. **The tier names no drafter**, so the main reason for the default has no effect until
    [R-1239](1239-no-tier-but-the-deep-one-can-name-a-drafter.md) gives it one.
 
 ## History
@@ -55,7 +52,8 @@ What remains, in the order to do it:
   compared as slots and as servers.
 - 2026-11-18: the user decided that both shapes stay supported and a server per subagent is the
   default. Built for the GPU-placed tier and checked live. The premise held. The remedy changed in
-  two ways: a slot is a lease the backend already holds for the whole stream, so no scheduler
-  change was needed, and the server count defaults to 1 because the shipped VRAM budget places one
-  spawn on the GPU. The brain also warns at boot when the GPU servers have more slots than the
-  VRAM budget places spawns. The five items above remain.
+  one way: a slot is a lease the backend already holds for the whole stream, so no scheduler
+  change was needed. The tier starts two servers by default, and the VRAM soft cap went from 14 to
+  16 GB so the budget places a spawn on each; the default shape was checked live beside the
+  cortex. The brain also warns at boot when the GPU servers have more slots than the VRAM budget
+  places spawns. The four items above remain.

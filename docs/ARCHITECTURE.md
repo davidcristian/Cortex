@@ -36,7 +36,7 @@ Three tiers share one 24 GB GPU through llama.cpp, one `llama-server` process pe
 
 | Tier | Role | Residency | Budget |
 |---|---|---|---|
-| Cortex | always-on conversation and routing model, multimodal, 9 to 12B | resident on the GPU | 8.6 GiB reserved, measured 2026-08-07 at the shipped 16K context including the vision tower, under the 14 GB soft cap (ADR-0012 decision 14) |
+| Cortex | always-on conversation and routing model, multimodal, 9 to 12B | resident on the GPU | 8.6 GiB reserved, measured 2026-08-07 at the shipped 16K context including the vision tower, under the 16 GB soft cap (ADR-0012 decision 14) |
 | Subagents | small 2 to 4B workers for narrow delegated tasks | dynamic pool, **GPU first with CPU overflow** (ADR-0012) | a whole-model fit test against `soft cap − cortex reservation − placed`: on the GPU (`-ngl 99`) when it fits, on the CPU (`-ngl 0`) when it does not, never split; plus a soft CPU and RAM admission budget |
 | Brain | large reasoning model, 31B class, for hard problems | loaded on demand | the whole GPU; the other tiers are unloaded |
 

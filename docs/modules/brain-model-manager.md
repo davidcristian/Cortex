@@ -149,7 +149,7 @@ compares the two, so retune both or neither. `RosterError` is a boot-time miscon
   stop the tiers the deployment already declared in the daemon's own environment. That is the
   security argument of ADR-0030 decision 3 against a docker socket or a compose-aware controller.
 - **The roster is fixed at boot, and a tier with no artifact file is not in it.** The deep tier and
-  the GPU subagent are opt-in, so a stock host answers 404 for them. A shared port fails at boot. `CORTEX_SUBAGENTS_GPU_SERVERS` (1) starts that many servers of the subagent file, `subagent-gpu` on `:8083` and then `subagent-gpu-2`, `-3` on the next ports (`server_id` in `tiers.py`), each with `CORTEX_SUBAGENTS_GPU_PARALLEL` (1) slots (ADR-0018 decision 12).
+  the GPU subagent are opt-in, so a stock host answers 404 for them. A shared port fails at boot. `CORTEX_SUBAGENTS_GPU_SERVERS` (2) starts that many servers of the subagent file, `subagent-gpu` on `:8083` and then `subagent-gpu-2`, `-3` on the next ports (`server_id` in `tiers.py`), each with `CORTEX_SUBAGENTS_GPU_PARALLEL` (1) slots (ADR-0018 decision 12).
 - **`start` and `stop` are idempotent**, because a swap re-issues either without checking first. A
   start whose spawn fails adds nothing, so a tier that never ran still reads `STOPPED`; it removes
   nothing either, so a tier whose child had already died goes on reporting that child's exit code

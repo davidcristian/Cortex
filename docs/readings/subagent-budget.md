@@ -50,7 +50,7 @@ Method: as above, driving concurrent requests through the tier's own endpoint.
 
 ## The two routes, and the budget choosing between them
 
-**2026-08-08**, the shipped budget (14 GB cap, 8.6 reservation, 3.5 ask), a batch of two spawns of
+**2026-08-08**, a budget of a 14 GB cap, an 8.6 reservation and a 3.5 ask, a batch of two spawns of
 one entry through `test_subagent_gpu_live.py`: one was GPU-placed and answered in 152 ms, its
 sibling overflowed to the CPU server and answered in 13135 ms, about 86 times longer, and the GPU
 tier's served-task count moved by exactly one. Under the earlier 5.5 ask both spawns overflowed and
@@ -80,7 +80,8 @@ about 3,850 MiB: a second server costs the whole footprint again, about 3,400 Mi
 second slot is inside the first server's.
 
 Loaded beside the gemma-4-12B cortex with every context filled and every server busy, both shapes
-fit a model budget of 18,177 MiB at the peak: 16,659 MiB with one two-slot server and a 256K cortex
+fit a model budget of 18,177 MiB at the peak, which is the card's 24,463 MiB less 4,750 MiB counted
+for the desktop's apps and 1,536 MiB kept free: 16,659 MiB with one two-slot server and a 256K cortex
 context, 17,678 MiB with two servers and a 160K cortex context. The larger footprint of two servers
 was paid from the cortex's context. Method: the baseline driver, raw rows in
 `measurements/model-baseline-2026-11-16/bench/slots.jsonl` and `bench/together.jsonl`.
@@ -92,15 +93,27 @@ baseline was 2,359 to 2,374 MiB, read before each load and after each teardown.
 
 | shape | settings | context per slot | loaded | peak while the batch ran |
 | --- | --- | --- | --- | --- |
-| one server of one slot | the defaults | 8K | 3,328 MiB | 3,338 MiB |
+| one server of one slot | `CORTEX_SUBAGENTS_GPU_SERVERS=1` | 8K | 3,328 MiB | 3,338 MiB |
 | two servers of one slot | `CORTEX_SUBAGENTS_GPU_SERVERS=2` | 8K | 6,387 MiB | 6,407 MiB |
-| one server of two slots | `CORTEX_SUBAGENTS_GPU_PARALLEL=2`, a 16K pool | 8K | 3,508 MiB | 3,520 MiB |
+| one server of two slots | one server, `CORTEX_SUBAGENTS_GPU_PARALLEL=2`, a 16K pool | 8K | 3,508 MiB | 3,520 MiB |
 
-In the default shape the host answered 404 for `subagent-gpu-2`, and the two spawns ran one after
+With one server of one slot the host answered 404 for `subagent-gpu-2`, and the two spawns ran one after
 the other: no sample of the server's `GET /slots` showed more than one slot busy. With two servers
 both were busy in 115 of 117 samples and neither had more than one slot busy, so the two spawns were
 leased to different servers. With two slots the one server had both busy. Method: `shape.sh` and
 `drive.py` in `~/.cache/cortex-run/2026-11-18/`, compose project `cortexn24`, logs in `logs/` there.
+
+**2026-11-18**, the shipped defaults with only the subagent file named, on build b12375: the
+gemma-4-12B cortex at 16K, text only, beside two gemma-4-E4B servers of one 8K slot. The host
+listed `cortex`, `subagent-gpu` and `subagent-gpu-2` and answered 404 for `subagent-gpu-3`. On the
+brain's default budget (16 GB cap, 8.6 reservation, 3.5 ask) `placed_at_once` put a spawn on each
+of the 2 GPU slots. One batch of two spawns ran while the cortex wrote 500 tokens: both subagent
+servers were busy in 111 of 311 samples, the cortex was busy in each of those, and no server had
+more than one slot busy. One of the two spawns ended at the driver's 400-token limit. Above an idle
+baseline of 2,394 MiB the three servers held 13,686 MiB loaded and 13,712 MiB at the peak, when the
+card read 16,106 MiB of its 24,463 in use. That peak is under the 15,974 MiB the placer charges
+for the three and the 16,384 MiB of the cap. Method: `shape2.sh` and `drive2.py` in the same
+directory, log `logs/newdefault.txt`.
 
 ## Two tiers generating at once
 

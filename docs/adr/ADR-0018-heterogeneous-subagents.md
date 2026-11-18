@@ -152,8 +152,8 @@ task record.
     `CORTEX_SUBAGENTS_PARALLEL` stays the slot count of the CPU servers, and a loop's result room is
     sized on the larger of the two counts.
 
-    **A server per subagent is the default shape.** The GPU tier starts one server of one slot,
-    and a deployment that wants a second GPU subagent raises the server count, not the slot count.
+    **A server per subagent is the default shape.** The GPU tier starts two servers of one slot,
+    and a deployment that wants another GPU subagent raises the server count, not the slot count.
     The Qwen model cards say multi-token prediction supports one slot only
     ([ADR-0077](ADR-0077-model-card-settings.md) decision 5), so a server per subagent keeps a
     drafter in every case. A crash or a restart of one server stops one subagent. And each of two
@@ -161,10 +161,10 @@ task record.
     server holds the whole footprint again, about 3,400 MiB for gemma-4-E4B with its drafter at an
     8K context, where a second slot adds only its context
     ([readings](../readings/subagent-budget.md#two-slots-against-two-servers)). The server count
-    defaults to 1 and not 2 because the shipped budget of ADR-0012 decision 14 places one spawn on
-    the GPU at a time: the 14 GB soft cap less the 8.6 GiB cortex leaves 5.4 GiB, which is one
-    3.5 GiB ask, so a second server would hold memory no spawn is placed on. The slot count the
-    tier had before, 2, served no second GPU-placed spawn and halved the context of the first.
+    defaults to 2 because the shipped budget of ADR-0012 decision 14 places two spawns on the GPU
+    at a time: the 16 GB soft cap less the 8.6 GiB cortex leaves 7.4 GiB, which is two 3.5 GiB
+    asks. A deployment that lowers the cap under 15.6 sets the server count to 1, or the second
+    server holds memory no spawn is placed on.
     The CPU servers keep one server of two slots until their caps count every server
     ([1242](../refinements/tasks/1242-a-roster-entry-reaches-one-server-per-placement-target.md)).
 

@@ -225,12 +225,12 @@ and finding nothing to correct.
 
 Deferred *decisions* live in ADR-0001's open questions. These are the *assumptions* the plan bets on.
 
-1. **VRAM fit.** *Measured in Slice 4 ([ADR-0004](adr/ADR-0004-model-lineup.md)).* The soft cap is **14 GB**
+1. **VRAM fit.** *Measured in Slice 4 ([ADR-0004](adr/ADR-0004-model-lineup.md)).* The soft cap is **16 GB**
    (`CORTEX_VRAM_SOFT_CAP_GB`), a deliberate budget rather than the card's size, so the machine stays usable
    alongside the assistant. The cortex (gemma-4-12B, QAT Q4) is reserved at 8.6 GiB at 16K context including the
    vision tower, re-measured 2026-08-07 where the tier peaks at 8573 MiB above the idle floor (it was 11.3 GB
    until then, a total-used reading with the desktop's own floor inside it), so it sits under the cap with
-   5.4 GiB of headroom. The embedder runs on the **CPU**, and subagents take the remaining headroom.
+   7.4 GiB of headroom. The embedder runs on the **CPU**, and subagents take the remaining headroom.
 2. **Swap latency.** A cortex to brain swap is a `llama-server` stop and start, so its cost is loading a
    multi-GB GGUF from the bind-mounted Windows drive. Assumed acceptable, in seconds, and reported to the
    overlay; if the Windows mount is the bottleneck, hot models get mirrored into a WSL-side cache. **Still

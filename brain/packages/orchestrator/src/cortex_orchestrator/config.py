@@ -51,7 +51,7 @@ class BrainRuntimeConfig(BaseSettings):
 
     redis_url: str = DEFAULT_REDIS_URL
     cortex_model: str = Field(default=DEFAULT_CORTEX_MODEL, validation_alias="CORTEX_MODEL_CORTEX")
-    vram_soft_cap_gb: float = Field(default=14.0, gt=0)
+    vram_soft_cap_gb: float = Field(default=16.0, gt=0)
     # The resident cortex's measured footprint, and the subagent GPU headroom is the soft cap
     # minus this. At the shipped tier shape it peaks at 8524 to 8573 MiB above the idle floor,
     # so 8.6 GiB leaves 233 MiB over the peak.

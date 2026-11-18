@@ -132,7 +132,7 @@ lineup](../readings/model-lineup.md), [deep candidates](../readings/deep-candida
     are GPU-first with CPU overflow ([ADR-0012](ADR-0012-resource-governance.md)); the deep model
     swaps in for a handoff ([ADR-0030](ADR-0030-brain-handoff.md)) and needs no hybrid layer split
     on this card, which stays the option for a smaller one. The AI stack's GPU budget is a
-    deliberate soft cap of 14 GB (`CORTEX_VRAM_SOFT_CAP_GB`), the owner's policy about the card
+    deliberate soft cap of 16 GB (`CORTEX_VRAM_SOFT_CAP_GB`), the owner's policy about the card
     rather than a measurement; the cortex's measured footprint, `CORTEX_VRAM_CORTEX_GB` at 8.6, is
     ADR-0012's. Context is set explicitly, never left to llama-server's default of the model's
     maximum across four slots: the cortex runs 16384 tokens in one slot (`CORTEX_CTX_SIZE`), the

@@ -164,7 +164,7 @@ property is proven able to fail by mutation. The real `kill -9` on the deep chil
 ### 8. VRAM: the deep model runs alone by default
 
 A handoff evicts the cortex and every `CORTEX_SWAP_EVICT_MODELS` tier and drains the pool, so
-admission never reopens onto an evicted tier. The window suspends the 14 GB soft cap, the user
+admission never reopens onto an evicted tier. The window suspends the 16 GB soft cap, the user
 having confirmed a handoff that takes the card; `CORTEX_NGL_BRAIN` and `CORTEX_CTX_SIZE_BRAIN` bring
 the deep tier under a budget. Normally the card holds the cortex and one GPU-placed subagent tier
 ([ADR-0012](ADR-0012-resource-governance.md)), which a deployment hosting it lists for eviction.

@@ -127,28 +127,40 @@ The one hard rule, 100% coverage without a GPU, and ports before adapters all ho
     next swap would silently reopen it. The placer keeps one bit because the brain has no mapping
     from a hosted tier to the endpoint a subagent connects to.
 
-14. **The configured budget is measured, and each number is written once.** The soft cap is 14 GB,
-    a user policy value that leaves the rest of the card to the desktop. The cortex reservation
-    `CORTEX_VRAM_CORTEX_GB` is **8.6 GiB** and the subagent request `CORTEX_SUBAGENTS_VRAM_GB` is
-    **3.5 GiB**, each a tier's own cost above the idle desktop baseline (the budget's unit; total
-    used would count the desktop twice) plus a margin wider than the spread between samplers
-    ([readings](../readings/subagent-budget.md)). The headroom is 5.4 GiB, so one spawn is
-    GPU-placed and the next overflows, which is what one tier process serves. The CPU entry asks
-    `cpus` 2.0 and `memory_gb` 3.0 (about 2.5 GiB RSS, rounded so two are admitted) against budgets
-    of 4.0 and 8.0. Each number is a module constant in `config_subagents.py` (`DEFAULT_VRAM_GB`,
-    `DEFAULT_CPUS`, `DEFAULT_MEMORY_GB`, `DEFAULT_CPU_BUDGET`, `DEFAULT_MEM_BUDGET_GB`) cited by
-    the `Field` and by `SubagentRosterEntry`, and `scripts/crosscheck.py` compares it with every
-    place it is written in `docker/docker-compose.subagents.yml`
+14. **The configured budget is measured, and each number is written once.** The soft cap is 16 GB,
+    a user policy value that leaves the rest of the card to the desktop. It is the smallest round
+    value that places two subagent requests beside the cortex, which need more than 15.6. The
+    cortex reservation `CORTEX_VRAM_CORTEX_GB` is **8.6 GiB** and the subagent request
+    `CORTEX_SUBAGENTS_VRAM_GB` is **3.5 GiB**, each a tier's own cost above the idle desktop
+    baseline (the budget's unit; total used would count the desktop twice) plus a margin wider than
+    the spread between samplers ([readings](../readings/subagent-budget.md)). The headroom is
+    7.4 GiB, so two spawns are GPU-placed and the third overflows, which is what the tier's two
+    servers of one slot serve ([ADR-0018](ADR-0018-heterogeneous-subagents.md) decision 12).
+
+    The cap fits the 24 GB card. With the desktop's apps counted at 4,750 MiB and 1,536 MiB kept
+    free, models have 18,177 MiB at the peak of a row. gemma-4-12B at a 160K context with two
+    gemma-4-E4B servers of 8K each, all busy, peaked at 17,678 MiB (2026-11-17,
+    `measurements/model-baseline-2026-11-16/bench/together.jsonl`), and the two servers need about
+    7,250 MiB at their peak. The cap stays a setting: a deployment with a heavier desktop lowers
+    it, and the brain's boot warning then reports the server no spawn is placed on.
+
+    The CPU entry asks `cpus` 2.0 and `memory_gb` 3.0 (about 2.5 GiB RSS, rounded so two are
+    admitted) against budgets of 4.0 and 8.0. Each number is a module constant in
+    `config_subagents.py` (`DEFAULT_VRAM_GB`, `DEFAULT_CPUS`, `DEFAULT_MEMORY_GB`,
+    `DEFAULT_CPU_BUDGET`, `DEFAULT_MEM_BUDGET_GB`) cited by the `Field` and by
+    `SubagentRosterEntry`, and `scripts/crosscheck.py` compares it with every place it is written
+    in `docker/docker-compose.subagents.yml`
     ([ADR-0042](ADR-0042-cross-tree-constant-registry.md)); `mem_limit` equals `memswap_limit`,
     which is what keeps the container off swap. A deployment that changes the llama.cpp build, a
     tier's context, `--parallel` or the image token budget measures again the tier it changed.
 
 15. **Where the processes run, and the caps they get.** The GPU-placed subagent tier is a hosted
-    tier of the model-host supervisor on `:8083` with `-ngl 99`, opt-in through
+    tier of the model-host supervisor on `:8083` and `:8084` with `-ngl 99`, opt-in through
     `CORTEX_MODEL_FILE_SUBAGENT_GPU` ([ADR-0053](ADR-0053-model-host-supervisor.md)); the CPU
     server is its own container. Routing is separate from hosting:
     `CORTEX_SUBAGENTS_GPU_ENDPOINT` defaults to the CPU server, so opting in is three settings
-    together (the artifact, the endpoint, the tier's id in `CORTEX_SWAP_EVICT_MODELS`). Caps are
+    together (the artifact, each server's address in the endpoint and its id in
+    `CORTEX_SWAP_EVICT_MODELS`). Caps are
     per container (`cpus`, `mem_limit`, `memswap_limit`): on the CPU subagent container they are
     the hard twin of decision 4's soft budgets, and inside the supervisor the cortex, the deep
     model and the GPU subagent share one cgroup, so no per-model cap exists. llama.cpp maps the

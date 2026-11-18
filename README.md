@@ -147,7 +147,7 @@ it; [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) has the full map.
 | **Subagents** | A 2-4B roster; gemma-4-E4B resists injection best and is the default | Spawned per task; placed on the GPU first with CPU overflow, never split |
 | **Brain** | A 31B-class reasoner | Loaded on demand; the resident models are unloaded and restored afterwards |
 
-Placement follows a soft VRAM budget (`CORTEX_VRAM_SOFT_CAP_GB`, 14 GB on a 24 GB card) so the machine
+Placement follows a soft VRAM budget (`CORTEX_VRAM_SOFT_CAP_GB`, 16 GB on a 24 GB card) so the machine
 stays usable beside the assistant. Embeddings run on the CPU (nomic-embed-text-v1.5). Cortex is
 developed on a single laptop: a mobile GPU with 24 GB of VRAM, 128 GB of DDR5 RAM at 5600 MT/s, and an
 Intel Core Ultra 9 275HX. The lineup above is tuned to that budget rather than fixed in code: every

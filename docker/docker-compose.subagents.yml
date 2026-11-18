@@ -7,9 +7,9 @@ services:
     environment:
       # Turn delegation on; without this the base image does not delegate at all.
       CORTEX_SUBAGENTS_BACKEND: "llamacpp"
-      # Addresses on the compose network, one or several separated by commas. Both targets resolve
-      # to the one CPU server, so a deployment naming CORTEX_MODEL_FILE_SUBAGENT_GPU must also set
-      # CORTEX_SUBAGENTS_GPU_ENDPOINT to http://model-host:8083 or nothing reaches that tier.
+      # Addresses on the compose network, separated by commas. Both targets resolve to the one CPU
+      # server, so a deployment naming CORTEX_MODEL_FILE_SUBAGENT_GPU must also set the GPU one to
+      # http://model-host:8083,http://model-host:8084, an address per server of that tier.
       CORTEX_SUBAGENTS_ENDPOINT: "http://llama-subagent:8082"
       CORTEX_SUBAGENTS_GPU_ENDPOINT: "${CORTEX_SUBAGENTS_GPU_ENDPOINT:-http://llama-subagent:8082}"
       # One subagent's resource ask, and the soft admission budgets. Measured on the shipped pick:

@@ -128,8 +128,9 @@ vocabulary. They run in different containers and never import each other.
     unknown state word) stay one type, since each means the host did not answer.
 15. **Hosting the GPU subagent tier and routing to it are separate settings.** Opting in is three
     together: `CORTEX_MODEL_FILE_SUBAGENT_GPU` puts it in the roster,
-    `CORTEX_SUBAGENTS_GPU_ENDPOINT=http://model-host:8083` routes GPU-placed spawns to it, and its
-    id in `CORTEX_SWAP_EVICT_MODELS` has a handoff stop it. The endpoint defaults to the CPU
+    `CORTEX_SUBAGENTS_GPU_ENDPOINT` routes GPU-placed spawns to it with one address per server
+    (`http://model-host:8083,http://model-host:8084` for the default two), and each server's id in
+    `CORTEX_SWAP_EVICT_MODELS` has a handoff stop it. The endpoint defaults to the CPU
     subagent server, so a deployment with no GPU artifact never routes spawns at a tier that answers
     nothing.
 

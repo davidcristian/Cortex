@@ -118,6 +118,7 @@ def test_naming_every_tiers_artifact_hosts_all_three_on_the_documented_ports(
         "cortex": 8080,
         "deep": 8081,
         "subagent-gpu": 8083,
+        "subagent-gpu-2": 8084,
     }
     assert roster["deep"].argv[:3] == (_BIN, "--model", "/models/deep/brain.gguf")
     assert "32768" in roster["deep"].argv
@@ -149,12 +150,15 @@ def _flag(spec: ModelSpec, flag: str) -> str:
     return spec.argv[spec.argv.index(flag) + 1]
 
 
-def test_the_subagent_tier_starts_one_server_of_one_slot_by_default(
+def test_the_subagent_tier_starts_two_servers_of_one_slot_by_default(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     servers = _subagent_servers(monkeypatch)
-    assert {model: spec.port for model, spec in servers.items()} == {"subagent-gpu": 8083}
-    assert _flag(servers["subagent-gpu"], "--parallel") == "1"
+    assert {model: spec.port for model, spec in servers.items()} == {
+        "subagent-gpu": 8083,
+        "subagent-gpu-2": 8084,
+    }
+    assert {_flag(spec, "--parallel") for spec in servers.values()} == {"1"}
 
 
 def test_a_server_count_starts_that_many_servers_of_the_one_file_on_the_next_ports(
@@ -179,7 +183,9 @@ def _without_port(argv: tuple[str, ...]) -> tuple[str, ...]:
 def test_the_slot_shape_starts_one_server_holding_every_slot(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    servers = _subagent_servers(monkeypatch, CORTEX_SUBAGENTS_GPU_PARALLEL="2")
+    servers = _subagent_servers(
+        monkeypatch, CORTEX_SUBAGENTS_GPU_SERVERS="1", CORTEX_SUBAGENTS_GPU_PARALLEL="2"
+    )
     assert list(servers) == ["subagent-gpu"]
     assert _flag(servers["subagent-gpu"], "--parallel") == "2"
 

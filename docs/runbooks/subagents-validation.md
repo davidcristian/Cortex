@@ -49,7 +49,7 @@ happening; a GPU path that cannot be made to do the second proves nothing by doi
 ```bash
 CORTEX_MODELS_DIR=/srv/models \
   CORTEX_MODEL_FILE_SUBAGENT_GPU=unsloth/gemma-4-E4B-it-qat-GGUF/gemma-4-E4B-it-qat-UD-Q4_K_XL.gguf \
-  CORTEX_SUBAGENTS_GPU_ENDPOINT=http://model-host:8083 \
+  CORTEX_SUBAGENTS_GPU_SERVERS=1 CORTEX_SUBAGENTS_GPU_ENDPOINT=http://model-host:8083 \
   docker compose --project-directory . -f docker/docker-compose.yml \
   -f docker/docker-compose.gpu.yml -f docker/docker-compose.subagents.yml \
   -f docker/docker-compose.modelhost-loopback.yml up -d --build
@@ -60,20 +60,22 @@ curl -s http://127.0.0.1:9300/models/subagent-gpu   # poll until "state":"ready"
 
 The loopback override is what makes this runnable from the host at all: the sidecar's tiers are
 deliberately unpublished, and it maps the tier's `:8083` to `127.0.0.1:9083`, since `:8083` on the
-host belongs to the roster override's second CPU server. Take it down with `just down-gpu`.
+host belongs to the roster override's second CPU server. Take it down with `just down-gpu`. The
+server count is set to 1 because each case below places at most one spawn on the tier.
 
 The file named on the first line is the CPU server's own default on purpose: the brain treats the
 hosted tier and the CPU server as the two placement targets of one roster entry, so the two
 variables have to name one artifact, and nothing checks that they do.
 
 Then the two cases, which select themselves from the budget in the environment and skip otherwise.
-Since the VRAM request was measured on 2026-08-08 the shipped budget selects the GPU one, so that
-one needs nothing overridden and the CPU one is what has to be arranged for:
+The shipped 16 GB cap holds both spawns of the batch and selects neither, so each case sets a cap
+of its own:
 
 ```bash
 cd brain
-# GPU: the shipped budget, whose 5.4 GiB of headroom holds exactly one 3.5 GiB request
+# GPU: a 14 GB cap, whose 5.4 GiB of headroom holds exactly one 3.5 GiB request
 CORTEX_SUBAGENTS_ENDPOINT=http://127.0.0.1:8082 CORTEX_SUBAGENTS_GPU_ENDPOINT=http://127.0.0.1:9083 \
+  CORTEX_VRAM_SOFT_CAP_GB=14 \
   uv run pytest -m integration --no-cov packages/orchestrator/tests/test_subagent_gpu_live.py
 # CPU: a soft cap the same request cannot fit, the overflow path every deployment
 # below this card's size takes
@@ -97,8 +99,8 @@ GPU budget and the run must fail with three placements and a "a GPU-placed subag
 answer" warning, which is the CPU re-place taking over. A suite that passes that way is measuring
 nothing.
 
-Measured 2026-08-08 against the measured VRAM request, the cortex resident throughout. With
-nothing overridden the GPU test passes, the tier's `launch_slot_` count moves by exactly one, and
+Measured 2026-08-08 against the measured VRAM request, the cortex resident throughout. At the
+14 GB cap the GPU test passes, the tier's `launch_slot_` count moves by exactly one, and
 that spawn answers in 152.11 ms (18 prompt tokens at 152.54 tok/s, 3 generated at 87.95 tok/s)
 against 13134.73 ms for the sibling that overflowed to the CPU. The CPU test at
 `CORTEX_VRAM_SOFT_CAP_GB=11`, whose 2.4 GiB of headroom is under the request, passes with the

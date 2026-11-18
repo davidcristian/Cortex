@@ -126,7 +126,7 @@ def test_runtime_defaults_match_the_dictated_contract() -> None:
     config = BrainRuntimeConfig()
     assert config.redis_url == "redis://127.0.0.1:6379/0"
     assert config.cortex_model == "cortex"
-    assert config.vram_soft_cap_gb == 14.0
+    assert config.vram_soft_cap_gb == 16.0
     assert config.cortex_reservation_gb == 8.6
     assert config.history_char_budget == 24_000
     assert config.output_guardrail == "redact"
@@ -157,17 +157,18 @@ def test_runtime_rejects_a_redis_url_the_client_cannot_read_without_printing_it(
 
 
 @pytest.mark.usefixtures("clean_env")
-def test_the_shipped_budget_places_one_subagent_on_the_gpu_and_overflows_the_next() -> None:
+def test_the_shipped_budget_places_two_subagents_on_the_gpu_and_overflows_the_next() -> None:
     runtime = BrainRuntimeConfig()
     ask = SubagentsConfig().vram_gb
     placer = VramBudgetPlacer(
         soft_cap_gb=runtime.vram_soft_cap_gb,
         cortex_reservation_gb=runtime.cortex_reservation_gb,
     )
-    first = placer.place(PlacementRequest("a", vram_gb=ask, cpus=1.0, memory_gb=1.0))
-    second = placer.place(PlacementRequest("b", vram_gb=ask, cpus=1.0, memory_gb=1.0))
-    assert first.target is PlacementTarget.GPU
-    assert second.target is PlacementTarget.CPU
+    targets = [
+        placer.place(PlacementRequest(name, vram_gb=ask, cpus=1.0, memory_gb=1.0)).target
+        for name in ("a", "b", "c")
+    ]
+    assert targets == [PlacementTarget.GPU, PlacementTarget.GPU, PlacementTarget.CPU]
 
 
 @pytest.mark.usefixtures("clean_env")
