@@ -26,14 +26,19 @@ def _fake_task_store(url: str) -> RedisTaskStore:
 
 @asynccontextmanager
 async def _holding_servers(
-    count: int, *, together: int = _TOGETHER
+    count: int, *, together: int = _TOGETHER, loading: frozenset[int] = frozenset()
 ) -> AsyncGenerator[tuple[list[str], list[int]]]:
     """Loopback servers that hold each completion until ``together`` have arrived."""
     released = asyncio.Event()
     arrivals: list[int] = []
 
     async def serve(index: int, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-        await reader.readline()
+        if (await reader.readline()).startswith(b"GET /health"):
+            status = b"503 Service Unavailable" if index in loading else b"200 OK"
+            writer.write(b"HTTP/1.1 " + status + b"\r\nContent-Length: 0\r\n\r\n")
+            await writer.drain()
+            writer.close()
+            return
         arrivals.append(index)
         if len(arrivals) >= together:
             released.set()
@@ -57,7 +62,15 @@ async def _holding_servers(
             await server.wait_closed()
 
 
-async def _spawn_two(config: SubagentsConfig, *, soft_cap_gb: float = 14.0) -> None:
+_TWO_TASKS = ("count to three", "name a colour")
+
+
+async def _spawn_two(
+    config: SubagentsConfig,
+    *,
+    soft_cap_gb: float = 14.0,
+    instructions: tuple[str, ...] = _TWO_TASKS,
+) -> None:
     spawn, _scheduler, close = await build_subagents(
         config,
         None,
@@ -73,7 +86,7 @@ async def _spawn_two(config: SubagentsConfig, *, soft_cap_gb: float = 14.0) -> N
                 ToolCall(
                     id="c1",
                     name="spawn_subagents",
-                    arguments={"instructions": ["count to three", "name a colour"]},
+                    arguments={"instructions": list(instructions)},
                 )
             )
     finally:
@@ -125,6 +138,19 @@ async def test_each_target_leases_its_own_servers_at_its_own_slot_count(
         )
         await _spawn_two(config, soft_cap_gb=soft_cap_gb)
     assert arrivals[:_TOGETHER] == [server, server]
+
+
+@pytest.mark.parametrize(
+    ("loading", "served_by"), [(frozenset({0}), 1), (frozenset({1}), 0), (frozenset({0, 1}), 2)]
+)
+async def test_a_lone_spawn_runs_on_a_gpu_server_that_serves_or_else_on_the_cpu(
+    loading: frozenset[int], served_by: int
+) -> None:
+    async with _holding_servers(3, together=1, loading=loading) as (endpoints, arrivals):
+        first, second, cpu = endpoints
+        config = SubagentsConfig(backend="llamacpp", endpoint=cpu, gpu_endpoint=f"{first},{second}")
+        await _spawn_two(config, soft_cap_gb=20.0, instructions=("count to three",))
+    assert arrivals == [served_by, _DONE]
 
 
 @pytest.mark.parametrize(

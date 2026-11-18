@@ -18,11 +18,11 @@ it is serving. Package-internal modules have no leading underscore, which marks 
 ## Public contract
 
 `__all__` is `LlamaCppBackend`, `reads_a_trace_budget`, `TraceBudgetProbe`,
-`TraceProbeUnansweredError`, `TRACE_BUDGET_PROBE_TIMEOUT_S`, `LlamaServerProbe`, `ServerWording`, `subagent_wording`, `CORTEX_DOWN` and `CORTEX_LOADING`.
+`TraceProbeUnansweredError`, `TRACE_BUDGET_PROBE_TIMEOUT_S`, `LlamaServerProbe`, `ServerWording`, `subagent_wording`, `gpu_server_wording`, `CORTEX_DOWN` and `CORTEX_LOADING`.
 `LlamaServerProbe(endpoint, transport, *, timeout_s, wording)` is the core's `ServingProbe` over
 `GET {endpoint}/health`: `None` on 200, `wording.loading` on the 503 llama-server answers until its
 model is loaded, `wording.down` on any `httpx.HTTPError`, and the status in its line otherwise. The
-wording is the cortex's (`CORTEX_LOADING`, `CORTEX_DOWN`) unless `subagent_wording(name)` is given. It
+wording is the cortex's (`CORTEX_LOADING`, `CORTEX_DOWN`) unless `subagent_wording(name)` is given, or `gpu_server_wording(name, endpoint)` for the probe a GPU subagent server is asked through before each lease. It
 sends on an `httpx.AsyncBaseTransport` rather than a client, since a client logs every request at
 INFO. `tests/serving_contract.py` is the contract it and `ScriptedServingProbe` pass.
 

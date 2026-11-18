@@ -149,8 +149,13 @@ between the brain and the cortex kept every request and reply.
   `a GPU-placed subagent did not answer; re-running it once on the CPU` and finished there, the
   other spawn finished on its server, the recheck pass started the killed server again, and the
   next delegated spawn ran on the GPU with no warning. A spawn asked for in the turn right after a
-  handoff was leased a server that still read `loading` and ran on the CPU
-  ([R-1249](../refinements/tasks/1249-a-spawn-is-leased-a-gpu-subagent-server-that-is-not-serving.md)).
+  handoff, while the servers still read `loading`, ran on the CPU.
+- **One server stopped.** With `subagent-gpu` stopped through the control API and
+  `subagent-gpu-2` serving, three lone spawns out of three ran on the second server and none on
+  the CPU server, and so did one spawn delegated in a chat turn. Of a batch of two spawns in that
+  state one ran on the second server and the other on the CPU, with the stopped server's address
+  in the warning. Log: `~/.cache/cortex-run/2026-11-18/slot9/logs/live.txt`, and `live2.txt` for
+  the lone spawns a second time.
 - **Filled contexts.** With the three servers loaded the card read 17,598 to 17,617 MiB. With a
   request of 7,597 prompt tokens on each subagent server and one of 15,736 on the cortex at once,
   it peaked at 17,638 to 17,646 MiB: about 15,220 MiB above the card with every tier stopped, and

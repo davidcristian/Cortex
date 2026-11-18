@@ -5,7 +5,13 @@ import pytest
 from serving_contract import ALL_CHECKS, Check, ProbeUnderTest
 
 from cortex_core import ScriptedServingProbe, ServingProbe
-from cortex_inference import CORTEX_DOWN, CORTEX_LOADING, LlamaServerProbe, subagent_wording
+from cortex_inference import (
+    CORTEX_DOWN,
+    CORTEX_LOADING,
+    LlamaServerProbe,
+    gpu_server_wording,
+    subagent_wording,
+)
 
 _ENDPOINT = "http://model-host:8080"
 
@@ -85,6 +91,18 @@ async def test_a_subagent_server_probe_names_its_roster_entry() -> None:
     assert await _subagent(_answering(500)).fault() == (
         "the server for subagent model qwen answered its health check with 500"
     )
+
+
+async def test_a_gpu_server_probe_names_its_address_and_its_roster_entry() -> None:
+    def probe(transport: httpx.AsyncBaseTransport) -> LlamaServerProbe:
+        wording = gpu_server_wording("qwen", _ENDPOINT)
+        return LlamaServerProbe(_ENDPOINT, transport, timeout_s=0.5, wording=wording)
+
+    part = "the GPU server http://model-host:8080 for subagent model qwen"
+    assert probe(_answering(200)).part == part
+    assert await probe(_answering(200)).fault() is None
+    assert await probe(_refusing()).fault() == f"{part} is not answering"
+    assert await probe(_answering(503)).fault() == f"{part} is still loading"
 
 
 async def test_a_silent_scripted_probe_never_answers() -> None:

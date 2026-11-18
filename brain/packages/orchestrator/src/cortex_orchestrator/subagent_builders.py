@@ -6,6 +6,7 @@ import httpx
 
 from cortex_core import (
     NO_ROLES,
+    SERVING_CHECK_TIMEOUT_S,
     SHIPPED_ROLES,
     Clock,
     ConfirmFreeToolRegistry,
@@ -14,6 +15,7 @@ from cortex_core import (
     PlacementRequest,
     PlacementTarget,
     ResourceBudgetScheduler,
+    ServingProbe,
     SpawnSubagentsTool,
     SubagentPlacer,
     SubagentProfile,
@@ -24,7 +26,7 @@ from cortex_core import (
     ToolDispatcher,
     ToolRegistry,
 )
-from cortex_inference import LlamaCppBackend
+from cortex_inference import LlamaCppBackend, LlamaServerProbe, gpu_server_wording
 from cortex_orchestrator.builders import build_generation_client, noop_aclose
 from cortex_orchestrator.config_subagents import (
     SubagentRosterEntry,
@@ -36,26 +38,50 @@ from cortex_session import RedisTaskStore
 
 
 def _backend(
-    name: str, endpoints: tuple[str, ...], slots: int, client: httpx.AsyncClient
+    name: str,
+    endpoints: tuple[str, ...],
+    slots: int,
+    client: httpx.AsyncClient,
+    probe: Callable[[str], ServingProbe | None],
 ) -> LlamaCppBackend:
     """One backend over every server a placement target names, each with ``slots`` slots."""
-    servers = [ModelServer(endpoint, slots) for endpoint in endpoints]
+    servers = [ModelServer(endpoint, slots, probe(endpoint)) for endpoint in endpoints]
     return LlamaCppBackend(MultiServerModelManager(name, servers), client)
 
 
-def _entry_profile(
+def _unasked(endpoint: str) -> None:
+    """No probe: a CPU server is the last target, so its own request reports what it does."""
+    del endpoint
+
+
+def _entry_profile(  # noqa: PLR0913 -- one entry, the two shared budgets and the two shared clients
     name: str,
     entry: SubagentRosterEntry,
     client: httpx.AsyncClient,
+    health: httpx.AsyncBaseTransport,
     scheduler: SubagentScheduler,
     placer: SubagentPlacer,
     slots: Mapping[PlacementTarget, int],
 ) -> SubagentProfile:
     """One roster entry's runtime profile: its own servers and ask, the shared budgets."""
+
+    def asked(endpoint: str) -> ServingProbe:
+        """The probe a GPU server is asked through before each lease of it."""
+        return LlamaServerProbe(
+            endpoint,
+            health,
+            timeout_s=SERVING_CHECK_TIMEOUT_S,
+            wording=gpu_server_wording(name, endpoint),
+        )
+
     on_cpu, on_gpu = endpoint_list(entry.endpoint), endpoint_list(entry.gpu_endpoint)
-    cpu = _backend(name, on_cpu, slots[PlacementTarget.CPU], client)
+    cpu = _backend(name, on_cpu, slots[PlacementTarget.CPU], client, _unasked)
     # Two targets naming the same servers share one backend, so a slot is leased once.
-    gpu = cpu if on_gpu == on_cpu else _backend(name, on_gpu, slots[PlacementTarget.GPU], client)
+    gpu = (
+        cpu
+        if on_gpu == on_cpu
+        else _backend(name, on_gpu, slots[PlacementTarget.GPU], client, asked)
+    )
     return SubagentProfile(
         resources=SubagentResources(
             backends={PlacementTarget.GPU: gpu, PlacementTarget.CPU: cpu},
@@ -80,13 +106,14 @@ async def build_subagents(
     if config.backend == "none":
         return None, None, noop_aclose
     client = build_generation_client(config.stall_timeout_s)
+    health = httpx.AsyncHTTPTransport()
     scheduler = ResourceBudgetScheduler(
         config.cpu_budget, config.mem_budget_gb, wait_timeout_s=config.admission_wait_s
     )
     slots = {PlacementTarget.GPU: config.gpu_parallel, PlacementTarget.CPU: config.parallel}
     roster = SubagentRoster(
         entries={
-            name: _entry_profile(name, entry, client, scheduler, placer, slots)
+            name: _entry_profile(name, entry, client, health, scheduler, placer, slots)
             for name, entry in config.named_roster.items()
         },
         default=config.model,
@@ -105,6 +132,7 @@ async def build_subagents(
     async def close_subagents() -> None:
         await store.aclose()
         await client.aclose()
+        await health.aclose()
 
     return SpawnSubagentsTool(runner, store, clock), scheduler, close_subagents
 

@@ -9,6 +9,7 @@ from cortex_core import (
     ModelServer,
     ModelUnavailableError,
     MultiServerModelManager,
+    ScriptedServingProbe,
     SingleResidentModelManager,
 )
 
@@ -111,6 +112,73 @@ async def test_a_lease_that_ends_in_an_error_frees_its_slot() -> None:
             raise broke
     async with manager.acquire("cortex") as lease:
         assert lease.endpoint == _ENDPOINT
+
+
+class _YieldingProbe:
+    part = "a server that answers after a pause"
+
+    async def fault(self) -> str | None:
+        await asyncio.sleep(0)
+        return None
+
+
+def _probed(
+    first: str | None, second: str | None
+) -> tuple[MultiServerModelManager, list[ScriptedServingProbe]]:
+    probes = [ScriptedServingProbe(answer=first), ScriptedServingProbe(answer=second)]
+    servers = [ModelServer(_ENDPOINT, probe=probes[0]), ModelServer(_SECOND, probe=probes[1])]
+    return MultiServerModelManager("cortex", servers), probes
+
+
+@pytest.mark.parametrize("fault", ["the first server is stopped", "the first server is loading"])
+async def test_a_lone_caller_is_leased_the_server_that_serves(fault: str) -> None:
+    manager, _ = _probed(fault, None)
+    for _ in range(2):
+        async with manager.acquire("cortex") as lease:
+            assert lease.endpoint == _SECOND
+
+
+async def test_no_lease_is_given_when_no_server_serves_and_every_fault_is_named() -> None:
+    manager, _ = _probed("the first is stopped", "the second is loading")
+    with pytest.raises(
+        ModelUnavailableError,
+        match=r"no server of 'cortex' .* is serving: the first is stopped; the second is loading",
+    ):
+        async with manager.acquire("cortex"):
+            pass  # pragma: no cover - acquire raises before the body runs
+
+
+async def test_a_server_is_asked_again_on_every_lease() -> None:
+    manager, probes = _probed("the first is loading", "the second is stopped")
+    with pytest.raises(ModelUnavailableError):
+        async with manager.acquire("cortex"):
+            pass  # pragma: no cover - acquire raises before the body runs
+    probes[0].answer = None
+    async with manager.acquire("cortex") as first:
+        assert first.endpoint == _ENDPOINT
+        probes[1].answer = None
+        async with manager.acquire("cortex") as second:
+            assert second.endpoint == _SECOND
+    assert [probe.calls for probe in probes] == [2, 2]
+
+
+async def test_a_second_caller_is_refused_while_the_one_serving_server_is_leased() -> None:
+    manager, _ = _probed("the first is stopped", None)
+    async with manager.acquire("cortex") as lease:
+        assert lease.endpoint == _SECOND
+        with pytest.raises(ModelUnavailableError, match=r"is serving: the first is stopped$"):
+            async with manager.acquire("cortex"):
+                pass  # pragma: no cover - acquire raises before the body runs
+
+
+async def test_two_callers_asking_at_once_are_leased_different_servers() -> None:
+    servers = [
+        ModelServer(_ENDPOINT, probe=_YieldingProbe()),
+        ModelServer(_SECOND, probe=_YieldingProbe()),
+    ]
+    peak, endpoints = await _overlap(MultiServerModelManager("cortex", servers), 2)
+    assert peak == 2
+    assert sorted(endpoints) == [_ENDPOINT, _SECOND]
 
 
 def test_a_manager_over_no_server_is_rejected() -> None:

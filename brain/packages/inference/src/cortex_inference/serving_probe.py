@@ -41,6 +41,14 @@ def subagent_wording(name: str) -> ServerWording:
     )
 
 
+def gpu_server_wording(name: str, endpoint: str) -> ServerWording:
+    """The wording for the GPU server at ``endpoint`` of the subagent roster entry ``name``."""
+    part = f"the GPU server {endpoint} for subagent model {name}"
+    return ServerWording(
+        part=part, loading=f"{part} is still loading", down=f"{part} is not answering"
+    )
+
+
 class LlamaServerProbe:
     """Asks the server at ``endpoint`` for its health, over a transport the caller closes."""
 

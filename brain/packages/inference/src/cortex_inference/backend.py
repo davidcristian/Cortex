@@ -182,7 +182,7 @@ class LlamaCppBackend:
                         if round_is_full(pending):
                             break
         except ModelManagerError as err:
-            msg = f"model manager could not lease {model!r} for inference"
+            msg = f"model manager could not lease {model!r} for inference: {err}"
             raise InferenceError(msg) from err
         except httpx.HTTPError as err:
             raise _transport_failure(err, model, self._client.timeout.read) from err

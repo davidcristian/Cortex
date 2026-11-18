@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 
 from cortex_core.errors import ModelUnavailableError
+from cortex_core.ports_models import ServingProbe
 
 
 @dataclass(frozen=True, slots=True)
@@ -17,10 +18,11 @@ class ModelLease:
 
 @dataclass(frozen=True, slots=True)
 class ModelServer:
-    """One server of a model, and how many requests it runs at the same time."""
+    """One server of a model, its slot count, and the probe asked before each lease of it."""
 
     endpoint: str
     slots: int = 1
+    probe: ServingProbe | None = None
 
     def __post_init__(self) -> None:
         if not self.endpoint or self.slots < 1:
@@ -67,13 +69,29 @@ class MultiServerModelManager:
         """How many slots of one server no lease holds."""
         return self._servers[index].slots - self._busy[index]
 
+    async def _claim(self, model: str) -> int:
+        """Hold a slot of a serving server, asking the one with the most free slots first."""
+        faults: list[str] = []
+        for index in sorted(range(len(self._servers)), key=self._free, reverse=True):
+            if self._free(index) < 1:
+                continue
+            # Held before the probe is awaited, so two callers never claim the same slot.
+            self._busy[index] += 1
+            probe = self._servers[index].probe
+            fault = None if probe is None else await probe.fault()
+            if fault is None:
+                return index
+            self._busy[index] -= 1
+            faults.append(fault)
+        msg = f"no server of {model!r} with a free slot is serving: {'; '.join(faults)}"
+        raise ModelUnavailableError(msg)
+
     @asynccontextmanager
     async def acquire(self, model: str) -> AsyncGenerator[ModelLease, None]:
-        """Wait for a free slot, then lease the server with the most free, the first on a tie."""
+        """Wait for a free slot, then lease a serving server, the first listed on a tie."""
         _refuse_other(model, self._resident_model)
         async with self._free_slots:
-            index = max(range(len(self._servers)), key=self._free)
-            self._busy[index] += 1
+            index = await self._claim(model)
             try:
                 yield ModelLease(endpoint=self._servers[index].endpoint)
             finally:

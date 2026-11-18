@@ -6,6 +6,7 @@ from cortex_inference.serving_probe import (
     CORTEX_LOADING,
     LlamaServerProbe,
     ServerWording,
+    gpu_server_wording,
     subagent_wording,
 )
 from cortex_inference.trace_probe import (
@@ -24,6 +25,7 @@ __all__ = [
     "ServerWording",
     "TraceBudgetProbe",
     "TraceProbeUnansweredError",
+    "gpu_server_wording",
     "reads_a_trace_budget",
     "subagent_wording",
 ]

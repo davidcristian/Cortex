@@ -136,9 +136,11 @@ task record.
     entry's `endpoint` and `gpu_endpoint` each hold one address or several separated by commas
     (`endpoint_list` in `config_subagents.py`), and `CORTEX_SUBAGENTS_PARALLEL` is the slot count
     of every one of them. A target's backend leases from a `MultiServerModelManager`
-    (`cortex_core/model.py`), a pure `ModelManager` over `ModelServer(endpoint, slots)` values:
+    (`cortex_core/model.py`), a pure `ModelManager` over `ModelServer(endpoint, slots, probe)` values:
     `acquire` waits until a slot is free, leases the server with the most free slots, the first
-    listed on a tie, and holds the slot until the stream ends. Two subagents of one model therefore
+    listed on a tie, and holds the slot until the stream ends. A GPU server has a `ServingProbe`
+    that is asked before each lease, and a server that is stopped, loading or silent is passed
+    over; when no server with a free slot serves, the lease fails and the spawn runs on the CPU. Two subagents of one model therefore
     run at once as two servers of one slot or as two slots of one server, and both shapes stay
     supported. Two targets that name the same servers share one backend, so a slot is leased once
     whichever target the placer chose. The slot is a lease and not scheduler state because the
