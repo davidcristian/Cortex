@@ -4,10 +4,10 @@ from typing import Annotated
 
 from pydantic import AfterValidator, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from uvicorn.config import LOG_LEVELS
 
 from cortex_core import DEFAULT_CORTEX_MODEL, DEFAULT_LOG_FORMAT, known_log_format
 from cortex_model_manager.drafters import drafter_file, drafts
+from cortex_model_manager.loglevel import known_log_level
 from cortex_model_manager.spec import ModelSpec, build_roster
 from cortex_model_manager.supervisor import (
     DEFAULT_PROBE_TIMEOUT_S,
@@ -15,8 +15,10 @@ from cortex_model_manager.supervisor import (
     DEFAULT_STOP_GRACE_S,
 )
 from cortex_model_manager.tiers import (
+    ENGINE_KV_CACHE_TYPE,
+    KvCacheType,
     TierArgs,
-    drafter_flags,
+    draft_and_cache_flags,
     image_budget_flags,
     server_id,
     tier_spec,
@@ -81,15 +83,6 @@ _SUBAGENT_TAIL = (
 _UNRESTRICTED_REASONING = -1
 
 
-def known_log_level(name: str) -> str:
-    """``name`` in lower case when uvicorn names that level, or an error listing those it does."""
-    level = name.lower()
-    if level not in LOG_LEVELS:
-        msg = f"unknown log level {name!r}; the model host logs at {list(LOG_LEVELS)}"
-        raise ValueError(msg)
-    return level
-
-
 class ModelHostConfig(BaseSettings):
     """Env-only settings for the supervisor sidecar."""
 
@@ -136,6 +129,12 @@ class ModelHostConfig(BaseSettings):
     cortex_draft_length: int = Field(
         default=DEFAULT_CORTEX_DRAFT_LENGTH, gt=0, validation_alias="CORTEX_DRAFT_LENGTH"
     )
+    # The type each tier's server holds its KV cache in, its drafter's cache too. Every default is
+    # the engine's 16 bits: docs/readings/kv-cache-types.md has the one file that met the rule
+    # for `q8_0`, and no tier ships with it.
+    cortex_kv_cache_type: KvCacheType = Field(
+        default=ENGINE_KV_CACHE_TYPE, validation_alias="CORTEX_KV_CACHE_TYPE"
+    )
     # How many tokens this tier may spend on its reasoning trace before the engine ends the
     # trace and starts the reply. Measured on the cortex pick: unrestricted spends 2323 to 2996
     # characters and 10.1 to 12.6 s, 512 spends 2003 and 8.4 s, 128 spends 483 to 536 and 1.7 s.
@@ -163,6 +162,9 @@ class ModelHostConfig(BaseSettings):
     brain_draft_file: str = Field(default="", validation_alias="CORTEX_MODEL_FILE_BRAIN_DRAFT")
     brain_draft_length: int = Field(
         default=DEFAULT_BRAIN_DRAFT_LENGTH, gt=0, validation_alias="CORTEX_DRAFT_LENGTH_BRAIN"
+    )
+    brain_kv_cache_type: KvCacheType = Field(
+        default=ENGINE_KV_CACHE_TYPE, validation_alias="CORTEX_KV_CACHE_TYPE_BRAIN"
     )
 
     subagent_gpu_model: str = Field(
@@ -194,6 +196,9 @@ class ModelHostConfig(BaseSettings):
         gt=0,
         validation_alias="CORTEX_DRAFT_LENGTH_SUBAGENT_GPU",
     )
+    subagent_gpu_kv_cache_type: KvCacheType = Field(
+        default=ENGINE_KV_CACHE_TYPE, validation_alias="CORTEX_KV_CACHE_TYPE_SUBAGENT_GPU"
+    )
 
     def tiers(self) -> tuple[TierArgs, ...]:
         """Every tier the deployment named a file for, in residency order."""
@@ -210,10 +215,11 @@ class ModelHostConfig(BaseSettings):
                     _CORTEX_PROMPT_CACHE,
                     *self._vision(),
                     *self._reasoning(self.cortex_reasoning_budget),
-                    *drafter_flags(
+                    *draft_and_cache_flags(
                         self._path(drafter_file(self.cortex_draft_file, self.cortex_file)),
                         self.cortex_draft_length,
                         self._path(self.cortex_file),
+                        self.cortex_kv_cache_type,
                     ),
                 ),
             ),
@@ -228,10 +234,11 @@ class ModelHostConfig(BaseSettings):
                     "--cache-ram",
                     _NO_PROMPT_CACHE,
                     *self._reasoning(self.brain_reasoning_budget),
-                    *drafter_flags(
+                    *draft_and_cache_flags(
                         self._path(self.brain_draft_file),
                         self.brain_draft_length,
                         self._path(self.brain_file),
+                        self.brain_kv_cache_type,
                     ),
                 ),
             ),
@@ -246,7 +253,12 @@ class ModelHostConfig(BaseSettings):
                         parallel=self.subagent_gpu_parallel,
                         extra=_SUBAGENT_TAIL,
                     ),
-                    self._subagent_drafter(),
+                    draft_and_cache_flags(
+                        self._subagent_drafter(),
+                        self.subagent_gpu_draft_length,
+                        self._path(self.subagent_gpu_file),
+                        self.subagent_gpu_kv_cache_type,
+                    ),
                 )
                 for index in range(self.subagent_gpu_servers)
             ),
@@ -259,23 +271,14 @@ class ModelHostConfig(BaseSettings):
 
     def undrafted(self) -> str:
         """The drafter the GPU subagent servers start without for their slot count, or empty."""
-        if not self.subagent_gpu_file or self._subagent_drafts():
+        named = drafter_file(self.subagent_gpu_draft_file, self.subagent_gpu_file)
+        return "" if not self.subagent_gpu_file or self._subagent_drafter() else named
+
+    def _subagent_drafter(self) -> str:
+        """The drafter path one GPU subagent server starts with, or empty where it may not draft."""
+        if not drafts(self.subagent_gpu_file, self.subagent_gpu_parallel):
             return ""
-        return drafter_file(self.subagent_gpu_draft_file, self.subagent_gpu_file)
-
-    def _subagent_drafts(self) -> bool:
-        """Whether a GPU subagent server of the tier's slot count may be given a drafter."""
-        return drafts(self.subagent_gpu_file, self.subagent_gpu_parallel)
-
-    def _subagent_drafter(self) -> tuple[str, ...]:
-        """The drafter flags of one GPU subagent server, or nothing where it may not draft."""
-        if not self._subagent_drafts():
-            return ()
-        return drafter_flags(
-            self._path(drafter_file(self.subagent_gpu_draft_file, self.subagent_gpu_file)),
-            self.subagent_gpu_draft_length,
-            self._path(self.subagent_gpu_file),
-        )
+        return self._path(drafter_file(self.subagent_gpu_draft_file, self.subagent_gpu_file))
 
     def _vision(self) -> tuple[str, ...]:
         """The cortex tier's vision tail: the projector, and the budget it is read at."""

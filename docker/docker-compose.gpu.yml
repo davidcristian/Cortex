@@ -68,6 +68,10 @@ services:
       # beside the cortex file, which the default file has; set empty, it starts without one.
       CORTEX_MODEL_FILE_CORTEX_DRAFT:
       CORTEX_DRAFT_LENGTH:
+      # The type each tier's server holds its KV cache in: f16, the engine's own and the default
+      # when unset, or q8_0, which the tier's drafter cache then follows. Which tier and file
+      # met the rule for q8_0: docs/readings/kv-cache-types.md.
+      CORTEX_KV_CACHE_TYPE:
       # The tier ids, which must match the brain's own: the endpoint map is static on both sides.
       CORTEX_MODEL_CORTEX: "${CORTEX_MODEL_CORTEX:-cortex}"
       CORTEX_MODEL_BRAIN: "${CORTEX_MODEL_BRAIN:-brain}"
@@ -85,6 +89,7 @@ services:
       # layer inside that file. What else then changes: docs/runbooks/model-swap.md.
       CORTEX_MODEL_FILE_BRAIN_DRAFT:
       CORTEX_DRAFT_LENGTH_BRAIN:
+      CORTEX_KV_CACHE_TYPE_BRAIN:
       CORTEX_MODEL_FILE_SUBAGENT_GPU: "${CORTEX_MODEL_FILE_SUBAGENT_GPU:-}"
       CORTEX_SUBAGENT_CTX_SIZE: "${CORTEX_SUBAGENT_CTX_SIZE:-8192}"
       # How many servers of that file the tier starts, and the slots of each. A server per
@@ -97,6 +102,7 @@ services:
       # several slots drafts only on a file brain/packages/model_manager lists in drafters.py.
       CORTEX_MODEL_FILE_SUBAGENT_GPU_DRAFT:
       CORTEX_DRAFT_LENGTH_SUBAGENT_GPU:
+      CORTEX_KV_CACHE_TYPE_SUBAGENT_GPU:
       # How long a child gets on SIGTERM before it is killed, and how long a killed one gets to be
       # reaped. Keep the sum of these two and the probe timeout below the brain's
       # CORTEX_MODELHOST_TIMEOUT_S, or a slow but correct eviction reads as a dead sidecar.

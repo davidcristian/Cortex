@@ -1,6 +1,7 @@
 """The one place a ``llama-server`` command line is assembled."""
 
 from dataclasses import dataclass, field, replace
+from typing import Literal
 
 from cortex_model_manager.spec import ModelSpec
 
@@ -17,6 +18,12 @@ _LLAMA_DEFAULT_UBATCH = 512
 # The speculative type a multi-token-prediction drafter is decoded with on this engine build.
 # Measured on the deep pick: the drafter file named without this type loads and drafts nothing.
 _DRAFT_MTP = "draft-mtp"
+
+# The types a tier's KV cache may be set to: the two docs/readings/kv-cache-types.md has rows for.
+KvCacheType = Literal["f16", "q8_0"]
+
+# The engine's own KV cache type. A tier at this type names no flag.
+ENGINE_KV_CACHE_TYPE: KvCacheType = "f16"
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,6 +90,26 @@ def drafter_flags(path: str, length: int, model_path: str) -> tuple[str, ...]:
     # A drafter that is the tier's own model file is the layer inside it, which the engine
     # drafts with when no drafter file is named.
     return flags[2:] if path == model_path else flags
+
+
+def cache_flags(cache_type: KvCacheType, *, drafting: bool) -> tuple[str, ...]:
+    """A tier's KV cache type, for its drafter's cache too, or nothing at the engine's own type."""
+    if cache_type == ENGINE_KV_CACHE_TYPE:
+        return ()
+    model = ("--cache-type-k", cache_type, "--cache-type-v", cache_type)
+    if not drafting:
+        return model
+    return (*model, "--cache-type-k-draft", cache_type, "--cache-type-v-draft", cache_type)
+
+
+def draft_and_cache_flags(
+    drafter_path: str, length: int, model_path: str, cache_type: KvCacheType
+) -> tuple[str, ...]:
+    """A tier's drafter flags, then the flags of its KV cache type."""
+    return (
+        *drafter_flags(drafter_path, length, model_path),
+        *cache_flags(cache_type, drafting=bool(drafter_path)),
+    )
 
 
 def with_flags(tier: TierArgs, flags: tuple[str, ...]) -> TierArgs:

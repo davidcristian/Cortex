@@ -133,14 +133,14 @@ compares the two, so retune both or neither. `RosterError` is a boot-time miscon
   tier, where a conversation costs 3526 MiB and the engine's own ceiling holds two of three; `0` on
   the GPU-placed subagent tier, whose subtasks are one-shot.
 - A tier's multi-token-prediction drafter is two settings, its file and its draft length
-  ([ADR-0077](../adr/ADR-0077-model-card-settings.md) decision 7, ADR-0004 decision 14).
+  ([ADR-0077](../adr/ADR-0077-model-card-settings.md) decisions 7 and 8, ADR-0004 decision 14).
   `drafter_flags` in `tiers.py` builds `--model-draft PATH --spec-type draft-mtp --spec-draft-n-max N`
-  as one run through the tier's `extra`, because the path alone loads the drafter and drafts nothing.
-  A drafter named as the tier's own model file is the layer inside it, so the run leaves the path out.
-  Unset, the cortex and each GPU subagent server take the drafter `drafters.py` lists beside their
-  file, and none when empty; the deep tier drafts only when named, which costs 997 to 1020 MiB and
-  evicts the GPU subagent tier. A server of several slots drafts only on a listed file, `undrafted()`
-  names the one left out, and `with_flags` adds flags after the `extra` `scripts/hostedtiers.py` reads.
+  as one run, because the path alone drafts nothing, and leaves the path out when the drafter is the
+  tier's own model file. Unset, the cortex and each GPU subagent server take the drafter `drafters.py`
+  lists beside their file, and none when empty; the deep tier drafts only when named. A server of
+  several slots drafts only on a listed file, and `undrafted()` names the one left out. A tier's KV
+  cache type is `f16` or `q8_0`: `cache_flags` writes nothing at `f16`, and at `q8_0` the model's
+  pair and, when the tier drafts, the drafter's. `with_flags` adds both after the subagent's `extra`.
 
 ## Invariants
 

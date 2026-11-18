@@ -124,6 +124,29 @@ The cards were read on 2026-11-16, when the models mount moved to the files
    drafting at every context drawn. The cortex drafts with its projector loaded, where a turn
    with a picture answered and most drafted tokens were accepted.
 
+8. **Each tier has a KV cache type setting, and every tier's default is the engine's 16 bits.**
+   `CORTEX_KV_CACHE_TYPE`, `CORTEX_KV_CACHE_TYPE_BRAIN` and `CORTEX_KV_CACHE_TYPE_SUBAGENT_GPU`
+   take `f16` or `q8_0`, the two types the readings have rows for, and any other value is refused
+   when the settings are read. At `f16` a tier names no flag, so its argv is the one every
+   earlier row was drawn at. At `q8_0`, `cache_flags` in `tiers.py` writes `--cache-type-k q8_0
+   --cache-type-v q8_0`, and `--cache-type-k-draft q8_0 --cache-type-v-draft q8_0` after them
+   when the tier drafts: a tier sets one type for the whole server, as the rows did.
+
+   The defaults follow the rule the readings wrote before their rows
+   ([KV cache types](../readings/kv-cache-types.md)): the engine accepts the type, the tier gains
+   a step of context or 250 MiB, the rate stays at 0.90 of the 16-bit rate or more, and the
+   output check passes. Only the deep tier on the Qwen3.8-27B Q4 file met it. That file is the
+   deep alternate's and the tier ships with no file named, so no default moves, and a deployment
+   that names that file sets `CORTEX_KV_CACHE_TYPE_BRAIN=q8_0`. The model host started the
+   deep tier that way at 16K, drafting with the file's own layer at a draft length of 3: it
+   answered, 175 of 369 drafted tokens were accepted, and the card read 16,995 MiB above its
+   floor at the peak.
+
+   The engine exits on an 8-bit V cache when flash attention is off. The stack cannot start a
+   server that way: no tier's argv names a flash attention flag, which a test of the roster
+   asserts with every tier at `q8_0`, so each server runs the engine's `auto`, and `auto` turns
+   flash attention on for an 8-bit cache (read on gemma-4-E4B and on the Q4 file).
+
 ## Consequences
 
 - The three picks run their cards' temperature, `top_p` and `top_k` with no setting in this repo,
@@ -151,6 +174,12 @@ The cards were read on 2026-11-16, when the models mount moved to the files
 - **A compose default for a drafter file**: `${VAR:-default}` cannot be turned off by an empty
   value, and it would pass a gemma drafter to whatever model a deployment names.
 - **Refusing a drafter on a server of several slots**: see decision 7.
+- **`q8_0` as the deep tier's default**: the file that met the rule is the alternate's, and a
+  default would set the type for whatever deep file a deployment names.
+- **Every cache type the engine accepts**: no row exists for a type under 8 bits.
+- **A flash attention setting checked against the cache type**: the stack has no such setting.
+  [R-1240](../refinements/tasks/1240-some-tiers-run-settings-their-model-cards-do-not-recommend.md)
+  decides whether a tier gets one, and a tier that does refuses `off` beside `q8_0`.
 - **A readings record for the card values**: a readings record holds a measurement taken here with
   its method. A card is a recommendation, and the decision is how far the tiers follow it.
 
@@ -163,4 +192,5 @@ The cards were read on 2026-11-16, when the models mount moved to the files
 - Readings: [deep candidates](../readings/deep-candidates.md),
   [pick sampler](../readings/injection-over-pixels-pick-sampler.md),
   [cortex alternate](../readings/injection-over-pixels-alt.md),
-  [thinking switch](../readings/thinking-switch.md), [tier drafters](../readings/tier-drafters.md).
+  [thinking switch](../readings/thinking-switch.md), [tier drafters](../readings/tier-drafters.md),
+  [KV cache types](../readings/kv-cache-types.md).

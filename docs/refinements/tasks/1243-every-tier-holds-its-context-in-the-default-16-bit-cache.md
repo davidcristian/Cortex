@@ -41,16 +41,20 @@ at 0.90 of the 16-bit rate or more, and one fixed prompt still gets the same rep
 - **The reply.** One fixed prompt at temperature 0 gets the same summary in other words from
   gemma-4-12B, Qwen3.5-9B and Qwen3.8-27B. This is an indicator from one prompt per model.
 
-No tier's setting changed on 2026-11-18.
+No tier's default changed on 2026-11-18.
 
-## The next step
+## The setting
 
-The deep tier's setting: `--cache-type-k q8_0 --cache-type-v q8_0` on the deep server, as a cache
-type per tier in `tiers()` and the compose files, with the rule and its result recorded in
-ADR-0077. It holds for the Q4 file. If
-[R-1244](1244-the-deep-tiers-file-is-not-chosen-between-the-q4-and-the-nvfp4-files.md) moves the
-tier to the NVFP4 file, the setting goes, because that file does not meet the rule. Step 7 below
-is drawn first when the tier is to draft, since no Qwen3.8-27B row has the draft cache at 16 bits.
+Each tier has a cache type setting: `CORTEX_KV_CACHE_TYPE`, `CORTEX_KV_CACHE_TYPE_BRAIN` and
+`CORTEX_KV_CACHE_TYPE_SUBAGENT_GPU`, each `f16` or `q8_0`, with the rule and its result recorded
+in ADR-0077 decision 8. Every default is `f16`, the deep tier's too: the Q4 file that met the
+rule is the deep alternate's and the tier ships with no file named, so a deployment that names
+that file sets `CORTEX_KV_CACHE_TYPE_BRAIN=q8_0`. A tier at `q8_0` gives its drafter's cache the
+same type, as the rows did. A deployment on the NVFP4 file keeps `f16`, because that file does not
+meet the rule
+([R-1244](1244-the-deep-tiers-file-is-not-chosen-between-the-q4-and-the-nvfp4-files.md)). Step 7
+below decides whether a tier that drafts keeps its drafter's cache at 16 bits, since no
+Qwen3.8-27B row has the draft cache at 16 bits.
 
 ## Rows still to draw
 
@@ -97,9 +101,8 @@ rebuilds `q8.md`. Together they are about a day of card time.
    read with `python3 q8-output-report.py --texts`.
 
 What would close it: those rows, the rule applied to every tier in the readings, and the result
-recorded in ADR-0077. A tier that meets the rule gets a cache type setting in `tiers()` in
-`brain/packages/model_manager/src/cortex_model_manager/config.py` and in the compose files, which
-`flagcheck.py` and `settingscheck.py` then read.
+recorded in ADR-0077 decision 8. A tier whose shipped file then meets the rule gets `q8_0` as the
+default of its setting in `brain/packages/model_manager/src/cortex_model_manager/config.py`.
 
 ## History
 
@@ -109,3 +112,11 @@ recorded in ADR-0077. A tier that meets the rule gets a cache type setting in `t
 - 2026-11-18: the rule and the rows that decide were written into the readings, then the rows
   were drawn. The deep tier's Q4 file meets the rule and no other tier does. The body was
   rewritten around that result, with the list of rows still to draw for every model.
+- 2026-11-18: the setting was built for every tier, each `f16` by default (ADR-0077 decision 8),
+  and the task stays open for its rows. Live check on build b12375: the model host started the
+  deep tier alone on the Qwen3.8-27B Q4 file at 16K with `--spec-type draft-mtp
+  --spec-draft-n-max 3`, no `--model-draft`, and `q8_0` for the model's cache and the drafter's.
+  It answered two requests, 175 of 369 drafted tokens were accepted each time, and the card read
+  16,969 MiB above its floor of 2,439 MiB at load and 16,995 MiB at the peak. The engine's log
+  lines naming the cache type were not read. `shape6.sh` in `~/.cache/cortex-run/2026-11-18/`,
+  compose project `cortexn24`, log `logs/deep-q8.txt` there.

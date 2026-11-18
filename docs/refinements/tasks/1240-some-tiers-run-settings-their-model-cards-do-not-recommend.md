@@ -33,3 +33,6 @@ not gets the reason written into decision 6.
   engine logs `resolve_fused_ops: Flash Attention enabled`, so the subagent tier runs with flash
   attention on where its card has it off. The other entries and the three sampler differences were
   not read.
+- 2026-11-18: each tier now has a KV cache type setting (ADR-0077 decision 8), and the engine
+  exits on a `q8_0` V cache with flash attention off. A flash attention setting built here refuses
+  `off` beside `q8_0` when the settings are read.
