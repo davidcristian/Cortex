@@ -44,8 +44,11 @@ without decision 8 `Health` would answer ready while the cortex or the store is 
    healthcheck asserts that the RPC answered, not that it said ready, since an accurate
    `ready=false` would otherwise mark a working handoff unhealthy.
 2. **Startup recovery's result is about the cortex and nothing else.** `converge_residency`
-   (`swap_recovery.py`) clears the deep tier, clears the peers, settles the cortex, and answers
-   whether the cortex was observed `READY`; `recover_handoffs` also fails any stranded record. The
+   (`swap_recovery.py`) clears the peers, clears the deep tier, settles the cortex, and answers
+   whether the cortex was observed `READY`. It leaves the peers running when the deep tier reads
+   `stopped` and the cortex `ready`, the state after the model host's own boot, where no peer
+   holds memory the cortex needs; when the host cannot say, it clears them.
+   `recover_handoffs` also fails any stranded record. The
    composition root publishes the answer with `publish_boot_residency(serving=...)` before the gRPC
    server starts. That publish is the one writer that touches the report without the resident model
    (`ResidencyBoard.publish_report`): an unanswered probe is not knowledge, and clearing the

@@ -111,6 +111,47 @@ async def test_an_evictable_tier_is_cleared_off_the_gpu_and_then_put_back() -> N
     assert tiers.missing == ()
 
 
+async def _converged(host: ScriptedModelHost) -> list[tuple[str, str]]:
+    """Converge with one evictable tier, and return every host call that is not a status read."""
+    settled = await converge_residency(
+        host,
+        harness.plan(evict_models=(_TIER,)),
+        BaselineTiers(),
+        clock=TickingClock(),
+        sleeper=RecordingSleeper(),
+    )
+    assert settled is True
+    return [call for call in host.calls if call[0] != "status"]
+
+
+async def test_a_peer_running_beside_a_serving_cortex_is_left_running(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    host = ScriptedModelHost(running=[_TIER, "cortex"])
+    with caplog.at_level(logging.WARNING, logger="cortex_core.swap_recovery"):
+        assert await _converged(host) == [("start", _TIER)]
+    assert host.running == {"cortex", _TIER}
+    assert caplog.records == []
+
+
+async def test_a_peer_is_cleared_while_the_cortex_does_not_serve() -> None:
+    host = ScriptedModelHost(running=[_TIER])
+    assert await _converged(host) == [("stop", _TIER), ("start", "cortex"), ("start", _TIER)]
+
+
+async def test_a_peer_is_cleared_when_the_host_cannot_say_what_the_deep_model_does() -> None:
+    host = ScriptedModelHost(running=[_TIER, "cortex"], fail={("status", "brain"): "no answer"})
+    settled = await converge_residency(
+        host,
+        harness.plan(evict_models=(_TIER,)),
+        BaselineTiers(),
+        clock=TickingClock(),
+        sleeper=RecordingSleeper(),
+    )
+    assert settled is False
+    assert [call for call in host.calls if call[0] != "status"] == [("stop", _TIER)]
+
+
 async def test_a_cortex_that_will_not_come_back_is_reported_loudly(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -175,7 +216,7 @@ async def test_a_peer_the_daemon_does_not_serve_at_all_is_no_result_either(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     host = ScriptedModelHost(
-        running=["cortex"],
+        running=[],
         fail={("status", _TIER): "unknown model", ("start", _TIER): "unknown model"},
     )
     tiers = BaselineTiers()

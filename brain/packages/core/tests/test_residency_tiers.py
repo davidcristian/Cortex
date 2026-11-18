@@ -343,7 +343,7 @@ async def test_a_peer_nothing_ever_started_is_found_by_the_first_pass() -> None:
 
 async def test_a_boot_that_could_not_reach_the_host_is_swept_when_it_answers_again() -> None:
     placer = _placer()
-    host = ScriptedModelHost(running=[], fail_once={("status", "brain"): "connection refused"})
+    host = ScriptedModelHost(running=[], fail_once={("start", "cortex"): "connection refused"})
     manager = _manager(host, placer)
     settled = await converge_residency(
         host, _plan(), manager.baseline_tiers, clock=_FixedClock(), sleeper=RecordingSleeper()

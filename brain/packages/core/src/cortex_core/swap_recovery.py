@@ -52,9 +52,11 @@ async def converge_residency(
 ) -> bool:
     """Clear the GPU, settle the cortex on it, put the usual residency back, and report."""
     # The tiers a swap evicts are stopped first and restarted last, because a crash can leave
-    # one holding the VRAM the cortex needs before the cortex itself can load.
-    for peer in plan.evict_models:
-        await _clear_peer(host, peer)
+    # one holding the VRAM the cortex needs before the cortex itself can load. Beside a serving
+    # cortex none does, so a peer the model host started at its own boot is left running.
+    if not await _at_baseline(host, plan):
+        for peer in plan.evict_models:
+            await _clear_peer(host, peer)
     try:
         await _clear_deep(host, plan.brain_model)
     except ModelHostError:
@@ -79,6 +81,16 @@ async def converge_residency(
         return False
     await restart_evicted(host, plan, tiers)
     return settled
+
+
+async def _at_baseline(host: ModelHost, plan: ResidencyPlan) -> bool:
+    """Whether the deep model is stopped and the cortex serves; False when the host cannot say."""
+    try:
+        if await host.status(plan.brain_model) is not ModelHostState.STOPPED:
+            return False
+        return await host.status(plan.cortex_model) is ModelHostState.READY
+    except ModelHostError:
+        return False
 
 
 async def _clear_deep(host: ModelHost, model: str) -> None:

@@ -171,6 +171,13 @@ between the brain and the cortex kept every request and reply.
   wrote. After the second server's process was killed the model host started it again at its
   first attempt. Logs: `live.txt` and `live2.txt` in
   `~/.cache/cortex-run/2026-11-18/slot9/logs/`.
+- **A cold boot under escalation.** With the deep tier named and both ids in the evict list, the
+  model host started the three servers, the brain's boot recovery sent `start` to each subagent
+  server and stopped none, its log had no warning, and the card read 17,676 MiB. In a handoff
+  drawn with the same settings the cortex and both subagent servers were stopped, the deep tier
+  peaked at 18,914 MiB, the model host started none of the stopped servers by itself, and the
+  three read `ready` again afterwards. Logs: `bootcheck.txt`, `handoff.txt` and `watch-h.txt` in
+  `~/.cache/cortex-run/2026-11-18/slot9/logs/`.
 
 Method: `up.sh`, `turns.sh`, `nodraft.sh`, `stepc.sh`, `stepd.sh`, `stepk.sh`, `stepm.sh`,
 `escoff.sh`, `fill.py` and `count.py` in `~/.cache/cortex-run/2026-11-18/slot8/`, compose project
