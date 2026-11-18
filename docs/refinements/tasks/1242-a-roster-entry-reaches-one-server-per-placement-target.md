@@ -36,9 +36,7 @@ What remains, in the order to do it:
      in the `CORTEX_SUBAGENTS_ENDPOINT` default, set the `CORTEX_SUBAGENTS_PARALLEL` default to 1,
      and decide whether the alternate entry gets a second server too. `flagcheck.py` reads a new
      service from its model variable; prove it by removing a flag from the new one.
-2. **`stop_grace_period: 45s`** on `model-host` in `docker/docker-compose.gpu.yml` is sized for
-   three children, and the default tier of two servers makes four.
-3. **The tier names no drafter**, so the main reason for the default has no effect until
+2. **The tier names no drafter**, so the main reason for the default has no effect until
    [R-1239](1239-no-tier-but-the-deep-one-can-name-a-drafter.md) gives it one.
 
 ## History
@@ -52,4 +50,5 @@ What remains, in the order to do it:
   16 GB so the budget places a spawn on each; the default shape was checked live beside the
   cortex. The brain warns at boot when the GPU servers have more slots than the VRAM budget
   places spawns, and when the server count, the GPU addresses on the model host and the evict
-  list differ in number. The three items above remain.
+  list differ in number. The container's stop period went from 45 to 55 s, a grace for each of
+  the four default children. The two items above remain.

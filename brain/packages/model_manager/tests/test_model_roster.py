@@ -10,6 +10,8 @@ from cortex_model_manager import (
     llama_server_argv,
     tier_spec,
 )
+from cortex_model_manager.config import DEFAULT_CONTAINER_STOP_PERIOD_S
+from cortex_model_manager.supervisor import DEFAULT_STOP_GRACE_S
 from cortex_model_manager.tiers import drafter_flags
 
 _BIN = "/app/llama-server"
@@ -188,6 +190,16 @@ def test_the_slot_shape_starts_one_server_holding_every_slot(
     )
     assert list(servers) == ["subagent-gpu"]
     assert _flag(servers["subagent-gpu"], "--parallel") == "2"
+
+
+def test_the_container_stop_period_is_a_grace_for_each_default_child_and_the_daemons_exit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CORTEX_MODEL_FILE_BRAIN", "deep/brain.gguf")
+    servers = _subagent_servers(monkeypatch)
+    children = len(ModelHostConfig().roster())
+    assert children == len(servers) + 2
+    assert children * DEFAULT_STOP_GRACE_S + 15 == DEFAULT_CONTAINER_STOP_PERIOD_S
 
 
 def test_a_server_count_that_reaches_another_tiers_port_is_refused_at_boot(

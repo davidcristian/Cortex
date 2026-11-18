@@ -43,7 +43,9 @@ vocabulary. They run in different containers and never import each other.
    `CORTEX_MODELHOST_REAP_TIMEOUT_S` (30 s). The grace is not slack: a tier with a request in flight
    (`--parallel 1`) ignores SIGTERM and is killed after the whole grace, so the grace must not be
    tuned down on the strength of an idle stop ([model swap](../readings/model-swap.md)). The
-   container's `stop_grace_period` is 45 s, sized for the shutdown pass's sequential stops.
+   container's `stop_grace_period` is 55 s: the shutdown pass stops the children in turn, so it is
+   one grace for each of the four default children (the cortex, the deep tier and two subagent
+   servers) plus 15 s for the daemon's own exit.
 4. **One lock per logical model serializes start, stop and status**, and a status probes inside it
    (`CORTEX_MODELHOST_PROBE_TIMEOUT_S`, 5 s). Probing outside the lock was rejected: it could report
    `READY` for a tier a concurrent stop had already ended. asyncio's child watcher reaps every

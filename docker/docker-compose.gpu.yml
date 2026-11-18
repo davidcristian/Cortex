@@ -117,10 +117,10 @@ services:
       # mount, and the other tiers' ports. A live test uses docker-compose.modelhost-loopback.yml.
       - "127.0.0.1:8080:8080"
     restart: unless-stopped
-    # Long enough for the daemon to stop every child in turn: a child with a request in flight
-    # ignores SIGTERM and pays the whole grace, and there can be three tiers. Docker's default of
-    # 10 s would cut the first one short.
-    stop_grace_period: 45s
+    # The daemon stops its children in turn, and a child with a request in flight ignores SIGTERM
+    # and pays the whole 10 s grace: four children by default (the cortex, the deep tier and two
+    # subagent servers) and 15 s for the daemon's own exit. A further server needs a grace more.
+    stop_grace_period: 55s
     healthcheck:
       # It checks that a tier which can serve a turn is READY, not just that the daemon answers:
       # the cortex, or the deep tier when /health lists it, since a handoff stops the cortex.

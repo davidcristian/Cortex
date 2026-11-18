@@ -217,12 +217,12 @@ from the always-on `llama-cortex` service.
   `CORTEX_MODELHOST_{CPUS,MEMORY,MEMSWAP}` cap all three tiers together and are user-tunable
   placeholders. llama.cpp mmaps the GGUF, so mapped model pages count against the memory cap and a
   cap below the artifact size makes a load thrash rather than fail.
-- **`stop_grace_period` is 45 s**, above docker's default 10 s, because the shutdown pass stops the
-  tiers **one at a time** and a child with a request in flight pays the whole SIGTERM grace.
+- **`stop_grace_period` is 55 s**, above docker's default 10 s, because the shutdown pass stops the
+  children **one at a time** and one with a request in flight pays the whole SIGTERM grace.
   Measured: an idle `llama-server` exits in about 0.14 s, while a busy one does not honour SIGTERM
-  at all and is killed after the grace, 10.09 s end to end. Three tiers times a 10 s grace plus
-  slack is the arithmetic. A child surviving SIGKILL is outside it, the runtime then killing the
-  container and its children (measured).
+  at all and is killed after the grace, 10.09 s end to end. The four default children at a 10 s
+  grace plus 15 s is the arithmetic, which `test_model_roster.py` computes from the roster. A child
+  surviving SIGKILL is outside it, the runtime then killing the container and its children.
 
 ## Testing
 

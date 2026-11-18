@@ -38,6 +38,11 @@ DEFAULT_BRAIN_CTX_SIZE = 16384
 DEFAULT_SUBAGENT_CTX_SIZE = 8192
 DEFAULT_SUBAGENT_GPU_PARALLEL = 1
 DEFAULT_SUBAGENT_GPU_SERVERS = 2
+
+# The container's `stop_grace_period` in seconds. The shutdown pass stops the children in turn and
+# one with a request in flight pays the whole grace, so it is one grace for each child of the
+# default roster (cortex, deep tier, two subagent servers) and 15 s for the daemon's own exit.
+DEFAULT_CONTAINER_STOP_PERIOD_S = 55
 DEFAULT_IMAGE_MAX_TOKENS = 1024
 DEFAULT_NVIDIA_SMI = "nvidia-smi"
 

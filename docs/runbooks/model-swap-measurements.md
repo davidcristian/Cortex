@@ -37,8 +37,8 @@ failed, so nothing warns you, and every timing and VRAM number from such a run i
 Tier scale is minutes rather than seconds on both halves: an 18 GB GGUF off the model mount at the
 measured mount read rate is what `CORTEX_SWAP_LOAD_TIMEOUT_S` exists for. The eviction half is
 sub-second only while the child is idle; every path that evicts a tier which was answering pays
-the whole grace per busy tier, which is what `stop_grace_period: 45s` on the container is sized
-for (3 tiers times 10 s, plus slack, the shutdown pass being sequential).
+the whole grace per busy tier, which is what `stop_grace_period: 55s` on the container is sized
+for (4 default children times 10 s, plus 15 s, the shutdown pass being sequential).
 
 ## Co-residency, and how to tell a fit from a spill
 

@@ -12,6 +12,8 @@ SUPERVISOR = "brain/packages/model_manager/src/cortex_model_manager/supervisor.p
 SWAP_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config_swap.py"
 SUBAGENTS_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config_subagents.py"
 MODEL_MANAGER_DOC = "docs/modules/brain-model-manager.md"
+MODELHOST_ADR = "docs/adr/ADR-0053-model-host-supervisor.md"
+SWAP_MEASUREMENTS = "docs/runbooks/model-swap-measurements.md"
 GPU_RUNBOOK = "docs/runbooks/llamacpp-gpu.md"
 SWAP_RUNBOOK = "docs/runbooks/model-swap.md"
 VISION_RUNBOOK = "docs/runbooks/vision.md"
@@ -221,6 +223,23 @@ MODELHOST_COUPLINGS: tuple[Constant, ...] = (
                 form=Form.WHOLE,
             ),
             Mention(MODEL_MANAGER_DOC, "`DEFAULT_STOP_GRACE_S` ({value} s)", form=Form.WHOLE),
+        ),
+    ),
+    Constant(
+        label="how long docker waits for the model host container to stop",
+        why=(
+            "the shutdown pass stops the children one after another and a busy one pays the "
+            "whole grace, so the period is one grace per child of the default roster plus the "
+            "daemon's exit, which a test computes; the override and three documents quote the "
+            "result, and a compose value left behind has docker kill the daemon in the middle "
+            "of that pass (ADR-0053 decision 3)"
+        ),
+        sites=(Site(MODELHOST_CONFIG, "DEFAULT_CONTAINER_STOP_PERIOD_S"),),
+        mentions=(
+            Mention(GPU_COMPOSE, "stop_grace_period: {value}s"),
+            Mention(MODEL_MANAGER_DOC, "**`stop_grace_period` is {value} s**"),
+            Mention(MODELHOST_ADR, "`stop_grace_period` is {value} s"),
+            Mention(SWAP_MEASUREMENTS, "`stop_grace_period: {value}s`"),
         ),
     ),
     Constant(
