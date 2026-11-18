@@ -166,9 +166,12 @@ task record.
     at a time: the 16 GB soft cap less the 8.9 GiB cortex leaves 7.1 GiB, which holds two 3.5 GiB
     asks. A deployment that lowers the cap under 15.9 sets the server count to 1, or the second
     server holds memory no spawn is placed on.
-    The CPU servers keep one server of two slots: a CPU server of two threads wrote at 0.59 of
-    the rate of one of four, under the 0.69 to 0.75 of each of two busy slots
-    ([1242](../refinements/tasks/1242-a-roster-entry-reaches-one-server-per-placement-target.md)).
+    The CPU servers keep one server of two slots. Each of two busy servers of two threads wrote
+    at 0.56 of the rate of one request alone on the four-thread server, under the 0.67 to 0.69
+    of each of its two busy slots, and a subagent alone on a two-thread server wrote at 0.63
+    ([readings](../readings/subagent-budget.md#a-cpu-server-at-two-threads-against-four)). The
+    brain leases across several CPU servers when `CORTEX_SUBAGENTS_ENDPOINT` lists them, and the
+    shipped compose files start one for each roster entry.
 
 ## Consequences
 

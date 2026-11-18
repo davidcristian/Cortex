@@ -137,9 +137,31 @@ cap, which cost a tenth on the one seed of the third row. Two busy slots of one 
 each write at 0.69 to 0.75 of one slot alone ([model lineup](model-lineup.md), 2026-09-11), so on
 these rows a CPU server per subagent at half the threads is slower for two subagents and for one.
 No server holds its weights under 4 GiB: under that cap the kernel kept under a third of the file
-in memory, and nothing was killed. Two servers at once were not drawn. The cgroup was throttled in
+in memory, and nothing was killed. The cgroup was throttled in
 292 of 797, 250 of 1,225 and 428 of 1,555 periods. Method: `cpudraw.sh` and `cpudrive.py` in
 `~/.cache/cortex-run/2026-11-18/`, logs `logs/cpu-t4.txt`, `cpu-t2.txt` and `cpu-fill.txt`.
+
+**2026-11-18**, two subagents at once in both shapes, on the same model, image, build and prompt.
+The one server ran on `--cpuset-cpus 12-15` with `--cpus 4.0 --threads 4 --parallel 2` under 8g,
+where the engine gives each slot 4,096 of the 8,192 tokens. The two servers ran on `12-13` and
+`14-15`, each with `--cpus 2.0 --threads 2 --parallel 1`. A rate is a ratio of the median of one
+request alone on the two-slot server. A busy cell is the range of six requests, two at once in
+three rounds.
+
+| row | memory cap | one alone | each of two at once | cgroup peak |
+| --- | --- | --- | --- | --- |
+| one server of two slots | 8g | 1.0 | 0.67 to 0.69 | 6,960 MiB |
+| two servers of one slot | none | 0.63 | 0.56 to 0.57 | 4,857 and 4,807 MiB |
+| two servers of one slot | 4g each | not drawn | 0.55 to 0.56 | 4,096 MiB each, the cap |
+
+Each busy server wrote below each busy slot, and the two servers together wrote at 0.83 of the
+two slots together. A server's own two cores did not keep its rate: it fell from 0.63 to 0.56
+when the other server was busy. The kernel charges a page of the mapped model file to the cgroup
+that reads it first, so the two uncapped servers held 2,035 and 1,986 MiB of the file, about the
+file once between them, beside 2,799 and 2,802 MiB of anonymous memory. Together they peaked at
+9,665 MiB against 6,960 MiB for the one server. Under 4 GiB each the two kept 1,272 and
+1,275 MiB of the file and the rate fell by 0.01. Method: `cpudraw7.sh` and `cpudrive7.py` in the
+same directory, logs `logs/cpu2-slots.txt`, `cpu2-servers.txt` and `cpu2-servers4g.txt`.
 
 ## Two tiers generating at once
 
