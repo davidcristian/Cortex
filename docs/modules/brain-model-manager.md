@@ -12,13 +12,13 @@ which is the premise the one hard rule rests on.
 
 ## The adapter, on the brain side
 
-`HttpModelHost(endpoint: str, client: httpx.AsyncClient)` is a `ModelHost`: `start`, `stop` and
-`status` take a logical model id and nothing else, and `device_memory()`, `control_bounds()`,
+`HttpModelHost(endpoint: str, client: httpx.AsyncClient)` is a `ModelHost`: `start`, `stop`,
+`status` and `start_gap` take a logical model id and nothing else, and `device_memory()`, `control_bounds()`,
 `boot_id()` and `roster()` (the `models` list of `GET /health`, or `None` without one) take none. The client is injected, and unlike the generation clients it must have a real
 read deadline, since a control call that hung would hang a swap step under no bound at all.
 
 - `start(model)` POSTs `/models/{id}/start`, `stop(model)` POSTs `/models/{id}/stop`, and
-  `status(model)` GETs `/models/{id}` and returns the `ModelHostState` the reply names. The id is
+  `status(model)` GETs `/models/{id}` and returns the `ModelHostState` the reply names. `start_gap(model)` GETs the same route and returns its `start_gap` field: `None`, or the sentence a `start` would be refused with now; a reply without the field raises `ModelHostError`. The id is
   percent-escaped, so it is a name and never a path fragment.
 - `device_memory()` GETs `/health` and returns `DeviceMemory(free_mib, total_mib)`, or `None` when
   either figure is missing or is not an integer, which is what a daemon with no card reports. That
@@ -151,7 +151,7 @@ compares the two, so retune both or neither. `RosterError` is a boot-time miscon
 - **The roster is fixed at boot, and a tier with no artifact file is not in it.** The deep tier and
   the GPU subagent are opt-in, so a stock host answers 404 for them. A shared port fails at boot. `CORTEX_SUBAGENTS_GPU_SERVERS` (2) starts that many servers of the subagent file, `subagent-gpu` on `:8083` and then `subagent-gpu-2`, `-3` on the next ports (`server_id` in `tiers.py`), each with `CORTEX_SUBAGENTS_GPU_PARALLEL` (1) slots (ADR-0018 decision 12).
 - **`start` and `stop` are idempotent**, because a swap re-issues either without checking first. A
-  start whose spawn fails adds nothing, so a tier that never ran still reads `STOPPED`; a start whose model file, projector or drafter is not a file in the container fails the same way before any process exists, with the setting and the path in the 503 (`could not start 'cortex': CORTEX_MODEL_FILE_CORTEX_DRAFT names '/models/a/b.gguf', which is not a file in the model host's container, so the model was not loaded`). It removes
+  start whose spawn fails adds nothing, so a tier that never ran still reads `STOPPED`; a start whose model file, projector or drafter is not a file in the container fails the same way before any process exists, with the setting and the path in the 503 (`could not start 'cortex': CORTEX_MODEL_FILE_CORTEX_DRAFT names '/models/a/b.gguf', which is not a file in the model host's container, so the model was not loaded`). The status route answers the same sentence as `start_gap` for a tier with no live process, and `null` otherwise, so a caller learns it without a start. It removes
   nothing either, so a tier whose child had already died goes on reporting that child's exit code
   (`FAILED`) rather than being erased by a replacement that could not start.
 - **`start` returns long before the model is ready.** The swap's readiness check

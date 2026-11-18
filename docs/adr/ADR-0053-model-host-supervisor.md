@@ -35,7 +35,9 @@ vocabulary. They run in different containers and never import each other.
    existing one still holds dies at once with `couldn't bind HTTP server socket`, while `/health` on
    that port keeps answering from the existing one; a status that only probed would report the dead
    start `READY` and the old weights would serve under the new name. A child that exited unasked is
-   `FAILED` with its code in `detail` until the next `start` replaces it. `start` returns once the
+   `FAILED` with its code in `detail` until the next `start` replaces it. A status of a tier with
+   no live process also names, in `start_gap`, the reason a `start` would be refused now (a file
+   its settings name is absent), so a swap asks before it stops anything. `start` returns once the
    process is spawned, so a loading tier is `LOADING` and the health check is the only readiness
    authority.
 3. **`stop` returns only once the child is reaped**, because a swap starts the next model at once

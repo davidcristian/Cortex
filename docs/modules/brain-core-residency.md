@@ -183,7 +183,7 @@ swapping `acquire`, because the deep model's tool loop re-acquires once per roun
 `acquire` would thrash minutes each way whenever a queued cortex turn interleaved. Its parts are
 split along the boundary the manager already draws, it owning when and who may, they owning what the
 host is asked to do: `residency_claim.py` (`HandoffClaim`, the non-blocking claim over the whole
-sequence); `residency_moves.py` (the two host-facing moves: `swap_in` asks the host for the `status` of every `plan.evict_models` id before it stops anything, and an id the host does not have or an answer it cannot give raises `SwapFailedError` with every model still running; the fit check is between the last
+sequence); `residency_moves.py` (the two host-facing moves: `swap_in` asks the host for the `status` of every `plan.evict_models` id before it stops anything, then for the deep tier's `start_gap`, and an id the host does not have, a reason the host names for refusing the deep tier's start (a file its settings name is absent) or an answer it cannot give raises `SwapFailedError` with every model still running; the fit check is between the last
 `stop` and the `start`, the only instant at which free memory means anything); `residency_roster.py` (`warn_of_unlisted_models`, which `converge_residency` ends with: one warning per hosted id that is not the cortex, the deep tier or in the evict list);
 `residency_restore.py` (the swap back's retry policy and its uninterruptible wait, where every
 cancellation waits for the shielded restore, not merely the first); `residency_board.py`

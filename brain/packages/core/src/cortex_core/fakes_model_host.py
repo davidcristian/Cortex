@@ -23,6 +23,7 @@ class ScriptedModelHost:
         control_bounds: ControlBounds | None = None,
         boot_id: str | None = None,
         roster: Iterable[str] | None = None,
+        start_gaps: Mapping[str, str] | None = None,
     ) -> None:
         self.running: set[str] = set(running)
         self.unhosted: set[str] = set(unhosted)
@@ -30,6 +31,7 @@ class ScriptedModelHost:
         self.bounds: ControlBounds | None = control_bounds
         self.boot: str | None = boot_id
         self.listed: tuple[str, ...] | None = None if roster is None else tuple(roster)
+        self.gaps: dict[str, str] = dict(start_gaps or {})
         self.calls: list[tuple[str, str]] = []
         self.reached: dict[tuple[str, str], asyncio.Event] = {
             key: asyncio.Event() for key in pause_at
@@ -51,6 +53,8 @@ class ScriptedModelHost:
     async def start(self, model: str) -> None:
         """Begin loading ``model`` (idempotent); the model reports its scripted state after."""
         self._check("start", model)
+        if (gap := self._gap(model)) is not None:
+            raise ModelHostError(gap)
         self.running.add(model)
         await self._pause("start", model)
 
@@ -67,6 +71,12 @@ class ScriptedModelHost:
         if model not in self.running:
             return ModelHostState.STOPPED
         return self._override.get(model, ModelHostState.READY)
+
+    async def start_gap(self, model: str) -> str | None:
+        """Why a start of ``model`` would be refused now, or ``None`` when nothing is scripted."""
+        self._check("start_gap", model)
+        await self._pause("start_gap", model)
+        return self._gap(model)
 
     async def device_memory(self) -> DeviceMemory | None:
         """What the card beside this twin reports, or ``None`` for a host that sees none."""
@@ -91,6 +101,11 @@ class ScriptedModelHost:
         self._check("roster", "")
         await self._pause("roster", "")
         return self.listed
+
+    def _gap(self, model: str) -> str | None:
+        """The scripted gap of ``model``, unless a process of it is alive and so needs no start."""
+        alive = model in self.running and self._override.get(model) is not ModelHostState.FAILED
+        return None if alive else self.gaps.get(model)
 
     def _check(self, op: str, model: str) -> None:
         """Log the operation, then raise whatever failure was scripted for it."""

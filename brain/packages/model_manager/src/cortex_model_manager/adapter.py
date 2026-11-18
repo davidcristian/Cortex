@@ -1,4 +1,4 @@
-"""The real ``ModelHost``: the port's seven verbs over the supervisor's control API."""
+"""The real ``ModelHost``: the port's eight verbs over the supervisor's control API."""
 
 import logging
 from http import HTTPStatus
@@ -49,6 +49,15 @@ class HttpModelHost:
         """What the sidecar says ``model``'s process is doing right now."""
         payload = await self._request("GET", self._model_path(model), _about(model), tier=True)
         return self._read(model, payload)
+
+    async def start_gap(self, model: str) -> str | None:
+        """Why the sidecar would refuse a start of ``model`` now, or ``None`` when it names none."""
+        payload = await self._request("GET", self._model_path(model), _about(model), tier=True)
+        gap: object = payload.get("start_gap", False)
+        if gap is None or (isinstance(gap, str) and gap):
+            return gap
+        msg = f"the model host did not say whether it can start model {model!r}"
+        raise ModelHostError(msg)
 
     async def device_memory(self) -> DeviceMemory | None:
         """How much of the sidecar's card is free, or ``None`` when it can see no card."""

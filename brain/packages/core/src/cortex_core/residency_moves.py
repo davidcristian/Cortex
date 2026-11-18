@@ -17,6 +17,7 @@ _NO_DEVICE_MEMORY = (
 )
 _CARD_TOO_SHORT = "the card has too little free memory for the deep model, so it was not started"
 _EVICT_ID_NOT_HOSTED = "the evict list names a model the model host does not have"
+_NOT_STARTABLE = "the model host names a reason it cannot start the deep model"
 
 
 async def is_unhosted(host: ModelHost, model: str) -> bool:
@@ -41,6 +42,7 @@ async def swap_in(
     try:
         if not plan.coresident:
             await _refuse_an_evict_id_the_host_lacks(host, plan)
+        await _refuse_a_start_the_host_would_refuse(host, model)
         await host.stop(plan.cortex_model)
         if not plan.coresident:
             for evicted in plan.evict_models:
@@ -75,6 +77,19 @@ async def _refuse_an_evict_id_the_host_lacks(host: ModelHost, plan: ResidencyPla
             )
             _logger.error(_EVICT_ID_NOT_HOSTED, extra={"model": evicted})  # noqa: TRY400
             raise SwapFailedError(msg) from err
+
+
+async def _refuse_a_start_the_host_would_refuse(host: ModelHost, model: str) -> None:
+    """Fail the swap before anything is stopped when the host names a reason not to start it."""
+    gap = await host.start_gap(model)
+    if gap is None:
+        return
+    msg = (
+        f"the model host cannot start {model!r}, so the handoff was not started and nothing was "
+        f"stopped (docs/runbooks/model-swap.md): {gap}"
+    )
+    _logger.error(_NOT_STARTABLE, extra={"model": model, "reason": gap})
+    raise SwapFailedError(msg)
 
 
 async def _refuse_a_load_the_card_cannot_hold(

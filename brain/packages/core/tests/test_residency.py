@@ -70,6 +70,10 @@ class _YieldingHost:
         await asyncio.sleep(0)
         return await self._inner.status(model)
 
+    async def start_gap(self, model: str) -> str | None:
+        await asyncio.sleep(0)
+        return await self._inner.start_gap(model)
+
     async def device_memory(self) -> DeviceMemory | None:
         await asyncio.sleep(0)
         return await self._inner.device_memory()
@@ -185,6 +189,7 @@ async def test_the_scope_swaps_in_evicts_everything_else_and_restores_all_of_it(
     assert host.calls == [
         ("boot_id", ""),
         ("status", "subagent-gpu"),
+        ("start_gap", "brain"),
         ("stop", "cortex"),
         ("stop", "subagent-gpu"),
         ("start", "brain"),
@@ -417,12 +422,75 @@ async def test_a_swap_that_cannot_ask_about_an_evict_id_stops_nothing() -> None:
     assert host.running == {"cortex", "subagent-gpu"}
 
 
+_ABSENT_DEEP_FILE = (
+    "CORTEX_MODEL_FILE_BRAIN names '/models/brain.gguf', which is not a file in the model host's "
+    "container, so the model was not loaded"
+)
+
+
+async def test_a_swap_whose_deep_tier_the_host_cannot_start_stops_nothing(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    host = ScriptedModelHost(
+        running=["cortex", "subagent-gpu"], start_gaps={"brain": _ABSENT_DEEP_FILE}
+    )
+    manager = _manager(host, _plan(evict_models=("subagent-gpu",)))
+    with (
+        caplog.at_level(logging.ERROR, logger="cortex_core.residency_moves"),
+        pytest.raises(
+            SwapFailedError,
+            match="cannot start 'brain', so the handoff was not started and nothing was stopped "
+            r"\(docs/runbooks/model-swap.md\): CORTEX_MODEL_FILE_BRAIN names '/models/brain.gguf'",
+        ),
+    ):
+        async with manager.swap_scope("brain"):
+            pass  # pragma: no cover - entering raises before the body runs
+    assert ("start_gap", "brain") in host.calls
+    assert [call for call in host.calls if call[0] in ("stop", "start")][:1] == [("stop", "brain")]
+    assert ("start", "brain") not in host.calls
+    assert host.running == {"cortex", "subagent-gpu"}
+    assert [record_fields(record) for record in caplog.records][:1] == [
+        {"model": "brain", "reason": _ABSENT_DEEP_FILE}
+    ]
+
+
+async def test_a_swap_that_cannot_ask_whether_the_deep_tier_can_start_stops_nothing() -> None:
+    host = ScriptedModelHost(
+        running=["cortex", "subagent-gpu"],
+        fail_once={("start_gap", "brain"): "connection refused"},
+    )
+    manager = _manager(host, _plan(evict_models=("subagent-gpu",)))
+    with pytest.raises(SwapFailedError, match="swapping in 'brain': connection refused"):
+        async with manager.swap_scope("brain"):
+            pass  # pragma: no cover - entering raises before the body runs
+    assert [call for call in host.calls if call[0] == "stop"] == [("stop", "brain")]
+    assert host.running == {"cortex", "subagent-gpu"}
+
+
+async def test_a_swap_asks_about_the_deep_tier_after_the_evict_ids_and_before_the_first_stop() -> (
+    None
+):
+    host = ScriptedModelHost(running=["cortex", "subagent-gpu"])
+    manager = _manager(host, _plan(evict_models=("subagent-gpu",)))
+    async with manager.swap_scope("brain"):
+        assert host.running == {"brain"}
+    asked = host.calls.index(("start_gap", "brain"))
+    assert (
+        host.calls.index(("status", "subagent-gpu")) < asked < host.calls.index(("stop", "cortex"))
+    )
+
+
 async def test_a_coresident_swap_asks_about_no_evict_id_before_it_stops_the_cortex() -> None:
     host = ScriptedModelHost(running=["cortex"], unhosted=["subagent-gpu-3"])
     manager = _manager(host, _plan(evict_models=("subagent-gpu-3",), coresident=True))
     async with manager.swap_scope("brain"):
         assert host.running == {"brain"}
-    assert host.calls[:3] == [("boot_id", ""), ("stop", "cortex"), ("start", "brain")]
+    assert host.calls[:4] == [
+        ("boot_id", ""),
+        ("start_gap", "brain"),
+        ("stop", "cortex"),
+        ("start", "brain"),
+    ]
 
 
 async def test_a_failed_swap_in_still_restores_the_cortex() -> None:
@@ -504,9 +572,10 @@ async def test_the_card_is_read_after_the_evictions_and_before_the_load() -> Non
     manager = _manager(host, _plan(evict_models=("subagent-gpu",), brain_vram_mib=19125))
     async with manager.swap_scope("brain"):
         assert host.running == {"brain"}
-    assert host.calls[:6] == [
+    assert host.calls[:7] == [
         ("boot_id", ""),
         ("status", "subagent-gpu"),
+        ("start_gap", "brain"),
         ("stop", "cortex"),
         ("stop", "subagent-gpu"),
         ("device_memory", ""),

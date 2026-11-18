@@ -209,7 +209,7 @@ response body, wrapped in which move the swap was making. Six kinds of sentence 
 
 | What `reason` starts with | What actually happened |
 | --- | --- |
-| `the model host failed while swapping in ...`, `the model host does not serve ...`, `CORTEX_SWAP_EVICT_MODELS names ...`, `model ... did not become ready in time`, or one of the fit check's two (`needs N MiB of free device memory`, `reports no device memory`) | the swap in broke, and on the first three the daemon's own answer follows the colon; the third means the evict list has an id the model host lacks, and nothing was stopped |
+| `the model host failed while swapping in ...`, `the model host does not serve ...`, `CORTEX_SWAP_EVICT_MODELS names ...`, `the model host cannot start ...`, `model ... did not become ready in time`, or one of the fit check's two (`needs N MiB of free device memory`, `reports no device memory`) | the swap in broke, and on the first four the daemon's own answer follows the colon; the third means the evict list has an id the model host lacks, the fourth that a file the deep tier's settings name is absent in the model host's container, and on both nothing was stopped |
 | `could not restore '<cortex>' after 2 attempts ...` | the swap back gave up; [model-swap-recovery.md](model-swap-recovery.md) is entirely about this one |
 | `a residency scope for ... is already active` | nothing was evicted for this turn; something entered the swap without taking the handoff claim first, and another handoff owns the GPU |
 | `delegated work was still running when the drain bound elapsed ...` | nothing was evicted and nothing broke; a subagent outlasted `CORTEX_SWAP_DRAIN_TIMEOUT_S` |

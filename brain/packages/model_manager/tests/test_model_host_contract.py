@@ -9,6 +9,7 @@ from process_fakes import FakeChildProcesses, FakeProbe
 from cortex_core import ControlBounds, DeviceMemory, ModelHostState, ScriptedModelHost
 from cortex_model_manager import (
     HttpModelHost,
+    ModelFiles,
     ModelSpec,
     ModelSupervisor,
     TierArgs,
@@ -74,11 +75,15 @@ def _scripted_subject() -> HostUnderTest:
     def card(reading: DeviceMemory | None) -> None:
         host.device = reading
 
+    def lose_file(model: str) -> None:
+        host.gaps[model] = f"the file of {model} is absent"
+
     return HostUnderTest(
         host=host,
         serving=serving,
         die=die,
         card=card,
+        lose_file=lose_file,
         aclose=nothing_to_close,
         bounds=_BOUNDS,
         boot_id=_SCRIPTED_BOOT,
@@ -91,6 +96,7 @@ def _supervisor_subject() -> HostUnderTest:
     roster = contract_roster()
     processes = FakeChildProcesses()
     probe = FakeProbe()
+    absent: set[str] = set()
     supervisor = ModelSupervisor(
         roster,
         processes,
@@ -98,6 +104,9 @@ def _supervisor_subject() -> HostUnderTest:
         stop_grace_s=_BOUNDS.stop_grace_s,
         reap_timeout_s=_BOUNDS.reap_timeout_s,
         probe_timeout_s=_BOUNDS.probe_timeout_s,
+        files=ModelFiles(
+            {model: model.upper() for model in roster}, lambda path: path not in absent
+        ),
     )
     device = _FakeCard()
     app = build_app(supervisor, boot_models=(model_host_contract.CORTEX,), device=device)
@@ -109,11 +118,15 @@ def _supervisor_subject() -> HostUnderTest:
     def die(model: str) -> None:
         processes.last_for(roster[model].port).exit(1)
 
+    def lose_file(model: str) -> None:
+        absent.add(f"/models/{model}.gguf")
+
     return HostUnderTest(
         host=HttpModelHost(_ENDPOINT, client),
         serving=serving,
         die=die,
         card=device.set,
+        lose_file=lose_file,
         aclose=client.aclose,
         bounds=_BOUNDS,
         boot_id=supervisor.boot_id,

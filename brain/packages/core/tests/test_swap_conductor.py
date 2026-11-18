@@ -98,6 +98,7 @@ async def test_a_clean_handoff_walks_the_record_through_its_states() -> None:
     assert live.host.calls == [
         ("status", "brain"),
         ("boot_id", ""),
+        ("start_gap", "brain"),
         ("stop", "cortex"),
         ("start", "brain"),
         ("status", "brain"),

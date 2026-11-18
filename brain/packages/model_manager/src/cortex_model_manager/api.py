@@ -124,7 +124,12 @@ async def _answer(action: _Action, request: Request) -> Response:
     except SupervisorError as err:
         return _refused(model, err, HTTPStatus.SERVICE_UNAVAILABLE)
     return JSONResponse(
-        {"model": status.model, "state": status.state.value, "detail": status.detail}
+        {
+            "model": status.model,
+            "state": status.state.value,
+            "detail": status.detail,
+            "start_gap": status.start_gap,
+        }
     )
 
 

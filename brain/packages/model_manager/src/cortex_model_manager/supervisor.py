@@ -46,6 +46,7 @@ class ModelStatus:
     model: str
     state: ModelHostState
     detail: str
+    start_gap: str | None = None
 
 
 class ModelSupervisor:
@@ -130,12 +131,13 @@ class ModelSupervisor:
         async with self._locks[model]:
             child = self._children.get(model)
             if child is None:
-                return ModelStatus(model, ModelHostState.STOPPED, "no process is running")
+                return ModelStatus(
+                    model, ModelHostState.STOPPED, "no process is running", self._gap(spec)
+                )
             code = child.returncode
             if code is not None:
-                return ModelStatus(
-                    model, ModelHostState.FAILED, f"the process exited with code {code}"
-                )
+                detail = f"the process exited with code {code}"
+                return ModelStatus(model, ModelHostState.FAILED, detail, self._gap(spec))
             if await self._probe.serving(spec.health_url):
                 return ModelStatus(model, ModelHostState.READY, f"serving on port {spec.port}")
             return ModelStatus(model, ModelHostState.LOADING, f"pid {child.pid} is not serving yet")
@@ -156,7 +158,7 @@ class ModelSupervisor:
 
     async def _spawn(self, model: str, spec: ModelSpec) -> None:
         """Start ``model``'s process under its lock, and watch it when the policy covers it."""
-        if self._files is not None and (gap := self._files.missing(spec)) is not None:
+        if (gap := self._gap(spec)) is not None:
             msg = f"could not start {model!r}: {gap}"
             raise SupervisorError(msg)
         try:
@@ -199,6 +201,10 @@ class ModelSupervisor:
                 _logger.exception(
                     "a model process could not be started again", extra={"model": model}
                 )
+
+    def _gap(self, spec: ModelSpec) -> str | None:
+        """Why a start of ``spec`` would be refused now, or ``None`` when its files are there."""
+        return None if self._files is None else self._files.missing(spec)
 
     def _spec(self, model: str) -> ModelSpec:
         """The roster entry, or the typed error every verb raises for an id not in the roster."""

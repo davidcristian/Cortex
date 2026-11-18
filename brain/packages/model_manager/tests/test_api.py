@@ -90,6 +90,7 @@ async def test_start_then_status_then_stop_answer_the_state_each_left_behind() -
     assert seen == started
     assert stopped["state"] == ModelHostState.STOPPED.value
     assert stopped["detail"] == "no process is running"
+    assert stopped["start_gap"] is None
 
 
 @pytest.mark.parametrize("path", ["/models/ghost", "/models/ghost/start", "/models/ghost/stop"])

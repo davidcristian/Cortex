@@ -156,6 +156,38 @@ async def test_a_state_word_this_version_does_not_know_is_a_failure_not_a_guess(
         await _host(httpx.MockTransport(handle)).status("brain")
 
 
+def _status(body: dict[str, object]) -> httpx.MockTransport:
+    """A sidecar whose status route for the deep tier answers ``body``."""
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        assert (request.method, request.url.path) == ("GET", "/models/brain")
+        return httpx.Response(HTTPStatus.OK, json=body)
+
+    return httpx.MockTransport(handle)
+
+
+async def test_the_start_gap_is_read_off_the_models_own_status_route() -> None:
+    gap = "CORTEX_MODEL_FILE_BRAIN names '/models/brain.gguf', which is not a file"
+    stopped: dict[str, object] = {"model": "brain", "state": "stopped", "detail": ""}
+    assert await _host(_status(stopped | {"start_gap": gap})).start_gap("brain") == gap
+    assert await _host(_status(stopped | {"start_gap": None})).start_gap("brain") is None
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"model": "brain", "state": "stopped"},
+        {"model": "brain", "state": "stopped", "start_gap": ""},
+        {"model": "brain", "state": "stopped", "start_gap": 3},
+    ],
+)
+async def test_a_status_body_that_does_not_say_whether_a_start_would_work_is_a_failure(
+    body: dict[str, object],
+) -> None:
+    with pytest.raises(ModelHostError, match="did not say whether it can start model 'brain'"):
+        await _host(_status(body)).start_gap("brain")
+
+
 def _health(body: dict[str, object]) -> httpx.MockTransport:
     """A sidecar whose ``/health`` answers ``body`` and whose other routes are never asked."""
 

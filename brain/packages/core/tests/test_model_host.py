@@ -71,6 +71,10 @@ class _LoadingThenReady:
             return ModelHostState.LOADING
         return ModelHostState.READY
 
+    async def start_gap(self, model: str) -> str | None:
+        del model
+        return None
+
     async def device_memory(self) -> DeviceMemory | None:
         return None
 

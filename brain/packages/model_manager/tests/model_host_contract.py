@@ -27,6 +27,7 @@ class HostUnderTest:
     serving: Callable[..., None]
     die: Callable[[str], None]
     card: Callable[[DeviceMemory | None], None]
+    lose_file: Callable[[str], None]
     aclose: Callable[[], Awaitable[None]]
     bounds: ControlBounds
     boot_id: str
@@ -107,8 +108,13 @@ async def check_a_swap_leaves_only_the_model_it_swapped_in(subject: HostUnderTes
 async def check_an_id_outside_the_roster_is_refused_by_every_verb(
     subject: HostUnderTest,
 ) -> None:
-    """An id outside the roster fails as ``ModelNotHostedError``, from all three lifecycle verbs."""
-    for verb in (subject.host.status, subject.host.start, subject.host.stop):
+    """An id outside the roster fails as ``ModelNotHostedError``, from every verb that names one."""
+    for verb in (
+        subject.host.status,
+        subject.host.start,
+        subject.host.stop,
+        subject.host.start_gap,
+    ):
         with pytest.raises(ModelNotHostedError) as excinfo:
             await verb(subject.unhosted)
         assert subject.unhosted in str(excinfo.value)
@@ -118,6 +124,40 @@ async def check_an_unhosted_refusal_is_still_a_model_host_error(subject: HostUnd
     """The narrower failure is caught by every caller that only ever knew the broad one."""
     with pytest.raises(ModelHostError):
         await subject.host.status(subject.unhosted)
+
+
+async def check_a_model_whose_files_are_there_has_no_start_gap(subject: HostUnderTest) -> None:
+    """The answer a swap needs before its first stop, for a tier that can be started."""
+    assert await subject.host.start_gap(DEEP) is None
+
+
+async def check_an_absent_file_is_a_start_gap_and_the_start_is_refused_with_it(
+    subject: HostUnderTest,
+) -> None:
+    """The gap is told without a start, and it is the reason the start then gives."""
+    subject.lose_file(DEEP)
+    gap = await subject.host.start_gap(DEEP)
+    assert gap is not None
+    with pytest.raises(ModelHostError) as excinfo:
+        await subject.host.start(DEEP)
+    assert gap in str(excinfo.value)
+    assert await subject.host.status(DEEP) is ModelHostState.STOPPED
+    assert await subject.host.start_gap(CORTEX) is None
+
+
+async def check_a_live_model_has_no_start_gap_until_its_process_dies(
+    subject: HostUnderTest,
+) -> None:
+    """A start of a live model does nothing, so only a dead one needs its files again."""
+    subject.serving(DEEP, serving=True)
+    await subject.host.start(DEEP)
+    subject.lose_file(DEEP)
+    assert await subject.host.start_gap(DEEP) is None
+    await subject.host.start(DEEP)
+    subject.die(DEEP)
+    assert await subject.host.start_gap(DEEP) is not None
+    with pytest.raises(ModelHostError):
+        await subject.host.start(DEEP)
 
 
 async def check_a_host_with_no_card_reports_no_device_memory(subject: HostUnderTest) -> None:
@@ -165,6 +205,9 @@ ALL_CHECKS: tuple[Callable[[HostUnderTest], Awaitable[None]], ...] = (
     check_a_swap_leaves_only_the_model_it_swapped_in,
     check_an_id_outside_the_roster_is_refused_by_every_verb,
     check_an_unhosted_refusal_is_still_a_model_host_error,
+    check_a_model_whose_files_are_there_has_no_start_gap,
+    check_an_absent_file_is_a_start_gap_and_the_start_is_refused_with_it,
+    check_a_live_model_has_no_start_gap_until_its_process_dies,
     check_a_host_with_no_card_reports_no_device_memory,
     check_a_host_with_a_card_reports_what_is_free_and_how_big_it_is,
     check_a_host_reports_the_control_bounds_it_was_wired_with,

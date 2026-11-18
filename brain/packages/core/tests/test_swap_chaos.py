@@ -46,7 +46,7 @@ from cortex_core import (
 # Every swap opens by asking which daemon is answering, which is the first thing the host is
 # touched for and the last thing before anything is evicted.
 _ASKED_WHO = (("boot_id", ""),)
-_EVICTED = (*_ASKED_WHO, ("stop", "cortex"))
+_EVICTED = (*_ASKED_WHO, ("start_gap", "brain"), ("stop", "cortex"))
 _SWAPPED_IN = (*_EVICTED, ("start", "brain"))
 _SWAPPED_BACK = (*_SWAPPED_IN, ("stop", "brain"), ("start", "cortex"))
 
