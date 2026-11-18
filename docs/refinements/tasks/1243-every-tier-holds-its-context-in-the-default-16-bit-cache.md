@@ -39,7 +39,7 @@ What is not known, and must be measured before a tier changes:
 
 What would close it: a second set of baseline rows with `q8_0` for both keys and values, for every
 model the baseline drew and for the NVFP4 files of
-[R-1244](1244-the-nvfp4-files-for-the-deep-tier-have-no-baseline-rows.md) once those have their
+[R-1244](1244-the-deep-tiers-file-is-not-chosen-between-the-q4-and-the-nvfp4-files.md) once those have their
 16-bit rows. The rows are drawn the way the 16-bit rows were (the same budget, the same top-down
 search for the largest context, the same draft ladder and stop rule), with a check of the
 gemma-4-E4B case first. Then a decision is recorded in ADR-0077. If a tier is to set a cache type,
