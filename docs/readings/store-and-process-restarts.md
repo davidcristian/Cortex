@@ -184,6 +184,33 @@ in the runs after it, which a poll of the frames found, so the 5 s drain cut the
   after the kill and green 61 s after it, and `Name two islands, one line.` was answered with no
   operator step.
 
+## A server that keeps exiting
+
+Taken on 2026-11-18 on the 24 GB card: the default stack with escalation on, both GPU subagent
+servers in the evict list, and the model host from the `cortex-model-host` image (engine build
+`b12375`) with the tree's packages bound over it.
+
+- **Killed at every load.** With all three servers `ready`, the second subagent server's
+  `llama-server` was killed with `kill -9` each time it started. The model host loaded it 4
+  times, logged `a model process exited without being asked to; starting it again` 3 times and
+  `a model process keeps exiting, so it is left stopped` once, and `GET /models/subagent-gpu-2`
+  then answered `failed` with the `start_gap` `the process of 'subagent-gpu-2' exited 4 times in
+  a row, the last with code -9, so it is left stopped until a stop is asked for or the model host
+  starts again`. The cortex and the first server answered `ready` throughout.
+- **Two recheck intervals later.** The brain had logged 3 lines that name the server, once each:
+  the adapter's `a hosted model process has failed`, the pass's `a tier of the baseline residency
+  stopped without anything asking it to`, and `the model host names a reason it will not start
+  this tier`. The model host had received 1 `start` for that server in the whole run, the one of
+  the brain's boot recovery, and had loaded it 4 times in all.
+- **A cortex context that fills the card.** With `CORTEX_CTX_SIZE=49152` the card read 18,390 of
+  24,463 MiB with all three `ready`. With 400000 it read 23,324 MiB (the engine's log gives the
+  cortex's slot a context of 262144), all three answered `ready` and no server exited, so on this
+  card a larger context alone gives the bound nothing to do
+  ([R-1255](../refinements/tasks/1255-nothing-checks-that-the-tiers-the-model-host-starts-at-boot-fit-the-card.md)).
+
+Method: `fit.sh` and `fit2.sh` in `~/.cache/cortex-run/2026-11-18/slot12/`, logs `logs/fit.txt`
+and `logs/fit2.txt`.
+
 ## Health and the dot
 
 **2026-10-10**, the same rig after `Health` started reading a `ServingWatch` that asks the cortex's

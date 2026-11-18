@@ -38,6 +38,11 @@ class RestartBudget:
         return model in self._policy.models
 
     @property
+    def loads(self) -> int:
+        """How many processes in a row a model gets: the asked start and every restart."""
+        return self._policy.limit + 1
+
+    @property
     def delay_s(self) -> float:
         """How long to wait after an exit before the restart."""
         return self._policy.delay_s

@@ -241,6 +241,7 @@ async def test_a_pass_rechecks_the_peers_before_it_republishes_the_resident() ->
     await manager.recheck_residency()
     assert host.calls == [
         ("status", _TIER),
+        ("start_gap", _TIER),
         ("start", _TIER),
         ("status", _CORTEX),
         ("status", _DEEP),

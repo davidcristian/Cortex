@@ -207,7 +207,7 @@ report gains the note after any already in `notes`, and one that is not serving 
 ### Keeping the normal residency
 
 - `BaselineTiers(placer=None)` (`residency_tiers.py`, ADR-0054 decision 3) records which peers of
-  the cortex are missing. `mark_missing`, `mark_unhosted` and `mark_serving` are written by the
+  the cortex are missing. `mark_missing`, `mark_unhosted`, `mark_unstartable` and `mark_serving` are written by the
   restore wherever it runs and by the pass below; `fault_of(model)` and `missing` read it back. A
   mark of either kind closes the placer's GPU and only an emptied record reopens it, and
   `note_on(report)` adds the detail naming what is down, which names the state and not the cause.
@@ -221,8 +221,8 @@ report gains the note after any already in `notes`, and one that is not serving 
   no refusal to record are exactly the ways a record written from refusals cannot see. Per tier: an
   unhosted one is skipped without a call, a `ModelNotHostedError` records that fault, any other
   `ModelHostError` leaves the record alone and logs, `READY` marks it present, `LOADING` is left
-  alone, and `STOPPED` or `FAILED` marks it missing and then, if `fence()` still allows, issues one
-  `start`. The mark is written before the fence is consulted. It never raises.
+  alone, and `STOPPED` or `FAILED` marks it missing and then, if `fence()` still allows, asks for its `start_gap` and issues one
+  `start` when the host names no reason; a reason is logged once, marks the tier `UNSTARTABLE` and sends no `start`, and a later pass asks only for the reason until it is gone. The mark is written before the fence is consulted. It never raises.
 - `recheck_baseline_residency(host, plan, board, tiers, fence)` (`residency_regain.py`) is a whole
   pass: `recheck_tiers` for the peers, then `regain_residency` for the resident, in that order so
   the report the second publishes is composed over a record the first has just refreshed.

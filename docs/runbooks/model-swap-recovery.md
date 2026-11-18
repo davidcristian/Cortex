@@ -29,7 +29,7 @@ which also says where to read why a handoff failed. What the swap costs and whet
   it, and if that gives up the brain re-reads the machine every `CORTEX_SWAP_TIER_HEAL_S` seconds
   and publishes the cortex again the first pass that finds it serving with the deep tier off the
   card. The model host starts a cortex that exits unasked again, three times in a row at most;
-  one that keeps exiting needs step 2 below, and the dot follows within the interval.
+  one that keeps exiting is left stopped and refuses a `start` until a `stop` is asked for, so step 2 below begins with the `stop`, and the dot follows within the interval.
 - **Both verbs do nothing the second time, and an unknown id is a 404.** A second `start` spawned
   no second child, a second `stop` answered 200 and `stopped`, and `POST /models/ghost/start`
   answered `404 {"error":"unknown model 'ghost'; this host serves cortex, brain"}`. Nothing a
@@ -49,7 +49,7 @@ which also says where to read why a handoff failed. What the swap costs and whet
   rather than a list of refusals (`a tier of the baseline residency stopped without anything
   asking it to`). Nothing here needs an operator, so the useful check is whether the retry is
   failing for a reason a retry cannot fix: look for `a tier of the baseline residency could not be
-  started` in the brain's log, then ask the sidecar with
+  started` in the brain's log, or the one `ERROR` that begins `the model host names a reason it will not start this tier` (a server that exited four times in a row, or an absent file; the pass sends no further `start` until a `stop` of that tier or a new model host clears the reason), then ask the sidecar with
   `curl -fsS http://127.0.0.1:9300/models/subagent-gpu` (the loopback override) and read the
   child's own reason out of `docker logs model-host`. A missing artifact or a bad `-ngl` is a
   config fix and a `docker compose up -d`; the retry cannot invent a GGUF.

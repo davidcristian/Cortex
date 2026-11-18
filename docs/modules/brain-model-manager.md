@@ -187,8 +187,8 @@ compares the two, so retune both or neither. `RosterError` is a boot-time miscon
   container holding the GPU. Reaping needs no collector: asyncio's child watcher reaps on its own.
 - **The daemon starts every tier but the deep one at boot, and again when one exits unasked.** `boot_models(config)` in `server.py` names them: the cortex, then each GPU subagent server of the roster. A failed boot start is
   logged, the next one is still started and the API still serves, since a crash loop under compose's restart policy would hide it.
-  An unasked exit is started again after 2 s, three times in a row at most (`WARNING` per attempt,
-  `ERROR` once spent); 600 s of running or an explicit `start` resets the count (ADR-0054).
+  An unasked exit is started again after 2 s, three times in a row at most (`WARNING` per attempt);
+  600 s of running or an explicit `start` resets the count, and a fourth exit in a row leaves the tier stopped with one `ERROR` (`a model process keeps exiting, so it is left stopped`), names the reason in its status's `start_gap` and refuses a `start` with it until a `stop` or a new daemon (ADR-0054 decision 9).
 
 ## Deployment
 

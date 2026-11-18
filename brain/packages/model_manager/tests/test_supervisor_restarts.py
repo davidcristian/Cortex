@@ -6,12 +6,13 @@ from model_host_contract import CORTEX, DEEP
 from process_fakes import FakeChildProcesses, FakeProbe
 from test_model_host_contract import contract_roster
 
-from cortex_core import ModelHostState, PlainFormatter
+from cortex_core import ModelHostState, PlainFormatter, record_fields
 from cortex_model_manager import (
     ModelStatus,
     ModelSupervisor,
     RestartBudget,
     RestartPolicy,
+    SupervisorError,
 )
 from cortex_model_manager.restarts import (
     DEFAULT_RESTART_DELAY_S,
@@ -115,13 +116,49 @@ async def test_the_budget_runs_out_and_the_model_stays_failed(
         processes.spawned[child].exit(1)
         await _settle()
     assert len(processes.spawned) == 3
+    reason = (
+        "the process of 'cortex' exited 3 times in a row, the last with code 1, so it is left "
+        "stopped until a stop is asked for or the model host starts again"
+    )
     assert await supervisor.status(CORTEX) == ModelStatus(
-        CORTEX, ModelHostState.FAILED, "the process exited with code 1"
+        CORTEX, ModelHostState.FAILED, "the process exited with code 1", reason
     )
     assert caplog.records[-1].levelno == logging.ERROR
-    assert caplog.records[-1].message == (
-        "a model process keeps exiting, so it stays failed until a start is asked for"
+    assert caplog.records[-1].message == "a model process keeps exiting, so it is left stopped"
+    assert record_fields(caplog.records[-1]) == {"model": CORTEX, "code": 1, "reason": reason}
+
+
+async def test_a_start_asked_for_a_model_left_stopped_is_refused_and_loads_nothing() -> None:
+    supervisor, processes = _supervisor(limit=1)
+    await supervisor.start(CORTEX)
+    for child in range(2):
+        processes.spawned[child].exit(1)
+        await _settle()
+    for _ in range(3):
+        with pytest.raises(SupervisorError, match="could not start 'cortex': the process of"):
+            await supervisor.start(CORTEX)
+        await _settle()
+    assert len(processes.spawned) == 2
+    await supervisor.start(DEEP)
+    assert len(processes.spawned) == 3
+
+
+async def test_a_stop_gives_a_model_left_stopped_its_starts_back() -> None:
+    supervisor, processes = _supervisor(limit=1)
+    await supervisor.start(CORTEX)
+    for child in range(2):
+        processes.spawned[child].exit(1)
+        await _settle()
+    await supervisor.stop(CORTEX)
+    assert await supervisor.status(CORTEX) == ModelStatus(
+        CORTEX, ModelHostState.STOPPED, "no process is running"
     )
+    await supervisor.start(CORTEX)
+    for child in range(2, 4):
+        processes.spawned[child].exit(1)
+        await _settle()
+    assert len(processes.spawned) == 4
+    assert (await supervisor.status(CORTEX)).start_gap is not None
 
 
 async def test_a_process_that_ran_stably_gets_the_whole_budget_back() -> None:

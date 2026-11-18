@@ -11,10 +11,11 @@ TIERS_MISSING_DETAIL = (
 
 
 class TierFault(Enum):
-    """Why a peer tier is not serving, in the two kinds that differ."""
+    """Why a peer tier is not serving, in the three kinds that differ."""
 
     MISSING = "missing"
     UNHOSTED = "unhosted"
+    UNSTARTABLE = "unstartable"
 
 
 class BaselineTiers:
@@ -47,6 +48,12 @@ class BaselineTiers:
     def mark_unhosted(self, model: str) -> None:
         """Record that this host's roster has no such tier, and stop placing spawns on the GPU."""
         self._faults[model] = TierFault.UNHOSTED
+        if self._placer is not None:
+            self._placer.close_gpu()
+
+    def mark_unstartable(self, model: str) -> None:
+        """Record that the host names a reason it will not start ``model``; the GPU stays closed."""
+        self._faults[model] = TierFault.UNSTARTABLE
         if self._placer is not None:
             self._placer.close_gpu()
 

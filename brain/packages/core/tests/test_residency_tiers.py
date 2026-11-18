@@ -23,6 +23,7 @@ from cortex_core import (
     VramBudgetPlacer,
     converge_residency,
     recheck_tiers,
+    record_fields,
 )
 
 _ENDPOINTS = {"cortex": "http://llama-cortex:8080", "brain": "http://llama-brain:8081"}
@@ -193,8 +194,10 @@ async def test_a_start_the_host_refuses_leaves_the_tier_recorded_and_the_pass_al
         await recheck_tiers(host, _plan(evict_models=(_TIER, _OTHER_TIER)), tiers, _open)
     assert host.calls == [
         ("status", _TIER),
+        ("start_gap", _TIER),
         ("start", _TIER),
         ("status", _OTHER_TIER),
+        ("start_gap", _OTHER_TIER),
         ("start", _OTHER_TIER),
     ]
     assert tiers.missing == (_TIER, _OTHER_TIER)
@@ -223,7 +226,7 @@ async def test_a_retry_that_finds_the_tier_serving_reopens_the_gpu(
     assert placer.place(_spawn()).target is PlacementTarget.CPU
     host.calls.clear()
     await manager.recheck_residency()
-    assert host.calls == [("status", _TIER), ("start", _TIER)]
+    assert host.calls == [("status", _TIER), ("start_gap", _TIER), ("start", _TIER)]
     assert placer.place(_spawn()).target is PlacementTarget.CPU
     with caplog.at_level(logging.INFO, logger=_RETRY_LOGGER):
         await manager.recheck_residency()
@@ -285,7 +288,7 @@ async def test_a_recheck_defers_while_a_handoff_is_claimed_and_the_pool_is_drain
         assert host.calls == []
     host.calls.clear()
     await manager.recheck_residency()
-    assert host.calls == [("status", _TIER), ("start", _TIER)]
+    assert host.calls == [("status", _TIER), ("start_gap", _TIER), ("start", _TIER)]
 
 
 async def test_a_peer_that_accepted_its_start_and_then_died_is_found_by_the_next_pass() -> None:
@@ -358,7 +361,7 @@ async def test_a_boot_that_could_not_reach_the_host_is_swept_when_it_answers_aga
     placer.release(before)
     host.calls.clear()
     await manager.recheck_residency()
-    assert host.calls == [("status", _TIER), ("start", _TIER)]
+    assert host.calls == [("status", _TIER), ("start_gap", _TIER), ("start", _TIER)]
     assert placer.place(_spawn()).target is PlacementTarget.CPU
     await manager.recheck_residency()
     assert placer.place(_spawn()).target is PlacementTarget.GPU
@@ -396,6 +399,76 @@ async def test_a_restart_refused_for_a_tier_the_roster_lacks_is_not_an_ordinary_
     )
     assert settled is True
     assert manager.baseline_tiers.fault_of(_GHOST) is TierFault.UNHOSTED
+
+
+_LEFT_STOPPED = "the process of 'subagent-gpu' exited 4 times in a row, the last with code 1"
+
+
+async def test_a_tier_the_host_will_not_start_is_logged_once_and_not_started_again(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    host = ScriptedModelHost(running=["cortex", _OTHER_TIER], start_gaps={_TIER: _LEFT_STOPPED})
+    placer = _placer()
+    tiers = BaselineTiers(placer)
+    plan = _plan(evict_models=(_TIER, _OTHER_TIER))
+    with caplog.at_level(logging.INFO, logger=_RETRY_LOGGER):
+        for _ in range(3):
+            await recheck_tiers(host, plan, tiers, _open)
+    assert tiers.fault_of(_TIER) is TierFault.UNSTARTABLE
+    assert tiers.fault_of(_OTHER_TIER) is None
+    assert placer.place(_spawn()).target is PlacementTarget.CPU
+    assert ("start", _TIER) not in host.calls
+    assert [call for call in host.calls if call[1] == _TIER] == [
+        ("status", _TIER),
+        ("start_gap", _TIER),
+        ("start_gap", _TIER),
+        ("start_gap", _TIER),
+    ]
+    assert [record.levelname for record in caplog.records] == ["WARNING", "ERROR"]
+    assert record_fields(caplog.records[-1]) == {"model": _TIER, "reason": _LEFT_STOPPED}
+    assert "it is not started again until the model host names no reason" in caplog.text
+
+
+def test_a_tier_marked_unstartable_closes_gpu_placement_and_counts_as_missing() -> None:
+    placer = _placer()
+    tiers = BaselineTiers(placer)
+    tiers.mark_unstartable(_TIER)
+    assert placer.place(_spawn()).target is PlacementTarget.CPU
+    assert tiers.missing == (_TIER,)
+
+
+async def test_a_tier_whose_reason_is_gone_is_started_by_the_next_pass() -> None:
+    host = ScriptedModelHost(running=["cortex"], start_gaps={_TIER: _LEFT_STOPPED})
+    tiers = BaselineTiers()
+    plan = _plan(evict_models=(_TIER,))
+    await recheck_tiers(host, plan, tiers, _open)
+    del host.gaps[_TIER]
+    await recheck_tiers(host, plan, tiers, _open)
+    assert host.running == {"cortex", _TIER}
+    await recheck_tiers(host, plan, tiers, _open)
+    assert tiers.fault_of(_TIER) is None
+
+
+async def test_a_host_that_cannot_say_whether_a_tier_can_start_is_asked_again_and_starts_nothing(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    host = ScriptedModelHost(running=["cortex"], fail={("start_gap", _TIER): "connection refused"})
+    tiers = BaselineTiers()
+    with caplog.at_level(logging.WARNING, logger=_RETRY_LOGGER):
+        await recheck_tiers(host, _plan(evict_models=(_TIER,)), tiers, _open)
+    assert ("start", _TIER) not in host.calls
+    assert tiers.fault_of(_TIER) is TierFault.MISSING
+    assert "a tier of the baseline residency could not be asked about" in _retry_lines(caplog)[-1]
+
+
+async def test_an_unstartable_tier_whose_reason_cannot_be_read_is_left_as_recorded() -> None:
+    host = ScriptedModelHost(running=["cortex"], start_gaps={_TIER: _LEFT_STOPPED})
+    tiers = BaselineTiers()
+    plan = _plan(evict_models=(_TIER,))
+    await recheck_tiers(host, plan, tiers, _open)
+    host.unhosted.add(_TIER)
+    await recheck_tiers(host, plan, tiers, _open)
+    assert tiers.fault_of(_TIER) is TierFault.UNHOSTED
 
 
 async def test_a_replaced_daemon_asks_an_unhosted_tier_again() -> None:

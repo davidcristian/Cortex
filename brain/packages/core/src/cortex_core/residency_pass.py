@@ -10,6 +10,11 @@ from cortex_core.residency_tiers import BaselineTiers, TierFault
 
 _logger = logging.getLogger(__name__)
 
+_LEFT_STOPPED = (
+    "the model host names a reason it will not start this tier, so it is not started again "
+    "until the model host names no reason; delegated work runs on the CPU meanwhile"
+)
+
 
 async def recheck_tiers(
     host: ModelHost, plan: ResidencyPlan, tiers: BaselineTiers, fence: Fence
@@ -26,6 +31,8 @@ async def _recheck_one(host: ModelHost, model: str, tiers: BaselineTiers, fence:
     if tiers.fault_of(model) is TierFault.UNHOSTED:
         return
     try:
+        if tiers.fault_of(model) is TierFault.UNSTARTABLE and await host.start_gap(model):
+            return
         state = await host.status(model)
     except ModelNotHostedError as err:
         _unhosted(model, tiers, err)
@@ -59,6 +66,15 @@ async def _act_on(
     # whether or not this start happens, and whether or not it succeeds.
     tiers.mark_missing(model)
     if not fence():
+        return
+    try:
+        gap = await host.start_gap(model)
+    except ModelHostError as err:
+        _unanswered(model, "asked about", err)
+        return
+    if gap is not None:
+        _logger.error(_LEFT_STOPPED, extra={"model": model, "reason": gap})
+        tiers.mark_unstartable(model)
         return
     try:
         await host.start(model)

@@ -79,6 +79,7 @@ class ModelSupervisor:
         self._locks = {model: asyncio.Lock() for model in self._roster}
         self._restarts = restarts or RestartBudget(RestartPolicy(), time.monotonic)
         self._files = files
+        self._left_stopped: dict[str, str] = {}
         self._watchers: set[asyncio.Task[None]] = set()
 
     @property
@@ -115,6 +116,7 @@ class ModelSupervisor:
         """End ``model``'s process and do not return until it is reaped and its VRAM is free."""
         self._spec(model)
         async with self._locks[model]:
+            self._left_stopped.pop(model, None)
             child = self._children.get(model)
             if child is None:
                 return
@@ -186,9 +188,15 @@ class ModelSupervisor:
                 return
             attempt = self._restarts.take(model)
             if attempt is None:
+                reason = (
+                    f"the process of {model!r} exited {self._restarts.loads} times in a row, the "
+                    f"last with code {code}, so it is left stopped until a stop is asked for or "
+                    "the model host starts again"
+                )
+                self._left_stopped[model] = reason
                 _logger.error(
-                    "a model process keeps exiting, so it stays failed until a start is asked for",
-                    extra={"model": model, "pid": child.pid, "code": code},
+                    "a model process keeps exiting, so it is left stopped",
+                    extra={"model": model, "code": code, "reason": reason},
                 )
                 return
             _logger.warning(
@@ -203,7 +211,9 @@ class ModelSupervisor:
                 )
 
     def _gap(self, spec: ModelSpec) -> str | None:
-        """Why a start of ``spec`` would be refused now, or ``None`` when its files are there."""
+        """Why a start of ``spec`` would be refused now: it keeps exiting, or a file is absent."""
+        if (left := self._left_stopped.get(spec.model)) is not None:
+            return left
         return None if self._files is None else self._files.missing(spec)
 
     def _spec(self, model: str) -> ModelSpec:

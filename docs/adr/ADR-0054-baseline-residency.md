@@ -70,8 +70,9 @@ without decision 8 `Health` would answer ready while the cortex or the store is 
    decisions 7 and 8).
 3. **A peer that is not serving is recorded, and GPU placement closes.** `BaselineTiers`
    (`residency_tiers.py`, held by the manager and handed out through `baseline_tiers`) maps each
-   faulted peer to a `TierFault`: `MISSING` (not serving, worth asking again) or `UNHOSTED` (the
-   roster has no such id; never asked again while that daemon runs). Any fault calls the placer's
+   faulted peer to a `TierFault`: `MISSING` (not serving, worth asking again), `UNHOSTED` (the
+   roster has no such id; never asked again while that daemon runs) or `UNSTARTABLE` (the host
+   names a reason it will not start it; only that reason is asked for again). Any fault calls the placer's
    `close_gpu()`, so every spawn is placed on the CPU, and an emptied record calls `open_gpu()`. It
    is one bit for the card, not arithmetic (a charge large enough to crowd the cap would say "no
    room" where the truth is "no server"), and it cannot tell tiers apart, since no setting maps a
@@ -85,7 +86,9 @@ without decision 8 `Health` would answer ready while the cortex or the store is 
    `CORTEX_SWAP_TIER_HEAL_S` (30 s). Its first half, `recheck_tiers` (`residency_pass.py`), asks
    `status` for **every** evict-list tier whatever the record says: `READY` marks it present,
    `LOADING` is left for a later pass, anything else is marked `MISSING` and started once, and a
-   404 marks it `UNHOSTED`. A host that cannot answer marks nothing, so one transport blip cannot
+   404 marks it `UNHOSTED`. Before that start the pass asks for the tier's `start_gap`: a reason
+   marks it `UNSTARTABLE` with one `ERROR` and sends no `start`, and each later pass asks only
+   for the reason until the host names none. A host that cannot answer marks nothing, so one transport blip cannot
    close the GPU for the pool. A pass never raises, and costs
    at most 2N + 2 control calls for N peers (two more only while the report is not serving, decision
    5). The pass does nothing while a handoff owns the card: its condition is the residency scope's
@@ -161,7 +164,15 @@ without decision 8 `Health` would answer ready while the cortex or the store is 
    watches each process of a model its `RestartPolicy` names, the cortex and each GPU
    subagent server in `server.py`, and after an exit nobody asked for waits 2 s and starts it again, at most three
    times in a row (`restarts.py`); a run of 600 s, longer than a tier-scale load, or an explicit
-   `start` gives the count back, and a spent budget leaves the model `failed` with one `ERROR`. The
+   `start` of a tier not yet given up on gives the count back. A fourth exit in a row leaves the
+   model `failed` with one `ERROR` that names it, the count and the exit code; its status then
+   names that reason in `start_gap` and a `start` is refused with it, until a `stop` is asked for
+   (a handoff's eviction is one) or the daemon starts again. So a tier that cannot load is loaded
+   four times and then left alone, while the others keep serving. No fit check runs before a
+   boot load: the daemon reads the card's free memory, but no setting declares what the cortex
+   or a subagent server needs, a file's size is only a floor under it, and on a card that pages
+   an overcommit to system memory the load does not fail at all
+   ([co-residency](../readings/co-residency.md)). The
    per-model lock orders it against a swap: a `stop` removes the record and a `start` replaces it,
    and the restart runs only while the exited process is still the one on record, so a handoff's
    eviction is never undone. The brain was rejected as the place: with escalation off it has no
@@ -190,7 +201,7 @@ without decision 8 `Health` would answer ready while the cortex or the store is 
   peers and the cortex are what keep the report current.
 - A cortex that dies while both containers keep running is started again by the model host
   (decision 9), and `Health` reads amber while it loads (decision 8). One that keeps exiting
-  stays `failed` until restarting the model host or the runbook's manual step brings it back.
+  stays `failed` until a `stop` and then a `start`, or restarting the model host, brings it back.
 - The restart does not check what else holds the card: a deep model that survived its own stop
   is the one state where it loads the cortex beside another tier.
 - Residency changes are split by responsibility: `residency_moves.py` (what the host is asked to
