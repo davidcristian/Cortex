@@ -23,6 +23,7 @@ from cortex_core import (
     Clock,
     ControlBounds,
     InMemoryBodyGateway,
+    InMemorySessionStore,
     ModelHostState,
     PlacementRequest,
     PlacementTarget,
@@ -280,7 +281,9 @@ async def test_a_boot_whose_peer_tier_is_down_still_says_the_brain_is_ready() ->
         running=["cortex"], fail={("start", "subagent-gpu"): "no such device"}
     )
     try:
-        await recover_boot_residency(replace(runtime, host=broken), SystemClock())
+        await recover_boot_residency(
+            replace(runtime, host=broken), InMemorySessionStore(), SystemClock()
+        )
         await runtime.rechecker.aclose()
         report = runtime.manager.residency()
         assert report.serving is True

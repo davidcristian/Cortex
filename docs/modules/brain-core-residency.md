@@ -158,7 +158,7 @@ raises `ValueError` on a slot no tool filled, one no engine filled, or a tail co
   stream, a paragraph below any cortex text, before emitting one `TurnCompleted` for the whole turn.
   Both the handoff and the completion are named by the `turn_id` it was handed.
 - `recover_handoffs(...)` and `converge_residency(...)` (`swap_recovery.py`) are boot recovery. The
-  composition root calls the first once at startup: it marks any non-terminal record `FAILED` with
+  composition root calls the first once at startup: it stores in the chat of any non-terminal record that the handoff got no answer (`record_unanswered`, ADR-0074), marks the record `FAILED` with
   `STRANDED_REASON`, then converges the GPU back onto the normal residency in the conductor's own
   order. A peer is stopped first only when the deep tier is not `STOPPED`, the cortex is not `READY`, or the host cannot say; beside a serving cortex a peer the model host booted is left running and `start` is sent to each. It never raises, and what it returns is whether the cortex was observed `READY`, which the
   root publishes onto the manager: without that, a boot that could not settle the cortex answers

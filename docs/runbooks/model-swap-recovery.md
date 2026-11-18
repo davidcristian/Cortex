@@ -206,9 +206,9 @@ boot recovery marks the stranded record `FAILED` and escalation works again.
      -f docker/docker-compose.gpu.yml restart brain
    ```
 
-   At startup, and before the gRPC service serves a turn, `recover_handoffs` marks
-   any handoff record a crash stranded as `FAILED` and moves residency back onto the cortex.
-   Conversation state lives in redis, so the restart loses no chat.
+   At startup, and before the gRPC service serves a turn, `recover_handoffs` marks any handoff
+   record a crash stranded as `FAILED`, stores in its chat that the request got no answer, and
+   moves residency back onto the cortex. Chats are in redis, so the restart loses none.
 
    The one thing only a restart clears is a handoff record that is still readable as in flight,
    which refuses every later escalation with "a handoff to the deep model is already running".

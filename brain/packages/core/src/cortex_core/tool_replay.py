@@ -5,6 +5,7 @@ from collections.abc import Sequence
 from cortex_core.conversation import Message, Role, ToolRun
 from cortex_core.escalate import ESCALATE_TOOL_NAME
 from cortex_core.events import ToolOutcome, TurnEvent
+from cortex_core.stranded_handoff import records_no_answer
 from cortex_core.tool_round import call_message
 from cortex_core.tools import ToolCall
 
@@ -20,15 +21,22 @@ REPLAYED_UNANSWERED = (
 )
 
 RUNS_LABEL = "Tools run"
+HANDOFF_STARTED = "handoff started, answer not recorded here"
 RECALLED_RUNS_NOTE = (
     f'A tool named on a memory\'s "{RUNS_LABEL}" line ran in that earlier conversation only. '
     "A request made now needs its own call."
 )
 
 
+def _said(run: ToolRun) -> str:
+    if not run.ok:
+        return "failed"
+    return HANDOFF_STARTED if run.name == ESCALATE_TOOL_NAME else "succeeded"
+
+
 def runs_line(runs: Sequence[ToolRun]) -> str:
     """The line a recorded exchange names its tool calls on, each with whether it succeeded."""
-    listed = ", ".join(f"{run.name} ({'succeeded' if run.ok else 'failed'})" for run in runs)
+    listed = ", ".join(f"{run.name} ({_said(run)})" for run in runs)
     return f"{RUNS_LABEL}: {listed}"
 
 
@@ -62,7 +70,10 @@ def replay_runs(history: Sequence[Message]) -> list[Message]:
 def _answered(history: Sequence[Message], index: int) -> bool:
     """Whether a later message of the same turn is stored, as a handoff's deep reply is."""
     turn_id = history[index].turn_id
-    return any(message.turn_id == turn_id for message in history[index + 1 :])
+    return any(
+        message.turn_id == turn_id and not records_no_answer(message)
+        for message in history[index + 1 :]
+    )
 
 
 def _outcome(run: ToolRun, *, answered: bool) -> str:

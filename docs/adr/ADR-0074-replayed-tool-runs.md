@@ -38,7 +38,17 @@ wrote on a tainted turn can hold injected text or a link the output guardrail re
    reply is the last stored message of its turn gets `REPLAYED_UNANSWERED` instead, saying no reply
    from the deep model to it is stored: every handoff that ends without a stored deep reply leaves
    that shape, and without it the cortex stated an answer as the deep model's
-   ([readings](../readings/handoff-reply-not-kept.md)). `assemble_inference_messages` applies it
+   ([readings](../readings/handoff-reply-not-kept.md)). Boot recovery writes what it finds to the
+   same store: `record_unanswered` (`stranded_handoff.py`) appends to the chat of a handoff a
+   restart ended one more reply of that turn, whose run is `escalate_to_brain` with `ok=False`
+   and whose text is `UNANSWERED_HANDOFF_NOTE` in the language of the request. A chat that
+   already has a second reply of the turn, the deep reply, gets none, and a chat that cannot be
+   read gets `UNSURE_HANDOFF_NOTE`, which says the request may not have been answered. The
+   record is not counted as a deep reply, so the handoff still replays as `REPLAYED_UNANSWERED`
+   and the record's own run as `REPLAYED_FAILED`. `limit_notes` appends the last record's text
+   to the chat's next reply as a closing note, until a later stored message has it, so the
+   person is told once that the request got no answer and can be asked again
+   ([readings](../readings/handoff-restart-record.md)). `assemble_inference_messages` applies it
    after the history window, so the window and the recap still count stored messages only. The
    model reads the shape the tool loop gives it within a turn, so a request answered by a call is
    what it copies.
@@ -53,7 +63,9 @@ wrote on a tainted turn can hold injected text or a link the output guardrail re
    `record_exchange` takes the turn's `RunLog.runs` from `TurnEngine` and `BrainPhase`, and
    `render_exchange` writes them on a line between the message and the reply, `Tools run:
    list_scheduled (succeeded), schedule_task (failed)` (`runs_line`); a turn with no runs is
-   written as before. The recalled block opens with `RECALLED_RUNS_NOTE`: a tool named on that
+   written as before. A successful `escalate_to_brain` run is written `handoff started, answer
+   not recorded here`: the cortex's row is stored before the deep model answers, and a restart
+   can end the handoff after it. The recalled block opens with `RECALLED_RUNS_NOTE`: a tool named on that
    line ran in that earlier conversation only, and a request made now needs its own call. The
    note ends the trusted section's header. With no trusted section, it is its own line above the
    fenced section's header, so the line just before the fence is the one that frames the quoted

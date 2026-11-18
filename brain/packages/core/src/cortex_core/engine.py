@@ -30,6 +30,7 @@ from cortex_core.schedule_claim import said_by_person
 from cortex_core.session_title import build_title_messages, generate_title
 from cortex_core.shedding import shed_oldest_turns
 from cortex_core.stops import StopLedger
+from cortex_core.stranded_handoff import unanswered_handoff_note
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 from cortex_core.tool_replay import RunLog
 from cortex_core.turn_context import TurnCapabilities, assemble_inference_messages
@@ -214,6 +215,7 @@ class TurnEngine:
                 taint=taint,
                 query=text,
                 said=said_by_person(history),
+                unanswered=unanswered_handoff_note(history),
             )
             for event in notes:
                 yield event

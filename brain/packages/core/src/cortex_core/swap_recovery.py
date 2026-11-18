@@ -6,31 +6,35 @@ from cortex_core.errors import HandoffStoreError, ModelHostError, ModelNotHosted
 from cortex_core.handoff import HandoffState
 from cortex_core.model_host import ModelHostState, ResidencyPlan
 from cortex_core.model_ready import await_model_ready
-from cortex_core.ports import Clock, HandoffStore, ModelHost, Sleeper
+from cortex_core.ports import Clock, HandoffStore, ModelHost, SessionStore, Sleeper
 from cortex_core.residency_moves import restart_evicted
 from cortex_core.residency_roster import warn_of_unlisted_models
 from cortex_core.residency_tiers import BaselineTiers
+from cortex_core.stranded_handoff import record_unanswered
 from cortex_core.swap_reasons import STRANDED_REASON
 
 _logger = logging.getLogger(__name__)
 
 
-async def recover_handoffs(
+async def recover_handoffs(  # noqa: PLR0913 -- boot recovery reads both stores and the host
     handoffs: HandoffStore,
     host: ModelHost,
     plan: ResidencyPlan,
     tiers: BaselineTiers,
     *,
+    sessions: SessionStore,
     clock: Clock,
     sleeper: Sleeper,
 ) -> bool:
     """Fail a crash-stranded handoff, converge the GPU, and answer whether the cortex serves."""
-    await _fail_stranded_handoff(handoffs)
+    await _fail_stranded_handoff(handoffs, sessions, clock)
     return await converge_residency(host, plan, tiers, clock=clock, sleeper=sleeper)
 
 
-async def _fail_stranded_handoff(handoffs: HandoffStore) -> None:
-    """Mark the one non-terminal record ``FAILED``, saying so on the record as well as here."""
+async def _fail_stranded_handoff(
+    handoffs: HandoffStore, sessions: SessionStore, clock: Clock
+) -> None:
+    """Mark the one non-terminal record ``FAILED``, saying so on it, in its chat and here."""
     try:
         record = await handoffs.active()
         if record is None:
@@ -43,6 +47,7 @@ async def _fail_stranded_handoff(handoffs: HandoffStore) -> None:
                 "state": record.state.value,
             },
         )
+        await record_unanswered(sessions, record, clock)
         await handoffs.transition(record.handoff_id, HandoffState.FAILED, failure=STRANDED_REASON)
     except HandoffStoreError:
         _logger.exception("could not read or fail a stranded handoff at startup")

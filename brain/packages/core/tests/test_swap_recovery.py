@@ -8,6 +8,7 @@ from cortex_core import (
     BaselineTiers,
     HandoffState,
     HandoffStoreError,
+    InMemorySessionStore,
     ModelHostState,
     PlainFormatter,
     RecordingSleeper,
@@ -38,6 +39,7 @@ async def _recover(
         host,
         plan if plan is not None else harness.plan(),
         tiers if tiers is not None else BaselineTiers(),
+        sessions=InMemorySessionStore(),
         clock=TickingClock(),
         sleeper=RecordingSleeper(),
     )
@@ -162,6 +164,7 @@ async def test_a_cortex_that_will_not_come_back_is_reported_loudly(
             host,
             harness.plan(load_timeout_s=0.0),
             BaselineTiers(),
+            sessions=InMemorySessionStore(),
             clock=TickingClock(),
             sleeper=RecordingSleeper(),
         )

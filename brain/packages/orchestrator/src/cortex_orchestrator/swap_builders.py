@@ -15,6 +15,7 @@ from cortex_core import (
     ModelHostError,
     ResidencyPlan,
     ScriptedModelHost,
+    SessionStore,
     Sleeper,
     SubagentPlacer,
     SwappingModelManager,
@@ -130,7 +131,9 @@ async def check_control_deadline(swap: SwapRuntime | None) -> SwapRuntime | None
     raise ControlDeadlineError(msg)
 
 
-async def recover_boot_residency(swap: SwapRuntime | None, clock: Clock) -> None:
+async def recover_boot_residency(
+    swap: SwapRuntime | None, sessions: SessionStore, clock: Clock
+) -> None:
     """Fail a crash-stranded handoff, converge the GPU, and publish what it observed."""
     if swap is None:
         return
@@ -139,6 +142,7 @@ async def recover_boot_residency(swap: SwapRuntime | None, clock: Clock) -> None
         swap.host,
         swap.plan,
         swap.manager.baseline_tiers,
+        sessions=sessions,
         clock=clock,
         sleeper=AsyncioSleeper(),
     )

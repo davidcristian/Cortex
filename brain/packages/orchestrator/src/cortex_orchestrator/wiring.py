@@ -132,7 +132,7 @@ async def run_from_env(
         setup=dispatch,
     )
     ticker_task = start_ticker(ticker)
-    await recover_boot_residency(swap, clock)
+    await recover_boot_residency(swap, stores.sessions, clock)
     serving, close_serving = build_serving_watch(
         stores.sessions,
         inference,

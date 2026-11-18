@@ -87,11 +87,12 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
     query: str,
     earlier: Sequence[ToolRun] = (),
     said: Sequence[str] = (),
+    unanswered: str = "",
 ) -> Iterator[TurnEvent]:
     """The notes for a turn, in the order it shows them.
 
     ``earlier`` (the cortex's runs before a handoff) and ``said`` (the person's messages) are for
-    the claims.
+    the claims; ``unanswered`` is the stored note of a handoff a restart ended.
     """
     reply = "".join(parts)
     made = (*earlier, *runs)
@@ -168,6 +169,7 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
         ),
         (unread, said_in(UNREAD_FOLDERS_NOTE, UNREAD_FOLDERS_NOTES)),
         (unsearched, said_in(UNSEARCHED_FILES_NOTE, UNSEARCHED_FILES_NOTES)),
+        (bool(unanswered), unanswered),
     ):
         if due:
             yield from append_note(parts, note)

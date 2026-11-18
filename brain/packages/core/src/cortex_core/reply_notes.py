@@ -56,6 +56,11 @@ from cortex_core.schedule_quoted import QUOTED_STORED_NOTE, QUOTED_STORED_NOTES
 from cortex_core.schedule_weekday import WEEKDAY_OFF_NOTE, WEEKDAY_OFF_NOTES
 from cortex_core.schedule_weekly import ONCE_STORED_NOTE, ONCE_STORED_NOTES
 from cortex_core.schedule_weekly_stored import WEEKLY_STORED_NOTE, WEEKLY_STORED_NOTES
+from cortex_core.stranded_handoff import (
+    UNANSWERED_HANDOFF_NOTE,
+    UNANSWERED_HANDOFF_NOTES,
+    UNSURE_HANDOFF_NOTE,
+)
 from cortex_core.swap_notes import (
     ALREADY_ACTIVE_NOTE,
     BRAIN_FAILED_NOTE,
@@ -117,6 +122,8 @@ REPLY_NOTES: tuple[str, ...] = (
     *_forms(ONCE_STORED_NOTE, ONCE_STORED_NOTES),
     *_forms(WEEKLY_STORED_NOTE, WEEKLY_STORED_NOTES),
     *_forms(REPLY_CAPPED_NOTE, REPLY_CAPPED_NOTES),
+    *_forms(UNANSWERED_HANDOFF_NOTE, UNANSWERED_HANDOFF_NOTES),
+    UNSURE_HANDOFF_NOTE,
     ALREADY_ACTIVE_NOTE,
     BRAIN_FAILED_NOTE,
     BRAIN_OVERFLOW_NOTE,

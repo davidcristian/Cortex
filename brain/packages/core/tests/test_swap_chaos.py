@@ -42,6 +42,7 @@ from cortex_core import (
     recover_handoffs,
     render_exchange,
 )
+from cortex_core.stranded_handoff import UNANSWERED_HANDOFF_NOTE
 
 # Every swap opens by asking which daemon is answering, which is the first thing the host is
 # touched for and the last thing before anything is evicted.
@@ -163,6 +164,7 @@ async def assert_stores_intact(
     deep_reply: str | None = None,
     killed: bool = False,
     settled: bool = True,
+    unanswered: bool = False,
 ) -> None:
     """Nothing either phase saved is lost, and no handoff is left running."""
     assert await live.handoffs.active() is None
@@ -181,6 +183,8 @@ async def assert_stores_intact(
         for message in await live.sessions.history(harness.SESSION)
     ]
     expected = [("user", harness.USER_TEXT), ("assistant", harness.CORTEX_TEXT)]
+    if unanswered:
+        expected.append(("assistant", UNANSWERED_HANDOFF_NOTE))
     if deep_reply is not None:
         expected.append(("assistant", deep_reply))
     assert history == expected
@@ -636,6 +640,7 @@ async def test_boot_recovery_fails_a_stranded_record_and_lets_the_next_handoff_r
         host,
         live.residency,
         live.manager.baseline_tiers,
+        sessions=live.sessions,
         clock=harness.TickingClock(),
         sleeper=RecordingSleeper(),
     )
@@ -652,4 +657,4 @@ async def test_boot_recovery_fails_a_stranded_record_and_lets_the_next_handoff_r
     assert _texts(later) == "a deep answer"
     assert live.backend.calls == 1
     await assert_converged_on_cortex(live)
-    await assert_stores_intact(live, deep_reply="a deep answer")
+    await assert_stores_intact(live, deep_reply="a deep answer", unanswered=True)

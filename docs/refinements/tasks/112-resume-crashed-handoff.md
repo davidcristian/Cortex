@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** inference-model-manager
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
-**Verified:** 2026-10-28
+**Verified:** 2026-11-18
 **Trigger:** the dedup design the `Converse` reconnect entry (R-023) needs, a request id on
 `UserTurn` or `ClientEvent` plus an idempotency and resume registry keyed by it, after which
 resuming is a conductor entry point run beside the gRPC server. Recheck with
@@ -77,6 +77,7 @@ prevent.
 - 2026-10-25: checked again and not fired: neither the proto nor the brain has a request id. The
   body now names `_swap(record, reached)` and the ledger's unstored `forgotten` flag.
 - 2026-10-28: checked again and not fired: the `request_id|idempotency` grep still finds nothing.
-- 2026-11-18: a live kill of the brain in the middle of a handoff showed the person is not told:
-  the next turn's reply said the handoff had completed
-  ([R-1253](1253-a-handoff-a-restart-interrupts-stays-in-history-as-a-tool-that-succeeded.md)).
+- 2026-11-18: checked again and not fired: the `request_id|idempotency` grep still finds nothing.
+  Boot recovery stores in the chat that a handoff a restart ended got no answer, and the chat's
+  next reply says so once and says to ask again
+  ([ADR-0074](../../adr/ADR-0074-replayed-tool-runs.md)).
