@@ -84,6 +84,7 @@ Memory above the floor read just before each load:
 | the cortex with its projector and its drafter | 8,808 MiB | 8,868 MiB |
 | one subagent server with its drafter | 3,180 MiB | 3,186 MiB |
 | one subagent server, `CORTEX_MODEL_FILE_SUBAGENT_GPU_DRAFT` set empty | 3,068 MiB | 3,074 MiB |
+| one subagent server of two 8K slots with its drafter | 3,367 MiB | 3,371 MiB |
 
 The three servers at their peak are 1,938 MiB under the 16,384 MiB of the 16 GB soft cap, when the
 card read 16,874 MiB of its 24,463 in use. The cortex with its projector and its drafter peaks 62 MiB
@@ -102,9 +103,13 @@ three bands, 1,045 prompt tokens, answered "The colors in this image are red, gr
 with 615 of 753 accepted. The peak was 8,866 MiB with the first picture and 8,868 MiB with the
 second.
 
+One server of two slots (`CORTEX_SUBAGENTS_GPU_SERVERS=1`, `CORTEX_SUBAGENTS_GPU_PARALLEL=2`, a 16K
+pool) kept the drafter in its argv, the host logged no warning, and two requests sent at once
+both drafted: 70 of 270 drafted tokens accepted on one slot and 65 of 282 on the other.
+
 With `CORTEX_MODEL_FILE_CORTEX_DRAFT` set empty the cortex's argv ended at `--cache-ram 8192`, and
 with the subagent setting empty the server's replies had no draft counts.
 
-Method: `shape3.sh <label> [projector|big|subagent|plain]` and `ask3.py` in
+Method: `shape3.sh <label> [projector|big|subagent|plain|slots]` and `ask3.py` in
 `~/.cache/cortex-run/2026-11-18/`, compose project `cortexn24`, the model host from the existing
 image with the working tree's model manager bound over it, logs `logs/drafters*.txt` there.

@@ -18,7 +18,7 @@ starts `CORTEX_SUBAGENTS_GPU_SERVERS` servers of `CORTEX_SUBAGENTS_GPU_PARALLEL`
 shapes were checked on the 24 GB card
 ([readings](../../readings/subagent-budget.md#two-slots-against-two-servers)).
 
-What remains, in the order to do it:
+What remains:
 
 1. **The CPU servers are still one server of two slots, and the first draw is against splitting
    them.** `llama-subagent` in `docker/docker-compose.subagents.yml` and `llama-subagent-qwen` in
@@ -35,7 +35,8 @@ What remains, in the order to do it:
      Rule, written before that row: if each of the two busy servers writes below each of the two
      busy slots, this item closes as declined and the CPU servers stay one server of two slots.
      If not, the choice is between a lone subagent at its full rate (slots) and a drafter for
-     every subagent (servers), and it waits for R-1239 to give the CPU tier a drafter.
+     every subagent (servers), and it waits for a drafter on the CPU servers
+     ([R-1247](1247-the-cpu-subagent-servers-start-without-a-drafter.md)).
    - If servers are chosen, give each its own caps. Compose cannot divide, so this needs two
      variables, for example `CORTEX_SUBAGENTS_SERVER_CPUS` (2.0) and
      `CORTEX_SUBAGENTS_SERVER_MEM_GB` (from the capped row, not the 4 first proposed), read by
@@ -45,8 +46,6 @@ What remains, in the order to do it:
      in the `CORTEX_SUBAGENTS_ENDPOINT` default, set the `CORTEX_SUBAGENTS_PARALLEL` default to 1,
      and decide whether the alternate entry gets a second server too. `flagcheck.py` reads a new
      service from its model variable; prove it by removing a flag from the new one.
-2. **The tier names no drafter**, so the main reason for the default has no effect until
-   [R-1239](1239-no-tier-but-the-deep-one-can-name-a-drafter.md) gives it one.
 
 ## History
 
@@ -62,4 +61,5 @@ What remains, in the order to do it:
   list differ in number. The container's stop period went from 45 to 55 s, a grace for each of
   the four default children. A first CPU draw found a server of two threads at 0.59 of the rate
   of one of four and no room for its weights under 4 GiB, so the CPU item now starts with the row
-  that decides it. The two items above remain.
+  that decides it. Each GPU server starts with the drafter beside its file
+  ([R-1239](1239-no-tier-but-the-deep-one-can-name-a-drafter.md)). The item above remains.
