@@ -116,7 +116,9 @@ default of its setting in `brain/packages/model_manager/src/cortex_model_manager
   and the task stays open for its rows. Live check on build b12375: the model host started the
   deep tier alone on the Qwen3.8-27B Q4 file at 16K with `--spec-type draft-mtp
   --spec-draft-n-max 3`, no `--model-draft`, and `q8_0` for the model's cache and the drafter's.
-  It answered two requests, 175 of 369 drafted tokens were accepted each time, and the card read
-  16,969 MiB above its floor of 2,439 MiB at load and 16,995 MiB at the peak. The engine's log
-  lines naming the cache type were not read. `shape6.sh` in `~/.cache/cortex-run/2026-11-18/`,
-  compose project `cortexn24`, log `logs/deep-q8.txt` there.
+  A request capped at 300 tokens ended inside the reasoning trace, with 175 of 369 drafted tokens
+  accepted. One capped at 3,000 reached its reply and stopped after 2,011 tokens, with 1,406 of
+  1,812 drafted tokens accepted. The card read 16,965 MiB above its floor of 2,438 MiB at load
+  and 16,991 MiB at the peak. The engine's log at the model host's level has no line naming the
+  cache type, so the type was read from the server's argv. `shape6.sh` in
+  `~/.cache/cortex-run/2026-11-18/`, compose project `cortexn24`, log `logs/deep-q8-reply.txt`.

@@ -139,8 +139,8 @@ The cards were read on 2026-11-16, when the models mount moved to the files
    deep alternate's and the tier ships with no file named, so no default moves, and a deployment
    that names that file sets `CORTEX_KV_CACHE_TYPE_BRAIN=q8_0`. The model host started the
    deep tier that way at 16K, drafting with the file's own layer at a draft length of 3: it
-   answered, 175 of 369 drafted tokens were accepted, and the card read 16,995 MiB above its
-   floor at the peak.
+   answered, 1,406 of 1,812 drafted tokens were accepted, and the card read 16,991 MiB above
+   its floor at the peak.
 
    The engine exits on an 8-bit V cache when flash attention is off. The stack cannot start a
    server that way: no tier's argv names a flash attention flag, which a test of the roster
