@@ -47,8 +47,8 @@ read deadline, since a control call that hung would hang a swap step under no bo
 
 ## The control API, on the sidecar side
 
-`build_app(supervisor, *, boot_model, close=nothing_to_close, device=None)` returns the Starlette
-app and `model_host_lifespan(supervisor, boot_model, close)` is its lifespan. `device` is the
+`build_app(supervisor, *, boot_models, close=nothing_to_close, device=None)` returns the Starlette
+app and `model_host_lifespan(supervisor, boot_models, close)` is its lifespan. `device` is the
 `DeviceMemoryProbe` the health route reads the card through. Four routes and no more:
 
 | Route | Meaning |
@@ -185,8 +185,8 @@ compares the two, so retune both or neither. `RosterError` is a boot-time miscon
   can wedge when llama.cpp's loading log outruns a buffer nobody drains. No new session means a
   container the runtime tears down takes the children with it, so no `llama-server` outlives the
   container holding the GPU. Reaping needs no collector: asyncio's child watcher reaps on its own.
-- **The daemon starts the cortex at boot, and again when it exits unasked.** A failed boot start is
-  logged and the API still serves, since a crash loop under compose's restart policy would hide it.
+- **The daemon starts every tier but the deep one at boot, and again when one exits unasked.** `boot_models(config)` in `server.py` names them: the cortex, then each GPU subagent server of the roster. A failed boot start is
+  logged, the next one is still started and the API still serves, since a crash loop under compose's restart policy would hide it.
   An unasked exit is started again after 2 s, three times in a row at most (`WARNING` per attempt,
   `ERROR` once spent); 600 s of running or an explicit `start` resets the count (ADR-0054).
 

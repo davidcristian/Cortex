@@ -10,6 +10,7 @@ from starlette.applications import Starlette
 from cortex_core import PACKED_FORMAT, PLAIN_FORMAT, ControlBounds
 from cortex_model_manager import (
     ModelHostConfig,
+    boot_models,
     build_model_host,
     build_supervisor,
     main,
@@ -46,14 +47,29 @@ async def test_the_wiring_hands_over_every_timing_setting_it_reads(
         await client.aclose()
 
 
-async def test_the_wiring_restarts_the_boot_model_and_no_other(
+async def test_the_wiring_boots_and_restarts_every_tier_but_the_deep_one(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("CORTEX_MODEL_FILE_BRAIN", "deep/brain.gguf")
-    supervisor, client = build_supervisor(ModelHostConfig())
+    monkeypatch.setenv("CORTEX_MODEL_FILE_SUBAGENT_GPU", "small/subagent.gguf")
+    config = ModelHostConfig()
+    assert boot_models(config) == ("cortex", "subagent-gpu", "subagent-gpu-2")
+    supervisor, client = build_supervisor(config)
     await client.aclose()
-    assert supervisor.restarts.covers("cortex")
-    assert not supervisor.restarts.covers("brain")
+    assert supervisor.models == ("cortex", "brain", "subagent-gpu", "subagent-gpu-2")
+    assert [supervisor.restarts.covers(model) for model in supervisor.models] == [
+        True,
+        False,
+        True,
+        True,
+    ]
+
+
+def test_a_host_with_no_subagent_file_boots_the_cortex_alone(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CORTEX_MODEL_FILE_BRAIN", "deep/brain.gguf")
+    assert boot_models(ModelHostConfig()) == ("cortex",)
 
 
 def test_main_serves_the_configured_interface_and_port_and_configures_the_root_logger(

@@ -130,7 +130,7 @@ CORTEX_MODELS_DIR=/srv/models just up-gpu
 
 The GPU override runs `model-host` instead of `llama-cortex`, and the brain waits on its
 healthcheck, which asks whether a tier that can serve a turn is READY rather than whether the
-daemon answers. At cold boot the daemon starts only the cortex. Ask it what it is doing from
+daemon answers. At cold boot the daemon starts the cortex and each GPU subagent server, never the deep tier. Ask it what it is doing from
 inside the network:
 
 ```

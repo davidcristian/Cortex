@@ -16,7 +16,7 @@ from cortex_model_manager.device_memory import (
 )
 from cortex_model_manager.probe import HealthProbe, HttpHealthProbe
 from cortex_model_manager.restarts import RestartBudget, RestartPolicy
-from cortex_model_manager.server import build_model_host, build_supervisor, main
+from cortex_model_manager.server import boot_models, build_model_host, build_supervisor, main
 from cortex_model_manager.spec import ModelSpec, RosterError, build_roster
 from cortex_model_manager.supervisor import (
     DEFAULT_PROBE_TIMEOUT_S,
@@ -53,6 +53,7 @@ __all__ = [
     "SupervisorError",
     "TierArgs",
     "UnknownModelError",
+    "boot_models",
     "build_app",
     "build_model_host",
     "build_roster",

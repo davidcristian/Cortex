@@ -28,8 +28,9 @@ vocabulary. They run in different containers and never import each other.
    request can add a model or change an argv, since a request-supplied argv would be code execution
    in the GPU container. A tier with no artifact file is not in the roster, and every verb on it
    answers `404 unknown model`; `build_roster` refuses two tiers on one port at startup. The
-   lifespan starts the boot model, the cortex, so a stack that never escalates behaves as a
-   single-model server.
+   lifespan starts every tier but the deep one, the cortex first and then each GPU subagent
+   server of the roster, so a stack that never escalates serves every tier its settings name
+   with no control call from the brain.
 2. **A status reads the child's exit code before it probes.** A second `llama-server` on a port an
    existing one still holds dies at once with `couldn't bind HTTP server socket`, while `/health` on
    that port keeps answering from the existing one; a status that only probed would report the dead
@@ -71,7 +72,8 @@ vocabulary. They run in different containers and never import each other.
 7. **The container is healthy when the cortex tier or the deep tier is `READY`.** A rule about the
    cortex alone marked a working handoff unhealthy for as long as it ran, and the runbook then sent
    the operator to start the cortex onto a card the deep model held. At cold boot the daemon starts
-   only the cortex, so the brain's `depends_on: service_healthy` waits on what it always did. The
+   the cortex and the GPU subagent servers and never the deep tier, so the brain's
+   `depends_on: service_healthy` waits on the cortex as it always did. The
    deep model's own load window reads unhealthy, because nothing serves then.
 8. **The image** (`brain/Dockerfile.modelhost`) builds on `ghcr.io/ggml-org/llama.cpp:server-cuda`,
    copies the static `uv` binary in and installs the workspace against the base's `/usr/bin/python3`

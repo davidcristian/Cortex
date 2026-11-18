@@ -53,8 +53,7 @@ CORTEX_MODELS_DIR=/srv/models \
   docker compose --project-directory . -f docker/docker-compose.yml \
   -f docker/docker-compose.gpu.yml -f docker/docker-compose.subagents.yml \
   -f docker/docker-compose.modelhost-loopback.yml up -d --build
-# the tier is in the roster but NOT started: the daemon starts the cortex and nothing else
-curl -s -X POST http://127.0.0.1:9300/models/subagent-gpu/start
+# the daemon starts the tier at boot, after the cortex
 curl -s http://127.0.0.1:9300/models/subagent-gpu   # poll until "state":"ready"
 ```
 

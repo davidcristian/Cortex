@@ -9,8 +9,8 @@
 `CORTEX_MODEL_FILE_CORTEX_DRAFT`, `CORTEX_MODEL_FILE_SUBAGENT_GPU_DRAFT` and
 `CORTEX_MODEL_FILE_BRAIN_DRAFT` into a `--model-draft` path and does not check that the file is
 there. The engine loads the tier's whole model first, then fails on the drafter and exits with
-code 1. For the cortex the daemon's restart budget starts it again, so the tier loads the whole
-cortex file once per attempt and never serves.
+code 1. For the cortex and each GPU subagent server the daemon's restart budget starts it again, so
+the tier loads its whole file once per attempt and never serves.
 
 The daemon's own lines do not name the cause: `GET /models/cortex` reads `loading`, then
 `failed` with `the process exited with code 1`, then `loading` again, and the log has

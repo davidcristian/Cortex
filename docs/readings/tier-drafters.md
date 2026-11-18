@@ -164,9 +164,13 @@ between the brain and the cortex kept every request and reply.
 - **`q8_0`.** With `CORTEX_KV_CACHE_TYPE` and `CORTEX_KV_CACHE_TYPE_SUBAGENT_GPU` set to `q8_0`
   the three servers started, each drafted on a text request, the card read 17,156 MiB loaded, and
   the second handoff above ran on that stack.
-- **Escalation off.** With `CORTEX_ESCALATION` unset both subagent servers stayed `stopped` and
-  the card read 11,241 MiB
-  ([R-1248](../refinements/tasks/1248-with-escalation-off-nothing-starts-the-gpu-subagent-servers.md)).
+- **Escalation off.** With `CORTEX_ESCALATION` unset and no start sent through the control API,
+  the model host started the cortex and both subagent servers at boot, the three read `ready`
+  and the card read 17,689 MiB. A batch of two spawns ran one on each server and none on the CPU
+  server, in two draws out of two, and the card peaked at 17,719 and 17,726 MiB while the cortex
+  wrote. After the second server's process was killed the model host started it again at its
+  first attempt. Logs: `live.txt` and `live2.txt` in
+  `~/.cache/cortex-run/2026-11-18/slot9/logs/`.
 
 Method: `up.sh`, `turns.sh`, `nodraft.sh`, `stepc.sh`, `stepd.sh`, `stepk.sh`, `stepm.sh`,
 `escoff.sh`, `fill.py` and `count.py` in `~/.cache/cortex-run/2026-11-18/slot8/`, compose project

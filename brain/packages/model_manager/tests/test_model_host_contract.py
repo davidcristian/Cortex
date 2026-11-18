@@ -95,7 +95,7 @@ def _supervisor_subject() -> HostUnderTest:
         probe_timeout_s=_BOUNDS.probe_timeout_s,
     )
     device = _FakeCard()
-    app = build_app(supervisor, boot_model=model_host_contract.CORTEX, device=device)
+    app = build_app(supervisor, boot_models=(model_host_contract.CORTEX,), device=device)
     client = httpx.AsyncClient(transport=httpx.ASGITransport(app))
 
     def serving(model: str, *, serving: bool) -> None:

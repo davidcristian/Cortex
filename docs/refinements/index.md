@@ -104,9 +104,9 @@ never a reading of what the tree does now.
 - **[R-1243](tasks/1243-every-tier-holds-its-context-in-the-default-16-bit-cache.md)** Every tier holds its context in the default 16-bit cache (inference-model-manager). Its claim was checked against the code on 2026-11-18.
 - **[R-1245](tasks/1245-the-nvfp4-files-have-none-of-the-rows-the-deep-pick-is-compared-on.md)** The NVFP4 files have none of the rows the deep pick is compared on (inference-model-manager). Its claim was checked against the code on 2026-11-18.
 - **[R-1246](tasks/1246-the-one-model-subagent-rows-read-higher-than-a-paired-reading.md)** The one-model subagent rows read higher than a paired reading (inference-model-manager). Its claim was checked against the code on 2026-11-18.
-- **[R-1248](tasks/1248-with-escalation-off-nothing-starts-the-gpu-subagent-servers.md)** With escalation off nothing starts the GPU subagent servers (inference-model-manager). Its claim was checked against the code on 2026-11-18.
 - **[R-1250](tasks/1250-a-swap-with-an-evict-id-the-host-lacks-stops-the-cortex-before-it-fails.md)** A swap with an evict id the host lacks stops the cortex before it fails (inference-model-manager). Its claim was checked against the code on 2026-11-18.
 - **[R-1251](tasks/1251-a-drafter-file-that-does-not-exist-fails-after-the-whole-model-has-loaded.md)** A drafter file that does not exist fails after the whole model has loaded (inference-model-manager). Its claim was checked against the code on 2026-11-18.
+- **[R-1252](tasks/1252-a-booted-subagent-server-the-evict-list-leaves-out-stays-loaded-through-a-handoff.md)** A booted subagent server the evict list leaves out stays loaded through a handoff (inference-model-manager). Its claim was checked against the code on 2026-11-18.
 
 ### Actionable, once a port changes (1)
 
@@ -576,9 +576,9 @@ never a reading of what the tree does now.
 - [R-1244](tasks/1244-the-deep-tiers-file-is-not-chosen-between-the-q4-and-the-nvfp4-files.md) The deep tier's file is not chosen between the Q4 and the NVFP4 files. open, waiting for its trigger.
 - [R-1245](tasks/1245-the-nvfp4-files-have-none-of-the-rows-the-deep-pick-is-compared-on.md) The NVFP4 files have none of the rows the deep pick is compared on. open, actionable.
 - [R-1246](tasks/1246-the-one-model-subagent-rows-read-higher-than-a-paired-reading.md) The one-model subagent rows read higher than a paired reading. open, actionable.
-- [R-1248](tasks/1248-with-escalation-off-nothing-starts-the-gpu-subagent-servers.md) With escalation off nothing starts the GPU subagent servers. open, actionable.
 - [R-1250](tasks/1250-a-swap-with-an-evict-id-the-host-lacks-stops-the-cortex-before-it-fails.md) A swap with an evict id the host lacks stops the cortex before it fails. open, actionable.
 - [R-1251](tasks/1251-a-drafter-file-that-does-not-exist-fails-after-the-whole-model-has-loaded.md) A drafter file that does not exist fails after the whole model has loaded. open, actionable.
+- [R-1252](tasks/1252-a-booted-subagent-server-the-evict-list-leaves-out-stays-loaded-through-a-handoff.md) A booted subagent server the evict list leaves out stays loaded through a handoff. open, actionable.
 
 ### memory
 

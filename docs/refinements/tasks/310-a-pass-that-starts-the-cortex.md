@@ -27,7 +27,7 @@ about that contract, and the alternative is that the operator uses the sidecar's
 directly.
 
 Two other places start the cortex with nobody asking, and both happen at boot. The sidecar's own
-lifespan starts `boot_model` when the daemon comes up
+lifespan starts each of `boot_models`, the cortex first, when the daemon comes up
 ([api.py](../../../brain/packages/model_manager/src/cortex_model_manager/api.py)), and the brain's
 boot recovery starts the cortex and waits for it
 ([swap_recovery.py](../../../brain/packages/core/src/cortex_core/swap_recovery.py)). Restarting

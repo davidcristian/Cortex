@@ -155,8 +155,8 @@ without decision 8 `Health` would answer ready while the cortex or the store is 
    | a model server, any other status | `<part> answered its health check with <status>` |
    | any part, silent for 1 s | `<part> did not answer within 1 s` |
 9. **The model host starts the cortex again when its process exits unasked.** `ModelSupervisor`
-   watches each process of a model its `RestartPolicy` names, the boot model alone in
-   `server.py`, and after an exit nobody asked for waits 2 s and starts it again, at most three
+   watches each process of a model its `RestartPolicy` names, the cortex and each GPU
+   subagent server in `server.py`, and after an exit nobody asked for waits 2 s and starts it again, at most three
    times in a row (`restarts.py`); a run of 600 s, longer than a tier-scale load, or an explicit
    `start` gives the count back, and a spent budget leaves the model `failed` with one `ERROR`. The
    per-model lock orders it against a swap: a `stop` removes the record and a `start` replaces it,

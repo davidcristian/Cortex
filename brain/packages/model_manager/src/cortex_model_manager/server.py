@@ -21,6 +21,12 @@ from cortex_settings import ConfigError, read_settings
 _logger = logging.getLogger(__name__)
 
 
+def boot_models(config: ModelHostConfig) -> tuple[str, ...]:
+    """The ids started with the host: the cortex, then every tier but the deep one."""
+    apart = (config.cortex_model, config.brain_model)
+    return (config.cortex_model, *(model for model in config.roster() if model not in apart))
+
+
 def build_supervisor(config: ModelHostConfig) -> tuple[ModelSupervisor, httpx.AsyncClient]:
     """The supervisor and the probe client it reads readiness through, both wired from env."""
     client = httpx.AsyncClient(timeout=httpx.Timeout(config.probe_timeout_s))
@@ -31,7 +37,7 @@ def build_supervisor(config: ModelHostConfig) -> tuple[ModelSupervisor, httpx.As
         stop_grace_s=config.stop_grace_s,
         reap_timeout_s=config.reap_timeout_s,
         probe_timeout_s=config.probe_timeout_s,
-        restarts=RestartBudget(RestartPolicy(models=(config.cortex_model,)), time.monotonic),
+        restarts=RestartBudget(RestartPolicy(models=boot_models(config)), time.monotonic),
     )
     return supervisor, client
 
@@ -41,7 +47,7 @@ def build_model_host(config: ModelHostConfig) -> Starlette:
     supervisor, client = build_supervisor(config)
     _logger.info(
         "model host configured",
-        extra={"models": list(supervisor.models), "boot_model": config.cortex_model},
+        extra={"models": list(supervisor.models), "boot_models": list(boot_models(config))},
     )
     if left_out := config.undrafted():
         _logger.warning(
@@ -50,7 +56,7 @@ def build_model_host(config: ModelHostConfig) -> Starlette:
         )
     return build_app(
         supervisor,
-        boot_model=config.cortex_model,
+        boot_models=boot_models(config),
         close=client.aclose,
         device=NvidiaSmiMemory(config.nvidia_smi, config.probe_timeout_s),
     )

@@ -1,7 +1,7 @@
 """The supervisor's HTTP control API: the wire behind the ``ModelHost`` port."""
 
 import logging
-from collections.abc import AsyncGenerator, Awaitable, Callable
+from collections.abc import AsyncGenerator, Awaitable, Callable, Sequence
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from http import HTTPStatus
 
@@ -30,11 +30,11 @@ async def nothing_to_close() -> None:
 def build_app(
     supervisor: ModelSupervisor,
     *,
-    boot_model: str,
+    boot_models: Sequence[str],
     close: Callable[[], Awaitable[None]] = nothing_to_close,
     device: DeviceMemoryProbe | None = None,
 ) -> Starlette:
-    """The ASGI app driving ``supervisor``, starting ``boot_model`` when it comes up."""
+    """The ASGI app driving ``supervisor``, starting each of ``boot_models`` when it comes up."""
     card: DeviceMemoryProbe = NoDeviceMemory() if device is None else device
 
     async def health(request: Request) -> Response:
@@ -72,27 +72,28 @@ def build_app(
             Route("/models/{model}/start", start, methods=["POST"]),
             Route("/models/{model}/stop", stop, methods=["POST"]),
         ],
-        lifespan=model_host_lifespan(supervisor, boot_model, close),
+        lifespan=model_host_lifespan(supervisor, boot_models, close),
     )
 
 
 def model_host_lifespan(
-    supervisor: ModelSupervisor, boot_model: str, close: Callable[[], Awaitable[None]]
+    supervisor: ModelSupervisor, boot_models: Sequence[str], close: Callable[[], Awaitable[None]]
 ) -> Callable[[Starlette], AbstractAsyncContextManager[None]]:
-    """Start the resident model on the way up; stop every child on the way down."""
+    """Start every model that serves from boot on the way up; stop every child on the way down."""
 
     @asynccontextmanager
     async def lifespan(app: Starlette) -> AsyncGenerator[None]:
         del app
-        try:
-            await supervisor.start(boot_model)
-        except SupervisorError:
-            # Serve anyway: failing to come up would crash-loop under compose's restart policy
-            # and bury the cause, and the brain's boot recovery starts the resident again.
-            _logger.exception(
-                "the boot-default model could not be started; serving without it",
-                extra={"model": boot_model},
-            )
+        for model in boot_models:
+            try:
+                await supervisor.start(model)
+            except SupervisorError:
+                # Serve anyway: failing to come up would crash-loop under compose's restart
+                # policy and bury the cause, and the brain's boot recovery starts the resident.
+                _logger.exception(
+                    "the boot-default model could not be started; serving without it",
+                    extra={"model": model},
+                )
         try:
             yield
         finally:

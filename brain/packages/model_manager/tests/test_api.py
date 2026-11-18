@@ -36,7 +36,7 @@ def _wired(
         reap_timeout_s=_TINY_REAP,
         probe_timeout_s=_TINY_PROBE,
     )
-    app = build_app(supervisor, boot_model=CORTEX, device=device)
+    app = build_app(supervisor, boot_models=(CORTEX,), device=device)
     client = httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url="http://model-host")
     return client, supervisor, probe
 
@@ -140,8 +140,8 @@ async def test_the_lifespan_starts_the_boot_model_and_stops_everything_on_the_wa
     async def close() -> None:
         closed.append("probe client")
 
-    lifespan = model_host_lifespan(supervisor, CORTEX, close)
-    async with lifespan(build_app(supervisor, boot_model=CORTEX)):
+    lifespan = model_host_lifespan(supervisor, (CORTEX,), close)
+    async with lifespan(build_app(supervisor, boot_models=(CORTEX,))):
         assert len(processes.spawned) == 1
         assert processes.spawned[0].port == contract_roster()[CORTEX].port
         assert (await supervisor.status(CORTEX)).state is ModelHostState.LOADING
@@ -150,14 +150,31 @@ async def test_the_lifespan_starts_the_boot_model_and_stops_everything_on_the_wa
     assert closed == ["probe client"]
 
 
+async def test_the_lifespan_starts_every_boot_model_and_passes_over_one_that_fails(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    processes = FakeChildProcesses()
+    supervisor = ModelSupervisor(
+        contract_roster(), processes, FakeProbe(), stop_grace_s=_TINY, reap_timeout_s=_TINY
+    )
+    lifespan = model_host_lifespan(supervisor, (CORTEX, "ghost", DEEP), nothing_to_close)
+    with caplog.at_level(logging.ERROR):
+        async with lifespan(build_app(supervisor, boot_models=())):
+            assert [child.port for child in processes.spawned] == [
+                contract_roster()[CORTEX].port,
+                contract_roster()[DEEP].port,
+            ]
+    assert [record_fields(record)["model"] for record in caplog.records] == ["ghost"]
+
+
 async def test_a_boot_start_that_fails_is_logged_and_the_api_still_serves(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     processes = FakeChildProcesses()
     supervisor = ModelSupervisor(contract_roster(), processes, FakeProbe())
-    app = build_app(supervisor, boot_model="ghost")
+    app = build_app(supervisor, boot_models=("ghost",))
     client = httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url="http://model-host")
-    lifespan = model_host_lifespan(supervisor, "ghost", nothing_to_close)
+    lifespan = model_host_lifespan(supervisor, ("ghost",), nothing_to_close)
     try:
         with caplog.at_level(logging.ERROR):
             async with lifespan(app):
