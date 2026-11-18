@@ -145,8 +145,9 @@ in memory, and nothing was killed. The cgroup was throttled in
 The one server ran on `--cpuset-cpus 12-15` with `--cpus 4.0 --threads 4 --parallel 2` under 8g,
 where the engine gives each slot 4,096 of the 8,192 tokens. The two servers ran on `12-13` and
 `14-15`, each with `--cpus 2.0 --threads 2 --parallel 1`. A rate is a ratio of the median of one
-request alone on the two-slot server. A busy cell is the range of six requests, two at once in
-three rounds.
+request alone on the two-slot server, which wrote at 0.92 of the one-slot server of the first
+table, so a two-thread server reads 0.59 there and 0.63 here. A busy cell is the range of six
+requests, two at once in three rounds.
 
 | row | memory cap | one alone | each of two at once | cgroup peak |
 | --- | --- | --- | --- | --- |
