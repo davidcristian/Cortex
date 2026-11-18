@@ -181,6 +181,51 @@ async def test_two_callers_asking_at_once_are_leased_different_servers() -> None
     assert sorted(endpoints) == [_ENDPOINT, _SECOND]
 
 
+class _BreakingProbe:
+    part = "a server whose probe raises once"
+
+    def __init__(self) -> None:
+        self.broken = True
+
+    async def fault(self) -> str | None:
+        if self.broken:
+            self.broken = False
+            msg = "the probe broke"
+            raise RuntimeError(msg)
+        return None
+
+
+async def test_a_probe_that_raises_leaves_its_server_one_free_slot() -> None:
+    servers = [ModelServer(_ENDPOINT, probe=_BreakingProbe()), ModelServer(_SECOND)]
+    manager = MultiServerModelManager("cortex", servers)
+    with pytest.raises(RuntimeError, match="the probe broke"):
+        async with manager.acquire("cortex"):
+            pass  # pragma: no cover - acquire raises before the body runs
+    peak, endpoints = await _overlap(manager, 2)
+    assert peak == 2
+    assert sorted(endpoints) == [_ENDPOINT, _SECOND]
+
+
+async def test_a_lease_cancelled_while_its_probe_is_asked_leaves_its_slot() -> None:
+    probe = ScriptedServingProbe()
+    probe.silent = True
+    manager = MultiServerModelManager("cortex", [ModelServer(_ENDPOINT, probe=probe)])
+
+    async def lease() -> None:
+        async with manager.acquire("cortex"):
+            pass  # pragma: no cover - the probe never answers
+
+    waiting = asyncio.create_task(lease())
+    await asyncio.sleep(0)
+    assert probe.calls == 1
+    waiting.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await waiting
+    probe.silent = False
+    async with manager.acquire("cortex") as held:
+        assert held.endpoint == _ENDPOINT
+
+
 def test_a_manager_over_no_server_is_rejected() -> None:
     with pytest.raises(ValueError, match="needs at least one server"):
         MultiServerModelManager("cortex", [])

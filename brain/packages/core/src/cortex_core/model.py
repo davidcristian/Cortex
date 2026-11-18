@@ -78,7 +78,12 @@ class MultiServerModelManager:
             # Held before the probe is awaited, so two callers never claim the same slot.
             self._busy[index] += 1
             probe = self._servers[index].probe
-            fault = None if probe is None else await probe.fault()
+            try:
+                fault = None if probe is None else await probe.fault()
+            except BaseException:
+                # Cancellation included: a slot kept here is never leased again.
+                self._busy[index] -= 1
+                raise
             if fault is None:
                 return index
             self._busy[index] -= 1
