@@ -20,16 +20,25 @@ shapes were checked on the 24 GB card
 
 What remains, in the order to do it:
 
-1. **The CPU servers are still one server of two slots.** `llama-subagent` in
-   `docker/docker-compose.subagents.yml` and `llama-subagent-qwen` in the roster file each start
-   with `--parallel ${CORTEX_SUBAGENTS_PARALLEL:-2}`. Each is capped at the whole budget (`cpus`,
-   `mem_limit` and `--threads` from `CORTEX_SUBAGENTS_CPU_BUDGET` and
-   `CORTEX_SUBAGENTS_MEM_BUDGET_GB`, ADR-0018 decision 9), so a second server of the default model
-   under the same caps would run twice the threads the soft budget counts. Steps:
-   - Draw first, on the CPU image: one subagent's rate at two threads against four, since a lone
-     subagent has all four today, and one server's resident memory at an 8K slot under a 4 GiB cap.
-   - Give each CPU server its own caps. Compose cannot divide, so this needs two variables, for
-     example `CORTEX_SUBAGENTS_SERVER_CPUS` (2.0) and `CORTEX_SUBAGENTS_SERVER_MEM_GB` (4), read by
+1. **The CPU servers are still one server of two slots, and the first draw is against splitting
+   them.** `llama-subagent` in `docker/docker-compose.subagents.yml` and `llama-subagent-qwen` in
+   the roster file each start with `--parallel ${CORTEX_SUBAGENTS_PARALLEL:-2}` under the whole
+   budget's caps (ADR-0018 decision 9). Drawn 2026-11-18
+   ([readings](../../readings/subagent-budget.md#a-cpu-server-at-two-threads-against-four)): a
+   server of two threads under a 4 GiB cap wrote at 0.59 of the rate of one of four threads, where
+   each of two busy slots of the four-thread server writes at 0.69 to 0.75, and a server holds
+   6,909 MiB in its cgroup with its weights resident, so 4 GiB each keeps under a third of the
+   file in memory. Steps:
+   - Draw the row that decides it, on the CPU image under `--cpuset-cpus`: two servers at once,
+     `--cpus 2.0 --threads 2` each on two cores of its own, both busy, three seeds, with no
+     memory cap and under 4 GiB each, against one server of two busy slots at `--threads 4`.
+     Rule, written before that row: if each of the two busy servers writes below each of the two
+     busy slots, this item closes as declined and the CPU servers stay one server of two slots.
+     If not, the choice is between a lone subagent at its full rate (slots) and a drafter for
+     every subagent (servers), and it waits for R-1239 to give the CPU tier a drafter.
+   - If servers are chosen, give each its own caps. Compose cannot divide, so this needs two
+     variables, for example `CORTEX_SUBAGENTS_SERVER_CPUS` (2.0) and
+     `CORTEX_SUBAGENTS_SERVER_MEM_GB` (from the capped row, not the 4 first proposed), read by
      `cpus`, `--threads`, `mem_limit` and `memswap_limit`, counted in
      `scripts/subagentcouplings.py`, with decision 9 edited in place.
    - Add `llama-subagent-2` with the first server's image, flags and mounts, list both addresses
@@ -51,4 +60,6 @@ What remains, in the order to do it:
   cortex. The brain warns at boot when the GPU servers have more slots than the VRAM budget
   places spawns, and when the server count, the GPU addresses on the model host and the evict
   list differ in number. The container's stop period went from 45 to 55 s, a grace for each of
-  the four default children. The two items above remain.
+  the four default children. A first CPU draw found a server of two threads at 0.59 of the rate
+  of one of four and no room for its weights under 4 GiB, so the CPU item now starts with the row
+  that decides it. The two items above remain.

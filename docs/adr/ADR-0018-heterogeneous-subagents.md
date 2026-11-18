@@ -165,7 +165,8 @@ task record.
     at a time: the 16 GB soft cap less the 8.6 GiB cortex leaves 7.4 GiB, which is two 3.5 GiB
     asks. A deployment that lowers the cap under 15.6 sets the server count to 1, or the second
     server holds memory no spawn is placed on.
-    The CPU servers keep one server of two slots until their caps count every server
+    The CPU servers keep one server of two slots: a CPU server of two threads wrote at 0.59 of
+    the rate of one of four, under the 0.69 to 0.75 of each of two busy slots
     ([1242](../refinements/tasks/1242-a-roster-entry-reaches-one-server-per-placement-target.md)).
 
 ## Consequences

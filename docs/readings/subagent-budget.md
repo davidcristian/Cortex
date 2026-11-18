@@ -115,6 +115,30 @@ card read 16,106 MiB of its 24,463 in use. That peak is under the 15,974 MiB the
 for the three and the 16,384 MiB of the cap. Method: `shape2.sh` and `drive2.py` in the same
 directory, log `logs/newdefault.txt`.
 
+## A CPU server at two threads against four
+
+**2026-11-18**, gemma-4-E4B on the CPU image, build b10680, `-ngl 0`, the compose service's flags
+with `--ctx-size 8192 --parallel 1`, each row a server of its own on `--cpuset-cpus 12-15`. The
+rate is the median of three seeds of a 20-token prompt with 256 tokens written, as a ratio of the
+first row. Memory is the cgroup's own count, which charges the mapped model file beside the
+anonymous memory; the last two columns were read after the last request.
+
+| row | caps | wrote | cgroup peak | anonymous | model file resident |
+| --- | --- | --- | --- | --- | --- |
+| four threads | `--cpus 4.0`, 8g | 1.0 | 6,909 MiB | 2,799 MiB | 4,083 MiB |
+| two threads | `--cpus 2.0`, 4g | 0.59 | 4,096 MiB, the cap | 2,799 MiB | 1,269 MiB |
+| four threads, slot filled | `--cpus 4.0`, 4g | 0.90, one seed | 4,096 MiB, the cap | 2,909 MiB | 1,156 MiB |
+
+The third row read a prompt of 7,340 tokens first and then drew one seed of the short prompt. A
+server of two threads wrote at 0.59 of the rate of one of four, and that row also ran at its memory
+cap, which cost a tenth on the one seed of the third row. Two busy slots of one four-thread server
+each write at 0.69 to 0.75 of one slot alone ([model lineup](model-lineup.md), 2026-09-11), so on
+these rows a CPU server per subagent at half the threads is slower for two subagents and for one.
+No server holds its weights under 4 GiB: under that cap the kernel kept under a third of the file
+in memory, and nothing was killed. Two servers at once were not drawn. The cgroup was throttled in
+292 of 797, 250 of 1,225 and 428 of 1,555 periods. Method: `cpudraw.sh` and `cpudrive.py` in
+`~/.cache/cortex-run/2026-11-18/`, logs `logs/cpu-t4.txt`, `cpu-t2.txt` and `cpu-fill.txt`.
+
 ## Two tiers generating at once
 
 **2026-08-04**, the cortex and the GPU subagent tier resident together. Generating alone the cortex
