@@ -210,11 +210,11 @@ one and the readers are two: the tier is started as a compose service and as the
 hosted tier, so `subagentflags.REQUIREMENTS` runs over the union of `subagentservers.py` and
 `hostedtiers.py`. A flag added to the rule reaches both placements at once.
 
-Four requirements today: the reasoning-off pair, counted as one requirement because two flags that
-must travel together are one claim; the tool-capable chat template, since a server without `--jinja`
-comes up healthy with no tools at all; the host-RAM prompt cache turned off; and the thread count,
-asked only of a server started with `-ngl 0`. A flag with a value is checked at every occurrence
-rather than the first, because llama.cpp takes the last one. A second rule requires every model file
+Six requirements today: the reasoning-off pair, one requirement of two flags; the tool-capable
+chat template; the host-RAM prompt cache turned off; the thread count, asked only of a server with
+`-ngl 0`; the type and draft length of a server with `--model-draft`; and `--cache-type-v` beside
+`--cache-type-k`. A requirement that applies to no server is a fault. A flag with a value is checked
+at every occurrence, because llama.cpp takes the last one. A second rule requires every model file
 the tree mentions to be written under a `CORTEX_MODEL_FILE_` variable, which is what makes a server
 classifiable; its domain is every artifact `artifactnames.py` finds structurally.
 

@@ -143,15 +143,78 @@ def _serves(call: ast.Call, named: Mapping[str, str]) -> str | None:
     return serving[0] if serving else None
 
 
+def _longest(function: ast.FunctionDef) -> list[ast.expr]:
+    """The items of the longest run one function assigns or returns, or none when it writes none."""
+    written = [
+        node.value.elts
+        for node in ast.walk(function)
+        if isinstance(node, ast.Return | ast.Assign) and isinstance(node.value, ast.Tuple)
+    ]
+    none: list[ast.expr] = []
+    return max(written, key=len, default=none)
+
+
+def _called(item: ast.expr) -> str:
+    """The function a starred item of a run calls by name, or empty for any other item."""
+    inner = item.value if isinstance(item, ast.Starred) else None
+    if isinstance(inner, ast.Call) and isinstance(inner.func, ast.Name):
+        return inner.func.id
+    return ""
+
+
+def builders(module: ast.Module) -> dict[str, tuple[str, ...]]:
+    """Every flag each function of the argv module can add, read off the longest run it writes."""
+    strings, _ = constants(module)
+    functions = {
+        statement.name: statement
+        for statement in module.body
+        if isinstance(statement, ast.FunctionDef)
+    }
+
+    def flags(name: str) -> tuple[str, ...]:
+        found: list[str] = []
+        for item in _longest(functions[name]):
+            if (called := _called(item)) in functions:
+                found.extend(flags(called))
+            else:
+                found.append(text(item, strings) or UNREADABLE)
+        return tuple(found)
+
+    built = {name: flags(name) for name in functions}
+    return {name: run for name, run in built.items() if run}
+
+
+def _run(
+    node: ast.expr,
+    strings: Mapping[str, str],
+    tuples: Mapping[str, tuple[str | None, ...]],
+    built: Mapping[str, tuple[str, ...]],
+) -> tuple[str | None, ...] | None:
+    """The flags one ``extra`` expression reduces to, or None where this reader cannot say."""
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+        return built.get(node.func.id)
+    if not isinstance(node, ast.Tuple):
+        return items(node, strings, tuples)
+    run: list[str | None] = []
+    for item in node.elts:
+        starred = isinstance(item, ast.Starred)
+        part = _run(item.value, strings, tuples, built) if starred else (text(item, strings),)
+        if part is None:
+            return None
+        run.extend(part)
+    return tuple(run)
+
+
 def _tail(
     call: ast.Call,
     serves: str,
     strings: Mapping[str, str],
     tuples: Mapping[str, tuple[str | None, ...]],
+    built: Mapping[str, tuple[str, ...]],
 ) -> tuple[str, ...]:
     """The flags one subagent tier adds to the shared command, raising when it cannot be read."""
     written = [keyword.value for keyword in call.keywords if keyword.arg == TIER_EXTRA]
-    tail = items(written[0], strings, tuples) if written else ()
+    tail = _run(written[0], strings, tuples, built) if written else ()
     if tail is None or any(item is None for item in tail):
         msg = (
             f"the tier under {serves} declares an {TIER_EXTRA} this reader cannot reduce to "
@@ -178,7 +241,9 @@ def declared(module: ast.Module) -> list[ast.Call]:
 
 def hosted(root: Path) -> tuple[Tier, ...]:
     """Every tier the model host under ``root`` starts as a subagent, in declaration order."""
-    head, tail = shared(parse_module(root, ARGV_MODULE))
+    argv = parse_module(root, ARGV_MODULE)
+    head, tail = shared(argv)
+    built = builders(argv)
     module = parse_module(root, TIER_MODULE)
     named = aliases(module)
     strings, tuples = constants(module)
@@ -187,7 +252,7 @@ def hosted(root: Path) -> tuple[Tier, ...]:
         serves = _serves(call, named)
         if serves is None:
             continue
-        command = (*head, *_tail(call, serves, strings, tuples), *tail)
+        command = (*head, *_tail(call, serves, strings, tuples, built), *tail)
         found.append(
             Tier(
                 file=(MODEL_MANAGER / TIER_MODULE).as_posix(),

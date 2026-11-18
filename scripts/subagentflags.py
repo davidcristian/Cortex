@@ -74,6 +74,28 @@ REQUIREMENTS: tuple[Requirement, ...] = (
         when=Flag("-ngl", "0"),
         flags=(Flag("--threads"),),
     ),
+    Requirement(
+        label="the speculative type and draft length of a drafter file",
+        why=(
+            "a server given a multi-token-prediction drafter file without the type loads the "
+            "drafter, which takes its memory on the card, and drafts nothing, as measured on the "
+            "deep tier. Without a draft length it drafts at the engine's default and not at the "
+            "length its tier was measured fastest at (ADR-0077 decision 7)"
+        ),
+        when=Flag("--model-draft"),
+        flags=(Flag("--spec-type", "draft-mtp"), Flag("--spec-draft-n-max")),
+    ),
+    Requirement(
+        label="a V cache type beside a K cache type",
+        why=(
+            "the engine holds keys and values in two types, each with its own flag, and the rule "
+            "a tier is given an 8-bit cache on was read with both set. A server given the K type "
+            "alone keeps its values at 16 bits, a shape that rule has no row for (ADR-0077 "
+            "decision 8)"
+        ),
+        when=Flag("--cache-type-k"),
+        flags=(Flag("--cache-type-v"),),
+    ),
 )
 
 

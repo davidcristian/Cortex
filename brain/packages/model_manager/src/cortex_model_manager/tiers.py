@@ -1,6 +1,6 @@
 """The one place a ``llama-server`` command line is assembled."""
 
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from typing import Literal
 
 from cortex_model_manager.spec import ModelSpec
@@ -96,10 +96,17 @@ def cache_flags(cache_type: KvCacheType, *, drafting: bool) -> tuple[str, ...]:
     """A tier's KV cache type, for its drafter's cache too, or nothing at the engine's own type."""
     if cache_type == ENGINE_KV_CACHE_TYPE:
         return ()
-    model = ("--cache-type-k", cache_type, "--cache-type-v", cache_type)
-    if not drafting:
-        return model
-    return (*model, "--cache-type-k-draft", cache_type, "--cache-type-v-draft", cache_type)
+    flags = (
+        "--cache-type-k",
+        cache_type,
+        "--cache-type-v",
+        cache_type,
+        "--cache-type-k-draft",
+        cache_type,
+        "--cache-type-v-draft",
+        cache_type,
+    )
+    return flags if drafting else flags[:4]
 
 
 def draft_and_cache_flags(
@@ -110,8 +117,3 @@ def draft_and_cache_flags(
         *drafter_flags(drafter_path, length, model_path),
         *cache_flags(cache_type, drafting=bool(drafter_path)),
     )
-
-
-def with_flags(tier: TierArgs, flags: tuple[str, ...]) -> TierArgs:
-    """The tier with ``flags`` after its own."""
-    return replace(tier, extra=(*tier.extra, *flags))

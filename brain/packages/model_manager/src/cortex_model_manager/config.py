@@ -22,7 +22,6 @@ from cortex_model_manager.tiers import (
     image_budget_flags,
     server_id,
     tier_spec,
-    with_flags,
 )
 
 DEFAULT_CORTEX_FILE = "unsloth/gemma-4-12B-it-qat-GGUF/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf"
@@ -243,21 +242,21 @@ class ModelHostConfig(BaseSettings):
                 ),
             ),
             *(
-                with_flags(
-                    TierArgs(
-                        model=server_id(self.subagent_gpu_model, index),
-                        model_path=self._path(self.subagent_gpu_file),
-                        port=self.subagent_gpu_port + index,
-                        ngl=self.subagent_gpu_ngl,
-                        ctx_size=self.subagent_gpu_ctx_size,
-                        parallel=self.subagent_gpu_parallel,
-                        extra=_SUBAGENT_TAIL,
-                    ),
-                    draft_and_cache_flags(
-                        self._subagent_drafter(),
-                        self.subagent_gpu_draft_length,
-                        self._path(self.subagent_gpu_file),
-                        self.subagent_gpu_kv_cache_type,
+                TierArgs(
+                    model=server_id(self.subagent_gpu_model, index),
+                    model_path=self._path(self.subagent_gpu_file),
+                    port=self.subagent_gpu_port + index,
+                    ngl=self.subagent_gpu_ngl,
+                    ctx_size=self.subagent_gpu_ctx_size,
+                    parallel=self.subagent_gpu_parallel,
+                    extra=(
+                        *_SUBAGENT_TAIL,
+                        *draft_and_cache_flags(
+                            self._subagent_drafter(),
+                            self.subagent_gpu_draft_length,
+                            self._path(self.subagent_gpu_file),
+                            self.subagent_gpu_kv_cache_type,
+                        ),
                     ),
                 )
                 for index in range(self.subagent_gpu_servers)

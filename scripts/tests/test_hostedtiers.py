@@ -63,6 +63,28 @@ class ModelHostConfig(BaseSettings):
         )
 '''
 
+BUILDERS = """
+
+_TYPE = "draft-mtp"
+
+
+def drafting(path, length):
+    if not path:
+        return ()
+    flags = ("--model-draft", path, "--spec-type", _TYPE)
+    return flags[2:] if length else flags
+
+
+def both(path):
+    return (*drafting(path, 3), "--tail", *elsewhere(path), *path)
+
+
+def nothing():
+    return []
+"""
+
+DRAFTING = ("--model-draft", "<computed>", "--spec-type", "draft-mtp")
+
 BIND_ALL = "0.0.0.0"  # noqa: S104 -- asserted as a flag value, not bound by this process
 
 REASONING_OFF = (
@@ -243,7 +265,13 @@ def test_a_tier_whose_artifact_names_no_known_setting_is_refused(tmp_path: Path)
 
 @pytest.mark.parametrize(
     "written",
-    ["self._reasoning_off()", "(*_REASONING_OFF,)", '("--reasoning-budget", str(n))'],
+    [
+        "self._reasoning_off()",
+        "(*self._reasoning_off(),)",
+        "(*unknown_flags(),)",
+        "(*nothing(),)",
+        '("--reasoning-budget", str(n))',
+    ],
 )
 def test_a_subagent_tiers_tail_this_reader_cannot_reduce_is_refused_by_name(
     tmp_path: Path, written: str
@@ -262,4 +290,40 @@ def test_the_committed_sidecar_hosts_the_subagent_tier_it_ships() -> None:
 def test_the_committed_tier_really_has_the_flags_its_placement_used_to_be_trusted_for() -> None:
     command = hosted(REPO_ROOT)[0].command
     assert "--jinja" in command
-    assert command[-len(SUBAGENT_TAIL) :] == SUBAGENT_TAIL
+    assert command[command.index(SUBAGENT_TAIL[0]) :] == (
+        *SUBAGENT_TAIL,
+        "--model-draft",
+        UNREADABLE,
+        "--spec-type",
+        "draft-mtp",
+        "--spec-draft-n-max",
+        UNREADABLE,
+        *(
+            item
+            for kind in ("k", "v", "k-draft", "v-draft")
+            for item in (f"--cache-type-{kind}", UNREADABLE)
+        ),
+    )
+
+
+@pytest.mark.parametrize(
+    ("written", "added"),
+    [
+        ("(*_REASONING_OFF,)", ()),
+        ('(*_REASONING_OFF, "--last")', ("--last",)),
+        ("(*_REASONING_OFF, *drafting(self.d, 3))", DRAFTING),
+        ("(*_REASONING_OFF, *both(self.d))", (*DRAFTING, "--tail", UNREADABLE, UNREADABLE)),
+    ],
+)
+def test_a_tail_splatting_a_constant_run_or_a_flag_builder_is_read_through_it(
+    tmp_path: Path, written: str, added: tuple[str, ...]
+) -> None:
+    config = CONFIG.replace("extra=_REASONING_OFF", f"extra={written}")
+    command = _one(_sidecar(tmp_path, argv=ARGV + BUILDERS, config=config)).command
+    assert command[command.index("--jinja") + 1 : -1] == (*REASONING_OFF, *added)
+
+
+def test_a_flag_builder_called_as_the_whole_tail_is_read_too(tmp_path: Path) -> None:
+    config = CONFIG.replace("extra=_REASONING_OFF", "extra=drafting(self.d, 3)")
+    command = _one(_sidecar(tmp_path, argv=ARGV + BUILDERS, config=config)).command
+    assert command[command.index("--jinja") + 1 : -1] == DRAFTING

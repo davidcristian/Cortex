@@ -32,12 +32,18 @@ to keep each record to one subject.
      whole memory cap of a compose subagent server and what it grows into is the mapped weights
      (decided in [ADR-0059](ADR-0059-prompt-cache-per-tier.md));
    - `--threads` on a server started with `-ngl 0`, since llama.cpp otherwise starts one thread per
-     hardware thread inside a CPU quota ([ADR-0004](ADR-0004-model-lineup.md) decision 12).
+     hardware thread inside a CPU quota ([ADR-0004](ADR-0004-model-lineup.md) decision 12);
+   - `--spec-type draft-mtp` and `--spec-draft-n-max` on a server started with `--model-draft`,
+     since a drafter file named without the type loads and drafts nothing
+     ([ADR-0077](ADR-0077-model-card-settings.md) decision 7);
+   - `--cache-type-v` on a server started with `--cache-type-k`, since the rule a tier is given
+     an 8-bit cache on was read with both set (ADR-0077 decision 8).
 
    Requirements are data. A value is checked at every occurrence of its flag, because llama.cpp
    takes the last one written. A requirement may have a `when`, a flag and value an argv must
    already contain for it to apply, which is how one rule reaches a case only part of the set has;
    the condition reads the argv alone, so it reaches a server in a compose file not yet written.
+   A requirement that applies to no server is reported as a fault, since it is checked on nothing.
 2. **The set of servers is derived, not listed.** `subagentservers.py` counts a compose service as a
    subagent server when the brain's wiring dials it (`CORTEX_SUBAGENTS_ENDPOINT`,
    `CORTEX_SUBAGENTS_GPU_ENDPOINT`, or a `CORTEX_SUBAGENTS_ROSTER__<name>` address whose host is a
@@ -50,7 +56,10 @@ to keep each record to one subject.
    the same prefix question, since a tier's logical id is what a deployment renames. It reads the
    argv out of `llama_server_argv`'s own return tuple (which contains `_JINJA`) with the tier's
    `extra` (the sidecar's `_SUBAGENT_TAIL`) spliced in, and checks that argv against the rule like
-   any compose server's, so a flag renamed on either side fails. It parses with `ast` and never
+   any compose server's, so a flag renamed on either side fails. A flag builder of `tiers.py`
+   that the `extra` splats, as the drafter and cache type flags are, is read as the longest run
+   that function assigns or returns, so the command has every flag the builder can add, with
+   `UNREADABLE` for a computed value. It parses with `ast` and never
    imports the brain. A builder returning more than one tuple, or splatting `extra` more than once,
    is refused; an item it cannot reduce becomes `UNREADABLE` rather than being dropped; a subagent
    tier's own tail it cannot read raises. The model host's suite keeps its exact argv assertions

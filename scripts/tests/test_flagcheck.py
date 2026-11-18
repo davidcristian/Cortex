@@ -32,7 +32,18 @@ JINJA_ITEM = '      - "--jinja"\n'
 THREADS_ITEMS = '      - "--threads"\n      - "${CORTEX_SUBAGENTS_CPU_BUDGET:-4.0}"\n'
 NGL_ITEMS = '      - "-ngl"\n      - "0"\n'
 
-HOSTED_TAIL = "                extra=_SUBAGENT_TAIL,\n"
+HOSTED_TAIL = "                        *_SUBAGENT_TAIL,\n"
+HOSTED_BUILDER = """\
+                        *draft_and_cache_flags(
+                            self._subagent_drafter(),
+                            self.subagent_gpu_draft_length,
+                            self._path(self.subagent_gpu_file),
+                            self.subagent_gpu_kv_cache_type,
+                        ),
+"""
+DRAFT_TYPE = '"--spec-type", _DRAFT_MTP, '
+DRAFT_LENGTH = '"--spec-draft-n-max", str(length)'
+V_CACHE = '        "--cache-type-v",\n        cache_type,\n'
 HOSTED_JINJA = '_JINJA = "--jinja"'
 
 HOSTED_ALIAS = '"CORTEX_MODEL_FILE_SUBAGENT_GPU"'
@@ -145,11 +156,58 @@ def test_the_committed_tree_is_green_so_every_red_below_is_the_mutation(tmp_path
 def test_the_hosted_tier_is_held_by_the_same_rule_as_the_servers_compose_starts(
     tmp_path: Path,
 ) -> None:
-    faults = check(copied(tmp_path, [(TIER_MODULE, HOSTED_TAIL, "                extra=(),\n")]))
+    faults = check(copied(tmp_path, [(TIER_MODULE, HOSTED_TAIL, "")]))
     assert [fault.service for fault in faults.faults] == ["CORTEX_MODEL_FILE_SUBAGENT_GPU"] * 3
     assert {fault.file for fault in faults.faults} == {(MODEL_MANAGER / TIER_MODULE).as_posix()}
     assert sum("reasoning-off pair" in fault.detail for fault in faults.faults) == 2
     assert sum("prompt cache" in fault.detail for fault in faults.faults) == 1
+
+
+def test_the_hosted_tiers_command_has_the_drafter_and_cache_flags_its_builders_add(
+    tmp_path: Path,
+) -> None:
+    scanned = check(copied(tmp_path))
+    assert scanned.flags == sum(len(requirement.flags) for requirement in REQUIREMENTS)
+    conditional = [rule for rule in REQUIREMENTS if rule.when is not None]
+    assert [rule.when.name for rule in conditional if rule.when is not None] == [
+        "-ngl",
+        "--model-draft",
+        "--cache-type-k",
+    ]
+
+
+@pytest.mark.parametrize(
+    ("was", "now", "wrong"),
+    [
+        (DRAFT_TYPE, "", "it has no --spec-type"),
+        ('_DRAFT_MTP = "draft-mtp"', '_DRAFT_MTP = "draft-simple"', "'draft-simple'"),
+        (DRAFT_LENGTH, "str(length)", "it has no --spec-draft-n-max"),
+    ],
+)
+def test_a_hosted_drafter_losing_its_type_or_its_draft_length_is_a_fault(
+    tmp_path: Path, was: str, now: str, wrong: str
+) -> None:
+    faults = check(copied(tmp_path, [(ARGV_MODULE, was, now)])).faults
+    assert [fault.service for fault in faults] == ["CORTEX_MODEL_FILE_SUBAGENT_GPU"]
+    assert faults[0].detail.startswith("the speculative type and draft length of a drafter file:")
+    assert wrong in faults[0].detail
+
+
+def test_a_hosted_tier_naming_a_k_cache_type_alone_is_a_fault(tmp_path: Path) -> None:
+    faults = check(copied(tmp_path, [(ARGV_MODULE, V_CACHE, "")])).faults
+    assert [fault.service for fault in faults] == ["CORTEX_MODEL_FILE_SUBAGENT_GPU"]
+    assert faults[0].detail.startswith("a V cache type beside a K cache type: it has no")
+
+
+def test_a_hosted_tier_that_stops_adding_its_drafter_leaves_two_rules_checked_on_nothing(
+    tmp_path: Path,
+) -> None:
+    faults = check(copied(tmp_path, [(TIER_MODULE, HOSTED_BUILDER, "")])).faults
+    assert [(fault.file, fault.service) for fault in faults] == [
+        (flagcheck.RULES, "the speculative type and draft length of a drafter file"),
+        (flagcheck.RULES, "a V cache type beside a K cache type"),
+    ]
+    assert all("so it cannot fail" in fault.detail for fault in faults)
 
 
 def test_a_fourth_tier_for_a_second_pick_is_held_the_day_it_is_declared(tmp_path: Path) -> None:
@@ -222,7 +280,8 @@ def test_a_server_no_registry_names_is_held_the_day_its_override_is_written(tmp_
     (root / "docker" / "docker-compose.subagents-third.yml").write_text(THIRD, encoding="utf-8")
     faults = check(root).faults
     assert {fault.service for fault in faults} == {"llama-subagent-third"}
-    assert len(faults) == sum(len(requirement.flags) for requirement in REQUIREMENTS)
+    reached = [rule for rule in REQUIREMENTS if rule.when in (None, Flag("-ngl", "0"))]
+    assert len(faults) == sum(len(requirement.flags) for requirement in reached)
 
 
 def test_a_cpu_server_in_a_third_file_is_held_to_having_a_thread_count(tmp_path: Path) -> None:
@@ -270,12 +329,14 @@ def test_a_hosted_tiers_artifact_written_another_way_is_reported_rather_than_dro
 ) -> None:
     edits = [
         (TIER_MODULE, HOSTED_ALIAS, '"CORTEX_SUBAGENT_MODEL_FILE_GPU"'),
-        (TIER_MODULE, HOSTED_TAIL, "                extra=(),\n"),
+        (TIER_MODULE, HOSTED_TAIL, ""),
     ]
     scanned = check(copied(tmp_path, edits))
     assert scanned.servers == 2, "the tier really did leave the set, which is what is reported"
     assert [(fault.file, fault.service) for fault in scanned.faults] == [
-        ((MODEL_MANAGER / TIER_MODULE).as_posix(), "subagent_gpu_file")
+        (flagcheck.RULES, "the speculative type and draft length of a drafter file"),
+        (flagcheck.RULES, "a V cache type beside a K cache type"),
+        ((MODEL_MANAGER / TIER_MODULE).as_posix(), "subagent_gpu_file"),
     ]
 
 

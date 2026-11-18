@@ -15,6 +15,8 @@ from subagentservers import FAMILY_PREFIX, Server, servers
 MIN_SERVERS = 1
 MIN_FLAGS = 1
 
+RULES = "scripts/subagentflags.py"
+
 
 class FlagCheckError(Exception):
     """The servers a stack starts, or the flags they need, cannot be read or are empty."""
@@ -69,6 +71,21 @@ def unclassifiable(artifact: Artifact) -> Fault | None:
     )
 
 
+def unreached(found: tuple[Server, ...], required: tuple[Requirement, ...]) -> list[Fault]:
+    """A fault for each requirement that applies to no server, where it is checked on nothing."""
+    return [
+        Fault(
+            RULES,
+            requirement.label,
+            "the requirement applies to no subagent server this tree starts, so it cannot fail; "
+            "a hosted tier's flags are read from its extra and from the argv module's flag "
+            "builders it splats there",
+        )
+        for requirement in required
+        if not any(applies(server.command, requirement) for server in found)
+    ]
+
+
 def check(root: Path, requirements: tuple[Requirement, ...] | None = None) -> Scan:
     """Check every subagent server the tree under ``root`` starts against every requirement."""
     required = REQUIREMENTS if requirements is None else requirements
@@ -99,6 +116,7 @@ def check(root: Path, requirements: tuple[Requirement, ...] | None = None) -> Sc
         artifacts=len(artifacts),
         faults=[
             *(fault for server in found for fault in check_one(server, required)),
+            *unreached(found, required),
             *(fault for artifact in artifacts if (fault := unclassifiable(artifact)) is not None),
         ],
     )

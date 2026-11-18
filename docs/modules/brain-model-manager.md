@@ -140,7 +140,7 @@ compares the two, so retune both or neither. `RosterError` is a boot-time miscon
   lists beside their file, and none when empty; the deep tier drafts only when named. A server of
   several slots drafts only on a listed file, and `undrafted()` names the one left out. A tier's KV
   cache type is `f16` or `q8_0`: `cache_flags` writes nothing at `f16`, and at `q8_0` the model's
-  pair and, when the tier drafts, the drafter's. `with_flags` adds both after the subagent's `extra`.
+  pair and, when the tier drafts, the drafter's. `scripts/hostedtiers.py` reads both off `extra`.
 
 ## Invariants
 

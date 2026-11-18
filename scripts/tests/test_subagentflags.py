@@ -55,4 +55,5 @@ def test_every_requirement_says_what_it_is_and_why_the_servers_it_reaches_must_h
 def test_a_conditional_requirement_is_written_over_a_flag_a_server_really_writes() -> None:
     conditional = [requirement.when for requirement in REQUIREMENTS if requirement.when is not None]
     assert conditional, "the thread count is conditional, so at least one entry names an argv"
-    assert all(when.name.startswith("-") and when.value for when in conditional)
+    assert all(when.name.startswith("-") for when in conditional)
+    assert Flag("-ngl", "0") in conditional, "a value is named where every server writes one"

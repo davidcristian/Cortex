@@ -6,7 +6,7 @@ from pydantic import ValidationError
 from cortex_model_manager import ModelHostConfig, build_model_host
 from cortex_model_manager.config import DEFAULT_CORTEX_FILE
 from cortex_model_manager.drafters import DRAFTERS, drafter_file, drafts
-from cortex_model_manager.tiers import TierArgs, drafter_flags, with_flags
+from cortex_model_manager.tiers import drafter_flags
 
 _E4B = "unsloth/gemma-4-E4B-it-qat-GGUF/gemma-4-E4B-it-qat-UD-Q4_K_XL.gguf"
 _E4B_DRAFTER = "unsloth/gemma-4-E4B-it-qat-GGUF/mtp-gemma-4-E4B-it-Q8_0.gguf"
@@ -227,12 +227,6 @@ def test_a_tier_named_as_its_own_drafter_drafts_with_its_layer_and_loads_no_seco
     assert argv[-4:] == _OWN_LAYER
     assert _DRAFT_FLAG not in argv
     assert argv.count("/models/deep/own.gguf") == 1
-
-
-def test_flags_added_to_a_tier_follow_its_own() -> None:
-    tier = TierArgs("m", "/models/m.gguf", 8080, 99, 4096, 1, extra=("--jinja",))
-    assert with_flags(tier, ("--a", "b")).extra == ("--jinja", "--a", "b")
-    assert with_flags(tier, ()) == tier
 
 
 def test_a_setting_overrides_the_drafter_beside_a_file_even_when_empty() -> None:
