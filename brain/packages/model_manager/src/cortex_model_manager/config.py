@@ -13,7 +13,13 @@ from cortex_model_manager.supervisor import (
     DEFAULT_REAP_TIMEOUT_S,
     DEFAULT_STOP_GRACE_S,
 )
-from cortex_model_manager.tiers import TierArgs, drafter_flags, image_budget_flags, tier_spec
+from cortex_model_manager.tiers import (
+    TierArgs,
+    drafter_flags,
+    image_budget_flags,
+    server_id,
+    tier_spec,
+)
 
 DEFAULT_CORTEX_FILE = "unsloth/gemma-4-12B-it-qat-GGUF/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf"
 
@@ -30,7 +36,8 @@ DEFAULT_NGL = 99
 DEFAULT_CORTEX_CTX_SIZE = 16384
 DEFAULT_BRAIN_CTX_SIZE = 16384
 DEFAULT_SUBAGENT_CTX_SIZE = 8192
-DEFAULT_SUBAGENT_PARALLEL = 2
+DEFAULT_SUBAGENT_GPU_PARALLEL = 1
+DEFAULT_SUBAGENT_GPU_SERVERS = 1
 DEFAULT_IMAGE_MAX_TOKENS = 1024
 DEFAULT_NVIDIA_SMI = "nvidia-smi"
 
@@ -142,7 +149,14 @@ class ModelHostConfig(BaseSettings):
         default=DEFAULT_SUBAGENT_CTX_SIZE, gt=0, validation_alias="CORTEX_SUBAGENT_CTX_SIZE"
     )
     subagent_gpu_parallel: int = Field(
-        default=DEFAULT_SUBAGENT_PARALLEL, gt=0, validation_alias="CORTEX_SUBAGENTS_PARALLEL"
+        default=DEFAULT_SUBAGENT_GPU_PARALLEL,
+        gt=0,
+        validation_alias="CORTEX_SUBAGENTS_GPU_PARALLEL",
+    )
+    # How many servers of the subagent file the tier starts. Each loads the weights again, takes
+    # the next port up from `subagent_gpu_port`, and has its own id: `server_id` in tiers.py.
+    subagent_gpu_servers: int = Field(
+        default=DEFAULT_SUBAGENT_GPU_SERVERS, gt=0, validation_alias="CORTEX_SUBAGENTS_GPU_SERVERS"
     )
     subagent_gpu_port: int = Field(default=8083, gt=0, le=65535)
 
@@ -177,14 +191,17 @@ class ModelHostConfig(BaseSettings):
                     *drafter_flags(self._path(self.brain_draft_file)),
                 ),
             ),
-            TierArgs(
-                model=self.subagent_gpu_model,
-                model_path=self._path(self.subagent_gpu_file),
-                port=self.subagent_gpu_port,
-                ngl=self.subagent_gpu_ngl,
-                ctx_size=self.subagent_gpu_ctx_size,
-                parallel=self.subagent_gpu_parallel,
-                extra=_SUBAGENT_TAIL,
+            *(
+                TierArgs(
+                    model=server_id(self.subagent_gpu_model, index),
+                    model_path=self._path(self.subagent_gpu_file),
+                    port=self.subagent_gpu_port + index,
+                    ngl=self.subagent_gpu_ngl,
+                    ctx_size=self.subagent_gpu_ctx_size,
+                    parallel=self.subagent_gpu_parallel,
+                    extra=_SUBAGENT_TAIL,
+                )
+                for index in range(self.subagent_gpu_servers)
             ),
         )
         return tuple(tier for tier in declared if tier.model_path)

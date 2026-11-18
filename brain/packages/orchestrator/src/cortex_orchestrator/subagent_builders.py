@@ -1,6 +1,6 @@
 """Subagent wiring: the roster, the runner, and the spawn tool from config."""
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 
 import httpx
 
@@ -49,13 +49,13 @@ def _entry_profile(
     client: httpx.AsyncClient,
     scheduler: SubagentScheduler,
     placer: SubagentPlacer,
-    slots: int,
+    slots: Mapping[PlacementTarget, int],
 ) -> SubagentProfile:
     """One roster entry's runtime profile: its own servers and ask, the shared budgets."""
     on_cpu, on_gpu = endpoint_list(entry.endpoint), endpoint_list(entry.gpu_endpoint)
-    cpu = _backend(name, on_cpu, slots, client)
+    cpu = _backend(name, on_cpu, slots[PlacementTarget.CPU], client)
     # Two targets naming the same servers share one backend, so a slot is leased once.
-    gpu = cpu if on_gpu == on_cpu else _backend(name, on_gpu, slots, client)
+    gpu = cpu if on_gpu == on_cpu else _backend(name, on_gpu, slots[PlacementTarget.GPU], client)
     return SubagentProfile(
         resources=SubagentResources(
             backends={PlacementTarget.GPU: gpu, PlacementTarget.CPU: cpu},
@@ -83,9 +83,10 @@ async def build_subagents(
     scheduler = ResourceBudgetScheduler(
         config.cpu_budget, config.mem_budget_gb, wait_timeout_s=config.admission_wait_s
     )
+    slots = {PlacementTarget.GPU: config.gpu_parallel, PlacementTarget.CPU: config.parallel}
     roster = SubagentRoster(
         entries={
-            name: _entry_profile(name, entry, client, scheduler, placer, config.parallel)
+            name: _entry_profile(name, entry, client, scheduler, placer, slots)
             for name, entry in config.named_roster.items()
         },
         default=config.model,

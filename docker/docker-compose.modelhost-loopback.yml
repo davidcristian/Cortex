@@ -11,3 +11,5 @@ services:
       - "127.0.0.1:9081:8081"
       # The GPU-placed subagent tier, shifted off :8083 to clear llama-subagent-qwen.
       - "127.0.0.1:9083:8083"
+      # Its second server, when CORTEX_SUBAGENTS_GPU_SERVERS starts one.
+      - "127.0.0.1:9084:8084"

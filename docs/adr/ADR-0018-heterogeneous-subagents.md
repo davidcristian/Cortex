@@ -145,6 +145,29 @@ task record.
     backend already holds its lease for the whole stream; the roster value and the runner are
     unchanged, and the scheduler and the placer still decide how many spawns run and where.
 
+    The GPU-placed tier has both settings in the model host. `CORTEX_SUBAGENTS_GPU_SERVERS` starts
+    that many servers of `CORTEX_MODEL_FILE_SUBAGENT_GPU`: the first is `subagent-gpu` on `:8083`
+    and each further one is `subagent-gpu-2`, `-3` on the next port. `CORTEX_SUBAGENTS_GPU_PARALLEL`
+    is the slot count of each, and the brain reads it as the GPU target's slot count.
+    `CORTEX_SUBAGENTS_PARALLEL` stays the slot count of the CPU servers, and a loop's result room is
+    sized on the larger of the two counts.
+
+    **A server per subagent is the default shape.** The GPU tier starts one server of one slot,
+    and a deployment that wants a second GPU subagent raises the server count, not the slot count.
+    The Qwen model cards say multi-token prediction supports one slot only
+    ([ADR-0077](ADR-0077-model-card-settings.md) decision 5), so a server per subagent keeps a
+    drafter in every case. A crash or a restart of one server stops one subagent. And each of two
+    busy slots wrote at about 0.68 of the rate of one slot alone. The cost is memory: a second
+    server holds the whole footprint again, about 3,400 MiB for gemma-4-E4B with its drafter at an
+    8K context, where a second slot adds only its context
+    ([readings](../readings/subagent-budget.md#two-slots-against-two-servers)). The server count
+    defaults to 1 and not 2 because the shipped budget of ADR-0012 decision 14 places one spawn on
+    the GPU at a time: the 14 GB soft cap less the 8.6 GiB cortex leaves 5.4 GiB, which is one
+    3.5 GiB ask, so a second server would hold memory no spawn is placed on. The slot count the
+    tier had before, 2, served no second GPU-placed spawn and halved the context of the first.
+    The CPU servers keep one server of two slots until their caps count every server
+    ([1242](../refinements/tasks/1242-a-roster-entry-reaches-one-server-per-placement-target.md)).
+
 ## Consequences
 
 - The cortex composes a mixed team in one spawn call within the one shared budget, and every path
@@ -160,6 +183,10 @@ task record.
   makes which weights answer a spawn depend on where the placer put it. The compose comment and the
   runbook say both name one file; a check waits on
   [527](../refinements/tasks/527-one-roster-entrys-two-targets-are-named-by-two-artifact-variables.md).
+- A GPU tier of several servers has one logical id and one address per server, so
+  `CORTEX_SUBAGENTS_GPU_ENDPOINT` lists every address and `CORTEX_SWAP_EVICT_MODELS` every id.
+  Nothing compares the three settings: a server left out of the first is loaded and never used,
+  and one left out of the second keeps its memory beside the deep model (task 1242).
 - The per-role exception of ADR-0017 stays unbuilt by design
   ([125](../refinements/tasks/125-per-role-escape-hatch.md)).
 

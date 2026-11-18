@@ -112,7 +112,7 @@ def test_naming_every_tiers_artifact_hosts_all_three_on_the_documented_ports(
     monkeypatch.setenv("CORTEX_MODEL_FILE_SUBAGENT_GPU", "small/sub.gguf")
     monkeypatch.setenv("CORTEX_MODEL_BRAIN", "deep")
     monkeypatch.setenv("CORTEX_CTX_SIZE_BRAIN", "32768")
-    monkeypatch.setenv("CORTEX_SUBAGENTS_PARALLEL", "3")
+    monkeypatch.setenv("CORTEX_SUBAGENTS_GPU_PARALLEL", "3")
     roster = ModelHostConfig().roster()
     assert {model: spec.port for model, spec in roster.items()} == {
         "cortex": 8080,
@@ -133,6 +133,72 @@ def test_naming_every_tiers_artifact_hosts_all_three_on_the_documented_ports(
     )
     assert "-ngl" in roster["subagent-gpu"].argv
     assert roster["subagent-gpu"].argv[roster["subagent-gpu"].argv.index("-ngl") + 1] == "99"
+
+
+def _subagent_servers(monkeypatch: pytest.MonkeyPatch, **settings: str) -> dict[str, ModelSpec]:
+    monkeypatch.setenv("CORTEX_MODEL_FILE_SUBAGENT_GPU", "small/sub.gguf")
+    for name in ("CORTEX_SUBAGENTS_GPU_SERVERS", "CORTEX_SUBAGENTS_GPU_PARALLEL"):
+        monkeypatch.delenv(name, raising=False)
+    for name, value in settings.items():
+        monkeypatch.setenv(name, value)
+    roster = ModelHostConfig().roster()
+    return {model: spec for model, spec in roster.items() if model.startswith("subagent-gpu")}
+
+
+def _flag(spec: ModelSpec, flag: str) -> str:
+    return spec.argv[spec.argv.index(flag) + 1]
+
+
+def test_the_subagent_tier_starts_one_server_of_one_slot_by_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    servers = _subagent_servers(monkeypatch)
+    assert {model: spec.port for model, spec in servers.items()} == {"subagent-gpu": 8083}
+    assert _flag(servers["subagent-gpu"], "--parallel") == "1"
+
+
+def test_a_server_count_starts_that_many_servers_of_the_one_file_on_the_next_ports(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    servers = _subagent_servers(monkeypatch, CORTEX_SUBAGENTS_GPU_SERVERS="3")
+    assert {model: spec.port for model, spec in servers.items()} == {
+        "subagent-gpu": 8083,
+        "subagent-gpu-2": 8084,
+        "subagent-gpu-3": 8085,
+    }
+    first, *others = servers.values()
+    for other in others:
+        assert _without_port(other.argv) == _without_port(first.argv)
+
+
+def _without_port(argv: tuple[str, ...]) -> tuple[str, ...]:
+    at = argv.index("--port")
+    return (*argv[:at], *argv[at + 2 :])
+
+
+def test_the_slot_shape_starts_one_server_holding_every_slot(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    servers = _subagent_servers(monkeypatch, CORTEX_SUBAGENTS_GPU_PARALLEL="2")
+    assert list(servers) == ["subagent-gpu"]
+    assert _flag(servers["subagent-gpu"], "--parallel") == "2"
+
+
+def test_a_server_count_that_reaches_another_tiers_port_is_refused_at_boot(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CORTEX_MODELHOST_SUBAGENT_GPU_PORT", "8079")
+    with pytest.raises(RosterError, match="share port 8080"):
+        _subagent_servers(monkeypatch, CORTEX_SUBAGENTS_GPU_SERVERS="2")
+
+
+@pytest.mark.parametrize("name", ["CORTEX_SUBAGENTS_GPU_SERVERS", "CORTEX_SUBAGENTS_GPU_PARALLEL"])
+def test_a_subagent_tier_of_no_server_or_no_slot_is_refused(
+    monkeypatch: pytest.MonkeyPatch, name: str
+) -> None:
+    monkeypatch.setenv(name, "0")
+    with pytest.raises(ValidationError, match="greater than 0"):
+        ModelHostConfig()
 
 
 def test_the_deep_tier_starts_at_the_context_the_shared_history_window_was_sized_on(

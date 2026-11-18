@@ -35,7 +35,7 @@ either way and serves the cortex.
 
 The other settings: `CORTEX_MODEL_BRAIN` (the deep tier's id, default `brain`),
 `CORTEX_SWAP_EVICT_MODELS` (further hosted tiers a swap stops first, as a JSON list such as
-`["subagent-gpu"]`; a comma-separated string fails the brain at boot, and so does a list naming the
+`["subagent-gpu"]`, one id per server of the GPU subagent tier; a comma-separated string fails the brain at boot, and so does a list naming the
 cortex or the deep tier), `CORTEX_SWAP_BRAIN_VRAM_MIB` (0, the deep tier's measured VRAM cost),
 `CORTEX_SWAP_DRAIN_TIMEOUT_S` (60 s), `CORTEX_SWAP_LOAD_TIMEOUT_S` (300 s, over three times the
 slowest deep load measured), `CORTEX_MODELHOST_TIMEOUT_S` (60 s, one control call's deadline) and

@@ -113,8 +113,10 @@ ADR-0009 decision 8), `call_timeout_s =
   manager, the conductor and boot recovery read.
 - `SubagentsConfig`, prefix `CORTEX_SUBAGENTS_` (ADR-0010, ADR-0012, ADR-0018): a `llamacpp`
   backend needs both `endpoint` (the CPU overflow `llama-server`) and `gpu_endpoint`. Each names
-  one server or several separated by commas, which `endpoint_list` reads, and `parallel` is the
-  slot count of every one of them (ADR-0018 decision 12). One
+  one server or several separated by commas, which `endpoint_list` reads. `parallel` is the slot
+  count of each CPU server and `gpu_parallel` (`CORTEX_SUBAGENTS_GPU_PARALLEL`, 1) of each server
+  the GPU target names for itself, and a loop's result room is sized on the larger (ADR-0018
+  decision 12). One
   subagent's ask and the pool's ceilings all default to a module constant rather than a literal
   inside `Field(...)`, so `scripts/crosscheck.py` can compare the declaration with every place
   `docker/docker-compose.subagents.yml` and the roster override write it; `vram_gb` is the measured

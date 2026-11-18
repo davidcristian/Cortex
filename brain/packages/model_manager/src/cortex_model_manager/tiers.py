@@ -53,6 +53,11 @@ def llama_server_argv(binary: str, tier: TierArgs) -> tuple[str, ...]:
     )
 
 
+def server_id(model: str, index: int) -> str:
+    """The logical id of one server of a tier: the tier's own id, then ``-2``, ``-3`` and so on."""
+    return model if index == 0 else f"{model}-{index + 1}"
+
+
 def tier_spec(binary: str, tier: TierArgs) -> ModelSpec:
     """The roster entry for one tier: its logical id, its fixed port, and its whole argv."""
     return ModelSpec(model=tier.model, port=tier.port, argv=llama_server_argv(binary, tier))

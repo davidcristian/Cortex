@@ -59,6 +59,7 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "CORTEX_SUBAGENTS_MAX_CONCURRENCY",
         "CORTEX_SUBAGENTS_ROLES",
         "CORTEX_SUBAGENTS_PARALLEL",
+        "CORTEX_SUBAGENTS_GPU_PARALLEL",
         "CORTEX_SUBAGENT_CTX_SIZE",
         "CORTEX_BODY_BACKEND",
         "CORTEX_BODY_ENDPOINT",
@@ -648,6 +649,13 @@ def test_a_subagent_loops_result_room_fits_one_server_slot_less_its_prompt_and_r
     monkeypatch.setenv("CORTEX_SUBAGENTS_PARALLEL", "4")
     monkeypatch.setenv("CORTEX_SUBAGENTS_MAX_TOKENS", "512")
     assert SubagentsConfig().attempt_bounds.room_chars == 2448
+    monkeypatch.setenv("CORTEX_SUBAGENTS_PARALLEL", "1")
+    assert SubagentsConfig().attempt_bounds.room_chars == 22723
+    monkeypatch.setenv("CORTEX_SUBAGENTS_GPU_PARALLEL", "4")
+    assert SubagentsConfig().attempt_bounds.room_chars == 2448
+    monkeypatch.setenv("CORTEX_SUBAGENTS_GPU_PARALLEL", "0")
+    with pytest.raises(ValidationError, match="gpu_parallel"):
+        SubagentsConfig()
     monkeypatch.setenv("CORTEX_SUBAGENTS_PARALLEL", "0")
     with pytest.raises(ValidationError, match="parallel"):
         SubagentsConfig()

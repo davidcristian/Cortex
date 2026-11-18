@@ -40,8 +40,10 @@ DEFAULT_MEMORY_GB = 3.0
 DEFAULT_STALL_TIMEOUT_S = 600.0
 
 # The subagent servers' --ctx-size and --parallel, read here so a loop's result room fits one slot.
+# The CPU servers and the GPU-placed tier each have their own slot count.
 DEFAULT_SUBAGENT_CTX_SIZE = 8192
 DEFAULT_SUBAGENT_PARALLEL = 2
+DEFAULT_SUBAGENT_GPU_PARALLEL = 1
 
 
 def endpoint_list(value: str) -> tuple[str, ...]:
@@ -86,6 +88,7 @@ class SubagentsConfig(BaseSettings):
         default=DEFAULT_SUBAGENT_CTX_SIZE, gt=0, validation_alias="CORTEX_SUBAGENT_CTX_SIZE"
     )
     parallel: int = Field(default=DEFAULT_SUBAGENT_PARALLEL, gt=0)
+    gpu_parallel: int = Field(default=DEFAULT_SUBAGENT_GPU_PARALLEL, gt=0)
 
     @model_validator(mode="after")
     def _llamacpp_needs_both_endpoints(self) -> "SubagentsConfig":
@@ -156,7 +159,8 @@ class SubagentsConfig(BaseSettings):
     @property
     def attempt_bounds(self) -> AttemptBounds:
         """How far one delegated attempt may go, as the core's value."""
-        room = subagent_room_chars(self.ctx_size // self.parallel, self.max_tokens)
+        slots = max(self.parallel, self.gpu_parallel)
+        room = subagent_room_chars(self.ctx_size // slots, self.max_tokens)
         return AttemptBounds(
             max_tokens=self.max_tokens, timeout_s=self.run_timeout_s, room_chars=room
         )

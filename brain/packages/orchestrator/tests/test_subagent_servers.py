@@ -108,16 +108,22 @@ async def test_two_targets_naming_one_server_of_one_slot_run_one_spawn_at_a_time
     assert arrivals[:_TOGETHER] == [0, _DONE]
 
 
-@pytest.mark.parametrize(("soft_cap_gb", "server"), [(14.0, 0), (20.0, 1)])
-async def test_each_target_leases_the_servers_its_own_setting_names(
-    soft_cap_gb: float, server: int
+@pytest.mark.parametrize(
+    ("soft_cap_gb", "server", "parallel", "gpu_parallel"), [(14.0, 0, 2, 1), (20.0, 1, 1, 2)]
+)
+async def test_each_target_leases_its_own_servers_at_its_own_slot_count(
+    soft_cap_gb: float, server: int, parallel: int, gpu_parallel: int
 ) -> None:
     async with _holding_servers(2) as (endpoints, arrivals):
         cpu, gpu = endpoints
-        await _spawn_two(
-            SubagentsConfig(backend="llamacpp", endpoint=cpu, gpu_endpoint=gpu, parallel=2),
-            soft_cap_gb=soft_cap_gb,
+        config = SubagentsConfig(
+            backend="llamacpp",
+            endpoint=cpu,
+            gpu_endpoint=gpu,
+            parallel=parallel,
+            gpu_parallel=gpu_parallel,
         )
+        await _spawn_two(config, soft_cap_gb=soft_cap_gb)
     assert arrivals[:_TOGETHER] == [server, server]
 
 

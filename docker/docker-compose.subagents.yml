@@ -7,9 +7,9 @@ services:
     environment:
       # Turn delegation on; without this the base image does not delegate at all.
       CORTEX_SUBAGENTS_BACKEND: "llamacpp"
-      # Addresses on the compose network, not the host-published port. Both placement targets
-      # resolve to the one CPU server, so a deployment naming CORTEX_MODEL_FILE_SUBAGENT_GPU must
-      # also set CORTEX_SUBAGENTS_GPU_ENDPOINT to http://model-host:8083 or nothing reaches it.
+      # Addresses on the compose network, one or several separated by commas. Both targets resolve
+      # to the one CPU server, so a deployment naming CORTEX_MODEL_FILE_SUBAGENT_GPU must also set
+      # CORTEX_SUBAGENTS_GPU_ENDPOINT to http://model-host:8083 or nothing reaches that tier.
       CORTEX_SUBAGENTS_ENDPOINT: "http://llama-subagent:8082"
       CORTEX_SUBAGENTS_GPU_ENDPOINT: "${CORTEX_SUBAGENTS_GPU_ENDPOINT:-http://llama-subagent:8082}"
       # One subagent's resource ask, and the soft admission budgets. Measured on the shipped pick:
@@ -20,10 +20,12 @@ services:
       CORTEX_SUBAGENTS_VRAM_GB: "${CORTEX_SUBAGENTS_VRAM_GB:-3.5}"
       CORTEX_SUBAGENTS_CPU_BUDGET: "${CORTEX_SUBAGENTS_CPU_BUDGET:-4.0}"
       CORTEX_SUBAGENTS_MEM_BUDGET_GB: "${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8.0}"
-      # The context and slot count every subagent server starts with, so the brain sizes the room
-      # a subagent loop's tool results share to one slot.
+      # The context every subagent server starts with and the slot count of each CPU server and
+      # of each GPU-placed one, so the brain leases no more than a server's slots and sizes the
+      # room a subagent loop's tool results share to the smaller slot.
       CORTEX_SUBAGENT_CTX_SIZE: "${CORTEX_SUBAGENT_CTX_SIZE:-8192}"
       CORTEX_SUBAGENTS_PARALLEL: "${CORTEX_SUBAGENTS_PARALLEL:-2}"
+      CORTEX_SUBAGENTS_GPU_PARALLEL: "${CORTEX_SUBAGENTS_GPU_PARALLEL:-1}"
       # A `spawn_subagents` dispatch already costs a quarter of a turn's tool budget, so a turn
       # may delegate four times. Change it with a CORTEX_TOOLS_COSTS__SPAWN_SUBAGENTS key added
       # here, or with the whole map as JSON in CORTEX_TOOLS_COSTS on the host. The rest follows.

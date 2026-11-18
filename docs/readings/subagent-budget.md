@@ -60,6 +60,29 @@ stack, per [subagents-cpu](../runbooks/subagents-cpu.md).
 Spawns that share one slot serialize on its lease: on the CPU server two concurrent spawns took
 4.8 s through two leases and 10.0 s through one, a ratio of 2.08 (same runbook).
 
+## Two slots against two servers
+
+**2026-11-16 and 2026-11-17**, gemma-4-E4B with its multi-token-prediction drafter at draft
+length 3, `llama-server` build b12375, on the 24 GB card. Two subagents of the one model were run
+as two slots of one server and as two servers of one slot.
+
+| shape | context per slot | memory |
+| --- | --- | --- |
+| one server, two slots, drafter | 8K | 3,609 MiB |
+| one server, two slots, no drafter | 8K | 3,402 MiB |
+| one server, one slot, drafter | 8K | about 3,600 MiB at its peak |
+| two servers, one slot each, drafter | 8K | 3,387 and 3,389 MiB |
+
+With both slots of the one server busy, each wrote at 0.68 and 0.67 of the rate one slot wrote
+alone. A second server costs the whole footprint again, about 3,400 MiB, where the second slot is
+inside the first server's.
+
+Loaded beside the gemma-4-12B cortex with every context filled and every server busy, both shapes
+fit a model budget of 18,177 MiB at the peak: 16,659 MiB with one two-slot server and a 256K cortex
+context, 17,678 MiB with two servers and a 160K cortex context. The larger footprint of two servers
+was paid from the cortex's context. Method: the baseline driver, raw rows in
+`measurements/model-baseline-2026-11-16/bench/slots.jsonl` and `bench/together.jsonl`.
+
 ## Two tiers generating at once
 
 **2026-08-04**, the cortex and the GPU subagent tier resident together. Generating alone the cortex

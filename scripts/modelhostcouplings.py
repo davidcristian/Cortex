@@ -10,6 +10,7 @@ ENGINE = "brain/packages/core/src/cortex_core/engine.py"
 MODELHOST_CONFIG = "brain/packages/model_manager/src/cortex_model_manager/config.py"
 SUPERVISOR = "brain/packages/model_manager/src/cortex_model_manager/supervisor.py"
 SWAP_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config_swap.py"
+SUBAGENTS_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config_subagents.py"
 MODEL_MANAGER_DOC = "docs/modules/brain-model-manager.md"
 GPU_RUNBOOK = "docs/runbooks/llamacpp-gpu.md"
 SWAP_RUNBOOK = "docs/runbooks/model-swap.md"
@@ -104,19 +105,45 @@ MODELHOST_COUPLINGS: tuple[Constant, ...] = (
         ),
     ),
     Constant(
-        label="how many subagent slots a server holds",
+        label="how many subagent slots a CPU server holds",
         why=(
-            "the same three files substitute the slot count, which is how many delegated runs a "
-            "server serves at once and therefore what the admission budgets were sized against, "
-            "so the config and the stack disagreeing is a tier queueing where it was measured "
-            "not to (ADR-0010/0012)"
+            "both CPU servers substitute the slot count, which is how many delegated runs a "
+            "server serves at once, how many the brain leases to it and what the admission "
+            "budgets were sized against, so the config and the stack disagreeing is a server "
+            "queueing where it was measured not to (ADR-0010/0012/0018)"
         ),
-        sites=(Site(MODELHOST_CONFIG, "DEFAULT_SUBAGENT_PARALLEL"),),
+        sites=(Site(SUBAGENTS_CONFIG, "DEFAULT_SUBAGENT_PARALLEL"),),
         mentions=(
-            Mention(GPU_COMPOSE, "${CORTEX_SUBAGENTS_PARALLEL:-{value}}"),
             Mention(SUBAGENTS_COMPOSE, "${CORTEX_SUBAGENTS_PARALLEL:-{value}}"),
             Mention(ROSTER_COMPOSE, "${CORTEX_SUBAGENTS_PARALLEL:-{value}}"),
         ),
+    ),
+    Constant(
+        label="how many slots a GPU-placed subagent server holds",
+        why=(
+            "the model host starts every server of its subagent tier with this count and the "
+            "brain leases that many spawns to each, so one default moved alone sends a server "
+            "more spawns than it has slots, or leaves a slot that halves its context unused "
+            "(ADR-0018 decision 12)"
+        ),
+        sites=(
+            Site(MODELHOST_CONFIG, "DEFAULT_SUBAGENT_GPU_PARALLEL"),
+            Site(SUBAGENTS_CONFIG, "DEFAULT_SUBAGENT_GPU_PARALLEL"),
+        ),
+        mentions=(
+            Mention(GPU_COMPOSE, "${CORTEX_SUBAGENTS_GPU_PARALLEL:-{value}}"),
+            Mention(SUBAGENTS_COMPOSE, "${CORTEX_SUBAGENTS_GPU_PARALLEL:-{value}}"),
+        ),
+    ),
+    Constant(
+        label="how many servers the GPU-placed subagent tier starts",
+        why=(
+            "each server loads the subagent weights again, so a compose default above the "
+            "config's would start a server the shipped VRAM budget has no room to place a spawn "
+            "on (ADR-0018 decision 12)"
+        ),
+        sites=(Site(MODELHOST_CONFIG, "DEFAULT_SUBAGENT_GPU_SERVERS"),),
+        mentions=(Mention(GPU_COMPOSE, "${CORTEX_SUBAGENTS_GPU_SERVERS:-{value}}"),),
     ),
     Constant(
         label="how many tokens one picture may occupy",

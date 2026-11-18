@@ -48,8 +48,8 @@ EXEMPT = (
     ),
     Exemption(
         "CORTEX_MODELHOST_SUBAGENT_GPU_PORT",
-        "the gpu overlay's documented CORTEX_SUBAGENTS_GPU_ENDPOINT dials that tier at 8083, and "
-        "the loopback overlay moves only the host side of it",
+        "the gpu overlay's documented CORTEX_SUBAGENTS_GPU_ENDPOINT dials that tier at 8083 and "
+        "each further server of it one port up, and the loopback overlay moves only the host side",
     ),
     Exemption(
         "CORTEX_MODELHOST_LLAMA_BIN",

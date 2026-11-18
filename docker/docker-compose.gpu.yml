@@ -81,7 +81,11 @@ services:
       CORTEX_MODEL_FILE_BRAIN_DRAFT:
       CORTEX_MODEL_FILE_SUBAGENT_GPU: "${CORTEX_MODEL_FILE_SUBAGENT_GPU:-}"
       CORTEX_SUBAGENT_CTX_SIZE: "${CORTEX_SUBAGENT_CTX_SIZE:-8192}"
-      CORTEX_SUBAGENTS_PARALLEL: "${CORTEX_SUBAGENTS_PARALLEL:-2}"
+      # How many servers of that file the tier starts, and the slots of each. A server per
+      # subagent is the default shape; each further server is `subagent-gpu-2` on :8084 and up,
+      # and the brain reaches it only once CORTEX_SUBAGENTS_GPU_ENDPOINT lists its address.
+      CORTEX_SUBAGENTS_GPU_SERVERS: "${CORTEX_SUBAGENTS_GPU_SERVERS:-1}"
+      CORTEX_SUBAGENTS_GPU_PARALLEL: "${CORTEX_SUBAGENTS_GPU_PARALLEL:-1}"
       # How long a child gets on SIGTERM before it is killed, and how long a killed one gets to be
       # reaped. Keep the sum of these two and the probe timeout below the brain's
       # CORTEX_MODELHOST_TIMEOUT_S, or a slow but correct eviction reads as a dead sidecar.
