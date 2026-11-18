@@ -103,7 +103,7 @@ never a reading of what the tree does now.
 - **[R-1239](tasks/1239-no-tier-but-the-deep-one-can-name-a-drafter.md)** No tier but the deep one can name a drafter (inference-model-manager). Its claim was checked against the code on 2026-11-16.
 - **[R-1240](tasks/1240-some-tiers-run-settings-their-model-cards-do-not-recommend.md)** Some tiers run settings their model cards do not recommend (inference). Its claim was checked against the code on 2026-11-16.
 - **[R-1241](tasks/1241-the-embedder-is-sent-no-task-prefix.md)** The embedder is sent no task prefix (memory). Its claim was checked against the code on 2026-11-16.
-- **[R-1242](tasks/1242-a-roster-entry-reaches-one-server-per-placement-target.md)** A roster entry reaches one server per placement target (subagents). Its claim was checked against the code on 2026-11-16.
+- **[R-1242](tasks/1242-a-roster-entry-reaches-one-server-per-placement-target.md)** A server per subagent is built for the GPU tier only (subagents). Its claim was checked against the code on 2026-11-18.
 - **[R-1243](tasks/1243-every-tier-holds-its-context-in-the-default-16-bit-cache.md)** Every tier holds its context in the default 16-bit cache (inference-model-manager). Its claim was checked against the code on 2026-11-17.
 - **[R-1244](tasks/1244-the-nvfp4-files-for-the-deep-tier-have-no-baseline-rows.md)** The NVFP4 files for the deep tier have no baseline rows (inference-model-manager). Its claim was checked against the code on 2026-11-17.
 
@@ -1099,7 +1099,7 @@ never a reading of what the tree does now.
 - [R-748](tasks/748-a-role-sentence-is-unmeasured-against-the-envelope-readings.md) A role sentence is unmeasured against the envelope readings. done 2026-09-29.
 - [R-749](tasks/749-the-cortex-uptake-of-the-role-property-is-unmeasured.md) The cortex uptake of the role property is unmeasured. done 2026-09-29.
 - [R-760](tasks/760-the-reworded-precis-sentence-reads-below-the-plain-summary.md) The reworded precis sentence reads below the plain summary. done 2026-10-01.
-- [R-1242](tasks/1242-a-roster-entry-reaches-one-server-per-placement-target.md) A roster entry reaches one server per placement target. open, actionable.
+- [R-1242](tasks/1242-a-roster-entry-reaches-one-server-per-placement-target.md) A server per subagent is built for the GPU tier only. open, actionable.
 
 ### tools
 

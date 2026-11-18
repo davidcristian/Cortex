@@ -2,7 +2,8 @@
 
 What the tiers the placer budgets for really cost, what an over-committed GPU load does, and what an
 NPU probe from this WSL2 guest finds. Cited by [ADR-0012](../adr/ADR-0012-resource-governance.md),
-decisions 12 and 14 and its consequences. VRAM figures are `nvidia-smi` total used minus an idle
+decisions 12 and 14 and its consequences, and by [ADR-0018](../adr/ADR-0018-heterogeneous-subagents.md)
+decision 12. VRAM figures are `nvidia-smi` total used minus an idle
 baseline read immediately before the load and again after the last measurement, because the desktop
 shares the card and that baseline moved by more than a GiB between sessions; per-process attribution
 (`--query-compute-apps`) returns nothing under WSL2. Sizes stay absolute because a reader compares
@@ -82,6 +83,23 @@ fit a model budget of 18,177 MiB at the peak: 16,659 MiB with one two-slot serve
 context, 17,678 MiB with two servers and a 160K cortex context. The larger footprint of two servers
 was paid from the cortex's context. Method: the baseline driver, raw rows in
 `measurements/model-baseline-2026-11-16/bench/slots.jsonl` and `bench/together.jsonl`.
+
+**2026-11-18**, the same model with no drafter, since the GPU-placed tier names none, on build
+b12375. The model host started each shape from the compose settings, and one batch of two spawns
+went through the brain's own subagent wiring with room in the VRAM budget for both. The idle
+baseline was 2,359 to 2,374 MiB, read before each load and after each teardown.
+
+| shape | settings | context per slot | loaded | peak while the batch ran |
+| --- | --- | --- | --- | --- |
+| one server of one slot | the defaults | 8K | 3,328 MiB | 3,338 MiB |
+| two servers of one slot | `CORTEX_SUBAGENTS_GPU_SERVERS=2` | 8K | 6,387 MiB | 6,407 MiB |
+| one server of two slots | `CORTEX_SUBAGENTS_GPU_PARALLEL=2`, a 16K pool | 8K | 3,508 MiB | 3,520 MiB |
+
+In the default shape the host answered 404 for `subagent-gpu-2`, and the two spawns ran one after
+the other: no sample of the server's `GET /slots` showed more than one slot busy. With two servers
+both were busy in 115 of 117 samples and neither had more than one slot busy, so the two spawns were
+leased to different servers. With two slots the one server had both busy. Method: `shape.sh` and
+`drive.py` in `~/.cache/cortex-run/2026-11-18/`, compose project `cortexn24`, logs in `logs/` there.
 
 ## Two tiers generating at once
 
