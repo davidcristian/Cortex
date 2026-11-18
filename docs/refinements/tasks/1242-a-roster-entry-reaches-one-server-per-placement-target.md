@@ -36,13 +36,14 @@ What remains, in the order to do it:
      service from its model variable; prove it by removing a flag from the new one.
 2. **The server count defaults to 1, not 2.** The shipped budget places one spawn on the GPU at a
    time: the 14 GB soft cap less the 8.6 GiB cortex reservation leaves room for one 3.5 GiB ask
-   (ADR-0012 decision 14). A default of two servers needs a soft cap of at least 15.6 GiB, and the
-   soft cap is a policy value of the user. Proposal for the 24 GB card: two servers, since both
-   shapes fit the 18,177 MiB model budget beside the cortex in the readings above.
+   (ADR-0012 decision 14). A default of two servers needs a soft cap above 15.6 GiB, and the soft
+   cap is a policy value of the user. Proposal for the 24 GB card: two servers, since both shapes
+   fit the 18,177 MiB model budget beside the cortex in the readings above.
 3. **Nothing compares the three settings that name the tier's servers**: the count the model host
    reads, the addresses in `CORTEX_SUBAGENTS_GPU_ENDPOINT` and the ids in
-   `CORTEX_SWAP_EVICT_MODELS`. Neither does anything compare the GPU slots configured with the
-   number of asks the VRAM budget places, so a server no spawn is placed on starts unreported.
+   `CORTEX_SWAP_EVICT_MODELS`. The VRAM budget is compared with the GPU slots at boot
+   (`warn_of_unplaced_gpu_slots`), which reports a server the budget has no room for and not a
+   server the endpoint setting leaves out.
 4. **`stop_grace_period: 45s`** on `model-host` in `docker/docker-compose.gpu.yml` is sized for
    three children. Each further subagent server is one more child to stop.
 5. **The tier names no drafter**, so the main reason for the default has no effect until
@@ -56,4 +57,5 @@ What remains, in the order to do it:
   default. Built for the GPU-placed tier and checked live. The premise held. The remedy changed in
   two ways: a slot is a lease the backend already holds for the whole stream, so no scheduler
   change was needed, and the server count defaults to 1 because the shipped VRAM budget places one
-  spawn on the GPU. The five items above remain.
+  spawn on the GPU. The brain also warns at boot when the GPU servers have more slots than the
+  VRAM budget places spawns. The five items above remain.

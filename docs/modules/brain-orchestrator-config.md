@@ -116,7 +116,10 @@ ADR-0009 decision 8), `call_timeout_s =
   one server or several separated by commas, which `endpoint_list` reads. `parallel` is the slot
   count of each CPU server and `gpu_parallel` (`CORTEX_SUBAGENTS_GPU_PARALLEL`, 1) of each server
   the GPU target names for itself, and a loop's result room is sized on the larger (ADR-0018
-  decision 12). One
+  decision 12). `warn_of_unplaced_gpu_slots(subagents, runtime)` (`gpu_slots.py`) runs at boot: it
+  places one default ask per GPU slot on a `VramBudgetPlacer` built from `vram_soft_cap_gb` and
+  `cortex_reservation_gb`, and logs a warning with both counts when fewer are placed on the GPU
+  than there are slots. It refuses nothing, because such a deployment still runs. One
   subagent's ask and the pool's ceilings all default to a module constant rather than a literal
   inside `Field(...)`, so `scripts/crosscheck.py` can compare the declaration with every place
   `docker/docker-compose.subagents.yml` and the roster override write it; `vram_gb` is the measured

@@ -12,7 +12,7 @@ default the compose files run one CPU server with both placement targets pointed
 GPU-placed subagent still executes on the CPU and nothing here needs a GPU. A real GPU-placed
 executor exists as an opt-in tier of the `model-host` sidecar
 (`CORTEX_MODEL_FILE_SUBAGENT_GPU`, `-ngl 99` on `:8083`); routing to it is the separate step of
-setting `CORTEX_SUBAGENTS_GPU_ENDPOINT=http://model-host:8083`. The tier starts `CORTEX_SUBAGENTS_GPU_SERVERS` servers (default 1) of `CORTEX_SUBAGENTS_GPU_PARALLEL` slots (default 1). A second server is `subagent-gpu-2` on `:8084`: list both addresses in the endpoint setting, separated by a comma, list both ids in `CORTEX_SWAP_EVICT_MODELS` under a deep tier, and leave the placer room for two `CORTEX_SUBAGENTS_VRAM_GB` asks under `CORTEX_VRAM_SOFT_CAP_GB`. Two slots of one server are `CORTEX_SUBAGENTS_GPU_PARALLEL=2` instead. What each shape costs: [subagent-budget.md](../readings/subagent-budget.md#two-slots-against-two-servers).
+setting `CORTEX_SUBAGENTS_GPU_ENDPOINT=http://model-host:8083`. The tier starts `CORTEX_SUBAGENTS_GPU_SERVERS` servers (default 1) of `CORTEX_SUBAGENTS_GPU_PARALLEL` slots (default 1). A second server is `subagent-gpu-2` on `:8084`: list both addresses in the endpoint setting, separated by a comma, list both ids in `CORTEX_SWAP_EVICT_MODELS` under a deep tier, and leave the placer room for two `CORTEX_SUBAGENTS_VRAM_GB` asks under `CORTEX_VRAM_SOFT_CAP_GB`. Two slots of one server are `CORTEX_SUBAGENTS_GPU_PARALLEL=2` instead. The brain logs `the GPU subagent servers have more slots than the VRAM budget places spawns` at boot when that room is missing. What each shape costs: [subagent-budget.md](../readings/subagent-budget.md#two-slots-against-two-servers).
 
 ## Prerequisites
 

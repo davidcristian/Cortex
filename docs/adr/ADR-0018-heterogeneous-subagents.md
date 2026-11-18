@@ -186,7 +186,10 @@ task record.
 - A GPU tier of several servers has one logical id and one address per server, so
   `CORTEX_SUBAGENTS_GPU_ENDPOINT` lists every address and `CORTEX_SWAP_EVICT_MODELS` every id.
   Nothing compares the three settings: a server left out of the first is loaded and never used,
-  and one left out of the second keeps its memory beside the deep model (task 1242).
+  and one left out of the second keeps its memory beside the deep model (task 1242). The VRAM
+  budget is compared: at boot `warn_of_unplaced_gpu_slots` (`gpu_slots.py`) places one ask per GPU
+  slot on a placer built from the deployment's own numbers and logs a warning when a slot is left
+  over, since its server holds memory no spawn is placed on.
 - The per-role exception of ADR-0017 stays unbuilt by design
   ([125](../refinements/tasks/125-per-role-escape-hatch.md)).
 
