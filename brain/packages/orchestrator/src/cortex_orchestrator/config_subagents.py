@@ -115,6 +115,21 @@ class SubagentsConfig(BaseSettings):
         return self
 
     @model_validator(mode="after")
+    def _an_endpoint_setting_names_each_server_once(self) -> "SubagentsConfig":
+        """Fail at boot on an entry whose endpoint setting lists one address twice."""
+        for name, entry in self.named_roster.items():
+            for servers in (endpoint_list(entry.endpoint), endpoint_list(entry.gpu_endpoint)):
+                repeated = next((server for server in servers if servers.count(server) > 1), None)
+                if repeated is not None:
+                    msg = (
+                        f"subagent {name!r} names {repeated} twice in one endpoint setting; each "
+                        "address is one server, so two spawns would be leased the same slots "
+                        "while a server left out of the list ran nothing"
+                    )
+                    raise ValueError(msg)
+        return self
+
+    @model_validator(mode="after")
     def _every_ask_must_fit_the_whole_budget(self) -> "SubagentsConfig":
         """Fail at boot on an entry the scheduler could never admit."""
         for name, entry in self.named_roster.items():

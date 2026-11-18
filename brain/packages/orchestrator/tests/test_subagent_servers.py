@@ -145,3 +145,38 @@ def test_an_endpoint_setting_names_one_server_or_several(
 def test_an_endpoint_setting_that_names_no_server_is_rejected() -> None:
     with pytest.raises(ValidationError, match="CORTEX_SUBAGENTS_GPU_ENDPOINT are required"):
         SubagentsConfig(backend="llamacpp", endpoint="http://a:8082", gpu_endpoint=" , ")
+
+
+@pytest.mark.parametrize(
+    ("endpoint", "gpu_endpoint", "repeated"),
+    [
+        ("http://a:8082", "http://a:8083,http://a:8083", "http://a:8083"),
+        ("http://a:8082", "http://a:8083, http://a:8084 ,http://a:8084", "http://a:8084"),
+        ("http://a:8082,http://a:8082", "http://a:8083", "http://a:8082"),
+    ],
+)
+def test_an_endpoint_setting_that_names_one_server_twice_is_rejected(
+    endpoint: str, gpu_endpoint: str, repeated: str
+) -> None:
+    with pytest.raises(ValidationError, match=f"'subagent' names {repeated} twice"):
+        SubagentsConfig(backend="llamacpp", endpoint=endpoint, gpu_endpoint=gpu_endpoint)
+
+
+def test_a_roster_entry_that_names_one_server_twice_is_rejected() -> None:
+    twice = {"endpoint": "http://b:8085,http://b:8085"}
+    with pytest.raises(ValidationError, match="'qwen' names http://b:8085 twice"):
+        SubagentsConfig.model_validate(
+            {
+                "backend": "llamacpp",
+                "endpoint": "http://a:8082",
+                "gpu_endpoint": "http://a:8083",
+                "roster": {"qwen": twice},
+            }
+        )
+
+
+def test_two_targets_naming_the_same_server_once_each_are_accepted() -> None:
+    config = SubagentsConfig(
+        backend="llamacpp", endpoint="http://a:8082", gpu_endpoint="http://a:8082"
+    )
+    assert endpoint_list(config.gpu_endpoint) == endpoint_list(config.endpoint)
