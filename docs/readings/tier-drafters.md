@@ -144,6 +144,13 @@ between the brain and the cortex kept every request and reply.
   another chat asked for the handoff: the stops came after the batch ended, the fit check read
   21,723 MiB free against the 16,200 MiB declared, both chats finished, and each answered with
   its own fact. The log does not show whether the drain waited or the batch ended first.
+- **A server that stops.** The first subagent server was killed while both servers were writing
+  a batch of two spawns. The killed spawn logged
+  `a GPU-placed subagent did not answer; re-running it once on the CPU` and finished there, the
+  other spawn finished on its server, the recheck pass started the killed server again, and the
+  next delegated spawn ran on the GPU with no warning. A spawn asked for in the turn right after a
+  handoff was leased a server that still read `loading` and ran on the CPU
+  ([R-1249](../refinements/tasks/1249-a-spawn-is-leased-a-gpu-subagent-server-that-is-not-serving.md)).
 - **Filled contexts.** With the three servers loaded the card read 17,598 to 17,617 MiB. With a
   request of 7,597 prompt tokens on each subagent server and one of 15,736 on the cortex at once,
   it peaked at 17,638 to 17,646 MiB: about 15,220 MiB above the card with every tier stopped, and
@@ -156,9 +163,9 @@ between the brain and the cortex kept every request and reply.
   the card read 11,241 MiB
   ([R-1248](../refinements/tasks/1248-with-escalation-off-nothing-starts-the-gpu-subagent-servers.md)).
 
-Method: `up.sh`, `turns.sh`, `nodraft.sh`, `stepc.sh`, `stepd.sh`, `escoff.sh`, `fill.py` and
-`count.py` in `~/.cache/cortex-run/2026-11-18/slot8/`, compose project `cortexn24`, logs in `logs/`
-there and the proxy's record in `proxy/log/requests.jsonl`.
+Method: `up.sh`, `turns.sh`, `nodraft.sh`, `stepc.sh`, `stepd.sh`, `stepk.sh`, `stepm.sh`,
+`escoff.sh`, `fill.py` and `count.py` in `~/.cache/cortex-run/2026-11-18/slot8/`, compose project
+`cortexn24`, logs in `logs/` there and the proxy's record in `proxy/log/requests.jsonl`.
 
 ## The CPU subagent server
 

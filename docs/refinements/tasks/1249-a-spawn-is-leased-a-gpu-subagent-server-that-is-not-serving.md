@@ -28,6 +28,12 @@ hand and `ready`. Two delegated turns of one spawn each both logged
 `model now served by engine build` line for the second server's address. Log:
 `~/.cache/cortex-run/2026-11-18/slot8/logs/onedead.txt`.
 
+A second draw, with escalation on: a chat asked for the deep tier and, in its next turn, for one
+delegated spawn. The spawn was leased a server that was still loading after the swap back, logged
+`a GPU-placed subagent did not answer; re-running it once on the CPU` with the detail
+`model 'subagent' is still loading, so it cannot answer yet`, and ran on the CPU. Log:
+`~/.cache/cortex-run/2026-11-18/slot8/logs/stepk.txt`.
+
 ## What would close it
 
 Either of these, in the core behind the `ModelManager` port:
@@ -37,10 +43,10 @@ Either of these, in the core behind the `ModelManager` port:
 - a record per server in `BaselineTiers`, so the placer and the lease close one server and not the
   whole tier.
 
-Not drawn: a spawn admitted just after a swap back, while both servers are still loading.
-`restart_evicted` marks a tier as serving when its start is accepted, and the two servers read
-`loading` for several samples after the cortex was `ready` again
-(`~/.cache/cortex-run/2026-11-18/slot8/logs/watch-swap.txt`).
+`restart_evicted` (`brain/packages/core/src/cortex_core/residency_moves.py`) has the second
+case: it marks a tier as serving when the host accepts its start, while the server still reads
+`loading`, so the pool admits spawns again before either server answers. Waiting for `ready`
+before `mark_serving`, or leaving the mark to the recheck pass, closes that one.
 
 ## History
 
