@@ -1,6 +1,6 @@
 """The one place a ``llama-server`` command line is assembled."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from cortex_model_manager.spec import ModelSpec
 
@@ -75,8 +75,13 @@ def image_budget_flags(budget: int) -> tuple[str, ...]:
     )
 
 
-def drafter_flags(path: str) -> tuple[str, ...]:
-    """A tier's MTP drafter and the speculative type it drafts with, or nothing for no drafter."""
+def drafter_flags(path: str, length: int) -> tuple[str, ...]:
+    """A tier's MTP drafter with its speculative type and draft length, or nothing for none."""
     if not path:
         return ()
-    return ("--model-draft", path, "--spec-type", _DRAFT_MTP)
+    return ("--model-draft", path, "--spec-type", _DRAFT_MTP, "--spec-draft-n-max", str(length))
+
+
+def with_flags(tier: TierArgs, flags: tuple[str, ...]) -> TierArgs:
+    """The tier with ``flags`` after its own."""
+    return replace(tier, extra=(*tier.extra, *flags))

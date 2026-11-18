@@ -7,6 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from uvicorn.config import LOG_LEVELS
 
 from cortex_core import DEFAULT_CORTEX_MODEL, DEFAULT_LOG_FORMAT, known_log_format
+from cortex_model_manager.drafters import drafter_file, drafts
 from cortex_model_manager.spec import ModelSpec, build_roster
 from cortex_model_manager.supervisor import (
     DEFAULT_PROBE_TIMEOUT_S,
@@ -19,6 +20,7 @@ from cortex_model_manager.tiers import (
     image_budget_flags,
     server_id,
     tier_spec,
+    with_flags,
 )
 
 DEFAULT_CORTEX_FILE = "unsloth/gemma-4-12B-it-qat-GGUF/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf"
@@ -38,6 +40,13 @@ DEFAULT_BRAIN_CTX_SIZE = 16384
 DEFAULT_SUBAGENT_CTX_SIZE = 8192
 DEFAULT_SUBAGENT_GPU_PARALLEL = 1
 DEFAULT_SUBAGENT_GPU_SERVERS = 2
+
+# How many tokens a tier's drafter predicts at a time. The cortex and subagent values are the
+# fastest at each tier's default context (docs/readings/tier-drafters.md); the deep tier's is
+# the engine's own default, which its readings were drawn at.
+DEFAULT_CORTEX_DRAFT_LENGTH = 3
+DEFAULT_BRAIN_DRAFT_LENGTH = 3
+DEFAULT_SUBAGENT_GPU_DRAFT_LENGTH = 3
 
 # The container's `stop_grace_period` in seconds. The shutdown pass stops the children in turn and
 # one with a request in flight pays the whole grace, so it is one grace for each child of the
@@ -119,6 +128,14 @@ class ModelHostConfig(BaseSettings):
         default=DEFAULT_CORTEX_CTX_SIZE, gt=0, validation_alias="CORTEX_CTX_SIZE"
     )
     cortex_port: int = Field(default=8080, gt=0, le=65535)
+    # The cortex tier's drafter. Unset takes the drafter the mount holds beside the cortex file,
+    # which only a lineup file has; empty starts the tier without one.
+    cortex_draft_file: str | None = Field(
+        default=None, validation_alias="CORTEX_MODEL_FILE_CORTEX_DRAFT"
+    )
+    cortex_draft_length: int = Field(
+        default=DEFAULT_CORTEX_DRAFT_LENGTH, gt=0, validation_alias="CORTEX_DRAFT_LENGTH"
+    )
     # How many tokens this tier may spend on its reasoning trace before the engine ends the
     # trace and starts the reply. Measured on the cortex pick: unrestricted spends 2323 to 2996
     # characters and 10.1 to 12.6 s, 512 spends 2003 and 8.4 s, 128 spends 483 to 536 and 1.7 s.
@@ -144,6 +161,9 @@ class ModelHostConfig(BaseSettings):
     # file decoded at 1.86 to 1.89 times the plain rate for about 1000 MiB more, which this
     # stack's card cannot hold beside the GPU subagent tier.
     brain_draft_file: str = Field(default="", validation_alias="CORTEX_MODEL_FILE_BRAIN_DRAFT")
+    brain_draft_length: int = Field(
+        default=DEFAULT_BRAIN_DRAFT_LENGTH, gt=0, validation_alias="CORTEX_DRAFT_LENGTH_BRAIN"
+    )
 
     subagent_gpu_model: str = Field(
         default=DEFAULT_SUBAGENT_GPU_MODEL, validation_alias="CORTEX_MODEL_SUBAGENT_GPU"
@@ -164,6 +184,16 @@ class ModelHostConfig(BaseSettings):
         default=DEFAULT_SUBAGENT_GPU_SERVERS, gt=0, validation_alias="CORTEX_SUBAGENTS_GPU_SERVERS"
     )
     subagent_gpu_port: int = Field(default=8083, gt=0, le=65535)
+    # The drafter every GPU subagent server starts with, read as the cortex's is. A server of
+    # several slots drafts only on a file `drafters.py` lists.
+    subagent_gpu_draft_file: str | None = Field(
+        default=None, validation_alias="CORTEX_MODEL_FILE_SUBAGENT_GPU_DRAFT"
+    )
+    subagent_gpu_draft_length: int = Field(
+        default=DEFAULT_SUBAGENT_GPU_DRAFT_LENGTH,
+        gt=0,
+        validation_alias="CORTEX_DRAFT_LENGTH_SUBAGENT_GPU",
+    )
 
     def tiers(self) -> tuple[TierArgs, ...]:
         """Every tier the deployment named a file for, in residency order."""
@@ -180,6 +210,10 @@ class ModelHostConfig(BaseSettings):
                     _CORTEX_PROMPT_CACHE,
                     *self._vision(),
                     *self._reasoning(self.cortex_reasoning_budget),
+                    *drafter_flags(
+                        self._path(drafter_file(self.cortex_draft_file, self.cortex_file)),
+                        self.cortex_draft_length,
+                    ),
                 ),
             ),
             TierArgs(
@@ -193,18 +227,21 @@ class ModelHostConfig(BaseSettings):
                     "--cache-ram",
                     _NO_PROMPT_CACHE,
                     *self._reasoning(self.brain_reasoning_budget),
-                    *drafter_flags(self._path(self.brain_draft_file)),
+                    *drafter_flags(self._path(self.brain_draft_file), self.brain_draft_length),
                 ),
             ),
             *(
-                TierArgs(
-                    model=server_id(self.subagent_gpu_model, index),
-                    model_path=self._path(self.subagent_gpu_file),
-                    port=self.subagent_gpu_port + index,
-                    ngl=self.subagent_gpu_ngl,
-                    ctx_size=self.subagent_gpu_ctx_size,
-                    parallel=self.subagent_gpu_parallel,
-                    extra=_SUBAGENT_TAIL,
+                with_flags(
+                    TierArgs(
+                        model=server_id(self.subagent_gpu_model, index),
+                        model_path=self._path(self.subagent_gpu_file),
+                        port=self.subagent_gpu_port + index,
+                        ngl=self.subagent_gpu_ngl,
+                        ctx_size=self.subagent_gpu_ctx_size,
+                        parallel=self.subagent_gpu_parallel,
+                        extra=_SUBAGENT_TAIL,
+                    ),
+                    self._subagent_drafter(),
                 )
                 for index in range(self.subagent_gpu_servers)
             ),
@@ -214,6 +251,25 @@ class ModelHostConfig(BaseSettings):
     def roster(self) -> dict[str, ModelSpec]:
         """The fixed set of logical ids this daemon will ever run, keyed by id."""
         return build_roster(tier_spec(self.llama_bin, tier) for tier in self.tiers())
+
+    def undrafted(self) -> str:
+        """The drafter the GPU subagent servers start without for their slot count, or empty."""
+        if not self.subagent_gpu_file or self._subagent_drafts():
+            return ""
+        return drafter_file(self.subagent_gpu_draft_file, self.subagent_gpu_file)
+
+    def _subagent_drafts(self) -> bool:
+        """Whether a GPU subagent server of the tier's slot count may be given a drafter."""
+        return drafts(self.subagent_gpu_file, self.subagent_gpu_parallel)
+
+    def _subagent_drafter(self) -> tuple[str, ...]:
+        """The drafter flags of one GPU subagent server, or nothing where it may not draft."""
+        if not self._subagent_drafts():
+            return ()
+        return drafter_flags(
+            self._path(drafter_file(self.subagent_gpu_draft_file, self.subagent_gpu_file)),
+            self.subagent_gpu_draft_length,
+        )
 
     def _vision(self) -> tuple[str, ...]:
         """The cortex tier's vision tail: the projector, and the budget it is read at."""

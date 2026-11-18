@@ -156,7 +156,8 @@ task record.
     and a deployment that wants another GPU subagent raises the server count, not the slot count.
     The Qwen model cards say multi-token prediction supports one slot only
     ([ADR-0077](ADR-0077-model-card-settings.md) decision 5), so a server per subagent keeps a
-    drafter in every case. A crash or a restart of one server stops one subagent. And each of two
+    drafter in every case, and each server starts with the one beside its file (decision 7 there).
+    A crash or a restart of one server stops one subagent. And each of two
     busy slots wrote at about 0.68 of the rate of one slot alone. The cost is memory: a second
     server holds the whole footprint again, about 3,400 MiB for gemma-4-E4B with its drafter at an
     8K context, where a second slot adds only its context

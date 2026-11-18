@@ -43,6 +43,11 @@ def build_model_host(config: ModelHostConfig) -> Starlette:
         "model host configured",
         extra={"models": list(supervisor.models), "boot_model": config.cortex_model},
     )
+    if left_out := config.undrafted():
+        _logger.warning(
+            "starting the GPU subagent servers without their drafter",
+            extra={"drafter": left_out, "slots": config.subagent_gpu_parallel},
+        )
     return build_app(
         supervisor,
         boot_model=config.cortex_model,

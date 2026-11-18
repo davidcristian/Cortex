@@ -80,13 +80,44 @@ The cards were read on 2026-11-16, when the models mount moved to the files
    | `min_p` on every Qwen entry | 0 | 0.05, the engine's default | open, R-1240 |
    | Presence penalty on Qwen3.5 and Qwen3.6 | 1.5 with thinking on, 1.5 to 2.0 with it off | none | open, R-1240 |
    | Flash attention | on, and off for gemma-4-E4B | unset, the engine's `auto` | open, R-1240 |
-   | Draft length on the deep tier's drafter | 4 | unset, the engine's 3 | open, [R-1239](../refinements/tasks/1239-no-tier-but-the-deep-one-can-name-a-drafter.md) |
-   | Drafter for the cortex and the subagent gemma entries | each card starts its model with one | no setting names one | open, R-1239 |
+   | Draft length of the gemma entries | 4 | 3 on every tier | kept: decision 7 |
+   | Drafter file of the gemma entries | the `Q4_0` file | the `Q8_0` file | kept: the mount holds the `Q8_0` file and every row was drawn with it |
    | Drafter inside a Qwen file | `--spec-type draft-mtp` with no drafter file | the flag is passed only with a file | open, [R-739](../refinements/tasks/739-the-deep-tier-cannot-name-a-drafter-built-into-its-own-model.md) |
    | `reasoning_effort` and `preserve_thinking` on Qwen3.8 | settings the template reads | neither is sent | open, [R-738](../refinements/tasks/738-the-deep-tier-cannot-set-a-templates-reasoning-effort-or-preserve-flag.md) |
    | Embedder prefix | on every string | none | open, [R-1241](../refinements/tasks/1241-the-embedder-is-sent-no-task-prefix.md) |
    | Image token budget | one of the five listed | 1024 | kept: chosen on this machine's readings ([ADR-0029](ADR-0029-vision-screen-capture.md)) |
    | Context of a Qwen3.5 or Qwen3.6 tier | at least 128K | 16384 on the cortex and deep tiers, 8192 on a subagent server | kept: the VRAM budget of ADR-0004 decision 11 |
+
+7. **The cortex and each GPU subagent server start with the drafter beside their file, at the
+   draft length read fastest on this card.** `drafters.py` in the model manager lists the drafter
+   the mount holds beside a lineup file: `mtp-gemma-4-12B-it-Q8_0.gguf` for the cortex pick and
+   `mtp-gemma-4-E4B-it-Q8_0.gguf` for the subagent pick. `CORTEX_MODEL_FILE_CORTEX_DRAFT` and
+   `CORTEX_MODEL_FILE_SUBAGENT_GPU_DRAFT` name another. Unset, a tier takes the drafter listed for
+   its file, and a file with no entry gets none. Empty, the tier starts without one. The default
+   follows the file and is not a compose default, so a deployment that names another model does
+   not start it with a gemma drafter. The deep tier's drafter stays a named file only
+   ([ADR-0004](ADR-0004-model-lineup.md) decision 14).
+
+   The draft length is a setting for each tier, `CORTEX_DRAFT_LENGTH`,
+   `CORTEX_DRAFT_LENGTH_SUBAGENT_GPU` and `CORTEX_DRAFT_LENGTH_BRAIN`, each 3, written as
+   `--spec-draft-n-max` after the drafter and its type. At the cortex's 16K context a length of 3
+   wrote at 1.76 times the no-draft rate, against 1.73 at 2 and 1.61 at 4, the length the gemma
+   cards recommend. At the subagent's 8K it wrote at 1.60 times, and 4 to 6 were slower
+   ([readings](../readings/tier-drafters.md)). The deep tier's 3 is the engine's own default,
+   which its rows were drawn at.
+
+   A GPU subagent server of more than one slot is given a drafter only when its file is listed.
+   Every listed file is a gemma file, whose card names no slot limit, and the subagent pick was
+   read drafting on two slots. For any other file the model host starts the servers without the
+   drafter and logs a warning at boot, since the Qwen cards say multi-token prediction supports
+   one slot (decision 5). Leaving the drafter out costs rate only, where refusing the
+   configuration would stop a slot shape that ran before the setting existed.
+
+   A Qwen entry has no listed drafter: its layer is in the model file, which no setting drafts
+   with ([R-739](../refinements/tasks/739-the-deep-tier-cannot-name-a-drafter-built-into-its-own-model.md)),
+   and Qwen3.5-2B and Qwen3.5-0.8B wrote slower with drafting at every context drawn. The cortex
+   drafts with its projector loaded, where a turn with a picture answered and most drafted tokens
+   were accepted.
 
 ## Consequences
 
@@ -99,6 +130,10 @@ The cards were read on 2026-11-16, when the models mount moved to the files
   they read on the day its Context names.
 - A header is read without loading the model, so what a file sets is checked before a draw, and
   `/props` on the loaded file confirms it.
+- A drafter is memory on the card: about 515 MiB on the cortex at 16K and 112 MiB on a subagent
+  server at 8K.
+- A change of a tier's default file is also a change of its drafter: the new file needs an entry
+  in `drafters.py`, or the tier stops drafting.
 
 ## Alternatives rejected
 
@@ -106,6 +141,9 @@ The cards were read on 2026-11-16, when the models mount moved to the files
   which the gemma cards do not name, and for the Qwen3.5 entries no row exists at the card's values.
 - **Keeping the card values only in backlog tasks**: a task closes and is no longer read, and the
   values are the reference for every later pick.
+- **A compose default for a drafter file**: `${VAR:-default}` cannot be turned off by an empty
+  value, and it would pass a gemma drafter to whatever model a deployment names.
+- **Refusing a drafter on a server of several slots**: see decision 7.
 - **A readings record for the card values**: a readings record holds a measurement taken here with
   its method. A card is a recommendation, and the decision is how far the tiers follow it.
 
@@ -118,4 +156,4 @@ The cards were read on 2026-11-16, when the models mount moved to the files
 - Readings: [deep candidates](../readings/deep-candidates.md),
   [pick sampler](../readings/injection-over-pixels-pick-sampler.md),
   [cortex alternate](../readings/injection-over-pixels-alt.md),
-  [thinking switch](../readings/thinking-switch.md).
+  [thinking switch](../readings/thinking-switch.md), [tier drafters](../readings/tier-drafters.md).

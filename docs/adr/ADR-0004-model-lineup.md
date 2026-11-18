@@ -168,9 +168,9 @@ lineup](../readings/model-lineup.md), [deep candidates](../readings/deep-candida
 14. **The deep pick takes its multi-token-prediction drafter from one setting, recommended with the
     pick.** `CORTEX_MODEL_FILE_BRAIN_DRAFT` names the drafter under the models mount
     (`unsloth/gemma-4-31B-it-qat-GGUF/mtp-gemma-4-31B-it-Q8_0.gguf` for the pick). A named file appends
-    `--model-draft PATH --spec-type draft-mtp` to the deep tier's argv after its usual end, and
-    `drafter_flags` in `tiers.py` returns the four items or none, because the path without the type
-    loads the drafter and drafts nothing. The pair is passed through the tier's `extra`, since the
+    `--model-draft PATH --spec-type draft-mtp --spec-draft-n-max 3` to the deep tier's argv, and
+    `drafter_flags` in `tiers.py` returns the six items or none, because the path without the type
+    loads the drafter and drafts nothing. They are passed through the tier's `extra`, since the
     model host's argv builder has exactly one splat and `scripts/hostedtiers.py` reads it that way.
     Measured as its `F16` build, at matched power limits the drafter decodes 1.34 times the plain
     rate on a tool-call turn and on answer text, and 1.86 to 1.89 times on a reasoning trace; it
@@ -181,9 +181,9 @@ lineup](../readings/model-lineup.md), [deep candidates](../readings/deep-candida
     The model-swap runbook and the gpu override name it as part of the pick's configuration, with
     the settings that move with it: `CORTEX_SWAP_BRAIN_VRAM_MIB` raised by the drafter's cost, the
     GPU subagent tier listed in `CORTEX_SWAP_EVICT_MODELS`, `CORTEX_SWAP_CORESIDENT` left off, and
-    the decode minimum measured again with the drafter drafting. Only the deep tier reads the
-    setting, so the drafters the mount holds for the cortex and the subagent entries serve no tier
-    ([R-1239](../refinements/tasks/1239-no-tier-but-the-deep-one-can-name-a-drafter.md)). Qwen3.8-27B has a
+    the decode minimum measured again with the drafter drafting. The cortex and the GPU subagent
+    tier have drafter settings of their own, which default to the drafter beside a lineup file
+    ([ADR-0077](ADR-0077-model-card-settings.md) decision 7). Qwen3.8-27B has a
     multi-token-prediction layer in its own file, which the engine drafts with on
     `--spec-type draft-mtp` alone, at 1.40 to 1.43 times the plain rate on reasoning and tool-call
     turns and 1.16 on answer text, for about 950 MiB; the setting names a separate file, so a

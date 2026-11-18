@@ -86,7 +86,7 @@ context, 17,678 MiB with two servers and a 160K cortex context. The larger footp
 was paid from the cortex's context. Method: the baseline driver, raw rows in
 `measurements/model-baseline-2026-11-16/bench/slots.jsonl` and `bench/together.jsonl`.
 
-**2026-11-18**, the same model with no drafter, since the GPU-placed tier names none, on build
+**2026-11-18**, the same model started with no drafter, on build
 b12375. The model host started each shape from the compose settings, and one batch of two spawns
 went through the brain's own subagent wiring with room in the VRAM budget for both. The idle
 baseline was 2,359 to 2,374 MiB, read before each load and after each teardown.
@@ -103,7 +103,8 @@ both were busy in 115 of 117 samples and neither had more than one slot busy, so
 leased to different servers. With two slots the one server had both busy. Method: `shape.sh` and
 `drive.py` in `~/.cache/cortex-run/2026-11-18/`, compose project `cortexn24`, logs in `logs/` there.
 
-**2026-11-18**, the shipped defaults with only the subagent file named, on build b12375: the
+**2026-11-18**, the shipped defaults with only the subagent file named and no server drafting, on
+build b12375 (the same stack with its drafters is in [tier drafters](tier-drafters.md)): the
 gemma-4-12B cortex at 16K, text only, beside two gemma-4-E4B servers of one 8K slot. The host
 listed `cortex`, `subagent-gpu` and `subagent-gpu-2` and answered 404 for `subagent-gpu-3`. On the
 brain's default budget (16 GB cap, 8.6 reservation, 3.5 ask) `placed_at_once` put a spawn on each

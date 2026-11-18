@@ -12,13 +12,19 @@ from cortex_model_manager import (
 )
 from cortex_model_manager.config import DEFAULT_CONTAINER_STOP_PERIOD_S
 from cortex_model_manager.supervisor import DEFAULT_STOP_GRACE_S
-from cortex_model_manager.tiers import drafter_flags
 
 _BIN = "/app/llama-server"
 _BIND_ALL = "0.0.0.0"  # noqa: S104 - asserted as the flag value, not bound by this process
 _CORTEX_GGUF = "unsloth/gemma-4-12B-it-qat-GGUF/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf"
 _DRAFTER_GGUF = "unsloth/gemma-4-31B-it-qat-GGUF/mtp-gemma-4-31B-it-Q8_0.gguf"
 _DRAFT_FLAG = "--model-draft"
+_CORTEX_DRAFT = "CORTEX_MODEL_FILE_CORTEX_DRAFT"
+
+
+@pytest.fixture(autouse=True)
+def _cortex_without_its_drafter(monkeypatch: pytest.MonkeyPatch) -> None:  # pyright: ignore[reportUnusedFunction]
+    """The cortex tails these tests read end before the drafter test_tier_drafters.py covers."""
+    monkeypatch.setenv(_CORTEX_DRAFT, "")
 
 
 def _tier(**overrides: object) -> TierArgs:
@@ -412,13 +418,15 @@ def test_naming_a_drafter_gives_the_deep_tier_the_measured_pair(
 ) -> None:
     _draft_env(monkeypatch, drafter=_DRAFTER_GGUF)
     roster = ModelHostConfig().roster()
-    assert roster["brain"].argv[-6:] == (
+    assert roster["brain"].argv[-8:] == (
         "--cache-ram",
         "0",
         _DRAFT_FLAG,
         f"/models/{_DRAFTER_GGUF}",
         "--spec-type",
         "draft-mtp",
+        "--spec-draft-n-max",
+        "3",
     )
     assert _DRAFT_FLAG not in roster["cortex"].argv
     assert _DRAFT_FLAG not in roster["subagent-gpu"].argv
@@ -440,13 +448,15 @@ def test_the_drafter_follows_a_budgeted_deep_tier_and_is_resolved_under_the_moun
     _draft_env(monkeypatch, drafter="d.gguf")
     monkeypatch.setenv("CORTEX_MODELHOST_MODELS_ROOT", "/srv/models/")
     monkeypatch.setenv("CORTEX_REASONING_BUDGET_BRAIN", "1024")
-    assert ModelHostConfig().roster()["brain"].argv[-6:] == (
+    assert ModelHostConfig().roster()["brain"].argv[-8:] == (
         "--reasoning-budget",
         "1024",
         _DRAFT_FLAG,
         "/srv/models/d.gguf",
         "--spec-type",
         "draft-mtp",
+        "--spec-draft-n-max",
+        "3",
     )
 
 
@@ -461,14 +471,4 @@ def test_no_argv_names_a_drafter_without_its_speculative_type(
         types = [index for index, item in enumerate(argv) if item == "--spec-type"]
         assert types == [index + 2 for index in drafts]
         for index in drafts:
-            assert argv[index + 2 : index + 4] == ("--spec-type", "draft-mtp")
-
-
-def test_the_drafter_pair_is_one_value_or_nothing() -> None:
-    assert drafter_flags("") == ()
-    assert drafter_flags("/models/d.gguf") == (
-        _DRAFT_FLAG,
-        "/models/d.gguf",
-        "--spec-type",
-        "draft-mtp",
-    )
+            assert argv[index + 2 : index + 5] == ("--spec-type", "draft-mtp", "--spec-draft-n-max")

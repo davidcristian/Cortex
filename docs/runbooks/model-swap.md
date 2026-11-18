@@ -155,7 +155,7 @@ at `http://model-host:8081`. A tier with no artifact is not in the roster, so a 
 **Name the deep model's drafter beside it, and four settings move with it.** Naming
 `CORTEX_MODEL_FILE_BRAIN_DRAFT` (the drafter is
 `unsloth/gemma-4-31B-it-qat-GGUF/mtp-gemma-4-31B-it-Q8_0.gguf`) starts the deep model with its
-multi-token-prediction drafter, whose `F16` build on this card decoded one reasoning prompt at 1.86
+multi-token-prediction drafter at the draft length `CORTEX_DRAFT_LENGTH_BRAIN` sets (3), whose `F16` build on this card decoded one reasoning prompt at 1.86
 to 1.89 times the plain rate and a tool-call and an answer-text turn at 1.34 times it. It cost 997
 to 1020 MiB more on the card and about a tenth more load time, which a handoff recovers within its
 first 1500 decoded tokens. The setting stays empty by default, because the drafter serves only

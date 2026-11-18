@@ -132,15 +132,15 @@ compares the two, so retune both or neither. `RosterError` is a boot-time miscon
   conversation costs 1349 MiB and every return was restored at 1.9 s a request; `0` on the deep
   tier, where a conversation costs 3526 MiB and the engine's own ceiling holds two of three; `0` on
   the GPU-placed subagent tier, whose subtasks are one-shot.
-- `CORTEX_MODEL_FILE_BRAIN_DRAFT` names the deep tier's multi-token-prediction drafter (ADR-0004
-  decision 14). Empty, the default, emits nothing. A named file appends
-  `--model-draft PATH --spec-type draft-mtp`, the four items built together by `drafter_flags` in
-  `tiers.py`, because the path alone was measured to load the drafter and then draft nothing. No
-  setting drafts with a layer inside the deep model's own file, where Qwen3.8-27B keeps its own. It
-  reaches the argv through the tier's `extra`, as the projector does, rather than through a field of
-  its own on `TierArgs`: `scripts/hostedtiers.py` reads `llama_server_argv` as one fixed run of
-  items with exactly one splat. The drafter costs 997 to 1020 MiB more on the card, which is what
-  `CORTEX_SWAP_BRAIN_VRAM_MIB` grows by and why a deployment naming it evicts the GPU subagent tier.
+- A tier's multi-token-prediction drafter is two settings, its file and its draft length
+  ([ADR-0077](../adr/ADR-0077-model-card-settings.md) decision 7, ADR-0004 decision 14).
+  `drafter_flags` in `tiers.py` builds `--model-draft PATH --spec-type draft-mtp --spec-draft-n-max N`
+  as one run through the tier's `extra`, because the path alone loads the drafter and drafts nothing.
+  Unset, the cortex and each GPU subagent server take the drafter `drafters.py` lists beside their
+  file, and none when the setting is empty; the deep tier drafts only with a named file, which costs
+  997 to 1020 MiB and evicts the GPU subagent tier. A subagent server of several slots drafts only on
+  a listed file, and `undrafted()` names the drafter left out for the boot warning. `with_flags`
+  adds the subagent's drafter flags after the `extra` that `scripts/hostedtiers.py` reads.
 
 ## Invariants
 

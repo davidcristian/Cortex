@@ -63,6 +63,11 @@ services:
       # it answer. -1, the default, emits no flag and leaves the trace unbounded; 0 stops thinking
       # at once; a positive number allows that many. Measured: docs/runbooks/llamacpp-gpu.md.
       CORTEX_REASONING_BUDGET: "${CORTEX_REASONING_BUDGET:--1}"
+      # The cortex tier's multi-token-prediction drafter, a path under the models mount, and how
+      # many tokens it predicts at a time. Unset, the tier takes the drafter the mount holds
+      # beside the cortex file, which the default file has; set empty, it starts without one.
+      CORTEX_MODEL_FILE_CORTEX_DRAFT:
+      CORTEX_DRAFT_LENGTH:
       # The tier ids, which must match the brain's own: the endpoint map is static on both sides.
       CORTEX_MODEL_CORTEX: "${CORTEX_MODEL_CORTEX:-cortex}"
       CORTEX_MODEL_BRAIN: "${CORTEX_MODEL_BRAIN:-brain}"
@@ -75,10 +80,11 @@ services:
       # The deep tier's own thinking budget, separate from the cortex's because that tier was
       # picked for reaching its answer inside the trace.
       CORTEX_REASONING_BUDGET_BRAIN: "${CORTEX_REASONING_BUDGET_BRAIN:--1}"
-      # The deep tier's multi-token-prediction drafter, a path under the models mount. Unset
-      # starts the tier without one; naming it adds llama.cpp's --model-draft and --spec-type
-      # draft-mtp together. What else a deployment must then change: docs/runbooks/model-swap.md.
+      # The deep tier's multi-token-prediction drafter, a path under the models mount, and its
+      # draft length. Unset starts the tier without one; naming it adds llama.cpp's --model-draft
+      # and --spec-type draft-mtp together. What else then changes: docs/runbooks/model-swap.md.
       CORTEX_MODEL_FILE_BRAIN_DRAFT:
+      CORTEX_DRAFT_LENGTH_BRAIN:
       CORTEX_MODEL_FILE_SUBAGENT_GPU: "${CORTEX_MODEL_FILE_SUBAGENT_GPU:-}"
       CORTEX_SUBAGENT_CTX_SIZE: "${CORTEX_SUBAGENT_CTX_SIZE:-8192}"
       # How many servers of that file the tier starts, and the slots of each. A server per
@@ -86,6 +92,11 @@ services:
       # brain reaches a server only once CORTEX_SUBAGENTS_GPU_ENDPOINT lists its address.
       CORTEX_SUBAGENTS_GPU_SERVERS: "${CORTEX_SUBAGENTS_GPU_SERVERS:-2}"
       CORTEX_SUBAGENTS_GPU_PARALLEL: "${CORTEX_SUBAGENTS_GPU_PARALLEL:-1}"
+      # The drafter every GPU subagent server starts with, read as the cortex's is: unset takes
+      # the one beside the subagent file, empty starts the servers without one. A server of
+      # several slots drafts only on a file brain/packages/model_manager lists in drafters.py.
+      CORTEX_MODEL_FILE_SUBAGENT_GPU_DRAFT:
+      CORTEX_DRAFT_LENGTH_SUBAGENT_GPU:
       # How long a child gets on SIGTERM before it is killed, and how long a killed one gets to be
       # reaped. Keep the sum of these two and the probe timeout below the brain's
       # CORTEX_MODELHOST_TIMEOUT_S, or a slow but correct eviction reads as a dead sidecar.

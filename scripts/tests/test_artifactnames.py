@@ -240,6 +240,8 @@ def test_the_committed_sidecar_names_every_tiers_artifact_and_not_only_the_subag
         "subagent_gpu_file": "CORTEX_MODEL_FILE_SUBAGENT_GPU",
         "brain_draft_file": "CORTEX_MODEL_FILE_BRAIN_DRAFT",
         "cortex_mmproj_file": "CORTEX_MODEL_FILE_CORTEX_MMPROJ",
+        "cortex_draft_file": "CORTEX_MODEL_FILE_CORTEX_DRAFT",
+        "subagent_gpu_draft_file": "CORTEX_MODEL_FILE_SUBAGENT_GPU_DRAFT",
     }
 
 
@@ -268,4 +270,6 @@ def test_the_committed_tree_names_the_artifacts_it_ships_in_both_languages() -> 
         "CORTEX_MODEL_FILE_BRAIN",
         "CORTEX_MODEL_FILE_BRAIN_DRAFT",
         "CORTEX_MODEL_FILE_SUBAGENT_GPU",
+        "CORTEX_MODEL_FILE_CORTEX_DRAFT",
+        "CORTEX_MODEL_FILE_SUBAGENT_GPU_DRAFT",
     }
