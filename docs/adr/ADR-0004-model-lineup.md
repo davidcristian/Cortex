@@ -133,7 +133,7 @@ lineup](../readings/model-lineup.md), [deep candidates](../readings/deep-candida
     swaps in for a handoff ([ADR-0030](ADR-0030-brain-handoff.md)) and needs no hybrid layer split
     on this card, which stays the option for a smaller one. The AI stack's GPU budget is a
     deliberate soft cap of 16 GB (`CORTEX_VRAM_SOFT_CAP_GB`), the owner's policy about the card
-    rather than a measurement; the cortex's measured footprint, `CORTEX_VRAM_CORTEX_GB` at 8.6, is
+    rather than a measurement; the cortex's measured footprint, `CORTEX_VRAM_CORTEX_GB` at 8.9, is
     ADR-0012's. Context is set explicitly, never left to llama-server's default of the model's
     maximum across four slots: the cortex runs 16384 tokens in one slot (`CORTEX_CTX_SIZE`), the
     deep tier the same 16384 in one (`CORTEX_CTX_SIZE_BRAIN`, 664 to 667 MiB more than 8192 on the

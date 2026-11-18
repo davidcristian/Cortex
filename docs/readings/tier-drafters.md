@@ -73,7 +73,7 @@ logged `loading draft model` once for each of the three with the drafter of its 
 | --- | --- |
 | one text request to the cortex | 180 of 357 drafted tokens accepted |
 | one text request to each subagent server | 58 of 309 drafted tokens accepted on each |
-| two spawns through the brain's own wiring on its default budget, while the cortex wrote 500 tokens | `placed_at_once` 2, both subagent servers busy in 75 of 158 samples, the cortex busy in each of those, no server with more than one slot busy |
+| two spawns through the brain's own wiring on a 16 GB cap, an 8.6 GiB reservation and a 3.5 GiB request, while the cortex wrote 500 tokens | `placed_at_once` 2, both subagent servers busy in 75 of 158 samples, the cortex busy in each of those, no server with more than one slot busy |
 | the engine's log | a `draft acceptance` line for each request, for example `draft acceptance = 0.50420 (  180 accepted /   357 generated)` |
 
 Memory above the floor read just before each load:
@@ -86,7 +86,9 @@ Memory above the floor read just before each load:
 | one subagent server, `CORTEX_MODEL_FILE_SUBAGENT_GPU_DRAFT` set empty | 3,068 MiB | 3,074 MiB |
 
 The three servers at their peak are 1,938 MiB under the 16,384 MiB of the 16 GB soft cap, when the
-card read 16,874 MiB of its 24,463 in use. One subagent server with its drafter is 398 MiB under
+card read 16,874 MiB of its 24,463 in use. The cortex with its projector and its drafter peaks 62 MiB
+over the 8,806 MiB of an 8.6 GiB reservation, so the reservation is 8.9 GiB: 9,114 MiB, 246 MiB over
+that peak. With it the placer still places two 3.5 GiB requests under the cap, a charge of 15.9 GiB. One subagent server with its drafter is 398 MiB under
 the 3,584 MiB of its 3.5 GiB request, and the drafter is 112 MiB of it. The one-server rows were
 read from a floor taken after the cortex, which the host starts at boot, had stopped; the rows of
 the same shape in [subagent budget](subagent-budget.md#two-slots-against-two-servers) read about

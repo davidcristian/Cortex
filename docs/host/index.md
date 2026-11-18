@@ -385,7 +385,7 @@ Item 5 runs on none of this: it starts its own container, so it wants the stack 
    against. `nvidia-smi` read 7916 MiB of 8188 at this moment, which is the resident cortex.
 
 4. **Stop the cortex**, which is what frees the card for the deep model. On 24 GB this is not
-   optional either: the cortex costs 8.4 to 8.6 GiB measured (reserved at 8.6 since 2026-08-07, 11.3
+   optional either: the cortex costs 8.4 to 8.7 GiB measured (reserved at 8.9 since 2026-11-18, 8.6
    before that) and the candidates are 15 to 18 GB.
 
    ```

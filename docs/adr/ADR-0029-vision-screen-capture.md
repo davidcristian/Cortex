@@ -161,7 +161,7 @@ characters of a non-2xx body, so a server without a projector reports its own hi
 
 ### 14. No placer or model-manager change
 
-The placers and scheduler are unchanged. The cortex reservation (8.6 GiB,
+The placers and scheduler are unchanged. The cortex reservation (8.9 GiB,
 [ADR-0012](ADR-0012-resource-governance.md)) is measured with the projector loaded, and decision
 17's image budget costs about 4% of it, so it fits.
 

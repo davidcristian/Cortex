@@ -131,7 +131,9 @@ The cards were read on 2026-11-16, when the models mount moved to the files
 - A header is read without loading the model, so what a file sets is checked before a draw, and
   `/props` on the loaded file confirms it.
 - A drafter is memory on the card: about 515 MiB on the cortex at 16K and 112 MiB on a subagent
-  server at 8K.
+  server at 8K. The cortex reservation of [ADR-0012](ADR-0012-resource-governance.md) decision 14
+  is 8.9 GiB, which covers the cortex with its projector and its drafter, and the subagent request
+  of 3.5 GiB covers a server with its drafter.
 - A change of a tier's default file is also a change of its drafter: the new file needs an entry
   in `drafters.py`, or the tier stops drafting.
 

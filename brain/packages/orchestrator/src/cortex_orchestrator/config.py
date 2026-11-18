@@ -53,10 +53,10 @@ class BrainRuntimeConfig(BaseSettings):
     cortex_model: str = Field(default=DEFAULT_CORTEX_MODEL, validation_alias="CORTEX_MODEL_CORTEX")
     vram_soft_cap_gb: float = Field(default=16.0, gt=0)
     # The resident cortex's measured footprint, and the subagent GPU headroom is the soft cap
-    # minus this. At the shipped tier shape it peaks at 8524 to 8573 MiB above the idle floor,
-    # so 8.6 GiB leaves 233 MiB over the peak.
+    # minus this. With its projector and its drafter the default file peaks at 8868 MiB above
+    # the idle floor, so 8.9 GiB leaves 246 MiB over the peak.
     cortex_reservation_gb: float = Field(
-        default=8.6, ge=0, validation_alias="CORTEX_VRAM_CORTEX_GB"
+        default=8.9, ge=0, validation_alias="CORTEX_VRAM_CORTEX_GB"
     )
     # At most 6,360 gemma-4 tokens of the densest text counted, so beside the preamble and the full
     # tool stack about 5,150 of the cortex's 16,384 are left for recall, the recap and the reply.

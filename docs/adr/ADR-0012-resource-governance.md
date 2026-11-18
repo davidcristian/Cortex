@@ -129,12 +129,12 @@ The one hard rule, 100% coverage without a GPU, and ports before adapters all ho
 
 14. **The configured budget is measured, and each number is written once.** The soft cap is 16 GB,
     a user policy value that leaves the rest of the card to the desktop. It is the smallest round
-    value that places two subagent requests beside the cortex, which need more than 15.6. The
-    cortex reservation `CORTEX_VRAM_CORTEX_GB` is **8.6 GiB** and the subagent request
+    value that places two subagent requests beside the cortex, which need 15.9. The
+    cortex reservation `CORTEX_VRAM_CORTEX_GB` is **8.9 GiB** and the subagent request
     `CORTEX_SUBAGENTS_VRAM_GB` is **3.5 GiB**, each a tier's own cost above the idle desktop
     baseline (the budget's unit; total used would count the desktop twice) plus a margin wider than
-    the spread between samplers ([readings](../readings/subagent-budget.md)). The headroom is
-    7.4 GiB, so two spawns are GPU-placed and the third overflows, which is what the tier's two
+    the spread between samplers ([readings](../readings/subagent-budget.md), and for the cortex with its drafter [tier drafters](../readings/tier-drafters.md)). The headroom is
+    7.1 GiB, so two spawns are GPU-placed and the third overflows, which is what the tier's two
     servers of one slot serve ([ADR-0018](ADR-0018-heterogeneous-subagents.md) decision 12).
 
     The cap fits the 24 GB card. With the desktop's apps counted at 4,750 MiB and 1,536 MiB kept

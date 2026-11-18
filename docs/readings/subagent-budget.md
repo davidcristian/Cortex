@@ -24,8 +24,9 @@ model-host sidecar and sampled every 0.2 to 0.3 s. The two baseline readings agr
 | idle after the images | 8463 to 8557 MiB |
 
 Text of any length is paid for at load; the first image adds 70 to 90 MiB that stays. The peak, 8573
-MiB, is 233 MiB under the 8.6 GiB reservation, a margin wider than the in-phase sampler spread (21
-to 70 MiB) plus the gap between the two baseline readings. Method: start the tier through the
+MiB, is from before the tier had a drafter. The reservation is 8.9 GiB, 246 MiB over the 8,868 MiB
+peak with the drafter ([tier drafters](tier-drafters.md)), a margin wider than the in-phase sampler
+spread (21 to 70 MiB) plus the gap between the two baseline readings. Method: start the tier through the
 control API, drive each phase, sample `nvidia-smi` throughout
 ([llamacpp-gpu](../runbooks/llamacpp-gpu.md)).
 
@@ -107,7 +108,7 @@ leased to different servers. With two slots the one server had both busy. Method
 build b12375 (the same stack with its drafters is in [tier drafters](tier-drafters.md)): the
 gemma-4-12B cortex at 16K, text only, beside two gemma-4-E4B servers of one 8K slot. The host
 listed `cortex`, `subagent-gpu` and `subagent-gpu-2` and answered 404 for `subagent-gpu-3`. On the
-brain's default budget (16 GB cap, 8.6 reservation, 3.5 ask) `placed_at_once` put a spawn on each
+budget of that day (16 GB cap, 8.6 reservation, 3.5 ask) `placed_at_once` put a spawn on each
 of the 2 GPU slots. One batch of two spawns ran while the cortex wrote 500 tokens: both subagent
 servers were busy in 111 of 311 samples, the cortex was busy in each of those, and no server had
 more than one slot busy. One of the two spawns ended at the driver's 400-token limit. Above an idle

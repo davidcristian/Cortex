@@ -163,8 +163,8 @@ task record.
     8K context, where a second slot adds only its context
     ([readings](../readings/subagent-budget.md#two-slots-against-two-servers)). The server count
     defaults to 2 because the shipped budget of ADR-0012 decision 14 places two spawns on the GPU
-    at a time: the 16 GB soft cap less the 8.6 GiB cortex leaves 7.4 GiB, which is two 3.5 GiB
-    asks. A deployment that lowers the cap under 15.6 sets the server count to 1, or the second
+    at a time: the 16 GB soft cap less the 8.9 GiB cortex leaves 7.1 GiB, which holds two 3.5 GiB
+    asks. A deployment that lowers the cap under 15.9 sets the server count to 1, or the second
     server holds memory no spawn is placed on.
     The CPU servers keep one server of two slots: a CPU server of two threads wrote at 0.59 of
     the rate of one of four, under the 0.69 to 0.75 of each of two busy slots

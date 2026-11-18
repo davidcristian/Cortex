@@ -144,8 +144,8 @@ over-reporting is the direction a privacy indicator should fail in.
 
 **What the projector costs.** The cortex VRAM reservation has always included the projector, so
 turning it on spends budget the placer was already charging and subagent headroom is unchanged. It
-is 8.6 GiB since 2026-08-07, measured with the projector loaded at the shipped 16K shape, where
-the tier peaks at 8573 MiB above the idle floor. An image costs 266 prompt tokens at any size from
+is 8.9 GiB since 2026-11-18, measured with the projector and the drafter loaded at the shipped 16K
+shape, where the tier peaks at 8868 MiB above the idle floor. An image costs 266 prompt tokens at any size from
 720p up when the budget is left to the model, and 1010 at the shipped `CORTEX_IMAGE_MAX_TOKENS=1024`
 with the shipped 2048 px capture, for about 400 MiB more VRAM.
 

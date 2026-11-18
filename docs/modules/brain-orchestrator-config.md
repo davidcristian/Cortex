@@ -29,9 +29,9 @@ follows is the prefix, the defaults other parts depend on, and the validation.
   decision 9). A Redis URL whose authority the client cannot read, such as a password holding an
   unencoded `/`, raises `RuntimeConfigError` naming the variable and not its value, since the
   client's own error prints the password's first segment as a port; an `@` left after the
-  authority is refused too, since a numeric first segment reads as a port and is printed. `vram_soft_cap_gb: float = 16.0` and `cortex_reservation_gb: float = 8.6` are the
-  GPU budget the `SubagentPlacer` fit-tests against, re-measured 2026-08-07: the shipped tier peaks
-  at 8573 MiB above the desktop's own floor, leaving 7.4 GiB of subagent headroom (ADR-0012
+  authority is refused too, since a numeric first segment reads as a port and is printed. `vram_soft_cap_gb: float = 16.0` and `cortex_reservation_gb: float = 8.9` are the
+  GPU budget the `SubagentPlacer` fit-tests against, measured 2026-11-18: the shipped tier with its projector and drafter peaks
+  at 8868 MiB above the desktop's own floor, leaving 7.1 GiB of subagent headroom (ADR-0012
   decision 14). `history_char_budget: int = 24000` (`0` turns windowing off, ADR-0014 decision 4),
   `history_summary: bool = True` (ADR-0038 decision 20; a fold decodes 61 to 163 tokens and costs
   2.9 s to 6.2 s) and `history_recap_min_chars: int = 2000`, clamped to the budget by the builder,
