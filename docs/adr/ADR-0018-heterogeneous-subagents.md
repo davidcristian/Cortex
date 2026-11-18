@@ -71,8 +71,9 @@ task record.
 
 7. **One runner, one scheduler, one placer; per-entry backends and requests.** `_entry_profile` in
    `cortex_orchestrator/subagent_builders.py` builds one `SubagentProfile` per entry with its own
-   `LlamaCppBackend` per placement target (one `SingleResidentModelManager` each, one shared HTTP
-   client) and its own `PlacementRequest`. The `ResourceBudgetScheduler` and `VramBudgetPlacer` are
+   `LlamaCppBackend` per placement target (one `MultiServerModelManager` each, decision 12, and one
+   shared HTTP client) and its own `PlacementRequest`. The `ResourceBudgetScheduler` and
+   `VramBudgetPlacer` are
    shared, so admission and the VRAM total stay one budget whatever the mix
    ([ADR-0012](ADR-0012-resource-governance.md)). The runner loads the task first, resolves the
    entry, then admits, places and runs on that entry's resources.
@@ -84,10 +85,8 @@ task record.
    choosing includes an inline object example, because a cortex given only prose folded its pick
    into the instruction text. On timing it says subtasks on distinct models run in parallel while
    subtasks sharing one model run one after another, and the forced-default note says a batch
-   groups independent work. A roster entry holds one backend per target and each keeps its lease
-   for the whole stream, so spawns on one model overlap two ways at most (ADR-0012's consequences;
-   the reading is in [subagent-budget.md](../readings/subagent-budget.md)); the sentence
-   understates that overlap, and it stays.
+   groups independent work. Spawns on one model overlap as far as the slots of the servers its
+   entry names (decision 12), so the sentence understates that overlap, and it stays.
 
    The live uptake was measured on the deployed cortex at its production context, with
    `spawn_subagents` as the only tool: 20 turns of prose requests containing independent subtasks
@@ -131,6 +130,20 @@ task record.
     artifact would diverge from the compose `command:` with nothing comparing them. Each subagent
     server publishes on loopback, and the runbook says how to read `GET /props` against the running
     stack.
+
+12. **Each placement target of an entry names one server or several, and each lease holds one slot
+    of one server.** `CORTEX_SUBAGENTS_ENDPOINT`, `CORTEX_SUBAGENTS_GPU_ENDPOINT` and a roster
+    entry's `endpoint` and `gpu_endpoint` each hold one address or several separated by commas
+    (`endpoint_list` in `config_subagents.py`), and `CORTEX_SUBAGENTS_PARALLEL` is the slot count
+    of every one of them. A target's backend leases from a `MultiServerModelManager`
+    (`cortex_core/model.py`), a pure `ModelManager` over `ModelServer(endpoint, slots)` values:
+    `acquire` waits until a slot is free, leases the server with the most free slots, the first
+    listed on a tie, and holds the slot until the stream ends. Two subagents of one model therefore
+    run at once as two servers of one slot or as two slots of one server, and both shapes stay
+    supported. Two targets that name the same servers share one backend, so a slot is leased once
+    whichever target the placer chose. The slot is a lease and not scheduler state because the
+    backend already holds its lease for the whole stream; the roster value and the runner are
+    unchanged, and the scheduler and the placer still decide how many spawns run and where.
 
 ## Consequences
 

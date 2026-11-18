@@ -57,8 +57,8 @@ the tier served nothing. With the GPU endpoint pointed at a closed port the run 
 placements rather than two, the CPU re-run firing. Method: the suite's two commands against one
 stack, per [subagents-cpu](../runbooks/subagents-cpu.md).
 
-Spawns sharing one backend object serialize on its lease: on the CPU server two concurrent spawns
-took 4.8 s through two backend objects and 10.0 s through one, a ratio of 2.08 (same runbook).
+Spawns that share one slot serialize on its lease: on the CPU server two concurrent spawns took
+4.8 s through two leases and 10.0 s through one, a ratio of 2.08 (same runbook).
 
 ## Two tiers generating at once
 

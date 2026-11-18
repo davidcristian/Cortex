@@ -64,8 +64,8 @@ The one hard rule, 100% coverage without a GPU, and ports before adapters all ho
    [ADR-0047](ADR-0047-delegated-run-bound-ordering.md).
 
 6. **Two backends selected by target; `InferenceBackend` and the proto are untouched.** The runner
-   holds `backends: Mapping[PlacementTarget, InferenceBackend]` over a GPU server and a CPU server,
-   each with its own model lease, and picks `backends[placement.target]`.
+   holds `backends: Mapping[PlacementTarget, InferenceBackend]` over the GPU servers and the CPU
+   servers, each with its own model leases, and picks `backends[placement.target]`.
 
 7. **The records of held resources are live state, not the durable state the hard rule governs.**
    `placed_gb`, `cpu_used` and `mem_used_gb` count what is held now, like a lock. A swap physically
@@ -178,8 +178,8 @@ The one hard rule, 100% coverage without a GPU, and ports before adapters all ho
   the hard limit for the CPU server, and nothing caps GPU utilization: a GPU-placed subagent beside
   the cortex costs each 30 to 35 percent of its decode rate while both generate
   ([readings](../readings/subagent-budget.md#two-tiers-generating-at-once)).
-- **A backend's lease serializes spawns sharing it.** One model in the list holds one backend per
-  target, so its spawns overlap two ways at most, and only across targets.
+- **A backend's lease holds one slot of one server.** A model's spawns overlap as far as the slots
+  of the servers its entry names per target ([ADR-0018](ADR-0018-heterogeneous-subagents.md) 12).
 - **Neither limit stops a subagent that keeps producing tokens**; the run deadline and the
   generation cap do ([ADR-0048](ADR-0048-generation-bounds.md)), and a stream that stops sending is
   cut by the stall timeout ([ADR-0005](ADR-0005-llamacpp-engine.md) decision 7).
@@ -199,7 +199,7 @@ The one hard rule, 100% coverage without a GPU, and ports before adapters all ho
 
 - **Placement-aware CPU charging.** `admit` runs before `place`, so charging a GPU spawn less needs
   a port change or the admit-after-place order that holds VRAM while waiting; and the discount buys
-  nothing, since a model's overlap is capped at two by its backend locks, not by the budget.
+  nothing, since a model's overlap is capped by the slots of its servers as well as the budget.
 - **A hard wall over what the scheduler never admitted**: that is a cgroup or `.wslconfig`, which
   the user ruled out, and no admission port can supply it.
 - **Failing the turn on an impossible charge** (the old behaviour), **degrading it to the CPU**

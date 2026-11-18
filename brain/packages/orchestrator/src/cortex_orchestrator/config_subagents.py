@@ -44,6 +44,11 @@ DEFAULT_SUBAGENT_CTX_SIZE = 8192
 DEFAULT_SUBAGENT_PARALLEL = 2
 
 
+def endpoint_list(value: str) -> tuple[str, ...]:
+    """The servers one endpoint setting names: one address, or several separated by commas."""
+    return tuple(part.strip() for part in value.split(",") if part.strip())
+
+
 class SubagentRosterEntry(BaseModel):
     """One alternate subagent model: a ``CORTEX_SUBAGENTS_ROSTER__<name>`` JSON value."""
 
@@ -84,7 +89,8 @@ class SubagentsConfig(BaseSettings):
 
     @model_validator(mode="after")
     def _llamacpp_needs_both_endpoints(self) -> "SubagentsConfig":
-        if self.backend == "llamacpp" and not (self.endpoint and self.gpu_endpoint):
+        named = endpoint_list(self.endpoint) and endpoint_list(self.gpu_endpoint)
+        if self.backend == "llamacpp" and not named:
             msg = (
                 "CORTEX_SUBAGENTS_ENDPOINT and CORTEX_SUBAGENTS_GPU_ENDPOINT are required when "
                 "CORTEX_SUBAGENTS_BACKEND=llamacpp"

@@ -20,7 +20,12 @@ from cortex_core.load_wait import (
     LoadWaitBackend,
     LoadWaitTurns,
 )
-from cortex_core.model import ModelLease, SingleResidentModelManager
+from cortex_core.model import (
+    ModelLease,
+    ModelServer,
+    MultiServerModelManager,
+    SingleResidentModelManager,
+)
 from cortex_core.model_host import (
     DEFAULT_HEALTH_POLL_INTERVAL_S,
     DEFAULT_SWAP_DRAIN_TIMEOUT_S,
@@ -143,6 +148,8 @@ __all__ = [
     "LoadWaitTurns",
     "ModelHostState",
     "ModelLease",
+    "ModelServer",
+    "MultiServerModelManager",
     "ResidencyPlan",
     "ResidencyReport",
     "ServingWatch",

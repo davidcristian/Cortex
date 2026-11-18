@@ -29,7 +29,10 @@ ADR-0010, ADR-0012, ADR-0017, ADR-0018, ADR-0028, ADR-0048 and ADR-0072.
 - `SubagentResources(backends, scheduler, placer, request)` bundles one roster entry's placement
   collaborators and `SubagentProfile(resources, description)` is one entry, the description being
   the trade-off text the spawn spec advertises. In a multi-entry roster the scheduler and placer
-  are the same objects in every entry, so there is one CPU budget and one VRAM ledger. A profile
+  are the same objects in every entry, so there is one CPU budget and one VRAM ledger. Each
+  target's backend leases one slot of one server per spawn from a `MultiServerModelManager`
+  ([brain-core-residency](brain-core-residency.md#the-manager)), so an entry reaches every server
+  its target names and its spawns overlap as far as their slots (ADR-0018 decision 12). A profile
   contains no measured rate and no per-entry wording, both declined because an entry names an
   endpoint and not a model artifact (ADR-0018 decisions 10 and 11, ADR-0028 decision 8).
 - `SubagentRoster(entries, default)` rejects an empty roster and a default outside it.

@@ -9,10 +9,11 @@ from cortex_core import (
     SHIPPED_ROLES,
     Clock,
     ConfirmFreeToolRegistry,
+    ModelServer,
+    MultiServerModelManager,
     PlacementRequest,
     PlacementTarget,
     ResourceBudgetScheduler,
-    SingleResidentModelManager,
     SpawnSubagentsTool,
     SubagentPlacer,
     SubagentProfile,
@@ -25,9 +26,21 @@ from cortex_core import (
 )
 from cortex_inference import LlamaCppBackend
 from cortex_orchestrator.builders import build_generation_client, noop_aclose
-from cortex_orchestrator.config_subagents import SubagentRosterEntry, SubagentsConfig
+from cortex_orchestrator.config_subagents import (
+    SubagentRosterEntry,
+    SubagentsConfig,
+    endpoint_list,
+)
 from cortex_orchestrator.dispatch_builders import DEFAULT_DISPATCH_SETUP, DispatchSetup
 from cortex_session import RedisTaskStore
+
+
+def _backend(
+    name: str, endpoints: tuple[str, ...], slots: int, client: httpx.AsyncClient
+) -> LlamaCppBackend:
+    """One backend over every server a placement target names, each with ``slots`` slots."""
+    servers = [ModelServer(endpoint, slots) for endpoint in endpoints]
+    return LlamaCppBackend(MultiServerModelManager(name, servers), client)
 
 
 def _entry_profile(
@@ -36,18 +49,16 @@ def _entry_profile(
     client: httpx.AsyncClient,
     scheduler: SubagentScheduler,
     placer: SubagentPlacer,
+    slots: int,
 ) -> SubagentProfile:
-    """One roster entry's runtime profile: its own backend pair + ask, the shared budgets."""
+    """One roster entry's runtime profile: its own servers and ask, the shared budgets."""
+    on_cpu, on_gpu = endpoint_list(entry.endpoint), endpoint_list(entry.gpu_endpoint)
+    cpu = _backend(name, on_cpu, slots, client)
+    # Two targets naming the same servers share one backend, so a slot is leased once.
+    gpu = cpu if on_gpu == on_cpu else _backend(name, on_gpu, slots, client)
     return SubagentProfile(
         resources=SubagentResources(
-            backends={
-                PlacementTarget.GPU: LlamaCppBackend(
-                    SingleResidentModelManager(name, entry.gpu_endpoint), client
-                ),
-                PlacementTarget.CPU: LlamaCppBackend(
-                    SingleResidentModelManager(name, entry.endpoint), client
-                ),
-            },
+            backends={PlacementTarget.GPU: gpu, PlacementTarget.CPU: cpu},
             scheduler=scheduler,
             placer=placer,
             request=PlacementRequest(name, entry.vram_gb, entry.cpus, entry.memory_gb),
@@ -74,7 +85,7 @@ async def build_subagents(
     )
     roster = SubagentRoster(
         entries={
-            name: _entry_profile(name, entry, client, scheduler, placer)
+            name: _entry_profile(name, entry, client, scheduler, placer, config.parallel)
             for name, entry in config.named_roster.items()
         },
         default=config.model,

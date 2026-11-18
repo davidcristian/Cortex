@@ -176,7 +176,7 @@ raises `ValueError` on a slot no tool filled, one no engine filled, or a tail co
 
 `SingleResidentModelManager(resident_model, endpoint)` is the `ModelManager` for a deployment that
 never escalates: `acquire` serializes callers with one lock and refuses any other model with
-`ModelUnavailableError`. `SwappingModelManager(host, endpoints, plan, clock, sleeper)`
+`ModelUnavailableError`. `MultiServerModelManager(resident_model, servers)` is the one a subagent roster entry runs on: each `acquire` waits for a free slot and leases the `ModelServer(endpoint, slots)` with the most free, the first listed on a tie. `SwappingModelManager(host, endpoints, plan, clock, sleeper)`
 (`residency.py`) implements the lease port, `ResidencyController`, `ResidencyQueue` and
 `ResidencyReporter` together, still as pure policy with no I/O of its own. A scope rather than a
 swapping `acquire`, because the deep model's tool loop re-acquires once per round and a swapping

@@ -112,7 +112,9 @@ ADR-0009 decision 8), `call_timeout_s =
   decision and is not required. `residency_plan(cortex_model)` is the one `ResidencyPlan` the
   manager, the conductor and boot recovery read.
 - `SubagentsConfig`, prefix `CORTEX_SUBAGENTS_` (ADR-0010, ADR-0012, ADR-0018): a `llamacpp`
-  backend needs both `endpoint` (the CPU overflow `llama-server`) and `gpu_endpoint`. One
+  backend needs both `endpoint` (the CPU overflow `llama-server`) and `gpu_endpoint`. Each names
+  one server or several separated by commas, which `endpoint_list` reads, and `parallel` is the
+  slot count of every one of them (ADR-0018 decision 12). One
   subagent's ask and the pool's ceilings all default to a module constant rather than a literal
   inside `Field(...)`, so `scripts/crosscheck.py` can compare the declaration with every place
   `docker/docker-compose.subagents.yml` and the roster override write it; `vram_gb` is the measured
