@@ -36,3 +36,7 @@ moment, and replace the rows and the two quotes with what that draw reads.
 - 2026-11-18: filed with the drafter settings of the cortex and GPU subagent tiers, whose live
   check read the lower figure
   ([R-1239](1239-no-tier-but-the-deep-one-can-name-a-drafter.md)).
+- 2026-11-18: the default stack was read with every context filled
+  ([readings](../../readings/tier-drafters.md#the-default-stack-through-tool-turns-a-handoff-and-filled-contexts)):
+  one filled request raised a drafting subagent server by 14 MiB, so the request still covers it.
+  The rows this task asks for were not drawn.

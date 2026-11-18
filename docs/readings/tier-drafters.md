@@ -115,6 +115,51 @@ Method: `shape3.sh <label> [projector|big|subagent|plain|slots]` and `ask3.py` i
 `~/.cache/cortex-run/2026-11-18/`, compose project `cortexn24`, the model host from the existing
 image with the working tree's model manager bound over it, logs `logs/drafters*.txt` there.
 
+## The default stack through tool turns, a handoff and filled contexts
+
+**2026-11-18**, the same build and files, with the brain built from the tree over the base, gpu,
+memory, tools and subagents compose files: the cortex with its projector, both GPU subagent
+servers, and the deep tier `unsloth/Qwen3.8-27B-GGUF/Qwen3.8-27B-UD-Q4_K_M.gguf` with
+`CORTEX_ESCALATION` on and both server ids in `CORTEX_SWAP_EVICT_MODELS`. A recording proxy
+between the brain and the cortex kept every request and reply.
+
+- **Tool turns.** Seven turns went to the stack with the drafters and to the same stack with both
+  drafter settings empty: a fact to store, a question that recalls it, a reminder, a request to
+  forget, a picture of three bands, about 500 words, and one delegated spawn whose subagent lists
+  a directory with its tool. Both stacks made the same tool calls with the same outcomes
+  (`schedule_task`, `forget_memories` after its card, `spawn_subagents`), every cortex request
+  ended in `stop` or `tool_calls`, no reply was cut, and the engine logged no error. With the
+  drafters the engine accepted 0.62 to 0.90 of the drafted tokens on the six requests that ended
+  in a tool call, and the subagent's own tool call ran on a GPU server.
+- **A store request.** `Remember that my bike lock code is 4417.`, memory emptied before each
+  turn, on one brain and one tool list. The rule was written before the draw: a difference of 2
+  turns of 12 or fewer is no difference. The turn's first request ended in a tool call nobody
+  asked for in 3 of 12 turns with the cortex drafter and in 2 of 12 with
+  `CORTEX_MODEL_FILE_CORTEX_DRAFT` empty. The typed check refused each call, and all 24 turns
+  stored the fact.
+- **A handoff.** One chat stated a fact, asked for the deep tier, and asked for the fact again.
+  The model host read the cortex and both subagent servers `stopped` with the card at 2,425 MiB,
+  the deep tier alone peaked at 18,835 MiB, and afterwards the three servers read `ready` and the
+  chat answered with its fact. In a second run one chat had a batch of two spawns in flight when
+  another chat asked for the handoff: the stops came after the batch ended, the fit check read
+  21,723 MiB free against the 16,200 MiB declared, both chats finished, and each answered with
+  its own fact. The log does not show whether the drain waited or the batch ended first.
+- **Filled contexts.** With the three servers loaded the card read 17,598 to 17,617 MiB. With a
+  request of 7,597 prompt tokens on each subagent server and one of 15,736 on the cortex at once,
+  it peaked at 17,638 to 17,646 MiB: about 15,220 MiB above the card with every tier stopped, and
+  1,160 MiB under the cap. One filled subagent request alone raised the card by 14 MiB. The
+  highest reading of the seven turns was 17,672 MiB.
+- **`q8_0`.** With `CORTEX_KV_CACHE_TYPE` and `CORTEX_KV_CACHE_TYPE_SUBAGENT_GPU` set to `q8_0`
+  the three servers started, each drafted on a text request, the card read 17,156 MiB loaded, and
+  the second handoff above ran on that stack.
+- **Escalation off.** With `CORTEX_ESCALATION` unset both subagent servers stayed `stopped` and
+  the card read 11,241 MiB
+  ([R-1248](../refinements/tasks/1248-with-escalation-off-nothing-starts-the-gpu-subagent-servers.md)).
+
+Method: `up.sh`, `turns.sh`, `nodraft.sh`, `stepc.sh`, `stepd.sh`, `escoff.sh`, `fill.py` and
+`count.py` in `~/.cache/cortex-run/2026-11-18/slot8/`, compose project `cortexn24`, logs in `logs/`
+there and the proxy's record in `proxy/log/requests.jsonl`.
+
 ## The CPU subagent server
 
 **2026-11-18**, the subagent file on the CPU image `ghcr.io/ggml-org/llama.cpp:server`, build
