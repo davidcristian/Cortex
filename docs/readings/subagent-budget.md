@@ -67,16 +67,17 @@ Spawns that share one slot serialize on its lease: on the CPU server two concurr
 length 3, `llama-server` build b12375, on the 24 GB card. Two subagents of the one model were run
 as two slots of one server and as two servers of one slot.
 
-| shape | context per slot | memory |
-| --- | --- | --- |
-| one server, two slots, drafter | 8K | 3,609 MiB |
-| one server, two slots, no drafter | 8K | 3,402 MiB |
-| one server, one slot, drafter | 8K | about 3,600 MiB at its peak |
-| two servers, one slot each, drafter | 8K | 3,387 and 3,389 MiB |
+| shape | context per slot | memory | read |
+| --- | --- | --- | --- |
+| one server, two slots, drafter | 8K | 3,609 MiB | at load |
+| one server, two slots, no drafter | 8K | 3,402 MiB | at load |
+| one server, one slot, drafter | 8K | about 3,600 MiB | at its peak |
+| two servers, one slot each, drafter | 8K | 3,387 and 3,389 MiB | at load, beside the cortex |
 
 With both slots of the one server busy, each wrote at 0.68 and 0.67 of the rate one slot wrote
-alone. A second server costs the whole footprint again, about 3,400 MiB, where the second slot is
-inside the first server's.
+alone. At the peak the two servers were counted as about 7,250 MiB and the one two-slot server as
+about 3,850 MiB: a second server costs the whole footprint again, about 3,400 MiB, where the
+second slot is inside the first server's.
 
 Loaded beside the gemma-4-12B cortex with every context filled and every server busy, both shapes
 fit a model budget of 18,177 MiB at the peak: 16,659 MiB with one two-slot server and a 256K cortex
