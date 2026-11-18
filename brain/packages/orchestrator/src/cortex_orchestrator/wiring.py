@@ -24,6 +24,7 @@ from cortex_orchestrator.config_swap import SwapConfig
 from cortex_orchestrator.config_tools import ToolsConfig
 from cortex_orchestrator.dispatch_builders import DispatchSetup, tool_audit_from_config
 from cortex_orchestrator.engines import DeepTier, StreamEngines
+from cortex_orchestrator.gpu_servers import warn_of_unmatched_gpu_servers
 from cortex_orchestrator.gpu_slots import warn_of_unplaced_gpu_slots
 from cortex_orchestrator.memory_builders import build_memory
 from cortex_orchestrator.schedule_builders import (
@@ -61,11 +62,14 @@ async def run_from_env(
     memory_config = read_settings(MemoryConfig)
     tools_config = read_settings(ToolsConfig)
     body_config = read_settings(BodyConfig)
+    swap_config = read_settings(SwapConfig)
     subagents_config = check_tool_call_deadline(
-        warn_of_unplaced_gpu_slots(read_settings(SubagentsConfig), runtime), tools_config
+        warn_of_unmatched_gpu_servers(
+            warn_of_unplaced_gpu_slots(read_settings(SubagentsConfig), runtime), swap_config
+        ),
+        tools_config,
     )
     schedule_config = read_settings(ScheduleConfig)
-    swap_config = read_settings(SwapConfig)
     reply_bounds = read_settings(ReplyBoundsConfig).bounds()
     clock = SystemClock()
     stores = RedisStores.open(runtime.redis_url, store_factory, preference_factory)

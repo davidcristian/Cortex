@@ -40,10 +40,12 @@ DEFAULT_MEMORY_GB = 3.0
 DEFAULT_STALL_TIMEOUT_S = 600.0
 
 # The subagent servers' --ctx-size and --parallel, read here so a loop's result room fits one slot.
-# The CPU servers and the GPU-placed tier each have their own slot count.
+# The CPU servers and the GPU-placed tier each have their own slot count. The GPU server count
+# is the model host's setting, read here only to compare it with the addresses at boot.
 DEFAULT_SUBAGENT_CTX_SIZE = 8192
 DEFAULT_SUBAGENT_PARALLEL = 2
 DEFAULT_SUBAGENT_GPU_PARALLEL = 1
+DEFAULT_SUBAGENT_GPU_SERVERS = 2
 
 
 def endpoint_list(value: str) -> tuple[str, ...]:
@@ -89,6 +91,7 @@ class SubagentsConfig(BaseSettings):
     )
     parallel: int = Field(default=DEFAULT_SUBAGENT_PARALLEL, gt=0)
     gpu_parallel: int = Field(default=DEFAULT_SUBAGENT_GPU_PARALLEL, gt=0)
+    gpu_servers: int = Field(default=DEFAULT_SUBAGENT_GPU_SERVERS, gt=0)
 
     @model_validator(mode="after")
     def _llamacpp_needs_both_endpoints(self) -> "SubagentsConfig":

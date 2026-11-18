@@ -185,11 +185,15 @@ task record.
   [527](../refinements/tasks/527-one-roster-entrys-two-targets-are-named-by-two-artifact-variables.md).
 - A GPU tier of several servers has one logical id and one address per server, so
   `CORTEX_SUBAGENTS_GPU_ENDPOINT` lists every address and `CORTEX_SWAP_EVICT_MODELS` every id.
-  Nothing compares the three settings: a server left out of the first is loaded and never used,
-  and one left out of the second keeps its memory beside the deep model (task 1242). The VRAM
-  budget is compared: at boot `warn_of_unplaced_gpu_slots` (`gpu_slots.py`) places one ask per GPU
-  slot on a placer built from the deployment's own numbers and logs a warning when a slot is left
-  over, since its server holds memory no spawn is placed on.
+  A server left out of the first is loaded and never used, and one left out of the second keeps
+  its memory beside the deep model. The brain compares the three at boot:
+  `warn_of_unmatched_gpu_servers` (`gpu_servers.py`) reads the model host's server count from
+  `CORTEX_SUBAGENTS_GPU_SERVERS`, counts the GPU addresses whose host name is that of
+  `CORTEX_MODELHOST_ENDPOINT` and, when escalation is on, the ids of the evict list, and logs a
+  warning when the numbers differ. A GPU address on another host is a server the model host does
+  not start, so it is not counted. The VRAM budget is compared too: `warn_of_unplaced_gpu_slots`
+  (`gpu_slots.py`) places one ask per GPU slot on a placer built from the deployment's own numbers
+  and logs a warning when a slot is left over, since its server holds memory no spawn is placed on.
 - The per-role exception of ADR-0017 stays unbuilt by design
   ([125](../refinements/tasks/125-per-role-escape-hatch.md)).
 

@@ -60,6 +60,7 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "CORTEX_SUBAGENTS_ROLES",
         "CORTEX_SUBAGENTS_PARALLEL",
         "CORTEX_SUBAGENTS_GPU_PARALLEL",
+        "CORTEX_SUBAGENTS_GPU_SERVERS",
         "CORTEX_SUBAGENT_CTX_SIZE",
         "CORTEX_BODY_BACKEND",
         "CORTEX_BODY_ENDPOINT",

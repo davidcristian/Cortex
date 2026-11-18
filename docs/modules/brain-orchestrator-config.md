@@ -119,7 +119,12 @@ ADR-0009 decision 8), `call_timeout_s =
   decision 12). `warn_of_unplaced_gpu_slots(subagents, runtime)` (`gpu_slots.py`) runs at boot: it
   places one default ask per GPU slot on a `VramBudgetPlacer` built from `vram_soft_cap_gb` and
   `cortex_reservation_gb`, and logs a warning with both counts when fewer are placed on the GPU
-  than there are slots. It refuses nothing, because such a deployment still runs. One
+  than there are slots. It refuses nothing, because such a deployment still runs.
+  `warn_of_unmatched_gpu_servers(subagents, swap)` (`gpu_servers.py`) runs beside it: it compares
+  `gpu_servers` (`CORTEX_SUBAGENTS_GPU_SERVERS`, 2, the count the model host starts) with the GPU
+  addresses on the host name of `CORTEX_MODELHOST_ENDPOINT` and, when `escalation` is on, with
+  the length of `evict_models`, and logs a warning with the three numbers when they differ. A
+  stack that names no GPU server in either setting is not compared. One
   subagent's ask and the pool's ceilings all default to a module constant rather than a literal
   inside `Field(...)`, so `scripts/crosscheck.py` can compare the declaration with every place
   `docker/docker-compose.subagents.yml` and the roster override write it; `vram_gb` is the measured

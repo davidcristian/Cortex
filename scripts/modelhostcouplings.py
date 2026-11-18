@@ -138,12 +138,19 @@ MODELHOST_COUPLINGS: tuple[Constant, ...] = (
     Constant(
         label="how many servers the GPU-placed subagent tier starts",
         why=(
-            "each server loads the subagent weights again, so a compose default above the "
-            "config's would start a server the shipped VRAM budget has no room to place a spawn "
-            "on (ADR-0018 decision 12)"
+            "each server loads the subagent weights again and the brain compares this count "
+            "with the addresses a deployment names, so one default moved alone starts a server "
+            "the shipped VRAM budget places no spawn on, or has the brain warn of a mismatch the "
+            "stack does not have (ADR-0018 decision 12)"
         ),
-        sites=(Site(MODELHOST_CONFIG, "DEFAULT_SUBAGENT_GPU_SERVERS"),),
-        mentions=(Mention(GPU_COMPOSE, "${CORTEX_SUBAGENTS_GPU_SERVERS:-{value}}"),),
+        sites=(
+            Site(MODELHOST_CONFIG, "DEFAULT_SUBAGENT_GPU_SERVERS"),
+            Site(SUBAGENTS_CONFIG, "DEFAULT_SUBAGENT_GPU_SERVERS"),
+        ),
+        mentions=(
+            Mention(GPU_COMPOSE, "${CORTEX_SUBAGENTS_GPU_SERVERS:-{value}}"),
+            Mention(SUBAGENTS_COMPOSE, "${CORTEX_SUBAGENTS_GPU_SERVERS:-{value}}"),
+        ),
     ),
     Constant(
         label="how many tokens one picture may occupy",

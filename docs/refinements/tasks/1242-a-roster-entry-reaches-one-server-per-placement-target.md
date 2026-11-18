@@ -36,14 +36,9 @@ What remains, in the order to do it:
      in the `CORTEX_SUBAGENTS_ENDPOINT` default, set the `CORTEX_SUBAGENTS_PARALLEL` default to 1,
      and decide whether the alternate entry gets a second server too. `flagcheck.py` reads a new
      service from its model variable; prove it by removing a flag from the new one.
-2. **Nothing compares the three settings that name the tier's servers**: the count the model host
-   reads, the addresses in `CORTEX_SUBAGENTS_GPU_ENDPOINT` and the ids in
-   `CORTEX_SWAP_EVICT_MODELS`. The VRAM budget is compared with the GPU slots at boot
-   (`warn_of_unplaced_gpu_slots`), which reports a server the budget has no room for and not a
-   server the endpoint setting leaves out.
-3. **`stop_grace_period: 45s`** on `model-host` in `docker/docker-compose.gpu.yml` is sized for
+2. **`stop_grace_period: 45s`** on `model-host` in `docker/docker-compose.gpu.yml` is sized for
    three children, and the default tier of two servers makes four.
-4. **The tier names no drafter**, so the main reason for the default has no effect until
+3. **The tier names no drafter**, so the main reason for the default has no effect until
    [R-1239](1239-no-tier-but-the-deep-one-can-name-a-drafter.md) gives it one.
 
 ## History
@@ -55,5 +50,6 @@ What remains, in the order to do it:
   one way: a slot is a lease the backend already holds for the whole stream, so no scheduler
   change was needed. The tier starts two servers by default, and the VRAM soft cap went from 14 to
   16 GB so the budget places a spawn on each; the default shape was checked live beside the
-  cortex. The brain also warns at boot when the GPU servers have more slots than the VRAM budget
-  places spawns. The four items above remain.
+  cortex. The brain warns at boot when the GPU servers have more slots than the VRAM budget
+  places spawns, and when the server count, the GPU addresses on the model host and the evict
+  list differ in number. The three items above remain.
