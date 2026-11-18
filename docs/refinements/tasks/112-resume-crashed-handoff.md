@@ -77,3 +77,6 @@ prevent.
 - 2026-10-25: checked again and not fired: neither the proto nor the brain has a request id. The
   body now names `_swap(record, reached)` and the ledger's unstored `forgotten` flag.
 - 2026-10-28: checked again and not fired: the `request_id|idempotency` grep still finds nothing.
+- 2026-11-18: a live kill of the brain in the middle of a handoff showed the person is not told:
+  the next turn's reply said the handoff had completed
+  ([R-1253](1253-a-handoff-a-restart-interrupts-stays-in-history-as-a-tool-that-succeeded.md)).
