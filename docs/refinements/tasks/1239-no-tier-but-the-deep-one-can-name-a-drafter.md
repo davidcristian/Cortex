@@ -45,5 +45,5 @@ reason written down for a tier that does not. A model with the layer in its own 
   over the old one. Not drawn: the rate with the projector loaded as a ratio, and the `Q4_0`
   drafter the cards name first, which the mount does not hold. Filed:
   [R-1246](1246-the-one-model-subagent-rows-read-higher-than-a-paired-reading.md) for two
-  readings of one subagent server that differ, and
-  [R-1247](1247-the-cpu-subagent-servers-start-without-a-drafter.md) for the CPU servers.
+  readings of one subagent server that differ. The CPU servers were drawn with the drafter and
+  start without one (decision 7 of [ADR-0077](../../adr/ADR-0077-model-card-settings.md)).

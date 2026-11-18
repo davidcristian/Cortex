@@ -124,6 +124,17 @@ The cards were read on 2026-11-16, when the models mount moved to the files
    drafting at every context drawn. The cortex drafts with its projector loaded, where a turn
    with a picture answered and most drafted tokens were accepted.
 
+   The CPU subagent servers start without a drafter. `llama-subagent` and `llama-subagent-qwen`
+   are compose services whose commands name no `--model-draft`. On the CPU image, with the
+   service's four threads and two slots, the gemma-4-E4B drafter at a length of 3 wrote at 1.18
+   times the no-draft rate for one request alone and at 0.97 of it with two at once, for
+   201 MiB more memory. On one slot with a filled 8K context it wrote at 1.09 times at a length
+   of 3 and slower at every other length, and both Qwen files wrote slower at every length
+   ([readings](../readings/tier-drafters.md#the-cpu-subagent-server)). The second slot is there
+   so that two subagents run at once, which is the case the drafter slows. A compose command
+   also cannot leave a flag out when its variable is empty, so a drafter there would need an
+   entry script before a deployment could turn it off.
+
 8. **Each tier has a KV cache type setting, and every tier's default is the engine's 16 bits.**
    `CORTEX_KV_CACHE_TYPE`, `CORTEX_KV_CACHE_TYPE_BRAIN` and `CORTEX_KV_CACHE_TYPE_SUBAGENT_GPU`
    take `f16` or `q8_0`, the two types the readings have rows for, and any other value is refused

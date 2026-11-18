@@ -1,7 +1,8 @@
 # Readings: the cortex and subagent tier drafters
 
 Rate and memory rows for the multi-token-prediction drafters the cortex tier and the GPU subagent
-tier start with by default, and a live check of the default stack with them.
+tier start with by default, a live check of the default stack with them, and the row that
+leaves the CPU subagent server without one.
 [ADR-0077](../adr/ADR-0077-model-card-settings.md) decision 7 is the decision these rows support.
 Memory is `nvidia-smi` `memory.used` less what the card held before the load, and stays absolute
 because a reader compares it with their own card. A rate describes only the card it was read on,
@@ -113,3 +114,30 @@ with the subagent setting empty the server's replies had no draft counts.
 Method: `shape3.sh <label> [projector|big|subagent|plain|slots]` and `ask3.py` in
 `~/.cache/cortex-run/2026-11-18/`, compose project `cortexn24`, the model host from the existing
 image with the working tree's model manager bound over it, logs `logs/drafters*.txt` there.
+
+## The CPU subagent server
+
+**2026-11-18**, the subagent file on the CPU image `ghcr.io/ggml-org/llama.cpp:server`, build
+b10680, which is older than the model host's b12375. The server ran with the compose service's
+flags on `--cpuset-cpus 12-15`: `-ngl 0 --cpus 4.0 --threads 4 --parallel 2 --ctx-size 8192`
+under 8g, without a drafter and with the subagent drafter at a draft length of 3. The rule was
+written before the row: no drafter unless one request alone and each of two at once both write
+at 1.1 times the no-draft rate or more. A rate is a ratio of the median of one request alone
+without the drafter, on a 20-token prompt with 256 tokens written. A busy cell is the range of
+six requests, two at once in three rounds. Memory is the cgroup's peak, which counts the mapped
+model file.
+
+| row | one alone | each of two at once | cgroup peak | drafted tokens accepted |
+| --- | --- | --- | --- | --- |
+| no drafter | 1.0 | 0.67 to 0.69 | 6,960 MiB | none drafted |
+| drafter at 3 | 1.18 | 0.64 to 0.67 | 7,161 MiB | 0.22 to 0.27 of them |
+
+One request alone gained 0.18. With both slots busy the median request wrote at 0.97 of the
+no-draft median, so the row fails the rule on two requests at once, the case the server's
+second slot is for. The drafter cost 201 MiB. The model baseline of 2026-11-16 read the same
+file on the same image with four CPUs, one slot and a filled 8K context
+(`measurements/model-baseline-2026-11-16/baseline.md`): 1.09 times the no-draft rate at a draft
+length of 3, and under it at 1, 2, 4 and 5, down to about 0.7 at 5. Qwen3.5-2B and Qwen3.5-0.8B
+wrote at about 0.8 of their no-draft rates at a length of 1 and slower at 2 and 3. Method:
+`cpudraw7.sh slots slots-draft` and `cpudrive7.py` in `~/.cache/cortex-run/2026-11-18/`, logs
+`logs/cpu2-slots.txt` and `cpu2-slots-draft.txt`.
