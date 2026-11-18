@@ -1,6 +1,7 @@
 """``python -m cortex_model_manager``: wire the supervisor from env and serve its control API."""
 
 import logging
+import os.path
 import time
 
 import httpx
@@ -13,9 +14,11 @@ from cortex_model_manager.api import build_app
 from cortex_model_manager.children import AsyncioChildProcesses
 from cortex_model_manager.config import ModelHostConfig
 from cortex_model_manager.device_memory import NvidiaSmiMemory
+from cortex_model_manager.model_files import ModelFiles
 from cortex_model_manager.probe import HttpHealthProbe
 from cortex_model_manager.restarts import RestartBudget, RestartPolicy
 from cortex_model_manager.supervisor import ModelSupervisor
+from cortex_model_manager.tiers import server_id
 from cortex_settings import ConfigError, read_settings
 
 _logger = logging.getLogger(__name__)
@@ -25,6 +28,16 @@ def boot_models(config: ModelHostConfig) -> tuple[str, ...]:
     """The ids started with the host: the cortex, then every tier but the deep one."""
     apart = (config.cortex_model, config.brain_model)
     return (config.cortex_model, *(model for model in config.roster() if model not in apart))
+
+
+def tier_settings(config: ModelHostConfig) -> dict[str, str]:
+    """Each roster id's part of its file settings: ``CORTEX``, ``BRAIN`` or ``SUBAGENT_GPU``."""
+    servers = range(config.subagent_gpu_servers)
+    return {
+        config.cortex_model: "CORTEX",
+        config.brain_model: "BRAIN",
+        **{server_id(config.subagent_gpu_model, index): "SUBAGENT_GPU" for index in servers},
+    }
 
 
 def build_supervisor(config: ModelHostConfig) -> tuple[ModelSupervisor, httpx.AsyncClient]:
@@ -38,6 +51,7 @@ def build_supervisor(config: ModelHostConfig) -> tuple[ModelSupervisor, httpx.As
         reap_timeout_s=config.reap_timeout_s,
         probe_timeout_s=config.probe_timeout_s,
         restarts=RestartBudget(RestartPolicy(models=boot_models(config)), time.monotonic),
+        files=ModelFiles(tier_settings(config), os.path.isfile),
     )
     return supervisor, client
 

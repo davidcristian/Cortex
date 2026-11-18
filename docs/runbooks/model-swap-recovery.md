@@ -7,11 +7,11 @@ which also says where to read why a handoff failed. What the swap costs and whet
 
 ## Failure modes, each observed rather than reasoned about
 
-- **A child that dies at load reports `failed`, never `ready`.** Pointed at a missing artifact,
-  the child exited with code 1 and `GET /models/cortex` answered
-  `{"state":"failed","detail":"the process exited with code 1"}`; the daemon kept answering and
-  the compose healthcheck stayed red. The child's own reason is in `docker logs model-host`,
-  interleaved with the daemon's, because children inherit its streams. This is what the
+- **A file that is not there fails the start, and a child that dies at load reports `failed`.**
+  With `CORTEX_MODEL_FILE_CORTEX_DRAFT` naming no file, no process started: the daemon logged
+  `the boot-default model could not be started; serving without it` with the setting and the path, `POST /models/cortex/start` answered 503 with them, and the state read `stopped`. A child that
+  exits at load reads `{"state":"failed","detail":"the process exited with code 1"}` and its own
+  reason is in `docker logs model-host`, because children inherit its streams. This is what the
   supervisor's status ordering exists for: it reads the child's exit code before it acts on a
   health probe, so a start that died on a port collision cannot pass as ready while the previous
   weights are still serving.

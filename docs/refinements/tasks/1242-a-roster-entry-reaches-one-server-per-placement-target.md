@@ -48,5 +48,4 @@ busy slot at 0.67 to 0.69
 - 2026-11-18: the two-server default was drawn through the whole stack
   ([readings](../../readings/tier-drafters.md#the-default-stack-through-tool-turns-a-handoff-and-filled-contexts)).
   Filed from it:
-  [R-1250](1250-a-swap-with-an-evict-id-the-host-lacks-stops-the-cortex-before-it-fails.md) and
-  [R-1251](1251-a-drafter-file-that-does-not-exist-fails-after-the-whole-model-has-loaded.md).
+  [R-1250](1250-a-swap-with-an-evict-id-the-host-lacks-stops-the-cortex-before-it-fails.md).

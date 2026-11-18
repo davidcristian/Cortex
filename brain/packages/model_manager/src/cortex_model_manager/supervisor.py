@@ -9,6 +9,7 @@ from uuid import uuid4
 
 from cortex_core import ControlBounds, ModelHostState
 from cortex_model_manager.children import ChildProcess, ChildProcesses
+from cortex_model_manager.model_files import ModelFiles
 from cortex_model_manager.probe import HealthProbe
 from cortex_model_manager.restarts import RestartBudget, RestartPolicy
 from cortex_model_manager.spec import ModelSpec
@@ -50,7 +51,7 @@ class ModelStatus:
 class ModelSupervisor:
     """Runs at most one child per logical model, and reports the state of each."""
 
-    def __init__(  # noqa: PLR0913 -- three bounds and a restart budget, each set per deployment
+    def __init__(  # noqa: PLR0913 -- three bounds, a restart budget and a file check
         self,
         roster: Mapping[str, ModelSpec],
         processes: ChildProcesses,
@@ -60,6 +61,7 @@ class ModelSupervisor:
         reap_timeout_s: float = DEFAULT_REAP_TIMEOUT_S,
         probe_timeout_s: float = DEFAULT_PROBE_TIMEOUT_S,
         restarts: RestartBudget | None = None,
+        files: ModelFiles | None = None,
     ) -> None:
         self._roster = dict(roster)
         self._processes = processes
@@ -75,6 +77,7 @@ class ModelSupervisor:
         self._children: dict[str, ChildProcess] = {}
         self._locks = {model: asyncio.Lock() for model in self._roster}
         self._restarts = restarts or RestartBudget(RestartPolicy(), time.monotonic)
+        self._files = files
         self._watchers: set[asyncio.Task[None]] = set()
 
     @property
@@ -153,6 +156,9 @@ class ModelSupervisor:
 
     async def _spawn(self, model: str, spec: ModelSpec) -> None:
         """Start ``model``'s process under its lock, and watch it when the policy covers it."""
+        if self._files is not None and (gap := self._files.missing(spec)) is not None:
+            msg = f"could not start {model!r}: {gap}"
+            raise SupervisorError(msg)
         try:
             child = await self._processes.spawn(spec.argv)
         except OSError as err:

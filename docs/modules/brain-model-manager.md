@@ -76,9 +76,9 @@ visible GPU**, where nothing downstream can tell which card a model would load o
 ## The supervisor
 
 `ModelSupervisor(roster, processes, probe, *, stop_grace_s, reap_timeout_s, probe_timeout_s,
-restarts)` sits over two ports, `ChildProcesses` (`spawn(argv) -> ChildProcess`) and `HealthProbe`
+restarts, files)` sits over two ports, `ChildProcesses` (`spawn(argv) -> ChildProcess`) and `HealthProbe`
 (`serving(url) -> bool`), with `AsyncioChildProcesses` and `HttpHealthProbe` as the real adapters
-and `ModelStatus(model, state, detail)` as its answer; `restarts` is a `RestartBudget`. `stop_all()`
+and `ModelStatus(model, state, detail)` as its answer; `restarts` is a `RestartBudget` and `files` a `ModelFiles` (`model_files.py`). `stop_all()`
 is the shutdown pass and cancels every restart watch. `boot_id` is a random `uuid4().hex` per daemon
 process, which `GET /health` publishes. `control_bounds` returns the `ControlBounds` it was wired
 with. It is given the probe's deadline although it spends none of it: that bound belongs to the
@@ -151,7 +151,7 @@ compares the two, so retune both or neither. `RosterError` is a boot-time miscon
 - **The roster is fixed at boot, and a tier with no artifact file is not in it.** The deep tier and
   the GPU subagent are opt-in, so a stock host answers 404 for them. A shared port fails at boot. `CORTEX_SUBAGENTS_GPU_SERVERS` (2) starts that many servers of the subagent file, `subagent-gpu` on `:8083` and then `subagent-gpu-2`, `-3` on the next ports (`server_id` in `tiers.py`), each with `CORTEX_SUBAGENTS_GPU_PARALLEL` (1) slots (ADR-0018 decision 12).
 - **`start` and `stop` are idempotent**, because a swap re-issues either without checking first. A
-  start whose spawn fails adds nothing, so a tier that never ran still reads `STOPPED`; it removes
+  start whose spawn fails adds nothing, so a tier that never ran still reads `STOPPED`; a start whose model file, projector or drafter is not a file in the container fails the same way before any process exists, with the setting and the path in the 503 (`could not start 'cortex': CORTEX_MODEL_FILE_CORTEX_DRAFT names '/models/a/b.gguf', which is not a file in the model host's container, so the model was not loaded`). It removes
   nothing either, so a tier whose child had already died goes on reporting that child's exit code
   (`FAILED`) rather than being erased by a replacement that could not start.
 - **`start` returns long before the model is ready.** The swap's readiness check
