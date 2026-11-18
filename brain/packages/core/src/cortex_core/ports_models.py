@@ -22,6 +22,8 @@ class ModelHost(Protocol):
 
     async def boot_id(self) -> str | None: ...
 
+    async def roster(self) -> tuple[str, ...] | None: ...
+
 
 class ResidencyController(Protocol):
     """Changes which model is resident on the GPU, for the duration of a scope."""

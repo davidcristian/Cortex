@@ -54,7 +54,7 @@ async def test_a_clean_boot_touches_nothing(caplog: pytest.LogCaptureFixture) ->
     handoffs = RecordingHandoffStore()
     with caplog.at_level(logging.WARNING, logger="cortex_core.swap_recovery"):
         assert await _recover(handoffs, host) is True
-    assert [call for call in host.calls if call[0] != "status"] == []
+    assert [call for call in host.calls if call[0] not in ("status", "roster")] == []
     assert host.running == {"cortex"}
     assert caplog.records == []
 
@@ -102,7 +102,7 @@ async def test_an_evictable_tier_is_cleared_off_the_gpu_and_then_put_back() -> N
         sleeper=RecordingSleeper(),
     )
     assert settled is True
-    assert [call for call in host.calls if call[0] != "status"] == [
+    assert [call for call in host.calls if call[0] not in ("status", "roster")] == [
         ("stop", _TIER),
         ("stop", "brain"),
         ("start", _TIER),
@@ -112,7 +112,7 @@ async def test_an_evictable_tier_is_cleared_off_the_gpu_and_then_put_back() -> N
 
 
 async def _converged(host: ScriptedModelHost) -> list[tuple[str, str]]:
-    """Converge with one evictable tier, and return every host call that is not a status read."""
+    """Converge with one evictable tier, and return every host call that is not a read."""
     settled = await converge_residency(
         host,
         harness.plan(evict_models=(_TIER,)),
@@ -121,7 +121,7 @@ async def _converged(host: ScriptedModelHost) -> list[tuple[str, str]]:
         sleeper=RecordingSleeper(),
     )
     assert settled is True
-    return [call for call in host.calls if call[0] != "status"]
+    return [call for call in host.calls if call[0] not in ("status", "roster")]
 
 
 async def test_a_peer_running_beside_a_serving_cortex_is_left_running(
@@ -149,7 +149,7 @@ async def test_a_peer_is_cleared_when_the_host_cannot_say_what_the_deep_model_do
         sleeper=RecordingSleeper(),
     )
     assert settled is False
-    assert [call for call in host.calls if call[0] != "status"] == [("stop", _TIER)]
+    assert [call for call in host.calls if call[0] not in ("status", "roster")] == [("stop", _TIER)]
 
 
 async def test_a_cortex_that_will_not_come_back_is_reported_loudly(

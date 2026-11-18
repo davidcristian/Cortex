@@ -80,6 +80,9 @@ class _LoadingThenReady:
     async def boot_id(self) -> str | None:
         return None
 
+    async def roster(self) -> tuple[str, ...] | None:
+        return None
+
 
 def test_the_plan_rejects_bounds_that_could_not_govern_a_swap() -> None:
     with pytest.raises(ValueError, match="drain_timeout_s must be >= 0"):

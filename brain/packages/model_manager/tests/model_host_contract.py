@@ -147,6 +147,14 @@ async def check_a_host_names_which_boot_of_it_is_answering(subject: HostUnderTes
     assert await subject.host.boot_id() == subject.boot_id
 
 
+async def check_a_host_lists_the_ids_it_has_and_no_other(subject: HostUnderTest) -> None:
+    """The roster names both hosted ids and leaves out the one every verb refuses."""
+    roster = await subject.host.roster()
+    assert roster is not None
+    assert {CORTEX, DEEP} <= set(roster)
+    assert subject.unhosted not in roster
+
+
 ALL_CHECKS: tuple[Callable[[HostUnderTest], Awaitable[None]], ...] = (
     check_a_model_nobody_started_reports_stopped,
     check_start_begins_a_load_and_is_idempotent,
@@ -161,4 +169,5 @@ ALL_CHECKS: tuple[Callable[[HostUnderTest], Awaitable[None]], ...] = (
     check_a_host_with_a_card_reports_what_is_free_and_how_big_it_is,
     check_a_host_reports_the_control_bounds_it_was_wired_with,
     check_a_host_names_which_boot_of_it_is_answering,
+    check_a_host_lists_the_ids_it_has_and_no_other,
 )

@@ -1,4 +1,4 @@
-"""The real ``ModelHost``: the port's six verbs over the supervisor's control API."""
+"""The real ``ModelHost``: the port's seven verbs over the supervisor's control API."""
 
 import logging
 from http import HTTPStatus
@@ -84,6 +84,15 @@ class HttpModelHost:
             _logger.info("the model host does not name its own boot", extra={"boot_id": boot})
             return None
         return boot
+
+    async def roster(self) -> tuple[str, ...] | None:
+        """Every logical id the sidecar has, or ``None`` when it does not list them."""
+        payload = await self._request("GET", "/health", "the models it has")
+        models: object = payload.get("models")
+        if not isinstance(models, list):
+            _logger.info("the model host does not list its models", extra={"models": models})
+            return None
+        return tuple(str(model) for model in cast("list[object]", models))
 
     async def _act(self, model: str, verb: str) -> None:
         """Run a lifecycle verb and read the state it left the model in, for the log."""

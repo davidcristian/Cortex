@@ -55,7 +55,7 @@ path returns the card to. Measurements are in [model-swap](../readings/model-swa
   `SwappingModelManager`, a lease of another model from the task that holds a residency scope
   raises `ModelUnavailableError` at once, since that scope ends only when the same task leaves it.
 - `ModelHost` (`ports_models.py`) provides `start`, `stop`, `status`, `device_memory`,
-  `control_bounds` and `boot_id`. The last three are readings only the host can take, and each
+  `control_bounds`, `boot_id` and `roster` (every id the host has). The last four are readings only the host can take, and each
   returns `None` as a normal answer, meaning it can see no card, has no stop of its own to bound,
   or will not name which boot it is; a boot id is compared for equality only. Both lifecycle verbs
   are idempotent, and `model` is a logical id, so artifact paths, ports and engine flags never
@@ -183,8 +183,8 @@ swapping `acquire`, because the deep model's tool loop re-acquires once per roun
 `acquire` would thrash minutes each way whenever a queued cortex turn interleaved. Its parts are
 split along the boundary the manager already draws, it owning when and who may, they owning what the
 host is asked to do: `residency_claim.py` (`HandoffClaim`, the non-blocking claim over the whole
-sequence); `residency_moves.py` (the two host-facing moves, with the fit check between the last
-`stop` and the `start`, the only instant at which free memory means anything);
+sequence); `residency_moves.py` (the two host-facing moves: `swap_in` asks the host for the `status` of every `plan.evict_models` id before it stops anything, and an id the host does not have or an answer it cannot give raises `SwapFailedError` with every model still running; the fit check is between the last
+`stop` and the `start`, the only instant at which free memory means anything); `residency_roster.py` (`warn_of_unlisted_models`, which `converge_residency` ends with: one warning per hosted id that is not the cortex, the deep tier or in the evict list);
 `residency_restore.py` (the swap back's retry policy and its uninterruptible wait, where every
 cancellation waits for the shielded restore, not merely the first); `residency_board.py`
 (`ResidencyBoard`, holding which model the GPU serves, what a user is told, whether a scope owns the

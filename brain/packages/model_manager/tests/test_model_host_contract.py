@@ -58,7 +58,12 @@ class _FakeCard:
 
 def _scripted_subject() -> HostUnderTest:
     """Build the core's scriptable twin, whose status overrides supply the world's conditions."""
-    host = ScriptedModelHost(control_bounds=_BOUNDS, boot_id=_SCRIPTED_BOOT, unhosted=[_UNROSTERED])
+    host = ScriptedModelHost(
+        control_bounds=_BOUNDS,
+        boot_id=_SCRIPTED_BOOT,
+        unhosted=[_UNROSTERED],
+        roster=CONTRACT_MODELS,
+    )
 
     def serving(model: str, *, serving: bool) -> None:
         host.set_status(model, None if serving else ModelHostState.LOADING)

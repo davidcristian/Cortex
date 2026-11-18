@@ -8,6 +8,7 @@ from cortex_core.model_host import ModelHostState, ResidencyPlan
 from cortex_core.model_ready import await_model_ready
 from cortex_core.ports import Clock, HandoffStore, ModelHost, Sleeper
 from cortex_core.residency_moves import restart_evicted
+from cortex_core.residency_roster import warn_of_unlisted_models
 from cortex_core.residency_tiers import BaselineTiers
 from cortex_core.swap_reasons import STRANDED_REASON
 
@@ -80,6 +81,7 @@ async def converge_residency(
         )
         return False
     await restart_evicted(host, plan, tiers)
+    await warn_of_unlisted_models(host, plan)
     return settled
 
 

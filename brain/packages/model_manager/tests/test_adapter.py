@@ -128,7 +128,7 @@ async def test_a_404_that_is_not_about_a_tier_is_a_wrong_endpoint_not_a_missing_
         return httpx.Response(HTTPStatus.NOT_FOUND, text="not found")
 
     host = _host(httpx.MockTransport(handle))
-    for read in (host.device_memory, host.control_bounds, host.boot_id):
+    for read in (host.device_memory, host.control_bounds, host.boot_id, host.roster):
         with pytest.raises(ModelHostError) as excinfo:
             await read()
         assert not isinstance(excinfo.value, ModelNotHostedError)
@@ -192,6 +192,16 @@ async def test_the_card_is_read_off_the_health_route_and_nowhere_else() -> None:
 )
 async def test_a_health_body_without_two_figures_is_no_reading(body: dict[str, object]) -> None:
     assert await _host(_health(body)).device_memory() is None
+
+
+async def test_the_roster_is_the_health_routes_list_of_models() -> None:
+    body: dict[str, object] = {"status": "ok", "models": ["cortex", "brain", "subagent-gpu"]}
+    assert await _host(_health(body)).roster() == ("cortex", "brain", "subagent-gpu")
+
+
+@pytest.mark.parametrize("body", [{"status": "ok"}, {"status": "ok", "models": "cortex"}])
+async def test_a_health_body_without_a_list_of_models_is_no_roster(body: dict[str, object]) -> None:
+    assert await _host(_health(body)).roster() is None
 
 
 async def test_the_control_bounds_are_read_off_the_same_health_route() -> None:

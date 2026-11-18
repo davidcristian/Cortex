@@ -16,6 +16,7 @@ _NO_DEVICE_MEMORY = (
     "the model host reports no device memory, so the fit check has nothing to compare against"
 )
 _CARD_TOO_SHORT = "the card has too little free memory for the deep model, so it was not started"
+_EVICT_ID_NOT_HOSTED = "the evict list names a model the model host does not have"
 
 
 async def is_unhosted(host: ModelHost, model: str) -> bool:
@@ -38,6 +39,8 @@ async def swap_in(
 ) -> None:
     """Evict everything, start ``model``, and hold until it is actually serving."""
     try:
+        if not plan.coresident:
+            await _refuse_an_evict_id_the_host_lacks(host, plan)
         await host.stop(plan.cortex_model)
         if not plan.coresident:
             for evicted in plan.evict_models:
@@ -57,6 +60,21 @@ async def swap_in(
     if state is not ModelHostState.READY:
         msg = f"model {model!r} did not become ready in time (last state: {state.value})"
         raise SwapFailedError(msg)
+
+
+async def _refuse_an_evict_id_the_host_lacks(host: ModelHost, plan: ResidencyPlan) -> None:
+    """Fail the swap before anything is stopped unless the host has every id the plan evicts."""
+    for evicted in plan.evict_models:
+        try:
+            await host.status(evicted)
+        except ModelNotHostedError as err:
+            msg = (
+                f"CORTEX_SWAP_EVICT_MODELS names {evicted!r}, which the model host does not "
+                "have, so the handoff was not started and nothing was stopped "
+                f"(docs/runbooks/model-swap.md): {err}"
+            )
+            _logger.error(_EVICT_ID_NOT_HOSTED, extra={"model": evicted})  # noqa: TRY400
+            raise SwapFailedError(msg) from err
 
 
 async def _refuse_a_load_the_card_cannot_hold(

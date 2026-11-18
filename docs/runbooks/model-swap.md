@@ -36,7 +36,7 @@ either way and serves the cortex.
 The other settings: `CORTEX_MODEL_BRAIN` (the deep tier's id, default `brain`),
 `CORTEX_SWAP_EVICT_MODELS` (further hosted tiers a swap stops first, as a JSON list such as
 `["subagent-gpu", "subagent-gpu-2"]`, one id per server of the GPU subagent tier; a comma-separated string fails the brain at boot, and so does a list naming the
-cortex or the deep tier), `CORTEX_SWAP_BRAIN_VRAM_MIB` (0, the deep tier's measured VRAM cost),
+cortex or the deep tier; an id the model host does not have refuses each handoff before anything is stopped, and at boot the brain logs `the model host has a model the evict list leaves out, so a handoff does not stop it` for each hosted server the list omits), `CORTEX_SWAP_BRAIN_VRAM_MIB` (0, the deep tier's measured VRAM cost),
 `CORTEX_SWAP_DRAIN_TIMEOUT_S` (60 s), `CORTEX_SWAP_LOAD_TIMEOUT_S` (300 s, over three times the
 slowest deep load measured), `CORTEX_MODELHOST_TIMEOUT_S` (60 s, one control call's deadline) and
 `CORTEX_SWAP_TIER_HEAL_S` (30 s, how often the brain re-reads the evicted tiers and restarts one
@@ -209,7 +209,7 @@ response body, wrapped in which move the swap was making. Six kinds of sentence 
 
 | What `reason` starts with | What actually happened |
 | --- | --- |
-| `the model host failed while swapping in ...`, `the model host does not serve ...`, `model ... did not become ready in time`, or one of the fit check's two (`needs N MiB of free device memory`, `reports no device memory`) | the swap in broke, and on the first two the daemon's own answer follows the colon |
+| `the model host failed while swapping in ...`, `the model host does not serve ...`, `CORTEX_SWAP_EVICT_MODELS names ...`, `model ... did not become ready in time`, or one of the fit check's two (`needs N MiB of free device memory`, `reports no device memory`) | the swap in broke, and on the first three the daemon's own answer follows the colon; the third means the evict list has an id the model host lacks, and nothing was stopped |
 | `could not restore '<cortex>' after 2 attempts ...` | the swap back gave up; [model-swap-recovery.md](model-swap-recovery.md) is entirely about this one |
 | `a residency scope for ... is already active` | nothing was evicted for this turn; something entered the swap without taking the handoff claim first, and another handoff owns the GPU |
 | `delegated work was still running when the drain bound elapsed ...` | nothing was evicted and nothing broke; a subagent outlasted `CORTEX_SWAP_DRAIN_TIMEOUT_S` |

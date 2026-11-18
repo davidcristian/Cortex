@@ -47,5 +47,3 @@ busy slot at 0.67 to 0.69
   ([R-1239](1239-no-tier-but-the-deep-one-can-name-a-drafter.md)).
 - 2026-11-18: the two-server default was drawn through the whole stack
   ([readings](../../readings/tier-drafters.md#the-default-stack-through-tool-turns-a-handoff-and-filled-contexts)).
-  Filed from it:
-  [R-1250](1250-a-swap-with-an-evict-id-the-host-lacks-stops-the-cortex-before-it-fails.md).

@@ -16,6 +16,7 @@ from cortex_core import (
     RecordingSleeper,
     ResidencyPlan,
     ScriptedModelHost,
+    SwapFailedError,
     SwappingModelManager,
     TierFault,
     TierRechecker,
@@ -248,8 +249,10 @@ async def test_a_recheck_that_cannot_reach_the_host_leaves_the_record_alone(
         fail={("start", _TIER): "no such device", ("status", _TIER): "connection refused"},
     )
     manager = _manager(host, placer)
-    async with manager.swap_scope("brain"):
-        pass
+    with pytest.raises(SwapFailedError, match="swapping in 'brain': connection refused"):
+        async with manager.swap_scope("brain"):
+            pass  # pragma: no cover - entering raises before the body runs
+    assert ("stop", "cortex") not in host.calls
     with caplog.at_level(logging.WARNING, logger=_RETRY_LOGGER):
         await manager.recheck_residency()
     assert placer.place(_spawn()).target is PlacementTarget.CPU

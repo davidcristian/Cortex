@@ -178,6 +178,18 @@ between the brain and the cortex kept every request and reply.
   peaked at 18,914 MiB, the model host started none of the stopped servers by itself, and the
   three read `ready` again afterwards. Logs: `bootcheck.txt`, `handoff.txt` and `watch-h.txt` in
   `~/.cache/cortex-run/2026-11-18/slot9/logs/`.
+- **An evict list that does not match the model host.** On the model host alone, with the cortex
+  and `subagent-gpu` stopped by hand and `subagent-gpu-2` left loaded, the card had 18,446 MiB
+  free, above the 16,200 MiB the fit check compares, and the deep tier loaded beside that server:
+  22,085 MiB used and 2,053 MiB free, against 18,906 MiB with the deep tier alone, so the server
+  held 3,179 MiB. With the list `["subagent-gpu", "subagent-gpu-3"]` the brain logged at boot
+  `a tier named for eviction is not in the model host's roster at all` and, for `subagent-gpu-2`,
+  `the model host has a model the evict list leaves out, so a handoff does not stop it`. A handoff
+  then ended with `CORTEX_SWAP_EVICT_MODELS names 'subagent-gpu-3', which the model host does not
+  have`, the model host stopped and started no process, and the three servers read `ready`. With
+  both ids listed, a fact stated before a handoff was given again after it, every server was
+  stopped and started again, and the card peaked at 18,925 MiB. Logs: `leftout.txt`,
+  `wrongid.txt` and `handoff.txt` in `~/.cache/cortex-run/2026-11-18/slot10/logs/`.
 
 Method: `up.sh`, `turns.sh`, `nodraft.sh`, `stepc.sh`, `stepd.sh`, `stepk.sh`, `stepm.sh`,
 `escoff.sh`, `fill.py` and `count.py` in `~/.cache/cortex-run/2026-11-18/slot8/`, compose project

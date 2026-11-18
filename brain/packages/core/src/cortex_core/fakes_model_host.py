@@ -22,12 +22,14 @@ class ScriptedModelHost:
         device_memory: DeviceMemory | None = None,
         control_bounds: ControlBounds | None = None,
         boot_id: str | None = None,
+        roster: Iterable[str] | None = None,
     ) -> None:
         self.running: set[str] = set(running)
         self.unhosted: set[str] = set(unhosted)
         self.device: DeviceMemory | None = device_memory
         self.bounds: ControlBounds | None = control_bounds
         self.boot: str | None = boot_id
+        self.listed: tuple[str, ...] | None = None if roster is None else tuple(roster)
         self.calls: list[tuple[str, str]] = []
         self.reached: dict[tuple[str, str], asyncio.Event] = {
             key: asyncio.Event() for key in pause_at
@@ -83,6 +85,12 @@ class ScriptedModelHost:
         self._check("boot_id", "")
         await self._pause("boot_id", "")
         return self.boot
+
+    async def roster(self) -> tuple[str, ...] | None:
+        """Every id this twin was told it has, or ``None`` for one that will not list them."""
+        self._check("roster", "")
+        await self._pause("roster", "")
+        return self.listed
 
     def _check(self, op: str, model: str) -> None:
         """Log the operation, then raise whatever failure was scripted for it."""

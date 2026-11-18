@@ -13,8 +13,8 @@ which is the premise the one hard rule rests on.
 ## The adapter, on the brain side
 
 `HttpModelHost(endpoint: str, client: httpx.AsyncClient)` is a `ModelHost`: `start`, `stop` and
-`status` take a logical model id and nothing else, and `device_memory()`, `control_bounds()` and
-`boot_id()` take none. The client is injected, and unlike the generation clients it must have a real
+`status` take a logical model id and nothing else, and `device_memory()`, `control_bounds()`,
+`boot_id()` and `roster()` (the `models` list of `GET /health`, or `None` without one) take none. The client is injected, and unlike the generation clients it must have a real
 read deadline, since a control call that hung would hang a swap step under no bound at all.
 
 - `start(model)` POSTs `/models/{id}/start`, `stop(model)` POSTs `/models/{id}/stop`, and
