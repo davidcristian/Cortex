@@ -28,3 +28,8 @@ not gets the reason written into decision 6.
 
 - 2026-11-16: filed from the model cards and the file headers, read when the lineup moved to the
   files the mount holds.
+- 2026-11-18: read what `auto` does on build b12375 while drawing the
+  [cache type readings](../../readings/kv-cache-types.md). For gemma-4-E4B and Qwen3.8-27B the
+  engine logs `resolve_fused_ops: Flash Attention enabled`, so the subagent tier runs with flash
+  attention on where its card has it off. The other entries and the three sampler differences were
+  not read.

@@ -104,7 +104,7 @@ never a reading of what the tree does now.
 - **[R-1240](tasks/1240-some-tiers-run-settings-their-model-cards-do-not-recommend.md)** Some tiers run settings their model cards do not recommend (inference). Its claim was checked against the code on 2026-11-16.
 - **[R-1241](tasks/1241-the-embedder-is-sent-no-task-prefix.md)** The embedder is sent no task prefix (memory). Its claim was checked against the code on 2026-11-16.
 - **[R-1242](tasks/1242-a-roster-entry-reaches-one-server-per-placement-target.md)** A server per subagent is built for the GPU tier only (subagents). Its claim was checked against the code on 2026-11-18.
-- **[R-1243](tasks/1243-every-tier-holds-its-context-in-the-default-16-bit-cache.md)** Every tier holds its context in the default 16-bit cache (inference-model-manager). Its claim was checked against the code on 2026-11-17.
+- **[R-1243](tasks/1243-every-tier-holds-its-context-in-the-default-16-bit-cache.md)** Every tier holds its context in the default 16-bit cache (inference-model-manager). Its claim was checked against the code on 2026-11-18.
 - **[R-1245](tasks/1245-the-nvfp4-files-have-none-of-the-rows-the-deep-pick-is-compared-on.md)** The NVFP4 files have none of the rows the deep pick is compared on (inference-model-manager). Its claim was checked against the code on 2026-11-18.
 
 ### Actionable, once a port changes (1)
