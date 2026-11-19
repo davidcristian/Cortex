@@ -42,7 +42,8 @@ it says otherwise, because the same 16-bit launch read 1.06 to 1.23 times its ea
   writes 0.83 at 16K. Qwen3.5-4B, Qwen3.5-2B and Qwen3.5-0.8B write 0.98 to 1.01 at 16K, and
   1.11 for Qwen3.5-0.8B at draft length 2, and save 34 to 185 MiB there. At 256K they save 946
   to 2,825 MiB and write 0.87 to 0.92 of the earlier night's 16-bit rate divided by the night
-  factor. No model gains a step of context.
+  factor, and 0.78 to 0.89 at their fastest 8-bit draft length before any division. No model
+  gains a step of context.
 - **The drafter's cache.** Left at 16 bits beside an 8-bit model cache, both Qwen3.8-27B files
   take 82 to 86 MiB less at 48K and write the same rate once the night is divided out. That is
   no gain by the rule, so a tier at `q8_0` keeps giving its drafter the same type.
@@ -79,7 +80,8 @@ command without `--kv` and with `--out q8-ref.jsonl`.
 3. **The last draft lengths of Qwen3.6-35B-A3B at 256K.** The 8-bit ladder has lengths 1 to 4
    and its stop rule has not ended it: `python3 bench3.py --models Qwen3.6-35B-A3B --kind moe
    --phase deep --nmax 2 --out q8-ref.jsonl`, then `python3 bench3.py --models Qwen3.6-35B-A3B
-   --kind moe --phase deep --kv q8_0 --nmax 4,5,6 --out q8.jsonl`. Then lengths 1 and 2 again on
+   --kind moe --phase deep --kv q8_0 --nmax 4,5,6 --out q8.jsonl`. Length 4 has a row and is
+   drawn again so that the stop rule compares rows of one night. Then lengths 1 and 2 again on
    fresh launches (`--nmax 1,2`), since length 1 read 0.93 of the no-draft rate and length 2 read
    1.27, a step the 16-bit ladder does not have.
 4. **gemma-4-26B-A4B split with RAM at 32K and 64K**, to see whether its loss at 256K comes with
@@ -129,8 +131,8 @@ default of its setting in `brain/packages/model_manager/src/cortex_model_manager
   and 16,991 MiB at the peak. The engine's log at the model host's level has no line naming the
   cache type, so the type was read from the server's argv. `shape6.sh` in
   `~/.cache/cortex-run/2026-11-18/`, compose project `cortexn24`, log `logs/deep-q8-reply.txt`.
-- 2026-11-19: every model that takes the type was drawn, each beside a 16-bit row of the same
-  night, after the same 16-bit launch read 1.06 to 1.23 times its earlier rate. The Q4 file of
+- 2026-11-19: every model that has 8-bit rows got a 16-bit row of the same night at one context
+  or more, after the same 16-bit launch read 1.06 to 1.23 times its earlier rate. The Q4 file of
   Qwen3.8-27B still meets the rule, at 0.92 of the 16-bit rate; no other file held whole does.
   gemma-4-31B split with RAM writes 2.08 to 2.11 times its 16-bit rate, a shape the stack does
   not start, so the deep pick's file is not decided. The body was rewritten around the new

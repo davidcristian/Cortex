@@ -7,9 +7,9 @@
 
 A rate row of the model baseline depends on the night it was drawn. On 2026-11-19 the same 16-bit
 launch was drawn again for one cell of each model, and it read 1.06 to 1.23 times the rate of the
-row the baseline drew on 2026-11-16, 2026-11-17 or 2026-11-18. The factor is larger than the 0.10
-a rule in the readings allows between two settings, so a ratio of two rows from different nights
-can decide a rule the wrong way. Nothing a row records explains it.
+row the baseline drew on 2026-11-16, 2026-11-17 or 2026-11-18. For five of the eight models the
+factor is larger than the 0.10 a rule in the readings allows between two settings, so a ratio of
+two rows from different nights can decide a rule the wrong way. Nothing a row records explains it.
 [The cache type rows of every model](../../readings/kv-cache-every-model.md) have the table of
 factors and the method.
 
@@ -29,18 +29,19 @@ each row of 2026-11-19 beside the earlier row of the same launch. The rows are i
   and 1.15 to 1.16 for gemma-4-12B against 2026-11-16, 1.06 to 1.15 for five models against
   2026-11-17, 1.08 to 1.09 for the NVFP4 file of Qwen3.8-27B against 2026-11-18. With and without
   drafting it agrees within 0.03 for a model, 0.05 for Qwen3.5-2B.
-- **Identical 8-bit rows** of 2026-11-19 read 1.06 to 1.08 times those of 2026-11-18.
+- **Identical 8-bit rows**: the six launches drawn without drafting on 2026-11-18 and 2026-11-19
+  read 1.05 to 1.11 times their earlier row.
 
 **What does not differ:**
 
 - **Inside the night.** One launch drawn three times across 2026-11-19 stays within 0.975 of its
-  fastest row.
+  fastest row, and four split launches drawn twice stay within 0.985.
 - **The clock ratio** (`sm_ratio`): within 0.045 of the earlier row in fourteen cells, 0.083
   above it in one, and not recorded in one.
 - **The draw while busy** (`power_busy`): 0.94 to 1.03 of the earlier row's.
 - **The power limit**: the median ratio is 0.89 for every row of 2026-11-19. The earlier rows
-  record the lowest reading only, 0.80 to 0.89, and a median of 0.85 and 0.89 for the two NVFP4
-  rows.
+  record the lowest reading, 0.80 to 0.89, and four of them a median: 0.89 for the two
+  Qwen3.5-9B rows, 0.89 and 0.85 for the two NVFP4 rows.
 - **The highest temperature** (`temp_max`): 2.0 degrees under to 2.5 degrees over the earlier
   row.
 - **Other apps' memory before the load** (`base`): 4,114 to 4,228 MiB on 2026-11-19, 3,436 to
@@ -48,10 +49,10 @@ each row of 2026-11-19 beside the earlier row of the same launch. The rows are i
   the nights by their factor.
 
 **The split rows behave differently.** gemma-4-31B split with RAM reads 1.01 to 1.07 times its
-earlier rate, the smallest factors, while its clock ratio at 16K rose from 0.33 to 0.63 and its
-highest temperature by 4 to 14 degrees. The probe's prompt rate (`probe_prompt_tps`, which only
-split rows record) reads 3.8 to 4.0 times the earlier row's for that file and 1.10 and 1.19 for
-the two MoE files.
+earlier rate, under the factor of every whole cell but one, while its clock ratio at 16K rose
+from 0.33 to 0.63 and its highest temperature by 4 to 14 degrees. The probe's prompt rate
+(`probe_prompt_tps`, which only split rows record) reads 3.8 to 4.0 times the earlier row's for
+that file and 1.10 and 1.19 for the two MoE files.
 
 Not recorded in a row, so not compared: the revision of the driver script, the state of the host
 after its restart between 2026-11-17 and 2026-11-18, and what other apps did with the card while

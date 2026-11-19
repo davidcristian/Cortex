@@ -27,19 +27,23 @@ the earlier row's:
 | Qwen3.5-2B | 16K | 2026-11-17 | 1.15 | 1.10 | 1.00 and 0.99 | 1.14 and 1.08 |
 | Qwen3.5-0.8B | 16K | 2026-11-17 | 1.14 | 1.14 | 0.98 and 1.11 | 1.12 and 1.27 |
 
-- **The factor does not move inside the night.** The 16-bit launch of gemma-4-12B at 64K without
-  drafting was drawn three times across the night, as the first and the last row of one slot and
-  once in the slot before. The two slower rows read 0.975 and 0.98 of the fastest.
-- **The rows do not record a cause.** Every row of the table ran at a median power limit ratio of
-  0.89, the highest the card reads. The highest temperature, the draw while busy and the clock
-  ratio of the two nights agree
+- **One launch drawn three times did not move inside the night.** The 16-bit launch of
+  gemma-4-12B at 64K without drafting was drawn as the first and the last row of one slot and
+  once in the slot before. The two slower rows read 0.975 and 0.98 of the fastest. The four
+  gemma-4-31B launches below that have a second row read 0.985 to 0.996 of their faster row.
+- **The rows do not record a cause.** Every row of 2026-11-19 ran at a median power limit ratio
+  of 0.89, the highest the card reads. The earlier rows record the lowest reading, 0.80 to 0.89,
+  and four of them a median, 0.89 for three and 0.85 for one. The highest temperature, the draw
+  while busy and the clock ratio of the two nights agree
   ([R-1259](../refinements/tasks/1259-the-same-launch-reads-a-different-rate-on-another-night.md)).
-- **So a ratio across two nights is wrong by the factor of its model**, and the factor is larger
-  than the 0.10 the rule's rate condition allows. Every ratio below divides two rows of
-  2026-11-19 unless it says "divided by the night factor", which is the ratio over an earlier
-  16-bit row divided by the factor in the table above. Memory does not depend on the night.
-- **8-bit rows of two nights differ the same way.** The Qwen3.8-27B rows at 48K and 64K without
-  drafting read 1.06 to 1.08 times the same 8-bit rows of 2026-11-18.
+- **So a ratio across two nights is wrong by the factor of its model**, and for five of the
+  eight models that is more than the 0.10 the rule's rate condition allows. Every ratio below
+  divides two rows of 2026-11-19 unless it says otherwise. "Divided by the night factor" is
+  the ratio over an earlier 16-bit row divided by the factor in the table above, which was read
+  at one context per model. Memory does not depend on the night.
+- **8-bit rows of two nights differ the same way.** The six 8-bit launches drawn without drafting
+  on both nights read 1.05 to 1.11 times their rows of 2026-11-18: Qwen3.8-27B at 48K and 64K,
+  its NVFP4 file at 48K and 80K, and Qwen3.5-4B and Qwen3.5-2B at 8K.
 
 Method, under `measurements/model-baseline-2026-11-16/`, which git ignores: `q8-probes/ref.py
 <model> <context> <phase> <room kept>` draws the 16-bit pair of a cell into `bench/q8-ref.jsonl`,
@@ -60,7 +64,7 @@ Both files at 20K, each beside its 16-bit pair of the night:
 
 Draft length 4 is the fastest of the Q4 file's 8-bit ladder at 20K and 2 of the NVFP4 file's. The
 other lengths at 20K and the ladders at 16K and 24K have no 16-bit row of the night. Divided by
-the night factor they read 0.83 to 0.93 for the Q4 file at 20K and 0.86 to 1.00 for the NVFP4
+the night factor they read 0.84 to 0.92 for the Q4 file at 20K and 0.86 to 1.00 for the NVFP4
 file at 16K, 20K and 24K. Memory falls by 557 to 568 MiB for the Q4 file at 20K, where draft
 length 6 fits at 8 bits and is over the budget at 16, and by 474 to 714 MiB for the NVFP4 file.
 The search gives the largest contexts of 2026-11-18 again: 48K with the draft layer and 64K
@@ -92,7 +96,7 @@ because the context takes less of the budget:
 | context | draft length | rate, 8-bit over 16-bit of the night | prompt pass, 8-bit over 16-bit |
 | --- | --- | --- | --- |
 | 16K | none | 2.08, and 2.10 on a second pair of launches | 1.30 |
-| 16K | 1 | 1.81 | 1.22 |
+| 16K | 1 | 1.81 | 1.21 |
 | 32K | none | 2.09, and 2.11 on a second pair of launches | 1.29 |
 | 32K | 1 | 2.67 | 1.26 |
 
@@ -158,7 +162,7 @@ night: 2026-11-18 for the no-draft rows at 8K and 64K, 2026-11-19 for every othe
 | 128K | 5,123 MiB | 4,655 MiB | 0.58 | 0.62 |
 
 With the drafter the memory changes by 26 MiB or less up to 32K, and at 64K and 128K it rises
-by 8 to 46 MiB. At 8K the pairs of one night read 0.91 to 1.01 across the draft lengths.
+by 8 to 48 MiB. At 8K the pairs of one night read 0.91 to 1.01 across the draft lengths.
 
 **The four small models** each hold their training context with their drafter at both types
 (128K for gemma-4-E2B, 256K for the three Qwen files), so no model gains a step of context.
@@ -170,8 +174,9 @@ by 8 to 46 MiB. At 8K the pairs of one night read 0.91 to 1.01 across the draft 
 | Qwen3.5-2B | 78 and 62 MiB | 1.00 and 0.99 | 946 MiB | 0.88 to 0.92 |
 | Qwen3.5-0.8B | 62 and 34 MiB | 0.98 and 1.11 | 971 MiB | 0.88 |
 
-At 256K Qwen3.5-4B is fastest at draft length 3 at both types, and that 8-bit row reads 0.78 of
-the earlier night's 16-bit row before any division.
+At 256K the fastest 8-bit draft length is 3 for Qwen3.5-4B, 2 for Qwen3.5-2B and 1 for
+Qwen3.5-0.8B. Those 8-bit rows read 0.78, 0.87 and 0.89 of the earlier night's 16-bit row at the
+same length before any division.
 
 ## Whether the reply changes
 
@@ -210,7 +215,7 @@ Condition 3 is read on ratios of one night where a pair exists.
 | chat | Qwen3.5-9B | yes | yes: one step | 0.95 and 0.91 at 64K; no: 0.67 at 192K and draft length 3 across two nights | passes | does not meet it |
 | subagent | gemma-4-E4B, flash attention on | yes | no: 16 to 130 MiB up to 32K | no: 0.87 at 16K, 0.58 at 128K | passes | does not meet it |
 | subagent | gemma-4-E2B | yes | no | no: 0.83 at 16K | passes | does not meet it |
-| subagent | Qwen3.5-4B, Qwen3.5-2B, Qwen3.5-0.8B | yes | no step; 34 to 185 MiB at 16K, 946 to 2,825 MiB at 256K | yes at 16K; at 256K 0.87, 0.88 to 0.92 and 0.88 divided by the night factor | passes | do not meet it |
+| subagent | Qwen3.5-4B, Qwen3.5-2B, Qwen3.5-0.8B | yes | no step; 34 to 185 MiB at 16K, 946 to 2,825 MiB at 256K | yes at 16K; no at 256K across two nights: 0.78, 0.87 and 0.89 at the fastest 8-bit length before any division | passes | do not meet it |
 
 - **The Q4 file of Qwen3.8-27B still meets the rule.** Its ratios of 2026-11-18 at 16K and 24K
   were an 8-bit row over a 16-bit row of 2026-11-17 and read 0.97 to 1.00. The pair of one night
@@ -227,8 +232,10 @@ Condition 3 is read on ratios of one night where a pair exists.
   [R-1260](../refinements/tasks/1260-the-deep-picks-file-has-no-cache-type-row-in-the-shape-the-stack-starts.md)
   has the draw that decides it.
 - **The small Qwen files save memory only where they lose rate.** At the 8K to 16K a subagent
-  server runs the fall is under 250 MiB. At 256K it is over, and the rate divided by the night
-  factor is under 0.90 for two of the three and at it for Qwen3.5-2B.
+  server runs the fall is under 250 MiB. At 256K it is over, and no pair of one night exists
+  there. Without drafting the rate divided by the night factor is under 0.90 for two of the three
+  and 0.88 to 0.92 for Qwen3.5-2B. At the fastest 8-bit draft length all three are under 0.90
+  before any division, and every factor read so far is above 1, so division lowers them.
 - **Qwen3.5-9B passes at 64K and fails at 192K.** The 0.67 there divides rows of two nights, and
   no factor read so far is large enough to lift it to 0.90.
 
