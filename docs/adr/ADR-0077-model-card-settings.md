@@ -146,12 +146,19 @@ The cards were read on 2026-11-16, when the models mount moved to the files
    The defaults follow the rule the readings wrote before their rows
    ([KV cache types](../readings/kv-cache-types.md)): the engine accepts the type, the tier gains
    a step of context or 250 MiB, the rate stays at 0.90 of the 16-bit rate or more, and the
-   output check passes. Only the deep tier on the Qwen3.8-27B Q4 file met it. That file is the
+   output check passes. Each ratio divides two rows of one night
+   ([every model](../readings/kv-cache-every-model.md)). Only the deep tier on the Qwen3.8-27B
+   Q4 file met it, at 0.92 of its 16-bit rate at 20K. That file is the
    deep alternate's and the tier ships with no file named, so no default moves, and a deployment
    that names that file sets `CORTEX_KV_CACHE_TYPE_BRAIN=q8_0`. The model host started the
    deep tier that way at 16K, drafting with the file's own layer at a draft length of 3: it
    answered, 1,406 of 1,812 drafted tokens were accepted, and the card read 16,991 MiB above
    its floor at the peak.
+
+   The deep pick's file, gemma-4-31B, writes 2.08 to 2.11 times its 16-bit rate at 8 bits when
+   it is split with RAM, where the engine keeps four to five more layers on the card. The stack
+   starts the tier with every layer on the card, a shape that file has no pair of rows in, so
+   the tier's default stays `f16`.
 
    The engine exits on an 8-bit V cache when flash attention is off. The stack cannot start a
    server that way: no tier's argv names a flash attention flag, which a test of the roster
@@ -204,4 +211,5 @@ The cards were read on 2026-11-16, when the models mount moved to the files
   [pick sampler](../readings/injection-over-pixels-pick-sampler.md),
   [cortex alternate](../readings/injection-over-pixels-alt.md),
   [thinking switch](../readings/thinking-switch.md), [tier drafters](../readings/tier-drafters.md),
-  [KV cache types](../readings/kv-cache-types.md).
+  [KV cache types](../readings/kv-cache-types.md),
+  [KV cache on every model](../readings/kv-cache-every-model.md).

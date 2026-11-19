@@ -238,12 +238,13 @@ check. One prompt per model shows whether the reply moves, not whether it is wor
 
 The chat and NVFP4 rows ran with flash attention on, the model card's setting; `auto` was read
 for gemma-4-E4B and the Q4 file only. The deep tier meets the rule on the Q4 file, the deep
-alternate's. Its margin is small in one place: at 16K the draft lengths 4 and 5, the two best at
-16 bits, read 0.84 and 0.88. The NVFP4 file, which R-1244 has neither chosen nor ruled out, does
-not meet condition 3. No default was changed (ADR-0077 decision 8): R-1243 has the rows left.
+alternate's, by a small margin at 16K, where draft lengths 4 and 5 read 0.84 and 0.88. The NVFP4
+file does not meet condition 3. No default was changed (ADR-0077 decision 8).
 
-## Not drawn
+## Ratios across two nights
 
-Every subagent context but 8K, the chat contexts under 160K and whole ladders at 256K, the split
-models, the CPU rows, Qwen3.8-Flash-Next, the output check of every other model, and `auto` for the
-chat models. R-1243 has the command for each.
+[The rows of 2026-11-19](kv-cache-every-model.md) form each ratio inside one night and apply the
+rule again. The chat, Q4 and group 5 ratios above divide an 8-bit row of 2026-11-18 by a 16-bit
+row of an earlier night, and a launch drawn again on 2026-11-19 reads 1.06 to 1.23 times its
+earlier rate. So they overstate the 8-bit cache by the factor between their nights, about 1.05
+to 1.07 for the Q4 file. The gemma-4-E4B and NVFP4 ratios are of one night.
