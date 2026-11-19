@@ -15,6 +15,11 @@ the decision stays short and the numbers stay current.
   hardware can use, meaning a ratio of the measuring machine's own numbers where the figure
   describes only that machine (the rule in [AGENTS.md](../../AGENTS.md)); and its method in a line,
   naming the recipe, test or command that re-takes it.
+- **A ratio of two rates divides two rows of one date.** The same launch has read 1.06 to 1.23
+  times its earlier rate on a later night
+  ([the cache type rows of every model](kv-cache-every-model.md)), which is more than most
+  differences a record reports. A record that compares two settings draws both on one date, and a
+  ratio that divides rows of two dates says so beside the figure.
 - **A reading is not a decision.** What the figure means for the design is stated in the ADR that
   cites it; the record says what was measured, when and how.
 - **A mutation table is not a reading.** It is written in the body of the commit that makes it,

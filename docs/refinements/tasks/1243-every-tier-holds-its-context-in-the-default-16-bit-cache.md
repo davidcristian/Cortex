@@ -19,7 +19,7 @@ a filled context stays at 0.90 of the 16-bit rate or more, and one fixed prompt 
 same reply in substance. [The readings of 2026-11-19](../../readings/kv-cache-every-model.md)
 apply it to every model, on build b12375. Each ratio below divides two rows of one night unless
 it says otherwise, because the same 16-bit launch read 1.06 to 1.23 times its earlier rate on
-2026-11-19.
+2026-11-19 ([R-1259](1259-the-same-launch-reads-a-different-rate-on-another-night.md)).
 
 - **Deep tier, Qwen3.8-27B: the Q4 file meets the rule, the NVFP4 file does not.** At 20K the Q4
   file writes 0.92 of its 16-bit rate without drafting and at draft length 4, its fastest, and
@@ -29,7 +29,8 @@ it says otherwise, because the same 16-bit launch read 1.06 to 1.23 times its ea
   without its drafter, where 16 bits fits at no context. Split with RAM at 16K and 32K the engine
   keeps 59 layers on the card for 55 and 56 for 51, and the file writes 2.08 to 2.11 times its
   16-bit rate without drafting, on two pairs of launches. Card memory does not fall. The stack
-  starts the deep tier with every layer on the card, a shape with no pair of rows for this file.
+  starts the deep tier with every layer on the card, a shape with no pair of rows for this file
+  ([R-1260](1260-the-deep-picks-file-has-no-cache-type-row-in-the-shape-the-stack-starts.md)).
 - **Deep tier, the two MoE files at 256K: do not meet it.** gemma-4-26B-A4B writes 0.69 and
   Qwen3.6-35B-A3B 0.72 of the 16-bit rate without drafting, although more of their weights stay
   on the card.
@@ -68,9 +69,9 @@ drawn at 16 bits into `bench/q8-ref.jsonl`, without drafting and at one draft le
 ../q8-probes/ref.py <model> <context> <phase> <room kept>`. For a split model it is the row's own
 command without `--kv` and with `--out q8-ref.jsonl`.
 
-1. **The deep tier as the model host starts it, on the pick's file.** gemma-4-31B at the tier's
-   default context and draft length with every layer on the card, at both types, drawn live
-   through the model host.
+1. **The deep tier as the model host starts it, on the pick's file**, gemma-4-31B with every
+   layer on the card at both types, is
+   [R-1260](1260-the-deep-picks-file-has-no-cache-type-row-in-the-shape-the-stack-starts.md).
 2. **gemma-4-31B's NVFP4 file split with RAM**, per context, 16384 and then 32768:
    `python3 bench3.py --models gemma-4-31B-NVFP4 --kind moe --ctx 16384 --phase deep --nmax 1
    --out q8-ref.jsonl`, then `python3 bench3.py --models gemma-4-31B-NVFP4 --kind moe --ctx 16384
@@ -133,4 +134,5 @@ default of its setting in `brain/packages/model_manager/src/cortex_model_manager
   Qwen3.8-27B still meets the rule, at 0.92 of the 16-bit rate; no other file held whole does.
   gemma-4-31B split with RAM writes 2.08 to 2.11 times its 16-bit rate, a shape the stack does
   not start, so the deep pick's file is not decided. The body was rewritten around the new
-  readings, with the rows that are left. No default changed.
+  readings, with the rows that are left. No default changed. R-1259 filed for the difference
+  between nights and R-1260 for the deep pick's file.

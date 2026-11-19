@@ -32,7 +32,8 @@ the earlier row's:
   once in the slot before. The two slower rows read 0.975 and 0.98 of the fastest.
 - **The rows do not record a cause.** Every row of the table ran at a median power limit ratio of
   0.89, the highest the card reads. The highest temperature, the draw while busy and the clock
-  ratio of the two nights agree.
+  ratio of the two nights agree
+  ([R-1259](../refinements/tasks/1259-the-same-launch-reads-a-different-rate-on-another-night.md)).
 - **So a ratio across two nights is wrong by the factor of its model**, and the factor is larger
   than the 0.10 the rule's rate condition allows. Every ratio below divides two rows of
   2026-11-19 unless it says "divided by the night factor", which is the ratio over an earlier
@@ -222,7 +223,9 @@ Condition 3 is read on ratios of one night where a pair exists.
   `TierArgs` in `config.py` takes `ngl` from `CORTEX_NGL_BRAIN`, 99 by default, and
   `llama_server_argv` in `tiers.py` writes `-ngl` and no `--fit` flag, so the tier starts with
   every layer on the card, a shape in which this file has one 8-bit row (12K, no drafter) and no
-  16-bit row. R-1243 names the draw that decides it.
+  16-bit row.
+  [R-1260](../refinements/tasks/1260-the-deep-picks-file-has-no-cache-type-row-in-the-shape-the-stack-starts.md)
+  has the draw that decides it.
 - **The small Qwen files save memory only where they lose rate.** At the 8K to 16K a subagent
   server runs the fall is under 250 MiB. At 256K it is over, and the rate divided by the night
   factor is under 0.90 for two of the three and at it for Qwen3.5-2B.

@@ -110,6 +110,26 @@ the same context beside it. Two NVFP4 cells, 16K at draft 3 and 4, were drawn fo
 never under the power rule: the kept rows are at 0.82 and 0.83, and the four draws of each agree
 within 0.05 of the no-draft rate.
 
+### Both files on one night
+
+Every ratio above divides an NVFP4 row of 2026-11-18 by a Q4 row of 2026-11-16 or 2026-11-17,
+and the same launch reads a different rate on another night
+([the cache type rows of every model](kv-cache-every-model.md)). On **2026-11-19** both files
+were drawn at 20K with the 16-bit cache, without drafting and at one draft length each, the
+fastest of the file's 8-bit ladder: 2 for the NVFP4 file and 4 for the Q4 file.
+
+| at 20K | the rows above, of two nights | both rows of 2026-11-19 |
+| --- | --- | --- |
+| NVFP4 rate over Q4 rate, no draft | 1.11 | 1.05 |
+| prompt pass, NVFP4 over Q4 | 1.94 | 1.80 |
+| NVFP4 at draft length 2 over the Q4 file's fastest length | 0.92, the Q4 file at 5 | 0.91, the Q4 file at 4 |
+| NVFP4 memory under Q4 memory, no draft | 260 MiB | 249 MiB |
+
+With an 8-bit cache on the same night the two rate ratios are 1.05 and 0.91 again, and the NVFP4
+file takes 300 MiB less. The ratios at 16K, 24K and 40K divide the same two nights and were not
+drawn again. Method: `q8-probes/ref.py Qwen3.8-27B 20480 deep 0` and the same for
+`Qwen3.8-27B-NVFP4` under `measurements/model-baseline-2026-11-16/`, rows in `bench/q8-ref.jsonl`.
+
 ## gemma-4-31B: split with RAM
 
 Neither gemma file fits whole at any context. The engine projects 18,921 MiB for the NVFP4 file at
@@ -153,11 +173,14 @@ beside the NVFP4 file, and fewer of its tokens are accepted there at every lengt
 at 16K without drafting had the lower power limit of the two (0.82 against 0.87 or more), so part
 of its 0.87 may be the limit; the two rows at 32K had nearly the same limit (0.84 and 0.85).
 
+These ratios divide NVFP4 rows of 2026-11-18 by Q4 rows of 2026-11-17. The Q4 file's 16-bit split
+rows were drawn again on 2026-11-19 and read 1.01 to 1.07 times its rows of 2026-11-17. The NVFP4
+file was not drawn again, so it has no ratio of one night.
+
 ## What these rows do not say
 
 - Nothing about what either NVFP4 file writes. No stop row, reasoning count or injection row
   exists for them (R-1245).
 - Nothing about a deployment that gives the deep tier more of the card than 18,177 MiB.
-- Nothing about an 8-bit context cache, which
-  [R-1243](../refinements/tasks/1243-every-tier-holds-its-context-in-the-default-16-bit-cache.md)
-  draws.
+- Nothing about an 8-bit context cache, which has its own record:
+  [the cache type rows of every model](kv-cache-every-model.md).
