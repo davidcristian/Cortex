@@ -65,3 +65,5 @@ and the maintainer declines step two.
 - 2026-11-20: ADR-0004 decision 8 now names Qwen3.8-27B as the deep pick, so this task blocks
   the pick's best setting: at `xhigh`, which the tier runs, it stopped on 10 of 12 draws at 8192,
   and at `medium` and `low` on 12 of 12. `GenerationBounds` still has no effort field.
+  Filed: [R-1266](1266-qwen38-27b-has-no-stop-row-at-the-shipped-16384-context.md) for the stop row at 16384 and
+  [R-1267](1267-qwen38-27bs-injection-row-was-drawn-at-8192-on-an-earlier-build.md) for the injection row.

@@ -35,3 +35,7 @@ the choice of file is proposed in
 
 - 2026-11-18: filed when R-1244 drew the memory and rate rows of the two files and found that the
   rows the pick rests on do not exist for either.
+- 2026-11-20: the Q4 file of Qwen3.8-27B is drawn on build b12375 at the shipped 16384 by
+  [R-1266](1266-qwen38-27b-has-no-stop-row-at-the-shipped-16384-context.md) and
+  [R-1267](1267-qwen38-27bs-injection-row-was-drawn-at-8192-on-an-earlier-build.md), which are the rows of that
+  build this task asks for beside the Qwen NVFP4 file's.

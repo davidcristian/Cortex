@@ -51,3 +51,4 @@ of gemma-4-31B's row, the decode floor from `test_decode_cadence_live.py`, and t
   pick has no measured figure for `CORTEX_SWAP_BRAIN_VRAM_MIB` or `CORTEX_SWAP_BRAIN_DECODE_TPS`.
   One more cost was read since: 16,991 MiB above the floor at 16384 with `q8_0`, drafting at
   length 3 (R-1243's History, 2026-11-18). None of the three draws named here was made.
+  Filed: [R-1268](1268-no-handoff-has-run-through-the-brain-on-qwen38-27b.md) for a handoff through the brain on this file.
