@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** inference-model-manager
 **Origin:** [ADR-0077](../../adr/ADR-0077-model-card-settings.md)
-**Verified:** 2026-11-19
+**Verified:** 2026-11-20
 
 No server in the stack starts with `--cache-type-k` or `--cache-type-v`, so each one keeps its
 context (the KV cache) in the engine's default type, 16-bit floats. The model baseline of 2026-11-16
@@ -16,47 +16,60 @@ The rule a tier must meet was written before the first row, in
 [the first cache type readings](../../readings/kv-cache-types.md): the engine accepts the type
 with the tier's flash attention setting, the tier gains a step of context or 250 MiB, the rate on
 a filled context stays at 0.90 of the 16-bit rate or more, and one fixed prompt still gets the
-same reply in substance. [The readings of 2026-11-19](../../readings/kv-cache-every-model.md)
-apply it to every model, on build b12375. Each ratio below divides two rows of one night unless
-it says otherwise, because the same 16-bit launch read 1.06 to 1.23 times its earlier rate on
-2026-11-19 ([R-1259](1259-the-same-launch-reads-a-different-rate-on-another-night.md)).
+same reply in substance. It is applied on build b12375 in
+[the readings of 2026-11-19](../../readings/kv-cache-every-model.md),
+[the readings of 2026-11-20](../../readings/kv-cache-remaining-cells.md) and
+[the deep tier's own draw](../../readings/kv-cache-deep-whole.md). Each ratio below divides two
+rows of one night, because the same 16-bit launch reads a different rate on another night
+([R-1259](1259-the-same-launch-reads-a-different-rate-on-another-night.md)).
 
+- **Deep tier, gemma-4-31B, the pick's Q4 file: meets the rule in the shape the stack starts.**
+  With every layer on the card at 16K it writes 0.913 and 0.912 of its 16-bit rate without the
+  drafter and 1.035 and 1.018 at draft length 3, takes 454 and 688 MiB less with the drafter, and
+  gives the same reply token for token. Neither type fits the 18,177 MiB budget there. The
+  default is set in
+  [R-1260](1260-the-deep-picks-file-has-no-cache-type-row-in-the-shape-the-stack-starts.md).
+  Split with RAM the file writes 2.08 to 2.11 times its 16-bit rate, a shape the stack does not
+  start.
+- **Deep tier, gemma-4-31B, the NVFP4 file: not decided.** It is held whole at no context. Split
+  with RAM it writes 1.52 and 1.56 times its 16-bit rate at 16K and 1.94 times at 32K, with 3 to
+  4 more layers on the card and no fall in card memory. It has no output check.
 - **Deep tier, Qwen3.8-27B: the Q4 file meets the rule, the NVFP4 file does not.** At 20K the Q4
-  file writes 0.92 of its 16-bit rate without drafting and at draft length 4, its fastest, and
-  takes 570 MiB less. Its largest context with the draft layer rises from 24K to 48K. The NVFP4
-  file writes 0.93 at 20K and 0.81 at 32K and draft length 1.
-- **Deep tier, gemma-4-31B, the pick's Q4 file: not decided.** At 8 bits it fits whole at 12K
-  without its drafter, where 16 bits fits at no context. Split with RAM at 16K and 32K the engine
-  keeps 59 layers on the card for 55 and 56 for 51, and the file writes 2.08 to 2.11 times its
-  16-bit rate without drafting, on two pairs of launches. Card memory does not fall. The stack
-  starts the deep tier with every layer on the card, a shape with no pair of rows for this file
-  ([R-1260](1260-the-deep-picks-file-has-no-cache-type-row-in-the-shape-the-stack-starts.md)).
-- **Deep tier, the two MoE files at 256K: do not meet it.** gemma-4-26B-A4B writes 0.69 and
-  Qwen3.6-35B-A3B 0.72 of the 16-bit rate without drafting, although more of their weights stay
-  on the card.
-- **Chat tier: does not meet it.** At 64K gemma-4-12B writes 0.85 without drafting and 0.88 at
-  draft length 2. Qwen3.5-9B writes 0.95 and 0.91 at 64K, and 0.67 at 192K and draft length 3
-  across two nights, which no night factor read so far brings to 0.90.
-- **Subagent tier: does not meet it.** gemma-4-E4B, with the flash attention the engine's `auto`
-  turns on, saves 16 to 130 MiB up to 32K and writes 0.87 at 16K and 0.58 at 128K. gemma-4-E2B
-  writes 0.83 at 16K. Qwen3.5-4B, Qwen3.5-2B and Qwen3.5-0.8B write 0.98 to 1.01 at 16K, and
-  1.11 for Qwen3.5-0.8B at draft length 2, and save 34 to 185 MiB there. At 256K they save 946
-  to 2,825 MiB and write 0.87 to 0.92 of the earlier night's 16-bit rate divided by the night
-  factor, and 0.78 to 0.89 at their fastest 8-bit draft length before any division. No model
-  gains a step of context.
-- **The drafter's cache.** Left at 16 bits beside an 8-bit model cache, both Qwen3.8-27B files
-  take 82 to 86 MiB less at 48K and write the same rate once the night is divided out. That is
-  no gain by the rule, so a tier at `q8_0` keeps giving its drafter the same type.
+  file writes 0.92 of its 16-bit rate without drafting and at draft length 4, and takes 570 MiB
+  less. Its largest context with the draft layer rises from 24K to 48K. At 64K, where 16 bits
+  must split and 8 bits is whole without the drafter, it writes 4.25 and 4.32 times the 16-bit
+  rate, and 2.71 times at draft length 1: upper readings, drawn with allowances given by hand.
+  The NVFP4 file writes 0.93 at 20K and 0.81 at 32K and draft length 1.
+- **Deep tier, the two MoE files: do not meet it.** Qwen3.6-35B-A3B at 256K writes 0.73 of the
+  16-bit rate without drafting and 0.83 at draft length 2; its 8-bit ladder is ended by the stop
+  rule at length 6. gemma-4-26B-A4B writes 0.69 at 256K split with RAM, and held whole 0.829 and
+  0.848 at 32K and 0.720 and 0.757 at 64K, so its loss does not come with the split.
+- **Chat tier: does not meet it.** Without drafting gemma-4-12B writes 0.855 at 64K and 0.745 at
+  128K, and Qwen3.5-9B 0.961 and 0.955. At draft length 3 Qwen3.5-9B writes 0.885 at 64K and
+  0.775 at 128K.
+- **GPU subagent tier: does not meet it.** gemma-4-E4B, with the flash attention the engine's
+  `auto` turns on, saves 16 to 130 MiB up to 32K and writes 0.87 at 16K and 0.58 at 128K.
+  gemma-4-E2B writes 0.83 at 16K. Qwen3.5-4B, Qwen3.5-2B and Qwen3.5-0.8B write 0.98 to 1.01 at
+  16K and save 34 to 185 MiB there. At 256K Qwen3.5-2B saves 948 MiB and writes 0.917 without
+  drafting and 0.813 at draft length 2. No model gains a step of context.
+- **CPU subagent servers: do not meet it.** The cache is in host RAM, so no card memory is
+  saved. gemma-4-E4B does not start at 8 bits with flash attention off, its card's setting; with
+  it on, 8 bits writes 0.875 of what the server ships with. The two Qwen files write 1.007 and
+  1.000 at 8K with the prompt pass at 0.75 and 0.62, and at 16K and 32K 1.07 to 1.24 with the
+  prompt pass at 0.24 to 0.63.
+- **The drafter's cache.** Left at 16 bits beside an 8-bit model cache it changes nothing for
+  gemma-4-12B and takes 82 to 86 MiB less for both Qwen3.8-27B files at 48K. For Qwen3.5-9B it
+  takes 150 MiB less at 64K and 286 and 292 MiB less at 128K, at the same rate
+  ([R-1263](1263-a-qwen-tier-at-q8-0-gives-its-draft-layer-a-cache-that-takes-more-memory.md)).
 - **The reply.** One fixed prompt at temperature 0 gets the same summary in other words from
-  every model that has rows. This is an indicator from one prompt per model.
+  every model that has rows held whole. This is an indicator from one prompt per model.
 
 ## The setting
 
 Each tier has a cache type setting: `CORTEX_KV_CACHE_TYPE`, `CORTEX_KV_CACHE_TYPE_BRAIN` and
 `CORTEX_KV_CACHE_TYPE_SUBAGENT_GPU`, each `f16` or `q8_0`, with the rule and its result recorded
-in ADR-0077 decision 8. Every default is `f16`, the deep tier's too: the Q4 file that met the
-rule is the deep alternate's and the tier ships with no file named, so a deployment that names
-that file sets `CORTEX_KV_CACHE_TYPE_BRAIN=q8_0`. A deployment on the NVFP4 file keeps `f16`
+in ADR-0077 decision 8. Every default is `f16`. The deep tier's is decided in R-1260 from the
+draw above; a deployment on an NVFP4 file keeps `f16`
 ([R-1244](1244-the-deep-tiers-file-is-not-chosen-between-the-q4-and-the-nvfp4-files.md)).
 
 ## Rows still to draw
@@ -66,52 +79,49 @@ Each command runs in `measurements/model-baseline-2026-11-16/tools/` with the RA
 
 **Every night draws its own 16-bit pair.** Before the 8-bit rows of a cell, the same launch is
 drawn at 16 bits into `bench/q8-ref.jsonl`, without drafting and at one draft length, and the
-8-bit rows are divided by that pair only. For a model held whole that is `python3
-../q8-probes/ref.py <model> <context> <phase> <room kept>`. For a split model it is the row's own
-command without `--kv` and with `--out q8-ref.jsonl`.
+8-bit rows are divided by that pair only. The night's first and last launch is `python3
+../q8-probes/drift.py` (R-1259).
 
-1. **The deep tier as the model host starts it, on the pick's file**, gemma-4-31B with every
-   layer on the card at both types, is
-   [R-1260](1260-the-deep-picks-file-has-no-cache-type-row-in-the-shape-the-stack-starts.md).
-2. **gemma-4-31B's NVFP4 file split with RAM**, per context, 16384 and then 32768:
-   `python3 bench3.py --models gemma-4-31B-NVFP4 --kind moe --ctx 16384 --phase deep --nmax 1
-   --out q8-ref.jsonl`, then `python3 bench3.py --models gemma-4-31B-NVFP4 --kind moe --ctx 16384
-   --phase deep --kv q8_0 --out q8.jsonl`.
-3. **The last draft lengths of Qwen3.6-35B-A3B at 256K.** The 8-bit ladder has lengths 1 to 4
-   and its stop rule has not ended it: `python3 bench3.py --models Qwen3.6-35B-A3B --kind moe
-   --phase deep --nmax 2 --out q8-ref.jsonl`, then `python3 bench3.py --models Qwen3.6-35B-A3B
-   --kind moe --phase deep --kv q8_0 --nmax 4,5,6 --out q8.jsonl`. Length 4 has a row and is
-   drawn again so that the stop rule compares rows of one night. Then lengths 1 and 2 again on
-   fresh launches (`--nmax 1,2`), since length 1 read 0.93 of the no-draft rate and length 2 read
-   1.27, a step the 16-bit ladder does not have.
-4. **gemma-4-26B-A4B split with RAM at 32K and 64K**, to see whether its loss at 256K comes with
-   the size of the context: the commands of step 2 with `--models gemma-4-26B-A4B` and `--ctx
-   32768`, then `--ctx 65536`.
-5. **Qwen3.8-27B, the Q4 file, split with RAM at a context it does not hold whole**, to see
-   whether the gain of gemma-4-31B's split rows is that file's or any split model's: the commands
-   of step 2 with `--models Qwen3.8-27B` and `--ctx 65536`.
-6. **A 16-bit pair of the night at 256K for Qwen3.5-2B**, whose rate there reads 0.88 to 0.92
-   after division by its two night factors: `python3 ../q8-probes/ref.py Qwen3.5-2B 262144
-   subagent 0`, then the 8-bit row again.
-7. **The CPU rows**, on the CPU image's build b10680: `python3 bench3.py --models
-   gemma-4-E4B,Qwen3.5-2B,Qwen3.5-0.8B --kind cpu --phase cpu --kv q8_0 --out q8.jsonl`.
-   gemma-4-E4B has flash attention off there, so expect the refusal and draw it again with
-   `--fa on`.
-8. **Qwen3.8-Flash-Next**, which keeps 7.8 GiB of context on the card at 256K at 16 bits:
-   `python3 q8-flash.py` (short prompts at 256K, then the ladder on a filled 32K context, 16
-   threads). The script fixes the 8-bit type and `q8.jsonl`, so its 16-bit rows need a copy with
-   `kv=None` and `out="q8-ref.jsonl"`.
-9. **The drafter's cache at 16 bits for the chat models**: `python3 bench3.py --models
-   gemma-4-12B,Qwen3.5-9B --phase chat --reserve-extra 3850 --ladder --ctx-list 65536,131072
-   --kv q8_0 --kv-draft f16 --out q8.jsonl`.
-10. **The output check for any model held whole that gets rows then**: `python3 q8-output.py
-    <model>`, read with `python3 q8-output-report.py --texts`.
+1. **Qwen3.8-Flash-Next**, the one whole model left. It keeps 7.8 GiB of context on the card at
+   256K at 16 bits: `python3 q8-flash.py` (short prompts at 256K, then the ladder on a filled 32K
+   context, 16 threads). The script fixes the 8-bit type and `q8.jsonl`, so its 16-bit rows need
+   a copy with `kv=None` and `out="q8-ref.jsonl"`, run first. Staging the file empties the RAM
+   store.
+2. **Qwen3.6-35B-A3B at 8 bits and draft length 3**, the fastest length on 2026-11-19, which has
+   no row beside a pair of its night: `python3 bench3.py --models Qwen3.6-35B-A3B --kind moe
+   --phase deep --nmax 2 --out q8-ref.jsonl`, then the same with `--kv q8_0 --nmax 3 --out
+   q8.jsonl`.
+3. **The CPU rows with a drafter at 16K and 32K, and the other draft lengths at 8K**: `python3
+   bench3.py --models gemma-4-E4B,Qwen3.5-2B,Qwen3.5-0.8B --kind cpu --phase cpu --ctx 16384
+   --out q8-ref.jsonl`, then the same with `--kv q8_0 --out q8.jsonl`, and for gemma-4-E4B both
+   again with `--fa on`; then `--ctx 32768`, and no `--ctx` for 8K. Three cells get no filled
+   pass until
+   [R-1262](1262-the-benchmark-drivers-cap-leaves-three-cpu-cells-without-a-filled-pass.md) is
+   done.
+4. **The Qwen3.5-0.8B CPU pair at 32K once more**, since 1.242 is one launch each: `python3
+   ../q8-probes/cpurow.py Qwen3.5-0.8B 32768 f16 on`, then the same with `q8_0`.
+5. **16-bit rows at the fastest 8-bit draft lengths.** gemma-4-26B-A4B at draft length 2:
+   `python3 bench3.py --models gemma-4-26B-A4B --kind moe --ctx 32768 --phase deep --nmax 2 --out
+   q8-ref.jsonl`, then the same with `--kv q8_0 --out q8.jsonl`, then both with `--ctx 65536`.
+   Qwen3.8-27B at 64K at lengths 2 and 3: `python3 ../q8-probes/splitrow.py Qwen3.8-27B 65536 f16
+   row <length> 600 <note>`.
+6. **Qwen3.8-27B at 64K through the driver's own search**, and its 16-bit no-draft placement one
+   step larger, once
+   [R-1261](1261-the-benchmark-drivers-allowance-search-can-end-on-a-placement-that-does-not-fit.md)
+   is done: `python3 bench3.py --models Qwen3.8-27B --kind moe --ctx 65536 --phase deep --nmax 1
+   --out q8-ref.jsonl`, then the same with `--kv q8_0`, no `--nmax` and `--out q8.jsonl`.
+7. **The output check.** The clauses that differ at 8 bits for gemma-4-12B, Qwen3.5-9B,
+   Qwen3.5-2B and gemma-4-26B-A4B in the checks of 2026-11-20 are still to be read against the
+   prompt: `python3 q8-output-report.py --texts`. Qwen3.6-35B-A3B and the NVFP4 file of
+   gemma-4-31B have no check, since no row holds them whole, and the CPU files have none on a
+   CPU, since `q8-output.py` launches on the card.
 
 Afterwards `python3 q8-report.py` rebuilds `q8.md`.
 
-What would close it: those rows, the rule applied to every tier in the readings, and the result
+What would close it: Flash-Next's rows, the rule applied to it in the readings, and the result
 recorded in ADR-0077 decision 8. A tier whose shipped file then meets the rule gets `q8_0` as the
 default of its setting in `brain/packages/model_manager/src/cortex_model_manager/config.py`.
+Steps 2 to 7 refine cells that are already decided.
 
 ## History
 
@@ -138,3 +148,9 @@ default of its setting in `brain/packages/model_manager/src/cortex_model_manager
   not start, so the deep pick's file is not decided. The body was rewritten around the new
   readings, with the rows that are left. No default changed. R-1259 filed for the difference
   between nights and R-1260 for the deep pick's file.
+- 2026-11-20: every row the list named was drawn except Qwen3.8-Flash-Next, each beside a 16-bit
+  pair of the night: the NVFP4 file of gemma-4-31B split, Qwen3.8-27B at 64K, both MoE files,
+  Qwen3.5-2B at 256K, the chat models' drafter cache and the CPU servers. No tier other than the
+  deep tier meets the rule. The body was rewritten around the readings, with what is left. No
+  default changed. Filed: R-1261 for the driver's allowance search, R-1262 for its cap on the CPU
+  filled pass, R-1263 for the drafter's cache of a Qwen tier.
