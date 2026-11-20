@@ -228,9 +228,9 @@ Condition 3 is read on ratios of one night where a pair exists.
   `TierArgs` in `config.py` takes `ngl` from `CORTEX_NGL_BRAIN`, 99 by default, and
   `llama_server_argv` in `tiers.py` writes `-ngl` and no `--fit` flag, so the tier starts with
   every layer on the card, a shape in which this file has one 8-bit row (12K, no drafter) and no
-  16-bit row.
-  [R-1260](../refinements/tasks/1260-the-deep-picks-file-has-no-cache-type-row-in-the-shape-the-stack-starts.md)
-  has the draw that decides it.
+  16-bit row. [The draw of 2026-11-20 in that shape](kv-cache-deep-whole.md) has both types,
+  and the file meets the rule there
+  ([R-1260](../refinements/tasks/1260-the-deep-picks-file-has-no-cache-type-row-in-the-shape-the-stack-starts.md)).
 - **The small Qwen files save memory only where they lose rate.** At the 8K to 16K a subagent
   server runs the fall is under 250 MiB. At 256K it is over, and no pair of one night exists
   there. Without drafting the rate divided by the night factor is under 0.90 for two of the three
@@ -239,6 +239,7 @@ Condition 3 is read on ratios of one night where a pair exists.
 - **Qwen3.5-9B passes at 64K and fails at 192K.** The 0.67 there divides rows of two nights, and
   no factor read so far is large enough to lift it to 0.90.
 
-No default changed (ADR-0077 decision 8). R-1243 has the rows that are left: the CPU rows,
-Qwen3.8-Flash-Next, the drafter's cache for the chat models, gemma-4-31B's NVFP4 file split with
-RAM, and the last draft lengths of Qwen3.6-35B-A3B.
+No default changed (ADR-0077 decision 8). [The rows of 2026-11-20](kv-cache-remaining-cells.md)
+have the cells this night left: the CPU rows, the drafter's cache for the chat models, the split
+files, Qwen3.5-2B at 256K beside a pair of its own night, and the last draft lengths of
+Qwen3.6-35B-A3B. Qwen3.8-Flash-Next is still to draw (R-1243).
