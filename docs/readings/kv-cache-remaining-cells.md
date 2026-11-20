@@ -224,8 +224,8 @@ tools/q8-output-report.py --texts`.
   whole, and the stack does not start a tier split, so the NVFP4 file of gemma-4-31B is not
   decided by these rows.
 - **The drafter's cache.** Left at 16 bits it saves 286 to 292 MiB for Qwen3.5-9B at 128K and
-  nothing for gemma-4-12B. The host gives the drafter the model's type; no tier ships at `q8_0`
-  with a Qwen draft layer, so nothing changes on these rows.
+  nothing for gemma-4-12B. The host gives the drafter the model's type; no tier's default file
+  has a Qwen draft layer, so nothing changes on these rows.
 
 No default changed on these rows. R-1243 has the cells that are left: Qwen3.8-Flash-Next, one
 draft length of Qwen3.6-35B-A3B, the drafted CPU rows, and the 16-bit rows at the fastest 8-bit

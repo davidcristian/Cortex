@@ -194,6 +194,17 @@ does not rest on decode is the fit check, which counts the drafter only when
 `CORTEX_SWAP_BRAIN_VRAM_MIB` includes its cost, as the [model-swap](model-swap.md) drafter step
 says.
 
+**Both figures are measured at the deep tier's KV cache type.** The type is `q8_0` unless
+`CORTEX_KV_CACHE_TYPE_BRAIN` names `f16`
+([ADR-0077](../adr/ADR-0077-model-card-settings.md) decision 8), and neither the fit check nor
+the spill watch reads it. On the pick's file at 16K without a drafter the tier writes 0.912 to
+0.913 of its `f16` rate at `q8_0` and reads 358 to 1,068 MiB less at its highest
+([readings](../readings/kv-cache-deep-whole.md)). A floor set less than that far under an `f16`
+rate reports a `q8_0` handoff with nothing wrong as a spill, and a need measured at `f16` can
+refuse a load that fits. Measure `CORTEX_SWAP_BRAIN_DECODE_TPS` and `CORTEX_SWAP_BRAIN_VRAM_MIB`
+at the type the tier runs, and again when that type changes. The deep tier figures on this page
+were read at `f16`.
+
 ## A handoff without the overlay
 
 A handoff starts only after the user approves the `escalate_to_brain` confirm card. The brain

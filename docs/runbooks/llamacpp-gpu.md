@@ -216,9 +216,9 @@ candidates](../readings/deep-candidates.md), [two tiers on one card](../readings
 
 The two cortex rows and the embedder are 2026-06-29, both subagent rows 2026-07-03, and the two
 brain rows 2026-08-04 through the `model-host` sidecar with the cortex evicted first at
-`CORTEX_CTX_SIZE_BRAIN=8192` and `-ngl 99`. Every row but the two cortex ones was taken with no
-power cap, so those load times do not compare. Every gemma and Qwen3.5 row was taken on a file the
-mount no longer holds, and the alternate's row is from 2026-09-26
+`CORTEX_CTX_SIZE_BRAIN=8192`, `-ngl 99` and an `f16` KV cache. Every row but the two cortex ones
+was taken with no power cap, so those load times do not compare. Every gemma and Qwen3.5 row was
+taken on a file the mount no longer holds, and the alternate's row is from 2026-09-26
 ([R-1238](../refinements/tasks/1238-the-lineups-readings-were-drawn-on-files-the-mount-no-longer-holds.md)).
 
 The VRAM budget is a deliberate 16 GB soft cap (`CORTEX_VRAM_SOFT_CAP_GB`), leaving about 8 GB

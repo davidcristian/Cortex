@@ -1,8 +1,8 @@
 # Readings: an 8-bit KV cache beside the default 16-bit cache
 
-A server holds its context in the KV cache. The engine's default type for it is `f16`, and no
-server in the stack sets another. `--cache-type-k q8_0 --cache-type-v q8_0` asks for an 8-bit type
-that takes about half the memory per token of context.
+A server holds its context in the KV cache. The engine's default type for it is `f16`, which every
+server but the deep tier's starts at. `--cache-type-k q8_0 --cache-type-v q8_0` asks for an 8-bit
+type that takes about half the memory per token of context.
 [R-1243](../refinements/tasks/1243-every-tier-holds-its-context-in-the-default-16-bit-cache.md)
 asks whether a tier should set it. This record holds the rows that decide that, beside the rows the
 model baseline of 2026-11-16 drew at 16 bits. Memory is `nvidia-smi` `memory.used` at the highest
