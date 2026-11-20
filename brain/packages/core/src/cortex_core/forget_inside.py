@@ -151,7 +151,7 @@ def _ends(
     kinds = any(code_word(word) for word in _WORD.findall(query))
     texts = [record.text for record in (*held, *records)]
     read = _read(texts, text, query, pattern)
-    every = quantifies(query) and not kinds
+    every = quantifies(query, texts) and not kinds
     holding = [] if every else [row for row in texts if _whole(row, text)]
     beside = {word for row in holding for word in row_words(row)}
     words = row_words(read)

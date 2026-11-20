@@ -40,11 +40,12 @@ def names(words: set[str], row: set[str], *, kind: frozenset[str] | None = None)
 
 
 def limited(words: list[str], named: set[str]) -> bool:
-    """Whether a word of ``words`` before their first value is one of ``named`` or a kind word,
-    as ``card`` of ``every card 4242``, so the word for all before it asks only for those rows."""
+    """Whether a word of ``words`` before their first value is a kind word or one a word of
+    ``named`` starts, as ``card`` of ``every card 4242`` or ``lockers`` beside a row holding
+    ``locker``, so the word for all before it asks only for those rows."""
     at = next((at for at, word in enumerate(words) if _valued(word)), len(words))
     between = {name for word in words[:at] for name in (word, code_stem(word) or word)}
-    return not between.isdisjoint(named) or bool(kinds(between))
+    return bool(kinds(between)) or any(word.startswith(name) for word in between for name in named)
 
 
 def _valued(word: str) -> bool:

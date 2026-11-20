@@ -153,26 +153,36 @@ in `/tmp/claude-1000/-home-david-Files-Git-Cortex/bd106a1a-a17f-4ca5-8841-82294e
 the call text `phone` it listed the phone. `quantifies` now reads the words before a value that
 a word for all follows (`before_every` in `forget_kinds.py`): back to a forget verb or a word for
 and, a word naming a matched row, or a kind word, stops the word for all asking for every row.
-The safe direction is keeping a row, so the rows the message may mean either way are kept and
-shown. Replayed before and after, each message with the value as the call text and each test
-string with three call texts:
+`Forget all lockers 4242.` listed all three rows, since no row holds `lockers`. `limited` now
+reads a word that a word of a matched row starts as that row's word, and the reader of a last
+group (`_ends` in `forget_inside.py`) reads the matched rows too, so the message keeps every
+row, as `Forget the lockers 4242.` does. The safe direction is keeping a row. Replayed before
+and after, each message with the value as the call text and each test string with three call
+texts:
 
 | Replay | Calls | Changed | Newly listed | Newly kept |
 | --- | --- | --- | --- | --- |
 | generated heads and tails in five languages | 42,356 | 0 | 0 | 0 |
 | string literals of the brain's forget tests | 5,865 | 0 | 0 | 0 |
-| a row named, the value, then each word for all | 450 | 420 | 0 | 840 |
-| a word for all beside the value alone, or before a row word | 1,050 | 0 | 0 | 0 |
+| a row named, the value, then a word for all | 450 | 450 | 0 | 930 |
+| a word for all, a longer form of a row word, the value | 225 | 135 | 0 | 405 |
+| a word for all, a row word, the value | 225 | 15 | 0 | 45 |
+| a word for all beside the value alone | 600 | 0 | 0 | 0 |
 
-The third row is each of the fifteen row names of the generator with its article, `4242`, then
-each of the fifteen words for all of the table of forms, after a space and after a comma. Each
-of the 840 rows newly kept is one the message may mean either way: the other two rows of the
-pool. None is asked to keep, not asked or asked to delete. The 30 messages that did not change
-name the row as `dulapul`, a form the row holding `dulap` does not hold. The string literals are
-replayed over the generator's fifteen rows, which hold no bike lock, so the four test strings
-that name one (`Forget my bike lock code 7319 everywhere.` and three more) change only in their
-own tests: each now keeps the shed padlock code, a row the message may mean either way. Scripts
-`gen.py`, `mkcases.py`, `run.py` and `cmp.py` in `~/.cache/cortex-run/2026-11-20/forget-replay/`.
+The last four rows are 1,500 messages over the generator's fifteen rows and the fifteen words
+for all of the table of forms. The first change alone keeps 840 rows, each one the message may
+mean either way, and changes no other row of the table. Of the 1,380 rows newly kept by both,
+1,035 are rows the message may mean either way, 300 are not asked for, none is asked to keep
+and 45 are asked to delete. The 45 are one row, the locker code holding `dulap`, named as
+`dulapul` before or after a word for all: `Uită dulapul 4242.` with no word for all already
+kept it, since the card does not read the Romanian article. The 90 longer forms that changed
+nothing are kind words of the table, such as `cards` and `Karten`, which listed their one row
+before. The string literals are replayed over the generator's fifteen rows, which hold no
+bike lock, so the four test strings that name one (`Forget my bike lock code 7319 everywhere.`
+and three more) change only in their own tests: each now keeps the shed padlock code, a row the
+message may mean either way. A word no stored row word starts still lists every row, as in
+`Forget all cupboards 4242.`, and is filed. Scripts `gen.py`, `mkcases.py`, `run.py` and
+`cmp.py` in `~/.cache/cortex-run/2026-11-20/forget-replay/`.
 
 ## The four blocked cells replayed, 2026-11-15
 

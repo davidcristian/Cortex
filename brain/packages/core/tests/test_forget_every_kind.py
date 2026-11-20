@@ -31,6 +31,9 @@ _ROWS = {
     "telefono": "User: Recuerda que mi teléfono es 0721 555 4242.\nAssistant: Anotado.",
     "fahrrad": "User: Merke dir, mein Fahrradcode ist 4242.\nAssistant: Notiert.",
     "recall": "User: What is my card number?\nAssistant: Your card is 4111 1111 1111 4242.",
+    "dulap": "User: Ține minte că codul de la dulap este 4242.\nAssistant: Notat.",
+    "cardul": "User: Ține minte că cardul meu este 4111 1111 1111 4242.\nAssistant: Notat.",
+    "theatre": "User: Remember that my theatre seat is 4242.\nAssistant: Noted.",
 }
 _FOUR = ("locker", "card", "phone", "gym")
 _TEXTS = ("4242", "card", "phone", "locker code", "code", "card 4242", "gym code")
@@ -218,3 +221,56 @@ def test_a_word_for_all_after_a_value_no_row_word_is_before_asks_for_every_row(
 )
 async def test_a_word_for_all_after_a_value_alone_lists_every_row_holding_it(query: str) -> None:
     assert await _deleted(query, _FOUR, _AFTER) == {"locker", "card", "phone"}
+
+
+_FRENCH = ("casier", "carte", "telephone")
+_GERMAN = ("spind", "karte", "handy")
+
+
+@pytest.mark.parametrize(
+    ("query", "ids"),
+    [
+        ("Forget all lockers 4242.", _FOUR),
+        ("Forget every lockers 4242.", _FOUR),
+        ("Forget all my lockers 4242.", _FOUR),
+        ("Forget the lockers 4242 everywhere.", _FOUR),
+        ("Oublie tous les casiers 4242.", _FRENCH),
+        ("Oublie toutes casiers 4242.", _FRENCH),
+        ("Vergiss alle Spinde 4242.", _GERMAN),
+        ("Vergiss jeden Spindes 4242.", _GERMAN),
+        ("Olvida todas gimnasios 4242.", ("gimnasio", "tarjeta", "telefono")),
+        ("Uită all dulapul 4242.", ("dulap", "cardul")),
+        ("Uită dulapul 4242 everywhere.", ("dulap", "cardul")),
+    ],
+)
+async def test_a_word_for_all_stops_at_a_longer_form_of_a_stored_row_word(
+    query: str, ids: tuple[str, ...]
+) -> None:
+    assert not quantifies(query, [_ROWS[name] for name in ids])
+    assert await _deleted(query, ids, ("4242", "card", "phone", "Karte", "carte")) == set()
+
+
+@pytest.mark.parametrize(
+    ("query", "ids"),
+    [
+        ("Forget every single 4242.", _FOUR),
+        ("Forget every other 4242.", _FOUR),
+        ("Forget all the 4242.", ("theatre", "card")),
+        ("Forget all these 4242.", ("theatre", "card")),
+        ("Forget every lock 4242.", _FOUR),
+        ("Forget all lockers 4242.", ("card", "phone")),
+        ("Forget all cupboards 4242.", _FOUR),
+        ("Vergiss alle meine 4242.", _GERMAN),
+        ("Oublie tous les 4242.", _FRENCH),
+    ],
+)
+def test_a_word_for_all_reaches_a_value_past_a_word_no_stored_row_word_starts(
+    query: str, ids: tuple[str, ...]
+) -> None:
+    assert quantifies(query, [_ROWS[name] for name in ids])
+
+
+async def test_a_word_a_row_word_does_not_start_still_lists_every_row() -> None:
+    gone = await _deleted("Forget all the 4242.", ("theatre", "card", "phone"), ("4242",))
+
+    assert gone == {"theatre", "card", "phone"}
