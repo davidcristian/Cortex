@@ -38,10 +38,10 @@ which drafts with a separate file, loads the same memory at both drafter cache t
    setting or a rule per file.
 
 No tier ships at `q8_0` with a Qwen draft layer today: the chat tier does not meet the rule of
-[the first cache type readings](../../readings/kv-cache-types.md), and the deep tier's default
-is decided for the gemma-4-31B pick in
-[R-1260](1260-the-deep-picks-file-has-no-cache-type-row-in-the-shape-the-stack-starts.md). A
-deployment that names the Qwen3.8-27B Q4 file with `q8_0` pays 82 to 86 MiB.
+[the first cache type readings](../../readings/kv-cache-types.md), and the deep tier ships with
+no file named. Its default is `q8_0` (ADR-0077 decision 8), so a deployment that names the
+Qwen3.8-27B Q4 file and drafts with its layer pays 82 to 86 MiB at 48K. The 570 MiB the type
+saves that file at 20K was read with the drafter's cache at 8 bits.
 
 What would close it: the cause recorded in the readings, and either the drafter's type set on
 its own for the files it helps or the reason recorded that it follows the model's.

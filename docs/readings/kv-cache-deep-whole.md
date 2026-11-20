@@ -124,5 +124,7 @@ condition 1 by its argv and its memory in place of a log line.** What limits tha
   MiB free.
 
 The rule decides the type only. Neither type leaves the 1,536 MiB free at 16K with every layer
-on the card, so the tier's context or placement is a separate question, and R-1260 keeps it. No
-default is changed by this record; the setting is built as its own change.
+on the card, so the tier's context or placement is a separate question, which
+[R-1264](../refinements/tasks/1264-the-deep-tier-at-16k-is-over-the-model-budget-with-every-layer-on-the-card.md)
+has. The deep tier's default is `q8_0` on this record
+([ADR-0077](../adr/ADR-0077-model-card-settings.md) decision 8).

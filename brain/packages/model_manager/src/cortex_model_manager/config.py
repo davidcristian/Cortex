@@ -38,6 +38,7 @@ DEFAULT_SUBAGENT_GPU_MODEL = "subagent-gpu"
 DEFAULT_NGL = 99
 DEFAULT_CORTEX_CTX_SIZE = 16384
 DEFAULT_BRAIN_CTX_SIZE = 16384
+DEFAULT_BRAIN_KV_CACHE_TYPE: KvCacheType = "q8_0"
 DEFAULT_SUBAGENT_CTX_SIZE = 8192
 DEFAULT_SUBAGENT_GPU_PARALLEL = 1
 DEFAULT_SUBAGENT_GPU_SERVERS = 2
@@ -128,9 +129,9 @@ class ModelHostConfig(BaseSettings):
     cortex_draft_length: int = Field(
         default=DEFAULT_CORTEX_DRAFT_LENGTH, gt=0, validation_alias="CORTEX_DRAFT_LENGTH"
     )
-    # The type each tier's server holds its KV cache in, its drafter's cache too. Every default is
-    # the engine's 16 bits: docs/readings/kv-cache-types.md has the one file that met the rule
-    # for `q8_0`, and no tier ships with it.
+    # The type each tier's server holds its KV cache in, its drafter's cache too. The deep tier's
+    # default is `q8_0`, which both Q4 deep files met the rule of docs/readings/kv-cache-types.md
+    # for; the other tiers did not and default to the engine's 16 bits.
     cortex_kv_cache_type: KvCacheType = Field(
         default=ENGINE_KV_CACHE_TYPE, validation_alias="CORTEX_KV_CACHE_TYPE"
     )
@@ -163,7 +164,7 @@ class ModelHostConfig(BaseSettings):
         default=DEFAULT_BRAIN_DRAFT_LENGTH, gt=0, validation_alias="CORTEX_DRAFT_LENGTH_BRAIN"
     )
     brain_kv_cache_type: KvCacheType = Field(
-        default=ENGINE_KV_CACHE_TYPE, validation_alias="CORTEX_KV_CACHE_TYPE_BRAIN"
+        default=DEFAULT_BRAIN_KV_CACHE_TYPE, validation_alias="CORTEX_KV_CACHE_TYPE_BRAIN"
     )
 
     subagent_gpu_model: str = Field(

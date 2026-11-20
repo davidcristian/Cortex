@@ -4,7 +4,7 @@
 **Area:** inference-model-manager
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
 **Trigger:** a History line in this file recording the maintainer's pick of A, B or C below.
-**Verified:** 2026-11-19
+**Verified:** 2026-11-20
 
 On 2026-11-17 the models mount gained two files meant for the deep tier, both in NVFP4, a 4-bit
 floating point weight format:
@@ -50,7 +50,9 @@ for the two Q4 files.
   Q4 file meets the rule of R-1243 and the Qwen NVFP4 file does not: it writes 0.81 of its
   16-bit rate at 32K and draft length 1. The gemma Q4 file then fits whole at 12K without its
   drafter and, split with RAM, writes 2.08 to 2.11 times its 16-bit rate. The gemma NVFP4 file
-  fits whole at no context at 8 bits either, and its split rows at 8 bits are not drawn.
+  fits whole at no context at 8 bits either. Split with RAM it writes 1.52 and 1.56 times its
+  16-bit rate at 16K and 1.94 times at 32K, with no fall in card memory
+  ([the rows of 2026-11-20](../../readings/kv-cache-remaining-cells.md)).
 
 ## What is not known
 
@@ -59,17 +61,21 @@ for the two Q4 files.
   [R-1245](1245-the-nvfp4-files-have-none-of-the-rows-the-deep-pick-is-compared-on.md).
 - How the card multiplies the NVFP4 type. The engine's log does not say, and no other build was
   run.
-- The gemma NVFP4 file split with RAM at 8 bits, which
-  [R-1243](1243-every-tier-holds-its-context-in-the-default-16-bit-cache.md) still has to draw,
-  and both gemma files in the shape the stack starts the tier in
-  ([R-1260](1260-the-deep-picks-file-has-no-cache-type-row-in-the-shape-the-stack-starts.md)).
+- The gemma NVFP4 file in the shape the stack starts the tier in, every layer on the card. The
+  Q4 file was drawn that way on 2026-11-20, at both cache types
+  ([readings](../../readings/kv-cache-deep-whole.md)); the NVFP4 file has split rows only.
 - Whether another drafter suits the gemma NVFP4 file better. The mount holds one drafter for this
   model.
 
 ## The choice
 
 Which file the deep tier names is the maintainer's pick. The deep tier has no default artifact, so
-the choice changes the file ADR-0004 names for an entry, and no compose default.
+the choice changes the file ADR-0004 names for an entry, and no compose default for a file.
+
+The deep tier's cache type default follows the choice. It is `q8_0` because both Q4 files meet
+the rule of R-1243 (ADR-0077 decision 8), and no NVFP4 file does. Under A it stays. Under B it
+stays for the pick, and a deployment of the alternate sets `CORTEX_KV_CACHE_TYPE_BRAIN=f16`.
+Under C it returns to `f16`.
 
 - **A. Change nothing.** The pick stays `gemma-4-31B-it-qat` and the alternate stays
   `Qwen3.8-27B-UD-Q4_K_M`.
@@ -98,3 +104,7 @@ shows the gain the Q4 file has.
   NVFP4 file's no-draft advantage reads 1.05 there, not 1.11. The 8-bit rows of R-1243 were added
   where the files are compared. The recommendation is unchanged. R-1259 filed for the difference
   between nights.
+- 2026-11-20: the trigger has not fired: no History line records a pick. The deep tier's cache
+  type default became `q8_0` on the rows of both Q4 files, and the choice above now says what
+  each option does to it. The gemma NVFP4 file's split rows at 8 bits were added where the files
+  are compared.

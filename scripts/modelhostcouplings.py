@@ -93,6 +93,19 @@ MODELHOST_COUPLINGS: tuple[Constant, ...] = (
         mentions=(Mention(GPU_COMPOSE, "${CORTEX_CTX_SIZE_BRAIN:-{value}}"),),
     ),
     Constant(
+        label="the deep tier's KV cache type",
+        why=(
+            "the override substitutes this default into the sidecar's environment, so a type "
+            "changed in the config alone starts the deep tier at the old type while the config "
+            "and its record name the new one (ADR-0077)"
+        ),
+        sites=(Site(MODELHOST_CONFIG, "DEFAULT_BRAIN_KV_CACHE_TYPE"),),
+        mentions=(
+            Mention(GPU_COMPOSE, "${CORTEX_KV_CACHE_TYPE_BRAIN:-{value}}"),
+            Mention(MODEL_MANAGER_DOC, "the deep tier's default is `{value}`"),
+        ),
+    ),
+    Constant(
         label="a subagent tier's context window",
         why=(
             "three compose files substitute this one variable, the GPU-placed tier's and both "

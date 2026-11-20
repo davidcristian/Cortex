@@ -36,6 +36,12 @@ def _drafting(file: str, length: str = "3") -> tuple[str, ...]:
     )
 
 
+@pytest.fixture(autouse=True)
+def _deep_tier_at_the_engines_cache_type(monkeypatch: pytest.MonkeyPatch) -> None:  # pyright: ignore[reportUnusedFunction]
+    """The deep tails read here end before the cache type test_tier_cache_types.py covers."""
+    monkeypatch.setenv("CORTEX_KV_CACHE_TYPE_BRAIN", "f16")
+
+
 def _argv(model: str, monkeypatch: pytest.MonkeyPatch, **settings: str) -> tuple[str, ...]:
     for name, value in settings.items():
         monkeypatch.setenv(name, value)

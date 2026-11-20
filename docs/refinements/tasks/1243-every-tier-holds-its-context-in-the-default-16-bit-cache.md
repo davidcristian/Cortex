@@ -5,10 +5,11 @@
 **Origin:** [ADR-0077](../../adr/ADR-0077-model-card-settings.md)
 **Verified:** 2026-11-20
 
-No server in the stack starts with `--cache-type-k` or `--cache-type-v`, so each one keeps its
-context (the KV cache) in the engine's default type, 16-bit floats. The model baseline of 2026-11-16
-was drawn the same way. The engine also accepts an 8-bit type, `q8_0`. The user set the scope of
-this task to every model the baseline drew, each with `q8_0` for keys and values.
+The cortex and the subagent servers start without `--cache-type-k` or `--cache-type-v`, so each
+keeps its context (the KV cache) in the engine's default type, 16-bit floats. The model baseline of
+2026-11-16 was drawn that way for every tier. The engine also accepts an 8-bit type, `q8_0`, which
+the deep tier runs by default since 2026-11-20. The user set the scope of this task to every model
+the baseline drew, each with `q8_0` for keys and values.
 
 ## What is decided
 
@@ -27,8 +28,9 @@ rows of one night, because the same 16-bit launch reads a different rate on anot
   With every layer on the card at 16K it writes 0.913 and 0.912 of its 16-bit rate without the
   drafter and 1.035 and 1.018 at draft length 3, takes 454 and 688 MiB less with the drafter, and
   gives the same reply token for token. No log names the cache type there, so it is read from
-  the argv and the memory. Neither type fits the 18,177 MiB budget there. The default is set in
-  [R-1260](1260-the-deep-picks-file-has-no-cache-type-row-in-the-shape-the-stack-starts.md).
+  the argv and the memory. The tier's default is `q8_0` on these rows (ADR-0077 decision 8).
+  Neither type fits the 18,177 MiB budget there
+  ([R-1264](1264-the-deep-tier-at-16k-is-over-the-model-budget-with-every-layer-on-the-card.md)).
   Split with RAM the file writes 2.08 to 2.11 times its 16-bit rate, a shape the stack does not
   start.
 - **Deep tier, gemma-4-31B, the NVFP4 file: not decided.** It is held whole at no context. Split
@@ -70,9 +72,9 @@ rows of one night, because the same 16-bit launch reads a different rate on anot
 
 Each tier has a cache type setting: `CORTEX_KV_CACHE_TYPE`, `CORTEX_KV_CACHE_TYPE_BRAIN` and
 `CORTEX_KV_CACHE_TYPE_SUBAGENT_GPU`, each `f16` or `q8_0`, with the rule and its result recorded
-in ADR-0077 decision 8. Every default is `f16`. The deep tier's is decided in R-1260 from the
-draw above; a deployment on an NVFP4 file keeps `f16`
-([R-1244](1244-the-deep-tiers-file-is-not-chosen-between-the-q4-and-the-nvfp4-files.md)).
+in ADR-0077 decision 8. The deep tier's default is `q8_0`, set on 2026-11-20 from the draw
+above, and a deployment that names an NVFP4 deep file sets `CORTEX_KV_CACHE_TYPE_BRAIN=f16`
+([R-1244](1244-the-deep-tiers-file-is-not-chosen-between-the-q4-and-the-nvfp4-files.md)). The cortex's and the subagent servers' defaults are `f16`.
 
 ## Rows still to draw
 
@@ -118,12 +120,17 @@ drawn at 16 bits into `bench/q8-ref.jsonl`, without drafting and at one draft le
    gemma-4-31B have no check, since no row holds them whole, and the CPU files have none on a
    CPU, since `q8-output.py` launches on the card.
 
+8. **The engine's log line for the deep pick's file**, which the rule's first condition names
+   and no log of that file has: one `q8_0` launch with the engine's log at level 4 and flash
+   attention at `auto`, `python3 q8-kvlog.py gemma-4-31B:q8_0:3:auto`, which writes the engine's
+   cache lines to `bench/q8-kvlog.jsonl`.
+
 Afterwards `python3 q8-report.py` rebuilds `q8.md`.
 
 What would close it: Flash-Next's rows, the rule applied to it in the readings, and the result
 recorded in ADR-0077 decision 8. A tier whose shipped file then meets the rule gets `q8_0` as the
 default of its setting in `brain/packages/model_manager/src/cortex_model_manager/config.py`.
-Steps 2 to 7 refine cells that are already decided.
+Steps 2 to 8 refine cells that are already decided.
 
 ## History
 
@@ -156,3 +163,8 @@ Steps 2 to 7 refine cells that are already decided.
   deep tier meets the rule. The body was rewritten around the readings, with what is left. No
   default changed. Filed: R-1261 for the driver's allowance search, R-1262 for its cap on the CPU
   filled pass, R-1263 for the drafter's cache of a Qwen tier.
+- 2026-11-20: the deep tier's default became `q8_0`, in `config.py` and as the compose default,
+  on the draw of [R-1260](1260-the-deep-picks-file-has-no-cache-type-row-in-the-shape-the-stack-starts.md),
+  which closed. The cortex's and the subagent servers' defaults stay `f16`. The log line of the
+  pick's file is step 8 above. Filed: [R-1264](1264-the-deep-tier-at-16k-is-over-the-model-budget-with-every-layer-on-the-card.md)
+  for the deep tier's fit at 16K.

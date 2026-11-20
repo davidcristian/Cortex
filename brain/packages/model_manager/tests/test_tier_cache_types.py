@@ -13,6 +13,7 @@ _VARIABLES = {
     "subagent-gpu": "CORTEX_KV_CACHE_TYPE_SUBAGENT_GPU",
     "subagent-gpu-2": "CORTEX_KV_CACHE_TYPE_SUBAGENT_GPU",
 }
+_OTHER_TIERS = ("cortex", "subagent-gpu", "subagent-gpu-2")
 _EVERY_TAIL = {
     "CORTEX_MODEL_FILE_CORTEX_MMPROJ": "vision/mmproj.gguf",
     "CORTEX_REASONING_BUDGET": "128",
@@ -29,25 +30,46 @@ def _roster(monkeypatch: pytest.MonkeyPatch, **settings: str) -> dict[str, tuple
     return {model: spec.argv for model, spec in ModelHostConfig().roster().items()}
 
 
-def test_every_tier_keeps_the_engines_cache_type_by_naming_no_flag(
+def test_the_deep_tier_defaults_to_an_8_bit_cache_and_every_other_tier_to_the_engines(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for variable in set(_VARIABLES.values()):
+        monkeypatch.delenv(variable, raising=False)
+    config = ModelHostConfig()
+    assert config.brain_kv_cache_type == "q8_0"
+    assert config.cortex_kv_cache_type == "f16"
+    assert config.subagent_gpu_kv_cache_type == "f16"
+
+
+def test_on_defaults_only_the_deep_server_names_a_cache_type_and_its_drafter_has_the_same(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     roster = _roster(monkeypatch)
     assert set(roster) == set(_VARIABLES)
-    for argv in roster.values():
-        assert not [item for item in argv if item.startswith("--cache-type")]
+    assert roster["brain"][-8:] == (*_MODEL_CACHE, *_DRAFT_CACHE)
+    for model in _OTHER_TIERS:
+        assert not [item for item in roster[model] if item.startswith("--cache-type")]
+
+
+def test_on_defaults_a_deep_server_without_a_drafter_names_the_models_cache_type_alone(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    argv = _roster(monkeypatch, CORTEX_MODEL_FILE_BRAIN_DRAFT="")["brain"]
+    assert argv[-4:] == _MODEL_CACHE
+    assert "--cache-type-k-draft" not in argv
 
 
 @pytest.mark.parametrize("model", list(_VARIABLES))
 def test_a_tiers_cache_type_follows_its_drafter_and_reaches_no_other_tier(
     monkeypatch: pytest.MonkeyPatch, model: str
 ) -> None:
+    defaults = _roster(monkeypatch)
     roster = _roster(monkeypatch, **{_VARIABLES[model]: "q8_0"})
     assert roster[model][-10:-8] == ("--spec-draft-n-max", "3")
     assert roster[model][-8:] == (*_MODEL_CACHE, *_DRAFT_CACHE)
     others = [name for name, variable in _VARIABLES.items() if variable != _VARIABLES[model]]
     for other in others:
-        assert "--cache-type-k" not in roster[other]
+        assert roster[other] == defaults[other]
 
 
 @pytest.mark.parametrize(

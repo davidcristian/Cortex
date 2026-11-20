@@ -1,17 +1,17 @@
 # The deep pick's file has no cache type row in the shape the stack starts
 
-**Status:** open, actionable
+**Status:** done 2026-11-20
 **Area:** inference-model-manager
 **Origin:** [ADR-0077](../../adr/ADR-0077-model-card-settings.md)
-**Verified:** 2026-11-20
 
-The deep tier's cache type default is `f16`. For the deep pick's file, gemma-4-31B in Q4, the rows
+The deep tier's cache type default was `f16`. For the deep pick's file, gemma-4-31B in Q4, the rows
 that decide it were missing in the shape the stack starts: every layer on the card. They were
 drawn on 2026-11-20, twice, and the file meets the rule of
 [the first cache type readings](../../readings/kv-cache-types.md) in that shape, with the rule's
 first condition read from the argv and the memory in place of a log line
-([readings](../../readings/kv-cache-deep-whole.md)). The default is not changed yet. What is left
-is that change, and a second question the draw opened: neither type fits the budget at 16K.
+([readings](../../readings/kv-cache-deep-whole.md)). The default is `q8_0` since 2026-11-20
+(ADR-0077 decision 8). The second question the draw opened, that neither type fits the budget at
+16K, is [R-1264](1264-the-deep-tier-at-16k-is-over-the-model-budget-with-every-layer-on-the-card.md).
 
 ## The draw
 
@@ -54,58 +54,27 @@ more less, in both drafter settings) and was met.
 4. **Output: passes.** At 8K with every layer on the card the 8-bit reply to the fixed prompt is
    the 16-bit reply token for token, 119 of 119 (rows 32 to 34 of `bench/q8-output.jsonl`).
 
-## What the change of the default touches
+## What the default applies to
 
 - The default of the `CORTEX_KV_CACHE_TYPE_BRAIN` setting in
-  [config.py](../../../brain/packages/model_manager/src/cortex_model_manager/config.py), which
-  is `ENGINE_KV_CACHE_TYPE` today, the same variable in `docker/docker-compose.gpu.yml`, and
-  ADR-0077 decision 8, which says every tier's default is the engine's 16 bits.
+  [config.py](../../../brain/packages/model_manager/src/cortex_model_manager/config.py) and the
+  same variable's substitution default in `docker/docker-compose.gpu.yml` are `q8_0`, and
+  `crosscheck.py` compares the two. ADR-0077 decision 8 has the reasons.
 - The default applies to whatever file a deployment names. Both Q4 files meet the rule (the
   pick's here, the Qwen3.8-27B alternate's in
   [the rows of 2026-11-19](../../readings/kv-cache-every-model.md)). The NVFP4 file of
   Qwen3.8-27B does not, at 0.81 at 32K and draft length 1, and the NVFP4 file of gemma-4-31B has
-  no row held whole, so a deployment on either NVFP4 file would set `f16`
+  no row held whole, so a deployment on either NVFP4 file sets `f16`
   ([R-1244](1244-the-deep-tiers-file-is-not-chosen-between-the-q4-and-the-nvfp4-files.md)).
-- The figures above are audited against the row file before the default moves.
+- The figures above were audited against the row file before the default moved.
 
-## What the draw leaves open
+## What the draw left open
 
-- **Neither type fits the budget at 16K.** With the desktop's apps counted as 4,750 MiB and 1,536
-  MiB kept free, models get 18,177 MiB. `q8_0` is over it by 198 to 207 MiB without the drafter
-  and 907 to 909 MiB with it; `f16` by 1,266 MiB and 1,597 MiB in the second draw. No row has
-  a spill's rate: the desktop's apps held 3,221 to 4,247 MiB, under the 4,750 MiB the budget
-  counts. At 8 bits the file fits
-  the budget whole at 12K without its drafter and at no context with it.
-- **`f16` with the drafter is at the card's limit**: 23,085 and 23,057 MiB of 24,463 at the
-  highest reading, with about 310 MiB of the launch not accounted for on the card in the second
-  draw. Its rate is not a spill's (0.97 and 0.98 of the `q8_0` row), and a small spill is not
-  ruled out.
-- **How the stack places the tier.** `llama_server_argv` in
-  [tiers.py](../../../brain/packages/model_manager/src/cortex_model_manager/tiers.py) always
-  writes `-ngl` (99 from `CORTEX_NGL_BRAIN`) and never `--fit` or a thread count, so the engine
-  moves no layer and a tier that does not fit spills into host RAM with no error
-  ([model swap measurements](../../runbooks/model-swap-measurements.md)). Split by the engine's
-  fit the same file writes 2.08 to 2.11 times its 16-bit rate at 8 bits, a shape no setting
-  reaches.
-
-## Rows not drawn
-
-Each launch is `python3 q8-probes/deepwhole.py <label> f16|q8_0 none|mtp [note]` in
-`measurements/model-baseline-2026-11-16/`, with the stack files of
-`~/.cache/cortex-run/2026-11-20/` (compose project `cortexn25`); `bash
-~/.cache/cortex-run/2026-11-20/deep-stop.sh` removes the project afterwards.
-
-1. The drafted pair at 8K, where neither type is at the card's limit, to see whether `f16` keeps
-   the 1.10 lead it has without the drafter.
-2. The four launches with the desktop's apps at 4,750 MiB or more, the load the budget counts.
-3. The log line the rule's first condition asks for, which no log of this file has: one `q8_0`
-   launch with the engine's log at level 4 and flash attention at `auto`, `python3
-   tools/q8-kvlog.py gemma-4-31B:q8_0:3:auto`, which writes the engine's cache lines to
-   `bench/q8-kvlog.jsonl` as it did for other models on 2026-11-18.
-
-What would close it: `CORTEX_KV_CACHE_TYPE_BRAIN`'s default set from the readings, or the reason
-recorded in ADR-0077 decision 8 that it stays `f16`; and the question of the tier's context or
-placement at 16K either decided or filed as its own task.
+Neither type fits the 18,177 MiB budget at 16K with every layer on the card, and `f16` with the
+drafter is at the card's limit. [R-1264](1264-the-deep-tier-at-16k-is-over-the-model-budget-with-every-layer-on-the-card.md)
+has that question with its figures and the two pairs of rows not drawn for it. The log line the
+rule's first condition asks for is step 8 of
+[R-1243](1243-every-tier-holds-its-context-in-the-default-16-bit-cache.md).
 
 ## History
 
@@ -119,3 +88,9 @@ placement at 16K either decided or filed as its own task.
   reply; the cache type is read from the argv and the memory, since no log names it. No row
   fits the 18,177 MiB budget at 16K at either type. The body was rewritten around the draw; the
   default is left for its own change.
+- 2026-11-20: done. The deep tier's default is `q8_0`, in `config.py` and as the compose default,
+  with a coupling between the two; a deployment on an NVFP4 file sets `f16`, and the default
+  follows the file choice of [R-1244](1244-the-deep-tiers-file-is-not-chosen-between-the-q4-and-the-nvfp4-files.md).
+  The cortex's and the subagent servers' defaults stay `f16`. Filed:
+  [R-1264](1264-the-deep-tier-at-16k-is-over-the-model-budget-with-every-layer-on-the-card.md)
+  for the tier's fit at 16K.

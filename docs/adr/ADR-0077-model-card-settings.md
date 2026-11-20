@@ -135,30 +135,58 @@ The cards were read on 2026-11-16, when the models mount moved to the files
    also cannot leave a flag out when its variable is empty, so a drafter there would need an
    entry script before a deployment could turn it off.
 
-8. **Each tier has a KV cache type setting, and every tier's default is the engine's 16 bits.**
+8. **Each tier has a KV cache type setting. The deep tier's default is `q8_0` and every other
+   tier's is the engine's 16 bits.**
    `CORTEX_KV_CACHE_TYPE`, `CORTEX_KV_CACHE_TYPE_BRAIN` and `CORTEX_KV_CACHE_TYPE_SUBAGENT_GPU`
    take `f16` or `q8_0`, the two types the readings have rows for, and any other value is refused
-   when the settings are read. At `f16` a tier names no flag, so its argv is the one every
-   earlier row was drawn at. At `q8_0`, `cache_flags` in `tiers.py` writes `--cache-type-k q8_0
-   --cache-type-v q8_0`, and `--cache-type-k-draft q8_0 --cache-type-v-draft q8_0` after them
-   when the tier drafts: a tier sets one type for the whole server, as the rows did.
+   when the settings are read. At `f16` a tier names no flag. At `q8_0`, `cache_flags` in
+   `tiers.py` writes `--cache-type-k q8_0 --cache-type-v q8_0`, and `--cache-type-k-draft q8_0
+   --cache-type-v-draft q8_0` after them when the tier drafts: a tier sets one type for the
+   whole server, as the rows did.
 
    The defaults follow the rule the readings wrote before their rows
    ([KV cache types](../readings/kv-cache-types.md)): the engine accepts the type, the tier gains
    a step of context or 250 MiB, the rate stays at 0.90 of the 16-bit rate or more, and the
    output check passes. A ratio divides two rows of one night where both were drawn
-   ([every model](../readings/kv-cache-every-model.md)). Only the deep tier on the Qwen3.8-27B
-   Q4 file met it, at 0.92 of its 16-bit rate at 20K on one night. That file is the
-   deep alternate's and the tier ships with no file named, so no default moves, and a deployment
-   that names that file sets `CORTEX_KV_CACHE_TYPE_BRAIN=q8_0`. The model host started the
-   deep tier that way at 16K, drafting with the file's own layer at a draft length of 3: it
-   answered, 1,406 of 1,812 drafted tokens were accepted, and the card read 16,991 MiB above
-   its floor at the peak.
+   ([every model](../readings/kv-cache-every-model.md)). No file of the cortex or of a subagent
+   server meets it, so those tiers stay at `f16`.
 
-   The deep pick's file, gemma-4-31B, writes 2.08 to 2.11 times its 16-bit rate at 8 bits when
-   it is split with RAM, where the engine keeps four to five more layers on the card. The stack
-   starts the tier with every layer on the card, a shape that file has no pair of rows in, so
-   the tier's default stays `f16`.
+   The deep tier meets it on both files [ADR-0004](ADR-0004-model-lineup.md) names for it, so
+   its default is `q8_0`: in `config.py`, and as the substitution default of
+   `docker/docker-compose.gpu.yml`, which `crosscheck.py` compares with it.
+
+   - **The pick's file, gemma-4-31B in Q4.** The model host started it as the stack does, at 16K
+     with every layer on the card, at both types, twice
+     ([the deep tier at both types](../readings/kv-cache-deep-whole.md)). At 8 bits it writes
+     0.913 and 0.912 of its 16-bit rate without a drafter and 1.035 and 1.018 at draft length 3,
+     reads 358 to 1,068 MiB less at its highest, and gives the fixed prompt the same reply token
+     for token. The smallest margin is the rate without a drafter, 0.912 against 0.90. That the
+     engine accepts the type is read from the server's argv and from the memory it saved,
+     because no log of this file names the type.
+   - **The alternate's file, Qwen3.8-27B in Q4.** It writes 0.92 of its 16-bit rate at 20K and
+     takes 570 MiB less there. The model host started the deep tier on it at 16K at `q8_0`,
+     drafting with the file's own layer at a draft length of 3: it answered, 1,406 of 1,812
+     drafted tokens were accepted, and the card read 16,991 MiB above its floor at the peak.
+
+   The tier ships with no file named, so the default applies to whichever file a deployment
+   names. A deployment on either Q4 file keeps it. A deployment that names an NVFP4 file sets
+   `CORTEX_KV_CACHE_TYPE_BRAIN=f16`: the NVFP4 file of Qwen3.8-27B writes 0.81 of its 16-bit
+   rate at 32K at 8 bits, and the NVFP4 file of gemma-4-31B has no row held whole. The default
+   follows the files ADR-0004 names, so a choice in
+   [R-1244](../refinements/tasks/1244-the-deep-tiers-file-is-not-chosen-between-the-q4-and-the-nvfp4-files.md)
+   that moves the pick to an NVFP4 file moves the default back to `f16`.
+
+   The drafter's cache keeps the model's type. The draft layer inside a Qwen file takes more
+   memory with its cache at 8 bits than at 16, 82 to 86 MiB on the alternate at 48K
+   ([R-1263](../refinements/tasks/1263-a-qwen-tier-at-q8-0-gives-its-draft-layer-a-cache-that-takes-more-memory.md)).
+   That changes nothing for the alternate: its rows were drawn with the drafter's cache at 8
+   bits, so the 570 MiB is what is left after that cost.
+
+   The default does not make the tier fit the model budget. At 16K with every layer on the card
+   the pick's file is over the 18,177 MiB at both types: by 198 to 207 MiB at `q8_0` without
+   the drafter and 907 to 909 MiB with it, and by 1,266 and 1,597 MiB at `f16`. 8 bits takes
+   less, and the tier's context or placement at 16K is decided in
+   [R-1264](../refinements/tasks/1264-the-deep-tier-at-16k-is-over-the-model-budget-with-every-layer-on-the-card.md).
 
    The engine exits on an 8-bit V cache when flash attention is off. The stack cannot start a
    server that way: no tier's argv names a flash attention flag, which a test of the roster
@@ -192,8 +220,9 @@ The cards were read on 2026-11-16, when the models mount moved to the files
 - **A compose default for a drafter file**: `${VAR:-default}` cannot be turned off by an empty
   value, and it would pass a gemma drafter to whatever model a deployment names.
 - **Refusing a drafter on a server of several slots**: see decision 7.
-- **`q8_0` as the deep tier's default**: the file that met the rule is the alternate's, and a
-  default would set the type for whatever deep file a deployment names.
+- **`f16` as the deep tier's default because the tier ships with no file**: both files the
+  lineup names for the tier meet the rule, so the default would suit neither, and a deployment
+  on an NVFP4 file sets one variable.
 - **Every cache type the engine accepts**: no row exists for a type under 8 bits.
 - **A flash attention setting checked against the cache type**: the stack has no such setting.
   [R-1240](../refinements/tasks/1240-some-tiers-run-settings-their-model-cards-do-not-recommend.md)
@@ -212,4 +241,5 @@ The cards were read on 2026-11-16, when the models mount moved to the files
   [cortex alternate](../readings/injection-over-pixels-alt.md),
   [thinking switch](../readings/thinking-switch.md), [tier drafters](../readings/tier-drafters.md),
   [KV cache types](../readings/kv-cache-types.md),
+  [the deep tier at both cache types](../readings/kv-cache-deep-whole.md),
   [KV cache on every model](../readings/kv-cache-every-model.md).
