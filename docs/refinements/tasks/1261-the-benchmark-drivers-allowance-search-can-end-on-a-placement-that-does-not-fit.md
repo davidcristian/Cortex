@@ -32,8 +32,9 @@ The rows of that cell were drawn with the allowance given by hand (`REP_ALLOWANC
 ## A second defect in the same search
 
 The first allowance for a drafted launch is 400 MiB plus a guess of 1,000 MiB for a drafter
-inside the file. For Qwen3.8-27B that left 1,100 to 1,200 MiB more than the headroom asks for:
-the checks at 1,400 loaded 16,945 and 17,055 MiB, where 600 and 500 loaded 17,801 and 17,829 MiB.
+inside the file. For Qwen3.8-27B that left 1,122 and 1,232 MiB above the reserve at load, where
+the search aims at 250 to 500: the checks at 1,400 loaded 16,945 and 17,055 MiB, where 600 and
+500 loaded 17,801 and 17,829 MiB.
 
 ## What to do
 

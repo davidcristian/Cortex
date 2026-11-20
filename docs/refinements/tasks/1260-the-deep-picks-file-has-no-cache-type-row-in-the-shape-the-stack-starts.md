@@ -8,7 +8,8 @@
 The deep tier's cache type default is `f16`. For the deep pick's file, gemma-4-31B in Q4, the rows
 that decide it were missing in the shape the stack starts: every layer on the card. They were
 drawn on 2026-11-20, twice, and the file meets the rule of
-[the first cache type readings](../../readings/kv-cache-types.md) in that shape
+[the first cache type readings](../../readings/kv-cache-types.md) in that shape, with the rule's
+first condition read from the argv and the memory in place of a log line
 ([readings](../../readings/kv-cache-deep-whole.md)). The default is not changed yet. What is left
 is that change, and a second question the draw opened: neither type fits the budget at 16K.
 
@@ -39,9 +40,11 @@ more less, in both drafter settings) and was met.
 
 ## The rule, item by item
 
-1. **Accepted: met on the argv.** All four `q8_0` launches start and reach `ready`, with no
-   flash attention flag, which is the engine's `auto`. The model host's log at its level has no
-   line naming the cache type, so the type was read from the server's argv and not from the log.
+1. **Accepted: the start is met, the log line is not shown.** All four `q8_0` launches start
+   and reach `ready`, with no flash attention flag, which is the engine's `auto`. The rule also
+   asks for a log that names `q8_0`, and the model host's log at its level has no line naming
+   the cache type. The type is read from the server's argv and from the memory: 1,068 MiB less
+   at load in the second draw, where the engine projects 1,073 MiB less.
 2. **Gain: met.** At draft length 3, the length the tier ships with, the highest reading is 454
    and 688 MiB lower; without the drafter 358 and 1,068 MiB lower. The rule asks for 250.
 3. **Rate: met, by 0.012 without drafting.** 0.913 and 0.912 without the drafter, 1.035 and 1.018
@@ -69,8 +72,9 @@ more less, in both drafter settings) and was met.
 
 - **Neither type fits the budget at 16K.** With the desktop's apps counted as 4,750 MiB and 1,536
   MiB kept free, models get 18,177 MiB. `q8_0` is over it by 198 to 207 MiB without the drafter
-  and 907 to 909 MiB with it; `f16` by 1,266 MiB and 1,597 MiB in the second draw. Every row ran
-  whole on the card because the desktop's apps held 3,221 to 4,247 MiB. At 8 bits the file fits
+  and 907 to 909 MiB with it; `f16` by 1,266 MiB and 1,597 MiB in the second draw. No row has
+  a spill's rate: the desktop's apps held 3,221 to 4,247 MiB, under the 4,750 MiB the budget
+  counts. At 8 bits the file fits
   the budget whole at 12K without its drafter and at no context with it.
 - **`f16` with the drafter is at the card's limit**: 23,085 and 23,057 MiB of 24,463 at the
   highest reading, with about 310 MiB of the launch not accounted for on the card in the second
@@ -108,5 +112,6 @@ placement at 16K either decided or filed as its own task.
 - 2026-11-20: the draw was made, twice, each of four launches through the model host. The file
   meets the rule in the shape the stack starts: 0.913 and 0.912 of the 16-bit rate without the
   drafter, 1.035 and 1.018 at draft length 3, 454 and 688 MiB less with the drafter, the same
-  reply. No row fits the 18,177 MiB budget at 16K at either type. The body was rewritten around
-  the draw; the default is left for its own change.
+  reply; the cache type is read from the argv and the memory, since no log names it. No row
+  fits the 18,177 MiB budget at 16K at either type. The body was rewritten around the draw; the
+  default is left for its own change.

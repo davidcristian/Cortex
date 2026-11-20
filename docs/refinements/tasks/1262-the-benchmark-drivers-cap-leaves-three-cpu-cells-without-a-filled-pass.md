@@ -18,7 +18,8 @@ On 2026-11-20, CPU image build b10680, four threads: `python3 q8-probes/cpurow.p
 short prompts and no filled pass (lines 119, 120 and 123 to 125 of `bench/q8-ref.jsonl`, lines
 575, 578 and 579 of `bench/q8.jsonl`):
 
-- gemma-4-E4B at 16K and at 32K, at both cache types and both flash attention settings;
+- gemma-4-E4B at 16K and at 32K: at 16 bits with flash attention off and on, at 8 bits with it
+  on;
 - Qwen3.5-2B at 32K, at both cache types.
 
 So [the readings](../../readings/kv-cache-remaining-cells.md) have no 8-bit over 16-bit rate on

@@ -26,8 +26,8 @@ rows of one night, because the same 16-bit launch reads a different rate on anot
 - **Deep tier, gemma-4-31B, the pick's Q4 file: meets the rule in the shape the stack starts.**
   With every layer on the card at 16K it writes 0.913 and 0.912 of its 16-bit rate without the
   drafter and 1.035 and 1.018 at draft length 3, takes 454 and 688 MiB less with the drafter, and
-  gives the same reply token for token. Neither type fits the 18,177 MiB budget there. The
-  default is set in
+  gives the same reply token for token. No log names the cache type there, so it is read from
+  the argv and the memory. Neither type fits the 18,177 MiB budget there. The default is set in
   [R-1260](1260-the-deep-picks-file-has-no-cache-type-row-in-the-shape-the-stack-starts.md).
   Split with RAM the file writes 2.08 to 2.11 times its 16-bit rate, a shape the stack does not
   start.
@@ -61,8 +61,10 @@ rows of one night, because the same 16-bit launch reads a different rate on anot
   gemma-4-12B and takes 82 to 86 MiB less for both Qwen3.8-27B files at 48K. For Qwen3.5-9B it
   takes 150 MiB less at 64K and 286 and 292 MiB less at 128K, at the same rate
   ([R-1263](1263-a-qwen-tier-at-q8-0-gives-its-draft-layer-a-cache-that-takes-more-memory.md)).
-- **The reply.** One fixed prompt at temperature 0 gets the same summary in other words from
-  every model that has rows held whole. This is an indicator from one prompt per model.
+- **The reply.** One fixed prompt at temperature 0 gets a reply that ends on its own and does
+  not repeat itself from every model that has rows held whole. gemma-4-31B's is the same token
+  for token. The clauses that differ for four other models on 2026-11-20 are still to be read
+  against the prompt (step 7 below). This is an indicator from one prompt per model.
 
 ## The setting
 
