@@ -13,6 +13,7 @@ SWAP_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config_swap.p
 SUBAGENTS_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config_subagents.py"
 MODEL_MANAGER_DOC = "docs/modules/brain-model-manager.md"
 MODELHOST_ADR = "docs/adr/ADR-0053-model-host-supervisor.md"
+CARD_SETTINGS_ADR = "docs/adr/ADR-0077-model-card-settings.md"
 SWAP_MEASUREMENTS = "docs/runbooks/model-swap-measurements.md"
 GPU_RUNBOOK = "docs/runbooks/llamacpp-gpu.md"
 SWAP_RUNBOOK = "docs/runbooks/model-swap.md"
@@ -103,6 +104,8 @@ MODELHOST_COUPLINGS: tuple[Constant, ...] = (
         mentions=(
             Mention(GPU_COMPOSE, "${CORTEX_KV_CACHE_TYPE_BRAIN:-{value}}"),
             Mention(MODEL_MANAGER_DOC, "the deep tier's default is `{value}`"),
+            Mention(CARD_SETTINGS_ADR, "The deep tier's default is `{value}`"),
+            Mention(SWAP_MEASUREMENTS, "The type is `{value}` unless"),
         ),
     ),
     Constant(
