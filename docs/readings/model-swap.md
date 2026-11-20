@@ -8,7 +8,7 @@ these readings are in the [model-swap](../runbooks/model-swap.md) runbook.
 
 ## A handoff at tier scale
 
-**2026-08-07**, 24 GB card, the shipped cortex (gemma-4-12B QAT q4_0) and deep pick (gemma-4-31B QAT
+**2026-08-07**, 24 GB card, the shipped cortex (gemma-4-12B QAT q4_0) and deep model (gemma-4-31B QAT
 q4_0), artifacts warm in the page cache, through the real `model-host` control API: stopping the
 cortex took 0.7% of the deep model's time to reach `ready` (0.48 s against 70.03 s), stopping the
 deep model 1.3% of it (0.89 s), and bringing the cortex back 45% of it (31.43 s). The swap both ways
@@ -18,7 +18,7 @@ Method: timed `start`, `stop` and `status` polls against the control API.
 
 ## A handoff through the conductor
 
-**2026-10-02**, 24 GB card, the shipped cortex and deep pick (deep context 16384, no drafter), each
+**2026-10-02**, 24 GB card, the shipped cortex and gemma-4-31B (deep context 16384, no drafter), each
 row on its own `cortexswap` stack, every handoff approved by the headless handoff client. The rows
 were drawn twice: a first draw read by hand after the client failed its own phase check, and a
 replication of the swap and kill rows with the client fixed, which passed every check. A last swap
@@ -72,7 +72,7 @@ decode rates the brain's `the deep model's decode rate for this handoff` log lin
 
 ## The overlay's view of a handoff
 
-**2026-10-06**, 24 GB card, the shipped cortex and deep pick (deep context 16384), one `cortexov`
+**2026-10-06**, 24 GB card, the shipped cortex and gemma-4-31B (deep context 16384), one `cortexov`
 stack built from the tree, and the Linux shell: a debug build rendering through WebKitGTK in
 software on an `Xvfb` display, its brain address and token the stack's. Every turn was typed and
 every card approved by `xdotool` clicks. Four handoffs: one completed, one completed while a kill

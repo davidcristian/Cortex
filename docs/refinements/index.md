@@ -69,8 +69,8 @@ never a reading of what the tree does now.
 
 ### Actionable now (43)
 
-- **[R-738](tasks/738-the-deep-tier-cannot-set-a-templates-reasoning-effort-or-preserve-flag.md)** The deep tier cannot set a template's reasoning effort or preserve flag (inference-model-manager). Its claim was checked against the code on 2026-11-10.
-- **[R-741](tasks/741-a-qwen38-27b-deep-tier-has-no-measured-fit-figure-or-decode-floor.md)** A Qwen3.8-27B deep tier has no measured fit figure or decode floor (resource-governance). Its claim was checked against the code on 2026-11-10.
+- **[R-738](tasks/738-the-deep-tier-cannot-set-a-templates-reasoning-effort-or-preserve-flag.md)** The deep tier cannot set a template's reasoning effort or preserve flag (inference-model-manager). Its claim was checked against the code on 2026-11-20.
+- **[R-741](tasks/741-a-qwen38-27b-deep-tier-has-no-measured-fit-figure-or-decode-floor.md)** A Qwen3.8-27B deep tier has no measured fit figure or decode floor (resource-governance). Its claim was checked against the code on 2026-11-20.
 - **[R-959](tasks/959-a-turn-refused-as-deleted-while-the-overlay-is-away-raises-an-empty-preview.md)** A turn refused as deleted while the overlay is away raises an empty preview (session-read-rpc). Its claim was checked against the code on 2026-11-05.
 - **[R-967](tasks/967-a-request-to-remember-a-new-value-and-forget-the-old-one-keeps-neither.md)** A request to remember a new value and forget the old one keeps neither (memory). Its claim was checked against the code on 2026-11-05.
 - **[R-995](tasks/995-a-request-to-remember-spends-its-thinking-looking-for-a-tool-to-store-the-fact.md)** A request to remember spends its thinking looking for a tool to store the fact (memory). Its claim was checked against the code on 2026-11-07.
@@ -110,7 +110,7 @@ never a reading of what the tree does now.
 - **[R-1261](tasks/1261-the-benchmark-drivers-allowance-search-can-end-on-a-placement-that-does-not-fit.md)** The benchmark driver's allowance search can end on a placement that does not fit (inference-model-manager). Its claim was checked against the code on 2026-11-20.
 - **[R-1262](tasks/1262-the-benchmark-drivers-cap-leaves-three-cpu-cells-without-a-filled-pass.md)** The benchmark driver's cap leaves three CPU cells without a filled pass (inference-model-manager). Its claim was checked against the code on 2026-11-20.
 - **[R-1263](tasks/1263-a-qwen-tier-at-q8-0-gives-its-draft-layer-a-cache-that-takes-more-memory.md)** A Qwen tier at q8_0 gives its draft layer a cache that takes more memory (inference-model-manager). Its claim was checked against the code on 2026-11-20.
-- **[R-1264](tasks/1264-the-deep-tier-at-16k-is-over-the-model-budget-with-every-layer-on-the-card.md)** The deep tier at 16K is over the model budget with every layer on the card (inference-model-manager). Its claim was checked against the code on 2026-11-20.
+- **[R-1264](tasks/1264-gemma-4-31b-at-16k-is-over-the-model-budget-with-every-layer-on-the-card.md)** gemma-4-31B at 16K is over the model budget with every layer on the card (inference-model-manager). Its claim was checked against the code on 2026-11-20.
 - **[R-1265](tasks/1265-a-word-no-stored-row-holds-after-a-word-for-all-lists-every-row-holding-the-value.md)** A word no stored row holds after a word for all lists every row holding the value (memory). Its claim was checked against the code on 2026-11-20.
 
 ### Actionable, once a port changes (1)
@@ -589,7 +589,7 @@ never a reading of what the tree does now.
 - [R-1261](tasks/1261-the-benchmark-drivers-allowance-search-can-end-on-a-placement-that-does-not-fit.md) The benchmark driver's allowance search can end on a placement that does not fit. open, actionable.
 - [R-1262](tasks/1262-the-benchmark-drivers-cap-leaves-three-cpu-cells-without-a-filled-pass.md) The benchmark driver's cap leaves three CPU cells without a filled pass. open, actionable.
 - [R-1263](tasks/1263-a-qwen-tier-at-q8-0-gives-its-draft-layer-a-cache-that-takes-more-memory.md) A Qwen tier at q8_0 gives its draft layer a cache that takes more memory. open, actionable.
-- [R-1264](tasks/1264-the-deep-tier-at-16k-is-over-the-model-budget-with-every-layer-on-the-card.md) The deep tier at 16K is over the model budget with every layer on the card. open, actionable.
+- [R-1264](tasks/1264-gemma-4-31b-at-16k-is-over-the-model-budget-with-every-layer-on-the-card.md) gemma-4-31B at 16K is over the model budget with every layer on the card. open, actionable.
 
 ### memory
 

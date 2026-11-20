@@ -2,8 +2,8 @@
 
 The draw
 [R-1260](../refinements/tasks/1260-the-deep-picks-file-has-no-cache-type-row-in-the-shape-the-stack-starts.md)
-asks for: the deep pick's file, gemma-4-31B in Q4, started by the model host with every layer on
-the card, once with the engine's 16-bit KV cache (`f16`) and once with `q8_0`. The rule a tier
+asks for: gemma-4-31B's Q4 file, started by the model host with every layer on the card,
+once with the engine's 16-bit KV cache (`f16`) and once with `q8_0`. The rule a tier
 must meet to be given `q8_0` is in [the first cache type readings](kv-cache-types.md). Memory is
 in MiB and stays absolute. A rate is a ratio, and every ratio divides two rows of one draw.
 
@@ -103,7 +103,7 @@ highest reading above the floor read after the tier stopped; 1,536 MiB is needed
 | 3 rate | without drafting 0.913 and 0.912; at draft length 3 1.035 and 1.018; prompt pass 1.03 to 1.08 | met, by 0.012 without drafting |
 | 4 output | one prompt of 4,028 tokens at temperature 0 at 8K with every layer on the card: the 8-bit reply is the 16-bit reply token for token, 119 of 119, and two 16-bit launches agree | passes |
 
-**The deep pick's Q4 file meets all four conditions in the shape the stack starts.** What
+**The gemma-4-31B Q4 file meets all four conditions in the shape the stack starts.** What
 limits that:
 
 - Condition 1 asks for a log that names `q8_0` for K and V. The eight rows ran at the model
@@ -123,8 +123,8 @@ limits that:
   MiB free.
 
 The rule decides the type only. Neither type leaves the 1,536 MiB free at 16K with every layer
-on the card, so the tier's context or placement is a separate question, which
-[R-1264](../refinements/tasks/1264-the-deep-tier-at-16k-is-over-the-model-budget-with-every-layer-on-the-card.md)
+on the card, so what a deployment of this file gets at 16K is a separate question, which
+[R-1264](../refinements/tasks/1264-gemma-4-31b-at-16k-is-over-the-model-budget-with-every-layer-on-the-card.md)
 has. The deep tier's default is `q8_0` on this record
 ([ADR-0077](../adr/ADR-0077-model-card-settings.md) decision 8).
 
@@ -132,7 +132,7 @@ has. The deep tier's default is `q8_0` on this record
 
 **2026-11-20**, after the default was set, on the same image and build. The model host was
 started from the repo's compose files with three variables named: the models mount,
-`CORTEX_MODEL_FILE_BRAIN` and `CORTEX_MODEL_FILE_BRAIN_DRAFT`, the pick's file and its drafter.
+`CORTEX_MODEL_FILE_BRAIN` and `CORTEX_MODEL_FILE_BRAIN_DRAFT`, the same file and its drafter.
 No cache type variable was set, and `docker compose config` printed
 `CORTEX_KV_CACHE_TYPE_BRAIN: q8_0`. The cortex was stopped and the deep tier started over the
 control API, as in the rows above. Three launches read the same figures.
@@ -176,7 +176,7 @@ brain, Redis and the model host from the repo's compose files.
 - **Nothing optional named.** With only the models mount named, the cortex started with no
   cache type in its argv, one turn got its reply, and the brain logged no warning.
 - **Only escalation on.** `CORTEX_ESCALATION=1`, `CORTEX_MODELHOST_BACKEND=supervisor` and the
-  pick's file as `CORTEX_MODEL_FILE_BRAIN`, with no drafter and no cache type variable. One chat
+  same file as `CORTEX_MODEL_FILE_BRAIN`, with no drafter and no cache type variable. One chat
   of three turns: a code word to keep, a task the cortex handed over with `escalate_to_brain`,
   and a question about both.
 - **While the deep tier served** the cortex was `stopped` and the deep server's argv ended

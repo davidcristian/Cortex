@@ -12,7 +12,7 @@ floating point weight format:
 - `esatapedico/Qwen3.8-27B-NVFP4-MTP-GGUF`, a 16.91 GB model file with its draft layer inside.
 - `esatapedico/Gemma-4-31B-IT-NVFP4-GGUF`, a 17.99 GB model file with no drafter.
 
-ADR-0004 names `gemma-4-31B-it-qat` as the deep pick and `Qwen3.8-27B-UD-Q4_K_M` as the alternate.
+ADR-0004 names `Qwen3.8-27B-UD-Q4_K_M` as the deep pick and `gemma-4-31B-it-qat` as the alternate.
 Nothing in a tier default or a runbook names an NVFP4 file. This task was filed because the model
 baseline of 2026-11-16 had no row for either file. It has them now, and what is left is the choice.
 
@@ -57,7 +57,7 @@ for the two Q4 files.
 ## What is not known
 
 - What either NVFP4 file writes. The stop row, the reasoning count and the injection rows that
-  ADR-0004 decision 8 picks on were never drawn for them:
+  ADR-0004 decision 8 compares on were never drawn for them:
   [R-1245](1245-the-nvfp4-files-have-none-of-the-rows-the-deep-pick-is-compared-on.md).
 - How the card multiplies the NVFP4 type. The engine's log does not say, and no other build was
   run.
@@ -69,27 +69,28 @@ for the two Q4 files.
 
 ## The choice
 
-Which file the deep tier names is the maintainer's pick. The deep tier has no default artifact, so
+Which file each deep entry names is the maintainer's pick. The deep tier has no default artifact, so
 the choice changes the file ADR-0004 names for an entry, and no compose default for a file.
 
 The deep tier's cache type default follows the choice. It is `q8_0` because both Q4 files meet
-the rule of R-1243 (ADR-0077 decision 8), and no NVFP4 file does. Under A it stays. Under B it
-stays for the pick, and a deployment of the alternate sets `CORTEX_KV_CACHE_TYPE_BRAIN=f16`.
-Under C it returns to `f16`.
+the rule of R-1243 (ADR-0077 decision 8), and no NVFP4 file does. Under A it stays. Under B and
+under C it returns to `f16`, the pick's file being an NVFP4 file, and under B a deployment of the
+alternate sets `CORTEX_KV_CACHE_TYPE_BRAIN=q8_0`.
 
-- **A. Change nothing.** The pick stays `gemma-4-31B-it-qat` and the alternate stays
-  `Qwen3.8-27B-UD-Q4_K_M`.
-- **B. The alternate's file becomes the Qwen NVFP4 file; the pick's file stays.**
+- **A. Change nothing.** The pick stays `Qwen3.8-27B-UD-Q4_K_M` and the alternate stays
+  `gemma-4-31B-it-qat`, each its Q4 file.
+- **B. The pick's file becomes the Qwen NVFP4 file; the alternate's file stays.**
 - **C. Both entries name their NVFP4 file.**
 
 Recommended: A now, and B once R-1245 has drawn the Qwen NVFP4 file's rows and they are no worse
 than the Q4 file's. The Qwen NVFP4 file takes less of the card, reads a prompt 1.8 times as
 fast and writes 1.05 times as fast without drafting on the cell drawn inside one night. Its
-costs are a rate of 0.91 with drafting and an 8-bit cache that does not meet the rule.
+costs are a rate of 0.91 with drafting and an 8-bit cache that does not meet the rule, so B
+moves the tier's default cache type as well as the pick's file.
 A deployment of either Qwen file drafts with the file's own layer once
 `CORTEX_MODEL_FILE_BRAIN_DRAFT` names that file again. C is not recommended on these
 rows: the gemma NVFP4 file costs more card memory, writes more slowly in the split run this budget
-needs, gets nothing from the drafter ADR-0004 recommends with the pick, and has no 8-bit row that
+needs, gets nothing from the drafter ADR-0004 names for the alternate, and has no 8-bit row that
 shows the gain the Q4 file has.
 
 ## History
@@ -108,3 +109,7 @@ shows the gain the Q4 file has.
   type default became `q8_0` on the rows of both Q4 files, and the choice above now says what
   each option does to it. The gemma NVFP4 file's split rows at 8 bits were added where the files
   are compared.
+- 2026-11-20: the maintainer made `Qwen3.8-27B-UD-Q4_K_M` the deep pick and `gemma-4-31B-it-qat`
+  the alternate (ADR-0004 decisions 5 and 8). That picks between the two models, each on its Q4
+  file, and is none of A, B or C, so the trigger has not fired. The three choices are written
+  for that pick: B now moves the pick's file, and with it the cache type default.

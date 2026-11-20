@@ -174,7 +174,7 @@ id `[Qwen3.5-9B]`; the log is `measurements/sitting-2026-09-29/744q35.log` and t
 
 ## The joined message on the deep alternate (2026-09-30)
 
-Qwen3.6-27B Q4_K_M, the deep alternate, on the card: the same image, argv `-ngl 99 --ctx-size
+Qwen3.6-27B Q4_K_M, then the deep alternate, on the card: the same image, argv `-ngl 99 --ctx-size
 16384 --parallel 1 --jinja --cache-ram 0`, thinking on, the prompt cache off per request, the
 4096-token cap and the harness's two tools. Each row draws the eleven attacks three times, so 33
 draws a variant, with the variants, checks and rule of the section above.

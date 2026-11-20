@@ -28,36 +28,36 @@ and after the last measurement.
 **2026-08-04**, build `b10236-1464c62d8`, each candidate alone on the card through the model host
 with the cortex stopped, `-ngl 99`, 8192 context, one slot; "model alone" is above the baseline,
 which read 1867 to 1932 MiB. "Answered" counts four escalation-grade questions, recorded nowhere,
-answered inside a 4096-token budget; rates are ratios of the pick's. The two Qwen3.8 candidates,
-with the pick and the alternate redrawn beside them, are in [deep candidates](deep-candidates.md).
+answered inside a 4096-token budget; rates are ratios of gemma-4-31B's. The two Qwen3.8 candidates,
+with gemma-4-31B and Qwen3.6-27B redrawn beside them, are in [deep candidates](deep-candidates.md).
 
 | candidate | artifact | model alone | decode | answered |
 | --- | --- | --- | --- | --- |
-| gemma-4-31B q4_0 QAT (pick) | 17.65 GB | 19128 MiB | 1.0 | 4 of 4 |
-| Qwen3.6-27B Q4_K_M (alternate) | 16.82 GB | 16443 MiB | 0.97 | 3 of 4 |
+| gemma-4-31B q4_0 QAT | 17.65 GB | 19128 MiB | 1.0 | 4 of 4 |
+| Qwen3.6-27B Q4_K_M | 16.82 GB | 16443 MiB | 0.97 | 3 of 4 |
 | Qwen3.6-35B-A3B UD-Q3_K_M | 16.60 GB | 15995 MiB | 2.6 | 1 of 4 |
 | gemma-4-26B-A4B q4_0 QAT | 14.44 GB | 14607 MiB | 2.6 | 0 of 4 |
 
 With no cap at the shipped 8192 context, both mixture-of-experts candidates spent 8057 to 8092
-tokens and returned an empty reply on both questions asked; the pick answered in 4448 and 3847
-tokens and the alternate in 3104 and 3340, both ending on end-of-generation. At a 16384 context the
-pick costs 658 MiB more. The four cold loads read the mount at 142 to 177 MB/s; a bare cold load of
-the pick used about a third of `CORTEX_SWAP_LOAD_TIMEOUT_S`'s 300 s, and a second load with the file
+tokens and returned an empty reply on both questions asked; gemma-4-31B answered in 4448 and 3847
+tokens and Qwen3.6-27B in 3104 and 3340, both ending on end-of-generation. At a 16384 context
+gemma-4-31B costs 658 MiB more. The four cold loads read the mount at 142 to 177 MB/s; a bare cold load of
+gemma-4-31B used about a third of `CORTEX_SWAP_LOAD_TIMEOUT_S`'s 300 s, and a second load with the file
 partly in page cache took two thirds of the first. Method: `CORTEX_MODEL_FILE_BRAIN` and
 `CORTEX_CTX_SIZE_BRAIN` changed between runs, the questions posted by hand, `n_predict` read off
 `/props`.
 
 **2026-09-28, the stop row.** The two mixture-of-experts entries on the four recorded questions of
-the [stop rows](deep-candidates.md#the-stop-rows), three seeds each, drawn as the pick's row was:
+the [stop rows](deep-candidates.md#the-stop-rows), three seeds each, drawn as gemma-4-31B's row was:
 build `b10680-d7bd3bfca` (`sha256:952424b09abc`), the deep tier's argv (`-ngl 99 --ctx-size 8192
 --parallel 1 --jinja --cache-ram 0`) under the model host's caps, thinking on, no `max_tokens`
 and no sampler field. Qwen3.6-35B-A3B was drawn at `UD-Q3_K_XL`, since the `UD-Q3_K_M` above is
-no longer on the mount. The count and its test are the stop rows': against the pick's 11 a row
+no longer on the mount. The count and its test are the stop rows': against gemma-4-31B's 11 a row
 reads apart at 5 or fewer. Predictions, written before the draw in
 [R-742](../refinements/tasks/742-the-mixture-of-experts-rejection-rests-on-unrecorded-questions.md),
-are in parentheses; wall and decode are ratios of the pick's stop row, whose SM clock read 0.57.
+are in parentheses; wall and decode are ratios of gemma-4-31B's stop row, whose SM clock read 0.57.
 
-| entry | stopped (predicted) | p, against the pick | right | reasoning tokens, median (range) | wall a draw | decode | SM, ceiling |
+| entry | stopped (predicted) | p, against gemma-4-31B | right | reasoning tokens, median (range) | wall a draw | decode | SM, ceiling |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | gemma-4-26B-A4B q4_0 QAT | 5 (8, 4 to 12) | 0.027, apart | 5 | 7402 (3261 to 7980) | 0.99 | 3.95 | 0.72, 0.89 |
 | Qwen3.6-35B-A3B UD-Q3_K_XL | 6 (7, 3 to 11) | 0.069 | 6 | 5933 (2488 to 7984) | 0.78 | 4.00 | 0.71, 0.88 |
@@ -65,7 +65,7 @@ are in parentheses; wall and decode are ratios of the pick's stop row, whose SM 
 Both predictions said neither reads apart; the A4B does, which misses its prediction. Every draw
 that did not stop generated until the context filled (7924 to 7984 tokens), three of them partway
 into a reply. The A3B stopped on every draw of Q1 and Q3 and on none of Q2 or Q4; the A4B on every
-Q3 draw, one of Q1, one of Q2 and none of Q4, where the pick stopped on all but one Q4 draw. Every
+Q3 draw, one of Q1, one of Q2 and none of Q4, where gemma-4-31B stopped on all but one Q4 draw. Every
 reply that stopped was right by hand. The A4B loaded in 82.0 s at 14,625 MiB above idle and the A3B
 in 95.5 s at 16,130 MiB. Method: `stop_row.py` in `measurements/sitting-2026-09-28/drivers/`, over
 the 2026-09-26 questions and helpers; logs in its parent's `742g26/` and `742q35/`.
@@ -147,7 +147,7 @@ scan 22% faster and the table 34% larger. An `ivfflat` build needed more than th
 `maintenance_work_mem`. A straight line through the two sizes crosses the time to first token at
 about 75,000 rows.
 
-## The deep pick's drafter
+## The gemma-4-31B drafter
 
 **2026-09-17**, `server-cuda` at `sha256:952424b09abc`, the deep tier's shipped argv, one warm-up
 and four timed requests of a reasoning prompt at `max_tokens` 512, seed 42. The drafter,

@@ -28,7 +28,7 @@ image of the same build on 2026-08-30. Tails are what the template appended afte
 | entry | switched tail | plain | constrained |
 | --- | --- | --- | --- |
 | gemma-4-12B QAT q4_0 (cortex pick) | `<turn\|>\n<\|turn>model\n<\|channel>thought\n<channel\|>` | 0/5 | 0/5 |
-| gemma-4-31B QAT q4_0 (deep pick) | the same | 0/5 | 0/5 |
+| gemma-4-31B QAT q4_0 (deep) | the same | 0/5 | 0/5 |
 | gemma-4-26B-A4B QAT q4_0 | the same | 0/5 | 0/5 |
 | gemma-4-E4B QAT q4_0 (subagent pick) `*` | `<turn\|>\n<\|turn>model\n` | 0/5 | **5/5** |
 | gemma-4-E2B QAT q4_0 | the same | 0/5 | **5/5** |

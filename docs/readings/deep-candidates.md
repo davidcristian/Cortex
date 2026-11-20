@@ -1,7 +1,7 @@
 # Readings: deep candidates
 
-The rows the deep pick of [ADR-0004](../adr/ADR-0004-model-lineup.md) (decisions 5, 8 and 14) is
-compared on for the two Qwen3.8 candidates, with the pick and the alternate redrawn beside them.
+The rows the deep candidates of [ADR-0004](../adr/ADR-0004-model-lineup.md) (decisions 5, 8 and 14)
+are compared on, for the two Qwen3.8 candidates, with gemma-4-31B and Qwen3.6-27B redrawn beside them.
 The 2026-08-04 rows of the first four candidates are in [model lineup](model-lineup.md), the
 switch tails in [thinking switch](thinking-switch.md) and the injection counts in [injection text
 rows](injection-text-rows.md). VRAM is `nvidia-smi` `memory.used` at ready less the same card read
@@ -22,15 +22,15 @@ daemon. The request is `build_payload` as the deep phase sends it with the defau
 on, streamed, no `max_tokens`, no sampler field and no `reasoning_effort`, so Qwen3.8 runs at its
 template's default effort, `xhigh`, and every model at the engine's sampler. `/props` read
 temperature 1.0, top_k 20, top_p 0.95 and min_p 0.05 on every Qwen load (the model cards say min_p
-0.0), and 1.0, 64, 0.95 and 0.05 on the pick. A row that departs names the field it adds. The pick,
+0.0), and 1.0, 64, 0.95 and 0.05 on gemma-4-31B. A row that departs names the field it adds. gemma-4-31B,
 `gemma-4-31B-it-qat-q4_0`, runs with no drafter, as it ships. Every load ran at an SM clock of 0.59,
 reading the models mount. Logs and drivers: `measurements/deep-2026-09-26/`, which git ignores.
 
 ## The candidates side by side
 
-Ratios are of the pick's own figure unless a bound is named.
+Ratios are of gemma-4-31B's own figure unless a bound is named.
 
-| reading | gemma-4-31B (pick) | Qwen3.8-27B UD-Q4_K_M | Qwen3.6-27B Q4_K_M (alternate) | Qwen3.8-Flash-Next UD-Q3_K_XL |
+| reading | gemma-4-31B | Qwen3.8-27B UD-Q4_K_M | Qwen3.6-27B Q4_K_M | Qwen3.8-Flash-Next UD-Q3_K_XL |
 | --- | --- | --- | --- | --- |
 | artifact | 17.65 GB, QAT | 16.46 GB | 16.82 GB | 89.98 GB in three files |
 | VRAM above idle, 8192 context | 19,138 MiB | 15,744 to 15,770 MiB | 16,417 MiB | 20,150 to 20,655 MiB, the rest paged from the mount |
@@ -44,7 +44,7 @@ Ratios are of the pick's own figure unless a bound is named.
 | multi-token prediction | a separate drafter file, 1.34 to 1.89 times plain | a built-in layer, 1.16 to 1.43 times plain, which no setting names | not drawn | none in the artifact |
 | template | | `xhigh` unless sent; empty thoughts before earlier replies | drops a third leading system message, which the adapter now joins ([ADR-0071](../adr/ADR-0071-leading-system-messages.md)) | the 27B's, byte for byte |
 
-The pick's stop-row draw took 58 s at the median and its decode probe read 37.15 tok/s
+gemma-4-31B's stop-row draw took 58 s at the median and its decode probe read 37.15 tok/s
 (`timings.predicted_per_second`), the figures the ratios divide by.
 
 ## Qwen3.8-27B
@@ -68,15 +68,15 @@ reasoning effort, tools and the system role. `POST /apply-template` shows:
 - the harness's `read_file` round trip with its arguments as a JSON string renders (200), the
   engine parsing them before the template sees them.
 
-**Rates**, each the median of 3, the pick drawn 25 minutes later:
+**Rates**, each the median of 3, gemma-4-31B drawn 25 minutes later:
 
-| reading | Qwen3.8-27B over the pick | predicted | held | SM, ceiling (Qwen; pick) |
+| reading | Qwen3.8-27B over gemma-4-31B | predicted | held | SM, ceiling (Qwen; gemma-4-31B) |
 | --- | --- | --- | --- | --- |
 | decode probe (`test_decode_cadence_live.py`, thinking on) | 1.01 | 1.0 (0.9 to 1.15) | yes | 0.50, 0.89; 0.59, 0.90 |
 | first streamed delta, 3400-word prompt, `max_tokens` 16 | 1.09 | 0.8 to 1.3 | yes | as above |
 | share of round 2's prompt evaluated, two-round tool loop | 0.16 (pick 0.23) | 0.9 to 1.0 | no | as above |
 
-The decode probe asks for about 120 words: Qwen3.8 generated 1545 to 2063 tokens, the pick 409 to
+The decode probe asks for about 120 words: Qwen3.8 generated 1545 to 2063 tokens, gemma-4-31B 409 to
 635, so equal rates are not equal waits. The 3400-word prompt of `tierarm.py` is 6184 Qwen tokens
 against 4018 gemma tokens and Qwen evaluated it 1.38 times as fast; the prompt repeats 24 rare
 words, so the token ratio says nothing of ordinary text. In the tool loop round 1 (631 tokens)
@@ -96,13 +96,13 @@ short of the context.
 The projector row adds the cortex's vision tail
 (`--mmproj mmproj-F16.gguf --image-max-tokens 1024 --ubatch-size 1024`): `/props` reports vision,
 and the HARBOUR picture of `test_attached_image_live.py`, sent as a user attachment, was named in 3
-of 3 replies (predicted 3, 2 to 3, held). The deep tier has no projector setting; the pick's and the
-alternate's projectors, on the mount, were not drawn. At 16384 the pick costs 658 MiB more
+of 3 replies (predicted 3, 2 to 3, held). The deep tier has no projector setting; gemma-4-31B's and
+Qwen3.6-27B's projectors, on the mount, were not drawn. At 16384 gemma-4-31B costs 658 MiB more
 (2026-08-04).
 
 **The built-in multi-token-prediction layer**, `--spec-type draft-mtp` with no `--model-draft`.
 Both drafting logs print `creating MTP draft context against the target model`, and a plain start
-lists `blk.64` as unused. Drawn drafting, plain, drafting, as the pick's drafter was on 2026-09-19:
+lists `blk.64` as unused. Drawn drafting, plain, drafting, as gemma-4-31B's drafter was on 2026-09-19:
 seed 42, not streamed, a warm-up and three timed requests a turn.
 
 | turn | drafting over plain | accepted | predicted | held | SM (plain; drafting) |
@@ -114,44 +114,44 @@ seed 42, not streamed, a warm-up and three timed requests a turn.
 The layer costs 952 and 954 MiB above plain (predicted 470, not held) and loads in 0.99 to 1.12
 times plain. Ceilings were 0.87 to 0.89 and the cap active in every busy reading, and no drafting
 median fell inside the plain spread. At temperature 1.0 seed 42 repeats one draw within a start, so
-each ratio is one text against another, as in the pick's row.
+each ratio is one text against another, as in gemma-4-31B's row.
 
 **Injection**, drawn as the tier runs (thinking on, effort unset, the harness's 1600-token cap): 0
 of 100 framed (predicted 2, 0 to 8, held) and 0 of 100 control (predicted 15, 5 to 35, not held), so
-framed and control are not apart (predicted apart, not held) and framed is not apart from the pick's
+framed and control are not apart (predicted apart, not held) and framed is not apart from gemma-4-31B's
 0 of 100 (held). The row is in [injection text rows](injection-text-rows.md).
 
 ## The stop rows
 
 Each cell is the four questions below, three seeds each (`100*q + d`), sent as the plain security
 preamble and the question with no tools and no cap. Deciding count: draws ending on `stop` with a
-non-empty `content` before the context fills, of 12, against the pick's count on the same draws by
-a two-sided Fisher test at p below 0.05; against the pick's 11 a cell reads apart only at 5 or
+non-empty `content` before the context fills, of 12, against gemma-4-31B's count on the same draws by
+a two-sided Fisher test at p below 0.05; against gemma-4-31B's 11 a cell reads apart only at 5 or
 fewer. Right by hand is read beside it and decides nothing.
 
-| cell | stopped (predicted) | held | p, against the pick | right | reasoning tokens, median (range) | wall | SM, ceiling |
+| cell | stopped (predicted) | held | p, against gemma-4-31B | right | reasoning tokens, median (range) | wall | SM, ceiling |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Qwen3.8 `xhigh`, nothing sent | 10 (9, 4 to 12) | yes | 1.0 | 10 | 2189 (1032 to 7888) | 1.28 | 0.49, 0.89 |
-| the pick | 11 (12, 10 to 12) | yes | | 10 | 1434 (832 to 7923) | 1.0 | 0.57, 0.87 |
+| gemma-4-31B | 11 (12, 10 to 12) | yes | | 10 | 1434 (832 to 7923) | 1.0 | 0.57, 0.87 |
 | Qwen3.8 `reasoning_effort: "low"` | 12 (12, 10 to 12) | yes | 1.0; 0.48 against `xhigh` | 10 | 1122 (919 to 3892) | 0.78 | 0.47, 0.86 |
 | Qwen3.8 `reasoning_effort: "medium"` | 12 (11, 7 to 12) | yes | 1.0; 0.48 | 11 | 1357 (912 to 7004) | 0.97 | 0.49, 0.88 |
 | Qwen3.8 `xhigh` and `min_p: 0` | 9 (as `xhigh`, not apart) | yes, p 1.0 | 0.59 | 9 | 2594 (1204 to 7888) | 1.43 | 0.49, 0.88 |
-| Qwen3.6-27B, the alternate | 10 (11, 7 to 12) | yes | 1.0 | 9 | 4118 (2280 to 7984) | 2.36 | 0.46, 0.90 |
-| the pick at a 16384 context, [2026-09-30](history-window.md#the-deep-tier-at-16384) | 12 (12, 10 to 12) | yes | 1.0 | 11 | 1434 (832 to 8341) | 1.20, mostly that night's [decode rate](history-window.md#decode-at-16384-in-one-session) | 0.58, 0.85 |
+| Qwen3.6-27B | 10 (11, 7 to 12) | yes | 1.0 | 9 | 4118 (2280 to 7984) | 2.36 | 0.46, 0.90 |
+| gemma-4-31B at a 16384 context, [2026-09-30](history-window.md#the-deep-tier-at-16384) | 12 (12, 10 to 12) | yes | 1.0 | 11 | 1434 (832 to 8341) | 1.20, mostly that night's [decode rate](history-window.md#decode-at-16384-in-one-session) | 0.58, 0.85 |
 
 Every draw that did not stop spent the whole context reasoning (7888 to 7984 tokens) and returned an
-empty reply: on Q4, the roster, Qwen3.8 at `xhigh` 2 of 3, with min_p 0 3 of 3, the pick 1 of 3; on
-Q2 the alternate 2 of 3. At `low` and `medium` every draw stopped; `low` did not shorten Q2's
+empty reply: on Q4, the roster, Qwen3.8 at `xhigh` 2 of 3, with min_p 0 3 of 3, gemma-4-31B 1 of 3; on
+Q2 Qwen3.6-27B 2 of 3. At `low` and `medium` every draw stopped; `low` did not shorten Q2's
 reasoning (3269 to 3892 tokens against 1975 to 3978). Replies that returned content ran 384 tokens
-at the median at `xhigh`, 546 at `low`, 644 at `medium`, 643 on the pick and 734 on the alternate.
-The wrong answers: the pick's Q4 d1, `low`'s Q4 d2 and d3 and the alternate's Q4 d1, each a roster
+at the median at `xhigh`, 546 at `low`, 644 at `medium`, 643 on gemma-4-31B and 734 on Qwen3.6-27B.
+The wrong answers: gemma-4-31B's Q4 d1, `low`'s Q4 d2 and d3 and Qwen3.6-27B's Q4 d1, each a roster
 in which the owner alone covers a shift that needs two people, and `medium`'s Q2 d1 (284/105). Only
 Q1 d1 sent an uncached prompt: its first delta came at 0.40 and 0.43 s on Qwen3.8 and 0.48 s on the
 pick, and at 2.35 s where it was the first request after a load. The condition for row 4 again at
 16384 (row 4 at 7 or fewer) did not fire, and min_p 0, sent because `/props` read 0.05, was
 confirmed on `/slots`.
 
-On the alternate a live render of the three leading system messages keeps the preamble and the
+On Qwen3.6-27B a live render of the three leading system messages keeps the preamble and the
 memory and drops the recap: its template merges the first two and skips any later one. The
 adapter now joins the three for this template, so the recap reaches it
 ([ADR-0071](../adr/ADR-0071-leading-system-messages.md)). It loaded in 96.8 s (16,417 MiB; 16,443

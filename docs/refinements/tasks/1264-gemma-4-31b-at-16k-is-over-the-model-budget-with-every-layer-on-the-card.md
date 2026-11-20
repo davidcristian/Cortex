@@ -1,4 +1,4 @@
-# The deep tier at 16K is over the model budget with every layer on the card
+# gemma-4-31B at 16K is over the model budget with every layer on the card
 
 **Status:** open, actionable
 **Area:** inference-model-manager
@@ -9,9 +9,11 @@ The model host starts the deep tier at 16K with every layer on the card. `llama_
 [tiers.py](../../../brain/packages/model_manager/src/cortex_model_manager/tiers.py) always
 writes `-ngl` (99 from `CORTEX_NGL_BRAIN`) and never `--fit` or a thread count, so the engine
 moves no layer and a tier that does not fit spills into host RAM with no error
-([model swap measurements](../../runbooks/model-swap-measurements.md)). On the deep pick's file,
-gemma-4-31B in Q4, that shape is over the model budget at both cache types. The tier's default
-type is `q8_0` (ADR-0077 decision 8), which takes less and is still over.
+([model swap measurements](../../runbooks/model-swap-measurements.md)). Qwen3.8-27B's Q4 file is
+inside the model budget in that shape (ADR-0004 decision 8). gemma-4-31B's Q4 file is over it at
+both cache types, so a deployment that names it starts a tier over the budget, and no setting
+gives it a shape inside the budget at 16K. The tier's default type is `q8_0` (ADR-0077 decision
+8), which takes less and is still over.
 
 ## What the rows show
 
@@ -34,7 +36,7 @@ and 1,536 MiB kept free, models get 18,177 MiB.
 
 ## What to decide
 
-Which of these the tier gets, on rows drawn for each: a smaller deep context (the deep context
+Which of these a deployment of gemma-4-31B gets, on rows drawn for each: a smaller deep context (the deep context
 equals the cortex's today, because both phases read one history window), a placement setting
 that lets the engine fit the tier, or a budget counted for a tier that is alone on the card.
 
@@ -49,13 +51,13 @@ Each launch is `python3 q8-probes/deepwhole.py <label> f16|q8_0 none|mtp [note]`
    the 1.10 lead it has without the drafter.
 2. The four launches with the desktop's apps at 4,750 MiB or more, the load the budget counts.
 
-What would close it: the deep tier's context or placement at 16K decided on rows and recorded in
-its ADR, with the default changed if the decision calls for it, or the reason recorded that the
-shape stays.
+What would close it: the context or placement of a gemma-4-31B deep tier at 16K decided on rows
+and recorded in the model-swap runbook, with a setting added if the decision calls for it, or
+the reason recorded that the shape stays.
 
 ## History
 
 - 2026-11-20: filed when
   [R-1260](1260-the-deep-picks-file-has-no-cache-type-row-in-the-shape-the-stack-starts.md)
-  closed with the deep tier's default set to `q8_0`: its draw showed no shape of the tier at 16K
-  inside the budget at either type.
+  closed with the deep tier's default set to `q8_0`: its draw showed no shape of gemma-4-31B at
+  16K inside the budget at either type.

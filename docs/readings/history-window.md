@@ -12,7 +12,7 @@ the vocabulary, not on the machine, so they are given as counts.
 b10438), which reads the vocabulary alone and never the weights (its log reads a training context
 of 0), on the CPU with no GPU reserved. The counts include the one start token the tokenizer adds.
 
-| text | characters | gemma-4 (cortex 12B and deep pick 31B) | Qwen3.8-27B |
+| text | characters | gemma-4 (cortex 12B and deep 31B) | Qwen3.8-27B |
 | --- | --- | --- | --- |
 | plain English, the GPL-3 and GFDL-1.3 texts, spaces collapsed | 48,000 | 10,254 | 10,326 |
 | this repo's own ADR prose, ADR-0001 onward | 48,000 | 13,401 | 12,790 |
@@ -33,7 +33,7 @@ those schemas is:
 | deep tier, `CORTEX_CTX_SIZE_BRAIN` 8192 | 12,733, 1.55 times the context | 15,880, 1.94 times |
 | cortex, `CORTEX_CTX_SIZE` 16384 | 12,733, 3,651 tokens left | 15,880, 504 tokens left |
 
-For scale, the deep pick's stop-row draws decoded a median of 1434 reasoning tokens and its replies
+For scale, gemma-4-31B's stop-row draws decoded a median of 1434 reasoning tokens and its replies
 a median of 643 ([deep candidates](deep-candidates.md#the-stop-rows)).
 
 Method: each text is the first 48,000 characters of its source, and each count is
@@ -98,7 +98,7 @@ all 23 tools (4,545), 4,873 tokens are fixed before the window:
 | 24,000 in the deep tier's 8,192, its 22 tools | 9,511, 1.16 times | 10,796, 1.32 times | 10,863, 1.33 times |
 | 24,000 at a deep context of 16,384 | 6,873 left | 5,588 left | 5,521 left |
 
-The deep rows are rendered on the cortex artifact's template, not the deep pick's own. Recalled
+The deep rows are rendered on the cortex artifact's template, not gemma-4-31B's own. Recalled
 memories, the recap (at most 2,000 characters) and in-turn tool steps come on top of every row.
 The 48,000-character ADR prose row, sent to the same server as a streamed chat request with the 23
 tools, was refused at once with `exceed_context_size_error` and `n_prompt_tokens` 18274, the count
@@ -132,8 +132,8 @@ counts, the engine's and the brain's logs, and `exchanges.json` and `sorin.json`
 
 ## The deep tier at 16384
 
-**2026-09-30**, the deep pick `gemma-4-31B-it-qat-q4_0` alone on the card, llama.cpp `server-cuda`
-`b10680-d7bd3bfca` (`sha256:952424b09abc`), the build of the pick's 8192 [stop
+**2026-09-30**, `gemma-4-31B-it-qat-q4_0` alone on the card, llama.cpp `server-cuda`
+`b10680-d7bd3bfca` (`sha256:952424b09abc`), the build of its 8192 [stop
 row](deep-candidates.md#the-stop-rows), started with the argv `ModelHostConfig(...).tiers()` builds
 at the shipped default (`-ngl 99 --ctx-size 16384 --parallel 1 --jinja --cache-ram 0`) under the
 model host's caps. The stop row was redrawn as the 8192 one was, and one fit probe followed. Before

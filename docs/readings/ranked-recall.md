@@ -48,22 +48,22 @@ lost. Method: the two live tests against the served model, from a frozen copy of
 (`measurements/sitting2-2026-09-24/`).
 
 **2026-09-28, the Qwen deep candidates.** The same judge corpus and server shape against
-Qwen3.8-27B (`UD-Q4_K_M`) and the alternate Qwen3.6-27B (`Q4_K_M`), on the same image
+Qwen3.8-27B (`UD-Q4_K_M`) and Qwen3.6-27B (`Q4_K_M`), on the same image
 (`sha256:952424b09abc`), then the recap test three times each, since the request sends no sampler
 field and each model answers at the thinking-mode sampler its GGUF sets. A judge answer is correct
 when the gold note comes first on an answerable question or nothing comes back on an `ABSENT` one; a
 fallback is a miss. The rule, written before the draw in
 [R-740](../refinements/tasks/740-the-recall-judge-and-the-recap-are-unmeasured-on-the-qwen-deep-candidates.md):
-a candidate reads apart from the pick's 26 at 20 or fewer (two-sided Fisher, p below 0.05), and one
+a candidate reads apart from gemma-4-31B's 26 at 20 or fewer (two-sided Fisher, p below 0.05), and one
 whose recapped reply keeps the booking reference in fewer than 2 of 3 files a task for the recap's
-request. Predictions are in parentheses; times are ratios of the pick's.
+request. Predictions are in parentheses; times are ratios of gemma-4-31B's.
 
-| reading | the pick | Qwen3.8-27B | Qwen3.6-27B |
+| reading | gemma-4-31B | Qwen3.8-27B | Qwen3.6-27B |
 | --- | --- | --- | --- |
 | judge correct, of 26 | 26 | 24 (25, 22 to 26) | 25 (24, 20 to 26) |
 | gold first of 22; `ABSENT` returned nothing of 4 | 22; 4 | 22; 2 | 22; 3 |
 | fell back, of 26 | 0 | 0 | 0 |
-| p, against the pick | | 0.49 | 1.0 |
+| p, against gemma-4-31B | | 0.49 | 1.0 |
 | recapped reply kept the reference | 1 of 1 | 2 of 3 (3 of 3) | 3 of 3 (3, 2 to 3) |
 | judge cost a recall | 1.0 | 1.01 | 1.20 |
 | cold recap pass | 1.0 | 0.87 and 1.45 | 0.87 to 0.92 |

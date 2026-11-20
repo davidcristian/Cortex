@@ -4,13 +4,13 @@
 **Area:** inference-model-manager
 **Origin:** [ADR-0077](../../adr/ADR-0077-model-card-settings.md)
 
-The deep tier's cache type default was `f16`. For the deep pick's file, gemma-4-31B in Q4, the rows
+The deep tier's cache type default was `f16`. For gemma-4-31B's Q4 file, the rows
 that decide it were missing in the shape the stack starts: every layer on the card. They were
 drawn on 2026-11-20, twice, and the file meets the rule of
 [the first cache type readings](../../readings/kv-cache-types.md) in that shape
 ([readings](../../readings/kv-cache-deep-whole.md)). The default is `q8_0` since 2026-11-20
 (ADR-0077 decision 8). The second question the draw opened, that neither type fits the budget at
-16K, is [R-1264](1264-the-deep-tier-at-16k-is-over-the-model-budget-with-every-layer-on-the-card.md).
+16K, is [R-1264](1264-gemma-4-31b-at-16k-is-over-the-model-budget-with-every-layer-on-the-card.md).
 
 ## The draw
 
@@ -60,8 +60,8 @@ more less, in both drafter settings) and was met.
   [config.py](../../../brain/packages/model_manager/src/cortex_model_manager/config.py) and the
   same variable's substitution default in `docker/docker-compose.gpu.yml` are `q8_0`, and
   `crosscheck.py` compares the two. ADR-0077 decision 8 has the reasons.
-- The default applies to whatever file a deployment names. Both Q4 files meet the rule (the
-  pick's here, the Qwen3.8-27B alternate's in
+- The default applies to whatever file a deployment names. Both Q4 files meet the rule (this
+  one here, Qwen3.8-27B's in
   [the rows of 2026-11-19](../../readings/kv-cache-every-model.md)). The NVFP4 file of
   Qwen3.8-27B does not, at 0.81 at 32K and draft length 1, and the NVFP4 file of gemma-4-31B has
   no row held whole, so a deployment on either NVFP4 file sets `f16`
@@ -71,7 +71,7 @@ more less, in both drafter settings) and was met.
 ## What the draw left open
 
 Neither type fits the 18,177 MiB budget at 16K with every layer on the card, and `f16` with the
-drafter is at the card's limit. [R-1264](1264-the-deep-tier-at-16k-is-over-the-model-budget-with-every-layer-on-the-card.md)
+drafter is at the card's limit. [R-1264](1264-gemma-4-31b-at-16k-is-over-the-model-budget-with-every-layer-on-the-card.md)
 has that question with its figures and the two pairs of rows not drawn for it.
 
 ## History
@@ -91,11 +91,11 @@ has that question with its figures and the two pairs of rows not drawn for it.
   with a coupling between the two; a deployment on an NVFP4 file sets `f16`, and the default
   follows the file choice of [R-1244](1244-the-deep-tiers-file-is-not-chosen-between-the-q4-and-the-nvfp4-files.md).
   The cortex's and the subagent servers' defaults stay `f16`. Live check on build b12375, the
-  model host started on compose defaults with the pick's file and its drafter named and no cache
+  model host started on compose defaults with this file and its drafter named and no cache
   type variable set: the deep tier's argv ends `--cache-type-k q8_0 --cache-type-v q8_0
   --cache-type-k-draft q8_0 --cache-type-v-draft q8_0`, a request reached its reply after 140
   tokens with 103 of 108 drafted tokens accepted, the card read 19,081 MiB above its floor of
   3,284 MiB at the highest, and the engine's log at level 4 names `K (q8_0)` and `V (q8_0)` for
   the model's caches and the drafter's. Filed:
-  [R-1264](1264-the-deep-tier-at-16k-is-over-the-model-budget-with-every-layer-on-the-card.md)
+  [R-1264](1264-gemma-4-31b-at-16k-is-over-the-model-budget-with-every-layer-on-the-card.md)
   for the tier's fit at 16K.

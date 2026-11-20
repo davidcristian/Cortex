@@ -24,13 +24,13 @@ same reply in substance. It is applied on build b12375 in
 rows of one night, because the same 16-bit launch reads a different rate on another night
 ([R-1259](1259-the-same-launch-reads-a-different-rate-on-another-night.md)).
 
-- **Deep tier, gemma-4-31B, the pick's Q4 file: meets the rule in the shape the stack starts.**
+- **Deep tier, gemma-4-31B, the Q4 file: meets the rule in the shape the stack starts.**
   With every layer on the card at 16K it writes 0.913 and 0.912 of its 16-bit rate without the
   drafter and 1.035 and 1.018 at draft length 3, takes 454 and 688 MiB less with the drafter, and
   gives the same reply token for token. The engine's log at level 4 names `q8_0` for its caches
   and its drafter's. The tier's default is `q8_0` on these rows (ADR-0077 decision 8).
   Neither type fits the 18,177 MiB budget there
-  ([R-1264](1264-the-deep-tier-at-16k-is-over-the-model-budget-with-every-layer-on-the-card.md)).
+  ([R-1264](1264-gemma-4-31b-at-16k-is-over-the-model-budget-with-every-layer-on-the-card.md)).
   Split with RAM the file writes 2.08 to 2.11 times its 16-bit rate, a shape the stack does not
   start.
 - **Deep tier, gemma-4-31B, the NVFP4 file: not decided.** It is held whole at no context. Split
@@ -161,9 +161,9 @@ Steps 2 to 7 refine cells that are already decided.
 - 2026-11-20: the deep tier's default became `q8_0`, in `config.py` and as the compose default,
   on the draw of [R-1260](1260-the-deep-picks-file-has-no-cache-type-row-in-the-shape-the-stack-starts.md),
   which closed. The cortex's and the subagent servers' defaults stay `f16`. Live check on build
-  b12375: started on compose defaults with the pick's file and its drafter named, the deep
+  b12375: started on compose defaults with gemma-4-31B's Q4 file and its drafter named, the deep
   tier's argv has `q8_0` for the model's cache and the drafter's, a request reached its reply,
   and the engine's log at level 4 names `K (q8_0)` and `V (q8_0)`
   ([readings](../../readings/kv-cache-deep-whole.md)). Filed:
-  [R-1264](1264-the-deep-tier-at-16k-is-over-the-model-budget-with-every-layer-on-the-card.md)
+  [R-1264](1264-gemma-4-31b-at-16k-is-over-the-model-budget-with-every-layer-on-the-card.md)
   for the deep tier's fit at 16K.

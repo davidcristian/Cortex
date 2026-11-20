@@ -77,7 +77,7 @@ with both caches at 8 bits, which is a row of 2026-11-18 and is divided by the n
 the no-draft rows at 48K (1.06 and 1.08). One cell moves inside the budget: the NVFP4 file at
 draft length 3 fits by 14 MiB where it was 57 MiB over.
 
-## The deep pick: gemma-4-31B, the Q4 file
+## The deep tier, split with RAM: gemma-4-31B, the Q4 file
 
 At 16 bits the file fits whole at no context under the 18,177 MiB budget. At 8 bits it fits
 whole at 12K without its drafter, at 18,173 MiB, and at no context with it. The NVFP4 file fits

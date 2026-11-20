@@ -5,8 +5,8 @@
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
 **Verified:** 2026-11-18
 
-ADR-0004 decision 8 picks the deep tier's model on whether it reaches its answer inside the deployed
-context with no limit set. The rows it compares are the stop row (four written questions, three
+ADR-0004 decision 8 picks the deep tier's model on fit inside the model budget, with the other
+axes level. The rows behind those axes are the stop row (four written questions, three
 seeds each, counted as stopped and as right by hand), the reasoning tokens a draw spends, and the
 framed and unframed injection draws. They were drawn on `gemma-4-31B-it-qat` and
 `Qwen3.8-27B-UD-Q4_K_M` and are in [deep candidates](../../readings/deep-candidates.md).

@@ -39,3 +39,6 @@ A row that reads the same closes its line here, and one that differs changes the
 
 - 2026-11-16: filed when the tier defaults, the lineup harness and the live tests were repointed at
   the files the mount holds. No model was loaded that day, so no row was redrawn.
+- 2026-11-20: ADR-0004 decision 8 now names `Qwen3.8-27B-UD-Q4_K_M` as the deep pick, the one
+  lineup file whose rows were drawn on the file the mount holds. The deep tier's cost and the
+  drafter's cost and rate above are gemma-4-31B's, the alternate's, and come after the picks.

@@ -237,8 +237,8 @@ check. One prompt per model shows whether the reply moves, not whether it is wor
 | subagent | the four small models | yes | no: 7 to 94 MiB at 8K | yes at 8K | not drawn | do not meet it |
 
 The chat and NVFP4 rows ran with flash attention on, the model card's setting; `auto` was read
-for gemma-4-E4B and the Q4 file only. The deep tier meets the rule on the Q4 file, the deep
-alternate's, by a small margin at 16K, where draft lengths 4 and 5 read 0.84 and 0.88. The NVFP4
+for gemma-4-E4B and the Q4 file only. The deep tier meets the rule on the Qwen3.8-27B Q4
+file, by a small margin at 16K, where draft lengths 4 and 5 read 0.84 and 0.88. The NVFP4
 file does not meet condition 3. No default was changed (ADR-0077 decision 8).
 
 ## Ratios across two nights
