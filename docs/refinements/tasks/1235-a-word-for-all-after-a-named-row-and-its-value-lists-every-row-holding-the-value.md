@@ -1,9 +1,8 @@
 # A word for all after a named row and its value lists every row holding the value
 
-**Status:** open, actionable
+**Status:** done 2026-11-20
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-15
 
 Over the rows `Remember that my locker code is 4242.`, `Remember that my card is 4111 1111 1111
 4242.` and `Remember that my phone is 0721 555 4242.`, `Forget the card 4242 everywhere.` and
@@ -25,3 +24,11 @@ unsafe direction: the card lists rows the message does not name.
 ## History
 
 - 2026-11-15: filed from a probe beside the row word read between a word for all and the value.
+- 2026-11-20: done. The premise held: `4242` deleted all three rows and `phone` the phone.
+  `quantifies` reads the value before a word for all through `before_every`
+  (`forget_kinds.py`): the words before that value, back to a forget verb or a word for and, stop
+  the word for all when one names a matched row or is a kind word. `Forget the card 4242
+  everywhere.` lists the card alone for both call texts, and `Forget 4242 everywhere.`, `Forget
+  the 4242 everywhere.` and `Forget the card and 4242 everywhere.` list every row. Four test
+  strings naming a bike lock code before the value now keep the shed padlock code. The replay is
+  in [the readings](../../readings/forget-everything-unread-role.md#a-word-for-all-after-a-named-row-and-its-value-2026-11-20).

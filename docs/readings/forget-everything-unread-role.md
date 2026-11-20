@@ -147,6 +147,33 @@ and `Forget all lockers 4242.`. A call text holding a digit the message lacks li
 names: 1,440 rows, the same before and after. Scripts `kindgen.py`, `kindsum.py` and `replay.sh`
 in `/tmp/claude-1000/-home-david-Files-Git-Cortex/bd106a1a-a17f-4ca5-8841-82294e4917a8/scratchpad/slot15/`.
 
+## A word for all after a named row and its value, 2026-11-20
+
+`Forget the card 4242 everywhere.` listed the locker code and the phone with the card, and with
+the call text `phone` it listed the phone. `quantifies` now reads the words before a value that
+a word for all follows (`before_every` in `forget_kinds.py`): back to a forget verb or a word for
+and, a word naming a matched row, or a kind word, stops the word for all asking for every row.
+The safe direction is keeping a row, so the rows the message may mean either way are kept and
+shown. Replayed before and after, each message with the value as the call text and each test
+string with three call texts:
+
+| Replay | Calls | Changed | Newly listed | Newly kept |
+| --- | --- | --- | --- | --- |
+| generated heads and tails in five languages | 42,356 | 0 | 0 | 0 |
+| string literals of the brain's forget tests | 5,865 | 0 | 0 | 0 |
+| a row named, the value, then each word for all | 450 | 420 | 0 | 840 |
+| a word for all beside the value alone, or before a row word | 1,050 | 0 | 0 | 0 |
+
+The third row is each of the fifteen row names of the generator with its article, `4242`, then
+each of the fifteen words for all of the table of forms, after a space and after a comma. Each
+of the 840 rows newly kept is one the message may mean either way: the other two rows of the
+pool. None is asked to keep, not asked or asked to delete. The 30 messages that did not change
+name the row as `dulapul`, a form the row holding `dulap` does not hold. The string literals are
+replayed over the generator's fifteen rows, which hold no bike lock, so the four test strings
+that name one (`Forget my bike lock code 7319 everywhere.` and three more) change only in their
+own tests: each now keeps the shed padlock code, a row the message may mean either way. Scripts
+`gen.py`, `mkcases.py`, `run.py` and `cmp.py` in `~/.cache/cortex-run/2026-11-20/forget-replay/`.
+
 ## The four blocked cells replayed, 2026-11-15
 
 With every row kept under an unread role, `toate`, `doar`, `seulement` and `también` were each

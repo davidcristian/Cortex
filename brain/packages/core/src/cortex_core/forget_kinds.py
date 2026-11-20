@@ -2,7 +2,7 @@
 
 from collections.abc import Iterable
 
-from cortex_core.forget_clauses import NOT, clauses
+from cortex_core.forget_clauses import AND, FORGET, NOT, clauses
 from cortex_core.memory_values import code_stem
 
 # A closed table: each line is one kind of fact in the note languages, English, French, German,
@@ -37,3 +37,28 @@ def names(words: set[str], row: set[str], *, kind: frozenset[str] | None = None)
     both name, read only from the words of ``kind`` when given."""
     listing = words if kind is None else words & kind
     return not words.isdisjoint(row) or not kinds(listing).isdisjoint(kinds(row))
+
+
+def limited(words: list[str], named: set[str]) -> bool:
+    """Whether a word of ``words`` before their first value is one of ``named`` or a kind word,
+    as ``card`` of ``every card 4242``, so the word for all before it asks only for those rows."""
+    at = next((at for at, word in enumerate(words) if _valued(word)), len(words))
+    between = {name for word in words[:at] for name in (word, code_stem(word) or word)}
+    return not between.isdisjoint(named) or bool(kinds(between))
+
+
+def _valued(word: str) -> bool:
+    """Whether ``word`` holds a digit, as a value or a group of one does."""
+    return any(map(str.isdigit, word))
+
+
+def before_every(clause: list[str], end: int, named: set[str] | None) -> list[str]:
+    """The two words of ``clause`` before ``end`` that a word for all there reads a value from:
+    none, given ``named``, when the words before that value, back to a forget verb or a word for
+    and, are ``limited``, as in ``the card 4242 everywhere``."""
+    near = clause[max(0, end - 2) : end]
+    first = next((at for at in range(max(0, end - 2), end) if _valued(clause[at])), None)
+    if named is None or first is None:
+        return near
+    opens = (at + 1 for at in range(first) if clause[at] in AND or FORGET.fullmatch(clause[at]))
+    return [] if limited(clause[max(opens, default=0) : first], named) else near

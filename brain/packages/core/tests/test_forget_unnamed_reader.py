@@ -50,6 +50,10 @@ _TWO = (_record("bike", _BIKE), _record("shed", _SHED, minutes=1))
         "Forget the bike lock code 7319, not everything else 7319 opens.",
         "Forget it all, my bike lock code 7319.",
         "Forget all about 7319, my bike lock code.",
+        "Forget my bike lock code 7319 everywhere.",
+        "Forget my bike lock code 7319, everywhere.",
+        "Vergiss den bike lock Code 7319 überall.",
+        "Forget my bike lock code 73 19 everywhere.",
     ],
 )
 def test_a_word_for_all_outside_the_forget_keeps_the_fact_the_message_does_not_name(
@@ -61,14 +65,10 @@ def test_a_word_for_all_outside_the_forget_keeps_the_fact_the_message_does_not_n
 @pytest.mark.parametrize(
     "query",
     [
-        "Forget my bike lock code 7319 everywhere.",
         "Forget all of 7319.",
         "Forget my bike lock code, it is 7319, and every other 7319 too.",
-        "Forget my bike lock code 7319, everywhere.",
         "Oublie le code de mon bike lock, c'est 7319, partout.",
-        "Vergiss den bike lock Code 7319 überall.",
         "Forget my bike lock code and all 7319s.",
-        "Forget my bike lock code 73 19 everywhere.",
     ],
 )
 def test_a_word_for_all_beside_the_value_asks_for_every_row(query: str) -> None:

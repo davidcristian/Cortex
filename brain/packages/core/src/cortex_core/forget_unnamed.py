@@ -4,7 +4,7 @@ import re
 from collections.abc import Iterable, Mapping
 
 from cortex_core.forget_clauses import AND, EVERY, EXCEPT, FORGET, KEEP, WHOSE, clauses, parts
-from cortex_core.forget_kinds import kinds, names, read_kinds
+from cortex_core.forget_kinds import before_every, kinds, limited, names, read_kinds
 from cortex_core.forget_languages import FUNCTION, readings
 from cortex_core.memory import MemoryRecord
 from cortex_core.memory_values import code_stem, code_word, digit_runs, kind_word, whole_values
@@ -176,17 +176,10 @@ def asks_to_keep(text: str, query: str) -> bool:
     return not _REST.isdisjoint(parts(query)[1]) or not kept.isdisjoint(row_names(text))
 
 
-def _limited(words: list[str], named: set[str]) -> bool:
-    """Whether a word of ``words`` before their first value is one of ``named`` or a kind word,
-    as ``card`` of ``every card 4242``, so the word for all before it asks only for those rows."""
-    at = next((at for at, word in enumerate(words) if any(map(str.isdigit, word))), len(words))
-    between = {name for word in words[:at] for name in (word, code_stem(word) or word)}
-    return not between.isdisjoint(named) or bool(kinds(between))
-
-
 def quantifies(query: str, rows: Iterable[str] | None = None) -> bool:
     """Whether a word for all in ``query`` asks for every row: within two words of a value, and,
-    given ``rows``, with no word between it and a value after it that ``_limited`` reads."""
+    given ``rows``, with no word ``limited`` reads between it and a value after it, or before a
+    value before it."""
     split = clauses(query)
     function = {word for language in readings(query) for word in FUNCTION.get(language, ())}
     named = None if rows is None else {word for text in rows for word in row_words(text)} - function
@@ -197,10 +190,10 @@ def quantifies(query: str, rows: Iterable[str] | None = None) -> bool:
             if token not in EVERY or (at + 1 < len(clause) and clause[at + 1] in TOPIC):
                 continue
             after = clause[at + 1 : at + 3]
-            limited = named is not None and _limited(after, named)
-            beside = [*clause[max(0, at - 2) : at], *([] if limited else after)]
+            stops = named is not None and limited(after, named)
+            beside = [*before_every(clause, at, named), *([] if stops else after)]
             if len(clause) == 1 and index:
-                beside = split[index - 1][-1:]
+                beside = before_every(split[index - 1], len(split[index - 1]), named)[-1:]
             if any(char.isdigit() for char in "".join(beside)):
                 return True
     return False

@@ -159,3 +159,62 @@ async def test_a_row_holding_the_value_only_in_its_reply_is_kept_beside_the_name
     gone = await _deleted("Forget every locker 4242.", ("locker", "recall"), ("4242",))
 
     assert gone == {"locker"}
+
+
+_AFTER = ("4242", "card", "phone", "locker code")
+
+
+@pytest.mark.parametrize(
+    ("query", "ids", "gone"),
+    [
+        ("Forget the card 4242 everywhere.", _FOUR, {"card"}),
+        ("Forget my card 4242 everywhere.", _FOUR, {"card"}),
+        ("Forget the card 4242, everywhere.", _FOUR, {"card"}),
+        ("Forget the card 4242 all.", _FOUR, {"card"}),
+        ("Forget the locker 4242 everywhere.", _FOUR, {"locker"}),
+        ("Forget my phone 0721 555 4242 everywhere.", _FOUR, {"phone"}),
+        ("Oublie la carte 4242 partout.", ("casier", "carte", "telephone"), {"carte"}),
+        ("Oublie le casier 4242, partout.", ("casier", "carte", "telephone"), {"casier"}),
+        ("Vergiss die Karte 4242 überall.", ("spind", "karte", "handy"), {"karte"}),
+        ("Vergiss den Spind 4242 überall.", ("spind", "karte", "handy"), {"spind"}),
+        ("Olvida la tarjeta 4242 en todas partes.", ("gimnasio", "tarjeta"), {"tarjeta"}),
+    ],
+)
+async def test_a_word_for_all_after_a_named_row_and_its_value_lists_the_named_row(
+    query: str, ids: tuple[str, ...], gone: set[str]
+) -> None:
+    assert not quantifies(query, [_ROWS[name] for name in ids])
+    assert quantifies(query)
+    assert await _deleted(query, ids, _AFTER) == gone
+
+
+@pytest.mark.parametrize(
+    ("query", "ids"),
+    [
+        ("Forget 4242 everywhere.", _FOUR),
+        ("Forget the 4242 everywhere.", _FOUR),
+        ("Forget the card and 4242 everywhere.", _FOUR),
+        ("Forget the card or 4242, everywhere.", _FOUR),
+        ("Keep the card, forget 4242 everywhere.", _FOUR),
+        ("The card. Forget 4242 everywhere.", _FOUR),
+        ("My card is gone so forget 4242 everywhere.", _FOUR),
+        ("Forget the bike 4242 everywhere.", _FOUR),
+        ("Forget the locker 4242 everywhere.", ("card", "phone")),
+        ("0721 555 4242 everywhere, forget it.", _FOUR),
+        ("Oublie 4242 partout.", ("casier", "carte", "telephone")),
+        ("Vergiss 4242 überall.", ("spind", "karte", "handy")),
+        ("Olvida 4242 en todas partes.", ("gimnasio", "tarjeta")),
+    ],
+)
+def test_a_word_for_all_after_a_value_no_row_word_is_before_asks_for_every_row(
+    query: str, ids: tuple[str, ...]
+) -> None:
+    assert quantifies(query, [_ROWS[name] for name in ids])
+
+
+@pytest.mark.parametrize(
+    "query",
+    ["Forget 4242 everywhere.", "Forget the 4242 everywhere.", "Forget the card and 4242 all."],
+)
+async def test_a_word_for_all_after_a_value_alone_lists_every_row_holding_it(query: str) -> None:
+    assert await _deleted(query, _FOUR, _AFTER) == {"locker", "card", "phone"}
