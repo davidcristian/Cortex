@@ -19,18 +19,14 @@ _CORTEX_GGUF = "unsloth/gemma-4-12B-it-qat-GGUF/gemma-4-12B-it-qat-UD-Q4_K_XL.gg
 _DRAFTER_GGUF = "unsloth/gemma-4-31B-it-qat-GGUF/mtp-gemma-4-31B-it-Q8_0.gguf"
 _DRAFT_FLAG = "--model-draft"
 _CORTEX_DRAFT = "CORTEX_MODEL_FILE_CORTEX_DRAFT"
+_DEEP_CACHE = ("--cache-type-k", "q8_0", "--cache-type-v", "q8_0")
+_DEEP_DRAFT_CACHE = ("--cache-type-k-draft", "q8_0", "--cache-type-v-draft", "q8_0")
 
 
 @pytest.fixture(autouse=True)
 def _cortex_without_its_drafter(monkeypatch: pytest.MonkeyPatch) -> None:  # pyright: ignore[reportUnusedFunction]
     """The cortex tails these tests read end before the drafter test_tier_drafters.py covers."""
     monkeypatch.setenv(_CORTEX_DRAFT, "")
-
-
-@pytest.fixture(autouse=True)
-def _deep_tier_at_the_engines_cache_type(monkeypatch: pytest.MonkeyPatch) -> None:  # pyright: ignore[reportUnusedFunction]
-    """The deep tails read here end before the cache type test_tier_cache_types.py covers."""
-    monkeypatch.setenv("CORTEX_KV_CACHE_TYPE_BRAIN", "f16")
 
 
 def _tier(**overrides: object) -> TierArgs:
@@ -354,7 +350,7 @@ def test_the_deep_tier_has_its_own_budget(monkeypatch: pytest.MonkeyPatch) -> No
     monkeypatch.setenv("CORTEX_REASONING_BUDGET_BRAIN", "1024")
     monkeypatch.delenv("CORTEX_REASONING_BUDGET", raising=False)
     roster = ModelHostConfig().roster()
-    assert roster["brain"].argv[-2:] == ("--reasoning-budget", "1024")
+    assert roster["brain"].argv[-6:] == ("--reasoning-budget", "1024", *_DEEP_CACHE)
     assert "--reasoning-budget" not in roster["cortex"].argv
 
 
@@ -396,7 +392,7 @@ def test_every_tier_states_the_prompt_cache_it_was_measured_at(
     monkeypatch.setenv("CORTEX_MODEL_FILE_BRAIN", "deep/brain.gguf")
     roster = ModelHostConfig().roster()
     assert roster["subagent-gpu"].argv[-2:] == ("--cache-ram", "0")
-    assert roster["brain"].argv[-2:] == ("--cache-ram", "0")
+    assert roster["brain"].argv[-6:] == ("--cache-ram", "0", *_DEEP_CACHE)
     assert roster["cortex"].argv[-2:] == ("--cache-ram", "8192")
 
 
@@ -424,7 +420,7 @@ def test_naming_a_drafter_gives_the_deep_tier_the_measured_pair(
 ) -> None:
     _draft_env(monkeypatch, drafter=_DRAFTER_GGUF)
     roster = ModelHostConfig().roster()
-    assert roster["brain"].argv[-8:] == (
+    assert roster["brain"].argv[-16:] == (
         "--cache-ram",
         "0",
         _DRAFT_FLAG,
@@ -433,19 +429,22 @@ def test_naming_a_drafter_gives_the_deep_tier_the_measured_pair(
         "draft-mtp",
         "--spec-draft-n-max",
         "3",
+        *_DEEP_CACHE,
+        *_DEEP_DRAFT_CACHE,
     )
     assert _DRAFT_FLAG not in roster["cortex"].argv
     assert _DRAFT_FLAG not in roster["subagent-gpu"].argv
 
 
-def test_a_deployment_naming_no_drafter_starts_the_deep_tier_it_always_did(
+def test_a_deployment_naming_no_drafter_starts_the_deep_tier_without_one(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _draft_env(monkeypatch, drafter=None)
     argv = ModelHostConfig().roster()["brain"].argv
-    assert argv[-2:] == ("--cache-ram", "0")
+    assert argv[-6:] == ("--cache-ram", "0", *_DEEP_CACHE)
     assert _DRAFT_FLAG not in argv
     assert "--spec-type" not in argv
+    assert not set(_DEEP_DRAFT_CACHE[::2]) & set(argv)
 
 
 def test_the_drafter_follows_a_budgeted_deep_tier_and_is_resolved_under_the_mount(
@@ -454,7 +453,7 @@ def test_the_drafter_follows_a_budgeted_deep_tier_and_is_resolved_under_the_moun
     _draft_env(monkeypatch, drafter="d.gguf")
     monkeypatch.setenv("CORTEX_MODELHOST_MODELS_ROOT", "/srv/models/")
     monkeypatch.setenv("CORTEX_REASONING_BUDGET_BRAIN", "1024")
-    assert ModelHostConfig().roster()["brain"].argv[-8:] == (
+    assert ModelHostConfig().roster()["brain"].argv[-16:] == (
         "--reasoning-budget",
         "1024",
         _DRAFT_FLAG,
@@ -463,6 +462,8 @@ def test_the_drafter_follows_a_budgeted_deep_tier_and_is_resolved_under_the_moun
         "draft-mtp",
         "--spec-draft-n-max",
         "3",
+        *_DEEP_CACHE,
+        *_DEEP_DRAFT_CACHE,
     )
 
 

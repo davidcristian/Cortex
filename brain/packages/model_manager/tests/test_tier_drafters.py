@@ -23,6 +23,16 @@ _SUBAGENT_TAIL = (
 )
 _SERVER_LOGGER = "cortex_model_manager.server"
 _OWN_LAYER = ("--spec-type", "draft-mtp", "--spec-draft-n-max", "5")
+_DEEP_CACHES = (
+    "--cache-type-k",
+    "q8_0",
+    "--cache-type-v",
+    "q8_0",
+    "--cache-type-k-draft",
+    "q8_0",
+    "--cache-type-v-draft",
+    "q8_0",
+)
 
 
 def _drafting(file: str, length: str = "3") -> tuple[str, ...]:
@@ -34,12 +44,6 @@ def _drafting(file: str, length: str = "3") -> tuple[str, ...]:
         "--spec-draft-n-max",
         length,
     )
-
-
-@pytest.fixture(autouse=True)
-def _deep_tier_at_the_engines_cache_type(monkeypatch: pytest.MonkeyPatch) -> None:  # pyright: ignore[reportUnusedFunction]
-    """The deep tails read here end before the cache type test_tier_cache_types.py covers."""
-    monkeypatch.setenv("CORTEX_KV_CACHE_TYPE_BRAIN", "f16")
 
 
 def _argv(model: str, monkeypatch: pytest.MonkeyPatch, **settings: str) -> tuple[str, ...]:
@@ -172,7 +176,7 @@ def test_the_deep_tier_has_its_own_draft_length(monkeypatch: pytest.MonkeyPatch)
         CORTEX_MODEL_FILE_BRAIN_DRAFT="deep/d.gguf",
         CORTEX_DRAFT_LENGTH_BRAIN="4",
     )
-    assert argv[-6:] == _drafting("deep/d.gguf", "4")
+    assert argv[-14:] == (*_drafting("deep/d.gguf", "4"), *_DEEP_CACHES)
 
 
 @pytest.mark.parametrize(
@@ -203,34 +207,43 @@ def test_a_drafter_that_is_the_model_file_keeps_the_type_and_length_and_names_no
 
 
 @pytest.mark.parametrize(
-    ("model", "file", "drafter", "length"),
+    ("model", "file", "drafter", "length", "caches"),
     [
         (
             "cortex",
             "CORTEX_MODEL_FILE_CORTEX",
             "CORTEX_MODEL_FILE_CORTEX_DRAFT",
             "CORTEX_DRAFT_LENGTH",
+            (),
         ),
         (
             "brain",
             "CORTEX_MODEL_FILE_BRAIN",
             "CORTEX_MODEL_FILE_BRAIN_DRAFT",
             "CORTEX_DRAFT_LENGTH_BRAIN",
+            _DEEP_CACHES,
         ),
         (
             "subagent-gpu-2",
             "CORTEX_MODEL_FILE_SUBAGENT_GPU",
             "CORTEX_MODEL_FILE_SUBAGENT_GPU_DRAFT",
             "CORTEX_DRAFT_LENGTH_SUBAGENT_GPU",
+            (),
         ),
     ],
 )
 def test_a_tier_named_as_its_own_drafter_drafts_with_its_layer_and_loads_no_second_file(
-    monkeypatch: pytest.MonkeyPatch, model: str, file: str, drafter: str, length: str
+    monkeypatch: pytest.MonkeyPatch,
+    model: str,
+    file: str,
+    drafter: str,
+    length: str,
+    caches: tuple[str, ...],
 ) -> None:
     settings = {file: "deep/own.gguf", drafter: "deep/own.gguf", length: "5"}
     argv = _argv(model, monkeypatch, **settings)
-    assert argv[-4:] == _OWN_LAYER
+    tail = (*_OWN_LAYER, *caches)
+    assert argv[-len(tail) :] == tail
     assert _DRAFT_FLAG not in argv
     assert argv.count("/models/deep/own.gguf") == 1
 
