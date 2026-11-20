@@ -7,8 +7,7 @@
 The deep tier's cache type default was `f16`. For the deep pick's file, gemma-4-31B in Q4, the rows
 that decide it were missing in the shape the stack starts: every layer on the card. They were
 drawn on 2026-11-20, twice, and the file meets the rule of
-[the first cache type readings](../../readings/kv-cache-types.md) in that shape, with the rule's
-first condition read from the argv and the memory in place of a log line
+[the first cache type readings](../../readings/kv-cache-types.md) in that shape
 ([readings](../../readings/kv-cache-deep-whole.md)). The default is `q8_0` since 2026-11-20
 (ADR-0077 decision 8). The second question the draw opened, that neither type fits the budget at
 16K, is [R-1264](1264-the-deep-tier-at-16k-is-over-the-model-budget-with-every-layer-on-the-card.md).
@@ -40,11 +39,12 @@ more less, in both drafter settings) and was met.
 
 ## The rule, item by item
 
-1. **Accepted: the start is met, the log line is not shown.** All four `q8_0` launches start
-   and reach `ready`, with no flash attention flag, which is the engine's `auto`. The rule also
-   asks for a log that names `q8_0`, and the model host's log at its level has no line naming
-   the cache type. The type is read from the server's argv and from the memory: 1,068 MiB less
-   at load in the second draw, where the engine projects 1,073 MiB less.
+1. **Accepted: met.** All four `q8_0` launches start and reach `ready`, with no flash attention
+   flag, which is the engine's `auto`. The rule also asks for a log that names `q8_0`. The
+   model host's log at its level has no line naming the cache type; one more launch on compose
+   defaults with the engine's log at level 4 names `K (q8_0)` and `V (q8_0)` for the model's
+   caches and the drafter's. The memory agrees: 1,068 MiB less at load in the second draw,
+   where the engine projects 1,073 MiB less.
 2. **Gain: met.** At draft length 3, the length the tier ships with, the highest reading is 454
    and 688 MiB lower; without the drafter 358 and 1,068 MiB lower. The rule asks for 250.
 3. **Rate: met, by 0.012 without drafting.** 0.913 and 0.912 without the drafter, 1.035 and 1.018
@@ -72,9 +72,7 @@ more less, in both drafter settings) and was met.
 
 Neither type fits the 18,177 MiB budget at 16K with every layer on the card, and `f16` with the
 drafter is at the card's limit. [R-1264](1264-the-deep-tier-at-16k-is-over-the-model-budget-with-every-layer-on-the-card.md)
-has that question with its figures and the two pairs of rows not drawn for it. The log line the
-rule's first condition asks for is step 8 of
-[R-1243](1243-every-tier-holds-its-context-in-the-default-16-bit-cache.md).
+has that question with its figures and the two pairs of rows not drawn for it.
 
 ## History
 
@@ -85,12 +83,19 @@ rule's first condition asks for is step 8 of
 - 2026-11-20: the draw was made, twice, each of four launches through the model host. The file
   meets the rule in the shape the stack starts: 0.913 and 0.912 of the 16-bit rate without the
   drafter, 1.035 and 1.018 at draft length 3, 454 and 688 MiB less with the drafter, the same
-  reply; the cache type is read from the argv and the memory, since no log names it. No row
+  reply; the cache type is read from the argv and the memory, since the model host's log at
+  its level does not name it. No row
   fits the 18,177 MiB budget at 16K at either type. The body was rewritten around the draw; the
   default is left for its own change.
 - 2026-11-20: done. The deep tier's default is `q8_0`, in `config.py` and as the compose default,
   with a coupling between the two; a deployment on an NVFP4 file sets `f16`, and the default
   follows the file choice of [R-1244](1244-the-deep-tiers-file-is-not-chosen-between-the-q4-and-the-nvfp4-files.md).
-  The cortex's and the subagent servers' defaults stay `f16`. Filed:
+  The cortex's and the subagent servers' defaults stay `f16`. Live check on build b12375, the
+  model host started on compose defaults with the pick's file and its drafter named and no cache
+  type variable set: the deep tier's argv ends `--cache-type-k q8_0 --cache-type-v q8_0
+  --cache-type-k-draft q8_0 --cache-type-v-draft q8_0`, a request reached its reply after 140
+  tokens with 103 of 108 drafted tokens accepted, the card read 19,081 MiB above its floor of
+  3,284 MiB at the highest, and the engine's log at level 4 names `K (q8_0)` and `V (q8_0)` for
+  the model's caches and the drafter's. Filed:
   [R-1264](1264-the-deep-tier-at-16k-is-over-the-model-budget-with-every-layer-on-the-card.md)
   for the tier's fit at 16K.

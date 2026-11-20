@@ -98,19 +98,18 @@ highest reading above the floor read after the tier stopped; 1,536 MiB is needed
 
 | condition | reading | result |
 | --- | --- | --- |
-| 1 accepted | all four `q8_0` launches start and reach `ready` with the type in their argv, with no flash attention flag, which is the engine's `auto`; at load the second draw's `q8_0` launch reads 1,068 MiB less, where the engine projects 1,073 MiB less | the start is met; the log line the rule names is not shown, because the model host's log at its level has no line that names the type, so the argv and the memory are read in its place |
+| 1 accepted | all four `q8_0` launches start and reach `ready` with the type in their argv, with no flash attention flag, which is the engine's `auto`; at load the second draw's `q8_0` launch reads 1,068 MiB less, where the engine projects 1,073 MiB less; a launch with the engine's log at level 4 names `K (q8_0)` and `V (q8_0)` for the model's caches and the drafter's (below) | met |
 | 2 gain | at draft length 3, the length the tier ships with, 454 and 688 MiB less; without the drafter 358 and 1,068 MiB less | met |
 | 3 rate | without drafting 0.913 and 0.912; at draft length 3 1.035 and 1.018; prompt pass 1.03 to 1.08 | met, by 0.012 without drafting |
 | 4 output | one prompt of 4,028 tokens at temperature 0 at 8K with every layer on the card: the 8-bit reply is the 16-bit reply token for token, 119 of 119, and two 16-bit launches agree | passes |
 
-**The deep pick's Q4 file meets conditions 2, 3 and 4 in the shape the stack starts, and
-condition 1 by its argv and its memory in place of a log line.** What limits that:
+**The deep pick's Q4 file meets all four conditions in the shape the stack starts.** What
+limits that:
 
-- Condition 1 asks for a log that names `q8_0` for K and V. No log of this file names a cache
-  type: the model host's has no such line at its level, and the log probe of 2026-11-18
-  (`bench/q8-kvlog.jsonl`) drew other models. That the type is in effect is read from the
-  memory: 1,068 MiB less at load in the second draw, against the 1,073 MiB between the
-  engine's two projections.
+- Condition 1 asks for a log that names `q8_0` for K and V. The eight rows ran at the model
+  host's own log level, which has no line naming a cache type. The line is from one more launch
+  with the engine's log at level 4, in the last section. The memory agrees: 1,068 MiB less at
+  load in the second draw, against the 1,073 MiB between the engine's two projections.
 - The no-draft rate passes the 0.90 of condition 3 by 0.012, in two draws that agree to 0.001.
   One fixed launch drawn eight times the same night spread by 0.034 of its fastest row
   ([the rows of 2026-11-20](kv-cache-remaining-cells.md)), so one launch per row cannot tell
@@ -128,3 +127,43 @@ on the card, so the tier's context or placement is a separate question, which
 [R-1264](../refinements/tasks/1264-the-deep-tier-at-16k-is-over-the-model-budget-with-every-layer-on-the-card.md)
 has. The deep tier's default is `q8_0` on this record
 ([ADR-0077](../adr/ADR-0077-model-card-settings.md) decision 8).
+
+## The tier started on compose defaults
+
+**2026-11-20**, after the default was set, on the same image and build. The model host was
+started from the repo's compose files with three variables named: the models mount,
+`CORTEX_MODEL_FILE_BRAIN` and `CORTEX_MODEL_FILE_BRAIN_DRAFT`, the pick's file and its drafter.
+No cache type variable was set, and `docker compose config` printed
+`CORTEX_KV_CACHE_TYPE_BRAIN: q8_0`. The cortex was stopped and the deep tier started over the
+control API, as in the rows above. Three launches read the same figures.
+
+- **Argv**, from the container's process table: `llama-server --model
+  /models/unsloth/gemma-4-31B-it-qat-GGUF/gemma-4-31B-it-qat-UD-Q4_K_XL.gguf --host 0.0.0.0
+  --port 8081 -ngl 99 --ctx-size 16384 --parallel 1 --jinja --cache-ram 0 --model-draft
+  /models/unsloth/gemma-4-31B-it-qat-GGUF/mtp-gemma-4-31B-it-Q8_0.gguf --spec-type draft-mtp
+  --spec-draft-n-max 3 --cache-type-k q8_0 --cache-type-v q8_0 --cache-type-k-draft q8_0
+  --cache-type-v-draft q8_0`.
+- **One request** of 45 prompt tokens, capped at 3,000 tokens, ended on its own after 140
+  tokens with the reply "The trip takes 150 minutes." after a reasoning trace of 322
+  characters. 103 of 108 drafted tokens were accepted.
+- **Card**: 19,067 MiB above the floor of 3,284 MiB at load and 19,081 MiB at the highest
+  reading, against 19,064 and 19,086 MiB in the second draw. The floor was 3,284 MiB again after
+  the project was removed.
+- **The engine's log.** At the model host's level the log has no line naming a cache type. One
+  launch had `LLAMA_ARG_LOG_VERBOSITY=4` in the container's environment, the variable this build
+  reads for `-lv`, which changes no argv. Its log has, for the deep tier's server:
+
+```
+llama_init_from_model: enabling flash_attn since it is required for quantized V cache
+llama_context: flash_attn            = enabled
+llama_kv_cache: size =  680.00 MiB ( 16384 cells,  10 layers,  1/1 seqs), K (q8_0):  340.00 MiB, V (q8_0):  340.00 MiB
+llama_kv_cache: size =  637.50 MiB (  1536 cells,  50 layers,  1/1 seqs), K (q8_0):  318.75 MiB, V (q8_0):  318.75 MiB
+llama_kv_cache: size =   68.00 MiB ( 16384 cells,   1 layers,  1/1 seqs), K (q8_0):   34.00 MiB, V (q8_0):   34.00 MiB
+llama_kv_cache: size =   38.25 MiB (  1536 cells,   3 layers,  1/1 seqs), K (q8_0):   19.12 MiB, V (q8_0):   19.12 MiB
+```
+
+The first two cache lines are the model's and the last two the drafter's. The cortex, started
+by the same model host at its default, logs `K (f16)` and `V (f16)` on all four of its lines.
+
+Method: `bash ~/.cache/cortex-run/2026-11-20/default-live.sh <label> [compose.lv4.yml]`, compose
+project `cortexn25`, which the script removes; logs in `logs/default-<label>-host.log` there.

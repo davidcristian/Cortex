@@ -27,8 +27,8 @@ rows of one night, because the same 16-bit launch reads a different rate on anot
 - **Deep tier, gemma-4-31B, the pick's Q4 file: meets the rule in the shape the stack starts.**
   With every layer on the card at 16K it writes 0.913 and 0.912 of its 16-bit rate without the
   drafter and 1.035 and 1.018 at draft length 3, takes 454 and 688 MiB less with the drafter, and
-  gives the same reply token for token. No log names the cache type there, so it is read from
-  the argv and the memory. The tier's default is `q8_0` on these rows (ADR-0077 decision 8).
+  gives the same reply token for token. The engine's log at level 4 names `q8_0` for its caches
+  and its drafter's. The tier's default is `q8_0` on these rows (ADR-0077 decision 8).
   Neither type fits the 18,177 MiB budget there
   ([R-1264](1264-the-deep-tier-at-16k-is-over-the-model-budget-with-every-layer-on-the-card.md)).
   Split with RAM the file writes 2.08 to 2.11 times its 16-bit rate, a shape the stack does not
@@ -120,17 +120,12 @@ drawn at 16 bits into `bench/q8-ref.jsonl`, without drafting and at one draft le
    gemma-4-31B have no check, since no row holds them whole, and the CPU files have none on a
    CPU, since `q8-output.py` launches on the card.
 
-8. **The engine's log line for the deep pick's file**, which the rule's first condition names
-   and no log of that file has: one `q8_0` launch with the engine's log at level 4 and flash
-   attention at `auto`, `python3 q8-kvlog.py gemma-4-31B:q8_0:3:auto`, which writes the engine's
-   cache lines to `bench/q8-kvlog.jsonl`.
-
 Afterwards `python3 q8-report.py` rebuilds `q8.md`.
 
 What would close it: Flash-Next's rows, the rule applied to it in the readings, and the result
 recorded in ADR-0077 decision 8. A tier whose shipped file then meets the rule gets `q8_0` as the
 default of its setting in `brain/packages/model_manager/src/cortex_model_manager/config.py`.
-Steps 2 to 8 refine cells that are already decided.
+Steps 2 to 7 refine cells that are already decided.
 
 ## History
 
@@ -165,6 +160,10 @@ Steps 2 to 8 refine cells that are already decided.
   filled pass, R-1263 for the drafter's cache of a Qwen tier.
 - 2026-11-20: the deep tier's default became `q8_0`, in `config.py` and as the compose default,
   on the draw of [R-1260](1260-the-deep-picks-file-has-no-cache-type-row-in-the-shape-the-stack-starts.md),
-  which closed. The cortex's and the subagent servers' defaults stay `f16`. The log line of the
-  pick's file is step 8 above. Filed: [R-1264](1264-the-deep-tier-at-16k-is-over-the-model-budget-with-every-layer-on-the-card.md)
+  which closed. The cortex's and the subagent servers' defaults stay `f16`. Live check on build
+  b12375: started on compose defaults with the pick's file and its drafter named, the deep
+  tier's argv has `q8_0` for the model's cache and the drafter's, a request reached its reply,
+  and the engine's log at level 4 names `K (q8_0)` and `V (q8_0)`
+  ([readings](../../readings/kv-cache-deep-whole.md)). Filed:
+  [R-1264](1264-the-deep-tier-at-16k-is-over-the-model-budget-with-every-layer-on-the-card.md)
   for the deep tier's fit at 16K.

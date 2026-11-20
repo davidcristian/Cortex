@@ -160,9 +160,9 @@ The cards were read on 2026-11-16, when the models mount moved to the files
      ([the deep tier at both types](../readings/kv-cache-deep-whole.md)). At 8 bits it writes
      0.913 and 0.912 of its 16-bit rate without a drafter and 1.035 and 1.018 at draft length 3,
      reads 358 to 1,068 MiB less at its highest, and gives the fixed prompt the same reply token
-     for token. The smallest margin is the rate without a drafter, 0.912 against 0.90. That the
-     engine accepts the type is read from the server's argv and from the memory it saved,
-     because no log of this file names the type.
+     for token. The smallest margin is the rate without a drafter, 0.912 against 0.90. Started
+     on compose defaults, the server's argv names `q8_0` for the model and the drafter, and the
+     engine's log at level 4 names `K (q8_0)` and `V (q8_0)` for the caches of both.
    - **The alternate's file, Qwen3.8-27B in Q4.** It writes 0.92 of its 16-bit rate at 20K and
      takes 570 MiB less there. The model host started the deep tier on it at 16K at `q8_0`,
      drafting with the file's own layer at a draft length of 3: it answered, 1,406 of 1,812
@@ -191,7 +191,7 @@ The cards were read on 2026-11-16, when the models mount moved to the files
    The engine exits on an 8-bit V cache when flash attention is off. The stack cannot start a
    server that way: no tier's argv names a flash attention flag, which a test of the roster
    asserts with every tier at `q8_0`, so each server runs the engine's `auto`, and `auto` turns
-   flash attention on for an 8-bit cache (read on gemma-4-E4B and on the Q4 file).
+   flash attention on for an 8-bit cache (read on gemma-4-E4B and on both Q4 deep files).
 
 ## Consequences
 
