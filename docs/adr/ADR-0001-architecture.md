@@ -6,7 +6,7 @@
 
 Cortex is a personal, local-first assistant: inference, memory and state live on the machine, and
 only tools reach external services. It is maintained long-term by agents with small context
-windows. Three model tiers (a resident ~9-12B cortex, 2-4B subagents, an on-demand ~31B brain)
+windows. Three model tiers (a resident ~9-12B cortex, 2-4B subagents, an on-demand ~27B brain)
 share one 24 GB GPU, so models are loaded and unloaded at any time. The overlay, hotkey and
 OS-control features need host OS access that does not cross the WSL2 and container boundary
 cleanly on Windows, while the inference and orchestration ecosystem is Python-first. Development

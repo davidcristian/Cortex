@@ -45,15 +45,15 @@ to themselves, so they are behind a flag. Run it when the deep model changes, wh
 
 ```
 cd brain && CORTEX_MODELS_DIR=<the host dir holding the GGUFs> CORTEX_PROBE_BRAIN=1 \
-  uv run pytest -m integration --no-cov -s -k "31B" \
+  uv run pytest -m integration --no-cov -s -k "27B" \
   packages/inference/tests/test_injection_defense_live.py
 ```
 
-Collection goes from 7 rows to 12 with `CORTEX_PROBE_BRAIN=1` set; `-k "31B"` selects the deep
-pick's row alone and `-k "Qwen3.8"` the Qwen3.8-27B candidate's. The lineup is the file's, not the
+Collection goes from 7 rows to 12 with `CORTEX_PROBE_BRAIN=1` set; `-k "27B"` selects the deep
+pick's row alone and `-k "31B"` the alternate's. The lineup is the file's, not the
 deployment's: `BRAIN_CANDIDATES` is a literal tuple, so `CORTEX_MODEL_FILE_BRAIN` is not read. The
-health check allows 180 s (`_HEALTH_TIMEOUT_S`) against the 99.6 s cold load recorded for this
-artifact, and its failure is explicit (`llama-server did not become healthy in 180s`). One deep row
+health check allows 180 s (`_HEALTH_TIMEOUT_S`) against the 99.6 s cold load recorded for
+gemma-4-31B, and its failure is explicit (`llama-server did not become healthy in 180s`). One gemma-4-31B row
 cost 269.30 s including the load and held 21131 MiB while resident, against 1971 MiB on the idle
 card; the harness removes `cortex-inj-probe` in a `finally`, so check with `docker ps -a`.
 

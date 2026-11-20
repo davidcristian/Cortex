@@ -1,6 +1,6 @@
 # ADR-0077: Model card settings and what each tier runs
 
-**Status:** Accepted (2026-11-16)
+**Status:** Accepted (2026-11-20)
 
 ## Context
 
@@ -104,10 +104,12 @@ The cards were read on 2026-11-16, when the models mount moved to the files
    wrote at 1.76 times the no-draft rate, against 1.73 at 2 and 1.61 at 4, the length the gemma
    cards recommend. At the subagent's 8K it wrote at 1.60 times, and 4 to 6 were slower
    ([readings](../readings/tier-drafters.md)). The deep tier's 3 is the engine's own default,
-   which the pick's rows were drawn at. The Qwen3.8-27B Q4 file wrote fastest at 5 at 16K and
-   20K and at 3 at 24K, where 4 is over the card's budget
+   which gemma-4-31B's rows were drawn at. At 16 bits the pick's Q4 file wrote fastest at 5 at
+   16K and 20K and at 3 at 24K, where 4 is over the card's budget
    ([readings](../readings/nvfp4-deep-tier.md)), so 3 is the longest length that fits at every
-   context the layer fits at, and a deployment of that file at 16K or 20K sets 5.
+   context the layer fits at. At `q8_0`, the tier's default, 3 is also that file's fastest
+   length at 16K ([readings](../readings/kv-cache-types.md)); a deployment of it at `f16` at
+   16K or 20K sets 5.
 
    A GPU subagent server of more than one slot is given a drafter only when its file is listed.
    Every listed file is a gemma file, whose card names no slot limit, and the subagent pick was
@@ -155,18 +157,18 @@ The cards were read on 2026-11-16, when the models mount moved to the files
    its default is `q8_0`: in `config.py`, and as the substitution default of
    `docker/docker-compose.gpu.yml`, which `crosscheck.py` compares with it.
 
-   - **The pick's file, gemma-4-31B in Q4.** The model host started it as the stack does, at 16K
-     with every layer on the card, at both types, twice
+   - **The pick's file, Qwen3.8-27B in Q4.** It writes 0.92 of its 16-bit rate at 20K and
+     takes 570 MiB less there. The model host started the deep tier on it at 16K at `q8_0`,
+     drafting with the file's own layer at a draft length of 3: it answered, 1,406 of 1,812
+     drafted tokens were accepted, and the card read 16,991 MiB above its floor at the peak.
+   - **The alternate's file, gemma-4-31B in Q4.** The model host started it as the stack does,
+     at 16K with every layer on the card, at both types, twice
      ([the deep tier at both types](../readings/kv-cache-deep-whole.md)). At 8 bits it writes
      0.913 and 0.912 of its 16-bit rate without a drafter and 1.035 and 1.018 at draft length 3,
      reads 358 to 1,068 MiB less at its highest, and gives the fixed prompt the same reply token
      for token. The smallest margin is the rate without a drafter, 0.912 against 0.90. Started
      on compose defaults, the server's argv names `q8_0` for the model and the drafter, and the
      engine's log at level 4 names `K (q8_0)` and `V (q8_0)` for the caches of both.
-   - **The alternate's file, Qwen3.8-27B in Q4.** It writes 0.92 of its 16-bit rate at 20K and
-     takes 570 MiB less there. The model host started the deep tier on it at 16K at `q8_0`,
-     drafting with the file's own layer at a draft length of 3: it answered, 1,406 of 1,812
-     drafted tokens were accepted, and the card read 16,991 MiB above its floor at the peak.
 
    The tier ships with no file named, so the default applies to whichever file a deployment
    names. A deployment on either Q4 file keeps it. A deployment that names an NVFP4 file sets
@@ -177,15 +179,17 @@ The cards were read on 2026-11-16, when the models mount moved to the files
    that moves the pick to an NVFP4 file moves the default back to `f16`.
 
    The drafter's cache keeps the model's type. The draft layer inside a Qwen file takes more
-   memory with its cache at 8 bits than at 16, 82 to 86 MiB on the alternate at 48K
+   memory with its cache at 8 bits than at 16, 82 to 86 MiB on the pick's file at 48K
    ([R-1263](../refinements/tasks/1263-a-qwen-tier-at-q8-0-gives-its-draft-layer-a-cache-that-takes-more-memory.md)).
-   That changes nothing for the alternate: its rows were drawn with the drafter's cache at 8
+   That changes nothing for the pick: its rows were drawn with the drafter's cache at 8
    bits, so the 570 MiB is what is left after that cost.
 
-   The default does not make the tier fit the model budget. At 16K with every layer on the card
-   the pick's file is over the 18,177 MiB at both types: by 198 to 207 MiB at `q8_0` without
+   The pick's file is inside the model budget at 16K at both types: 16,995 MiB at `q8_0` and
+   17,465 MiB at `f16` at draft length 3 ([readings](../readings/kv-cache-types.md)). The
+   default does not make the alternate fit it. At 16K with every layer on the card the
+   alternate's file is over the 18,177 MiB at both types: by 198 to 207 MiB at `q8_0` without
    the drafter and 907 to 909 MiB with it, and by 1,266 and 1,597 MiB at `f16`. 8 bits takes
-   less, and the tier's context or placement at 16K is decided in
+   less, and what a deployment of that file gets at 16K is decided in
    [R-1264](../refinements/tasks/1264-the-deep-tier-at-16k-is-over-the-model-budget-with-every-layer-on-the-card.md).
 
    The engine exits on an 8-bit V cache when flash attention is off. The stack cannot start a

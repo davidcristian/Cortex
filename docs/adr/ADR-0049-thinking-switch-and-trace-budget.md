@@ -65,14 +65,14 @@ how those measurements are taken is [ADR-0050](ADR-0050-live-probe-records.md).
    value). With none set the bounds are `None` and the request is the one the repo always sent. The
    value reaches the core on `TurnCapabilities`, and the deep phase of a handoff inherits it, so one
    count bounds both traces of an escalated turn; a deployment that wants them bounded apart uses
-   the two tier flags. No default flips: thinking on is what the deep pick was chosen for. The
+   the two tier flags. No default flips: the deep tier's stop rows were drawn with thinking on. The
    runbook documents the cap and a bounded trace as a pair, since a cap with the trace unbounded is
    no answer. The turn gains no warning like the drain's, the overlay already showing the trace.
 7. **The cortex and deep tiers each take a server budget.** `CORTEX_REASONING_BUDGET` and
    `CORTEX_REASONING_BUDGET_BRAIN` reach `ModelHostConfig` and render as `--reasoning-budget N` on
    that tier's argv. `-1`, llama.cpp's word for unrestricted, is the default and emits no flag; `0`
    is a real setting and reaches the argv. Two settings, because the cortex replies while somebody
-   watches and the deep pick was chosen for reaching an answer inside its trace. The runbook's
+   watches and the deep tier's stop rows were drawn with no budget on its trace. The runbook's
    advice is to start at 512 on a tier a user reads.
 8. **Every subagent server sets both the template switch and the sampler zero**:
    `--chat-template-kwargs '{"enable_thinking": false}'` and `--reasoning-budget 0`, in both

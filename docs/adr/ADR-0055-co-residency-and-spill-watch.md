@@ -9,11 +9,14 @@ subagent pool for the whole window ([ADR-0030](ADR-0030-brain-handoff.md) decisi
 card this repo targets that costs delegation for the whole deep phase, and the swap itself about
 1.5 times the deep model's warm load ([model swap](../readings/model-swap.md)).
 
-Measured on that card ([co-residency](../readings/co-residency.md)): the cortex and the deep pick do
-not fit together (about 4.6 GiB short), and the deep pick and the shipped GPU subagent tier fill the
+Measured on that card with gemma-4-31B as the deep model
+([co-residency](../readings/co-residency.md)): the cortex and the deep model do not fit
+together (about 4.6 GiB short), and the deep model and the shipped GPU subagent tier fill the
 card with no margin: beside that peer the deep model decoded at its solo rate on 2026-08-07 and at
 0.36 and 0.62 of it in two starts on 2026-09-22, with the same tier sizes. So on that card
-co-residency has no peer that fits. The cortex stays evicted in every configuration.
+co-residency has no peer that fits. The cortex stays evicted in every configuration. The deep
+pick, Qwen3.8-27B, costs less and was not drawn beside a peer
+([R-741](../refinements/tasks/741-a-qwen38-27b-deep-tier-has-no-measured-fit-figure-or-decode-floor.md)).
 
 Measuring it is the hard part. Under WSL2 an overcommitted card does not refuse the allocation: the
 driver pages the excess out to system memory, both tiers report `ready`, and `nvidia-smi` afterwards

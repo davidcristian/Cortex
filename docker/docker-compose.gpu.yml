@@ -81,8 +81,8 @@ services:
       CORTEX_MODEL_FILE_BRAIN: "${CORTEX_MODEL_FILE_BRAIN:-}"
       CORTEX_NGL_BRAIN: "${CORTEX_NGL_BRAIN:-99}"
       CORTEX_CTX_SIZE_BRAIN: "${CORTEX_CTX_SIZE_BRAIN:-16384}"
-      # The deep tier's own thinking budget, separate from the cortex's because that tier was
-      # picked for reaching its answer inside the trace.
+      # The deep tier's own thinking budget, separate from the cortex's because that tier's
+      # stop rows were drawn with no budget on its trace.
       CORTEX_REASONING_BUDGET_BRAIN: "${CORTEX_REASONING_BUDGET_BRAIN:--1}"
       # The deep tier's multi-token-prediction drafter, a path under the models mount, and its
       # draft length. Unset starts the tier without one; the deep file's own name drafts with the

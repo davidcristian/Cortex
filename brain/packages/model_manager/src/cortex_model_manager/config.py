@@ -157,8 +157,7 @@ class ModelHostConfig(BaseSettings):
         validation_alias="CORTEX_REASONING_BUDGET_BRAIN",
     )
     # The deep tier's multi-token-prediction drafter. Empty starts the tier without one; the
-    # deep file's own name drafts with the layer inside that file. The pick's drafter decoded at
-    # 1.86 to 1.89 times the plain rate for about 1000 MiB more.
+    # deep file's own name drafts with the layer inside that file, as the pick is started.
     brain_draft_file: str = Field(default="", validation_alias="CORTEX_MODEL_FILE_BRAIN_DRAFT")
     brain_draft_length: int = Field(
         default=DEFAULT_BRAIN_DRAFT_LENGTH, gt=0, validation_alias="CORTEX_DRAFT_LENGTH_BRAIN"

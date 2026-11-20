@@ -145,7 +145,7 @@ it; [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) has the full map.
 |---|---|---|
 | **Cortex** | gemma-4-12B, multimodal, QAT Q4 | Resident on the GPU; answers every turn and routes the rest |
 | **Subagents** | A 2-4B roster; gemma-4-E4B resists injection best and is the default | Spawned per task; placed on the GPU first with CPU overflow, never split |
-| **Brain** | A 31B-class reasoner | Loaded on demand; the resident models are unloaded and restored afterwards |
+| **Brain** | A 27B-class reasoner | Loaded on demand; the resident models are unloaded and restored afterwards |
 
 Placement follows a soft VRAM budget (`CORTEX_VRAM_SOFT_CAP_GB`, 16 GB on a 24 GB card) so the machine
 stays usable beside the assistant. Embeddings run on the CPU (nomic-embed-text-v1.5). Cortex is

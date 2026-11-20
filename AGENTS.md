@@ -10,7 +10,7 @@ done**, even when it works. This file is the contract; the detail lives in `docs
 A personal assistant that runs on one machine: inference, memory and state stay local, and only tools reach
 outside. A host-native Rust/Tauri **body** (hotkey, overlay, screen capture, audio, input) talks over gRPC to a
 dockerized Python **brain** (llama.cpp inference, orchestration, memory, MCP tool servers). Three model tiers
-share one 24 GB GPU: a resident 9 to 12B multimodal **cortex**, small 2 to 4B **subagents**, and a 31B **brain**
+share one 24 GB GPU: a resident 9 to 12B multimodal **cortex**, small 2 to 4B **subagents**, and a 27B **brain**
 model loaded on demand, which requires unloading the other two.
 [ADR-0001](docs/adr/ADR-0001-architecture.md) says why.
 

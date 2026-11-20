@@ -16,7 +16,7 @@ _JINJA = "--jinja"
 _LLAMA_DEFAULT_UBATCH = 512
 
 # The speculative type a multi-token-prediction drafter is decoded with on this engine build.
-# Measured on the deep pick: the drafter file named without this type loads and drafts nothing.
+# Measured on gemma-4-31B: the drafter file named without this type loads and drafts nothing.
 _DRAFT_MTP = "draft-mtp"
 
 # The types a tier's KV cache may be set to: the two docs/readings/kv-cache-types.md has rows for.

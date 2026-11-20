@@ -64,13 +64,14 @@ swap reads on `GET /health` after the evictions, the handoff is refused with bot
 and in the reply's note, the deep model is never started, and the recorded residency is put back. A
 model host that can see no card at all refuses the same way. Set the figure above the deep tier's
 own cost: under WSL the driver puts part of its last buffers in system memory with most of a
-gigabyte still free, and the check cannot see memory taken during the load. On this card the pick
-costs 19125 MiB at an 8192 context, and the pick spilled beside an idle peer at up to 19967 MiB
-free, so 20125 refuses every spill seen by at least 158 MiB, little room for the floor rising
-mid-load. The shipped 16384 context costs 664 to 667 MiB more, and 20783, set with an earlier
-build's 658, keeps 149 of those 158 MiB; no spill was drawn there. **So on a 24 GB card leave
-co-residency off**: beside the E4B tier the check refuses every handoff, each costing a reload. The
-same figure guards the ordinary handoff, optionally, on a card too small for the deep tier at all.
+gigabyte still free, and the check cannot see memory taken during the load. On this card the
+alternate, gemma-4-31B, costs 19125 MiB at an 8192 context and spilled beside an idle peer at up
+to 19967 MiB free, so 20125 refuses every spill seen by at least 158 MiB; at 16384 it costs 664 to
+667 MiB more, and 20783 keeps 149 of those 158 MiB. The pick's spill point is not drawn
+([R-741](../refinements/tasks/741-a-qwen38-27b-deep-tier-has-no-measured-fit-figure-or-decode-floor.md)).
+**So on a 24 GB card leave co-residency off**: at the alternate's figure the check refuses every
+handoff beside the E4B tier, each costing a reload. The same figure guards the ordinary handoff,
+optionally, on a card too small for the deep tier at all.
 
 **One pairing to keep, and the brain fails to start when you break it.** The sidecar's `stop`
 answers only once the child is dead and reaped, so it can legitimately take
@@ -145,21 +146,20 @@ from Windows' own localhost too. Layer `docker/docker-compose.modelhost-loopback
 host-side live test needs it (control API on 9300, deep tier on 9081, GPU subagent on 9083) and
 take it down after; the cortex tier's own `127.0.0.1:8080` stays published.
 
-To give the deployment a deep tier, name its artifact in the `model-host` environment
-(`CORTEX_MODEL_FILE_BRAIN`, with `CORTEX_NGL_BRAIN` and `CORTEX_CTX_SIZE_BRAIN` to fit it; each
-candidate's cost: [deep candidates](../readings/deep-candidates.md)) and set `CORTEX_ESCALATION=1`
-and `CORTEX_MODELHOST_BACKEND=supervisor`. The GPU override already points `CORTEX_BRAIN_ENDPOINT`
-at `http://model-host:8081`. A tier with no artifact is not in the roster, so a stock stack answers
+To give the deployment a deep tier, name the pick's artifact in the `model-host` environment
+(`CORTEX_MODEL_FILE_BRAIN=unsloth/Qwen3.8-27B-GGUF/Qwen3.8-27B-UD-Q4_K_M.gguf`; another file may
+need `CORTEX_NGL_BRAIN` and `CORTEX_CTX_SIZE_BRAIN` to fit it, and [deep
+candidates](../readings/deep-candidates.md) has each one's cost) and set `CORTEX_ESCALATION=1` and
+`CORTEX_MODELHOST_BACKEND=supervisor`. The GPU override already points `CORTEX_BRAIN_ENDPOINT` at
+`http://model-host:8081`. A tier with no artifact is not in the roster, so a stock stack answers
 404 for the deep model, and `GET /health` lists exactly the tiers it can run.
 
-**Name the deep model's drafter beside it, and four settings move with it.** Naming
-`CORTEX_MODEL_FILE_BRAIN_DRAFT` (the drafter is
-`unsloth/gemma-4-31B-it-qat-GGUF/mtp-gemma-4-31B-it-Q8_0.gguf`) starts the deep model with its
-drafter at the draft length `CORTEX_DRAFT_LENGTH_BRAIN` sets (3). Its `F16` build decoded one
-reasoning prompt at 1.86 to 1.89 times the plain rate and a tool-call and an answer-text turn at
-1.34 times it, for 997 to 1020 MiB more on the card and a tenth more load time, which a handoff
-recovers in its first 1500 decoded tokens. A deep file with the layer inside it, as Qwen3.8-27B
-has, is named again as its own drafter. The setting is empty by default. A deployment naming it:
+**Name the deep model's drafter beside it, and four settings move with it.** The pick has its
+draft layer inside its own file: give `CORTEX_MODEL_FILE_BRAIN_DRAFT` the same path as
+`CORTEX_MODEL_FILE_BRAIN`, and the tier drafts with that layer at `CORTEX_DRAFT_LENGTH_BRAIN` (3),
+1.75 times its no-draft rate at 24K. The alternate's drafter is the file
+`unsloth/gemma-4-31B-it-qat-GGUF/mtp-gemma-4-31B-it-Q8_0.gguf`, about 1000 MiB more on the card.
+The setting is empty by default. A deployment naming it:
 
 - adds the drafter's cost to `CORTEX_SWAP_BRAIN_VRAM_MIB`, so the fit check compares the free
   figure against the load that really runs, since nothing in the brain can see the drafter;

@@ -60,7 +60,7 @@ running. How a generation is bounded and a cut-off reported is
    - **Two settings, because the worst legitimate silence differs by an order of magnitude.**
      `CORTEX_INFERENCE_STALL_TIMEOUT_S` (120 s) covers the resident tier and the deep tier behind
      it: about 2.6 times the worst measured time to first token once that is scaled by how much
-     slower the deep pick loads than the cortex pick, a margin that covers the deep tier's own
+     slower gemma-4-31B loads than the cortex pick, a margin that covers the deep tier's own
      first token, measured at under a twentieth of the bound on a half-context prompt.
      `CORTEX_SUBAGENTS_STALL_TIMEOUT_S` (600 s) is twice the slow end of a whole CPU subtask, which
      bounds any one call's first token there. One shared number would have to be the loose one,

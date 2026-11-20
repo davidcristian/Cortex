@@ -210,15 +210,15 @@ candidates](../readings/deep-candidates.md), [two tiers on one card](../readings
 | Cortex (alternate) | Qwen3.5-9B | Q4_K_M | 9.2 GB | 11.0 GB (F32 proj) | ~32-42 s |
 | Subagent (pick) | **gemma-4-E4B** (CPU) | q4_0 (QAT) | 4.9 GB, ~2.5 GiB RSS | n/a | 38 s |
 | Subagent (override) | Qwen3.5-2B (CPU) | Q4_K_M | 1.19 GB, ~893 MiB RSS | n/a | ~14.5 s |
-| **Brain (pick)** | **gemma-4-31B** | q4_0 (QAT) | 18.7 GB (8K ctx) | n/a | 99.6 s |
-| Brain (alternate) | Qwen3.8-27B | UD-Q4_K_M | 15,744 to 15,770 MiB above the idle card (8K ctx) | n/a | not read |
+| **Brain (pick)** | **Qwen3.8-27B** | UD-Q4_K_M | 15,744 to 15,770 MiB above the idle card (8K ctx) | n/a | not read |
+| Brain (alternate) | gemma-4-31B | q4_0 (QAT) | 18.7 GB (8K ctx) | n/a | 99.6 s |
 | Embedder (pick) | **nomic-embed-text-v1.5** (CPU) | Q8_0 | 0.146 GB, ~18 MiB RSS | n/a | ~1.2 s |
 
-The two cortex rows and the embedder are 2026-06-29, both subagent rows 2026-07-03, and the two
-brain rows 2026-08-04 through the `model-host` sidecar with the cortex evicted first at
+The two cortex rows and the embedder are 2026-06-29, both subagent rows 2026-07-03, and the
+gemma-4-31B row 2026-08-04 through the `model-host` sidecar with the cortex evicted first at
 `CORTEX_CTX_SIZE_BRAIN=8192`, `-ngl 99` and an `f16` KV cache. Every row but the two cortex ones
 was taken with no power cap, so those load times do not compare. Every gemma and Qwen3.5 row was
-taken on a file the mount no longer holds, and the alternate's row is from 2026-09-26
+taken on a file the mount no longer holds, and the Qwen3.8-27B row is from 2026-09-26
 ([R-1238](../refinements/tasks/1238-the-lineups-readings-were-drawn-on-files-the-mount-no-longer-holds.md)).
 
 The VRAM budget is a deliberate 16 GB soft cap (`CORTEX_VRAM_SOFT_CAP_GB`), leaving about 8 GB
