@@ -229,7 +229,7 @@ Condition 3 is read on ratios of one night where a pair exists.
   `llama_server_argv` in `tiers.py` writes `-ngl` and no `--fit` flag, so the tier starts with
   every layer on the card, a shape in which this file has one 8-bit row (12K, no drafter) and no
   16-bit row. [The draw of 2026-11-20 in that shape](kv-cache-deep-whole.md) has both types,
-  and the file meets the rule there
+  and the file meets the rule there, with its first condition read from the argv and the memory
   ([R-1260](../refinements/tasks/1260-the-deep-picks-file-has-no-cache-type-row-in-the-shape-the-stack-starts.md)).
 - **The small Qwen files save memory only where they lose rate.** At the 8K to 16K a subagent
   server runs the fall is under 250 MiB. At 256K it is over, and no pair of one night exists

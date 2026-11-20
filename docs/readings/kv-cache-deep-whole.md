@@ -77,10 +77,17 @@ highest reading above the floor read after the tier stopped; 1,536 MiB is needed
   of the desktop's memory off itself, and it had not come back when the night's rows ended. With
   the fall added the first draw reads 19,443 and 19,835 MiB, and the second draw, whose floor
   did not move without the drafter and fell by 62 MiB with it, reads 19,443 and 19,774 MiB. The
-  `q8_0` rows read the same in both draws to 9 MiB.
-- **No row fits the budget.** Every row is whole on the card by the test written first and over
-  the 18,177 MiB: `q8_0` by 198 to 207 MiB without the drafter and 907 to 909 MiB with it, `f16`
-  by 1,266 MiB without the drafter and 1,597 MiB with it in the second draw.
+  `q8_0` rows read the same in both draws to 9 MiB. So the first draw's 358 and 454 MiB read
+  low: with the fall added they are 1,059 and 751 MiB. Its rates are not moved by the fall: both
+  no-draft rows read 1.007 of their first row in the second draw.
+- **No row fits the budget, and no row has a spill's rate.** The three no-draft rows whose floor
+  stayed in place are whole on the card by the test written first: 288 to 293 MiB over the
+  projection at load, the floor inside 6 MiB. The first draw's `f16` row without a drafter
+  passes it only with the floor's fall added (288 MiB over). The projection has no drafter in
+  it, so the test has no figure for the four drafted rows: the `q8_0` ones kept their floor to
+  7 MiB, and the `f16` ones are the launch of the next item. Every row is over the 18,177 MiB:
+  `q8_0` by 198 to 207 MiB without the drafter and 907 to 909 MiB with it, `f16` by 1,266 MiB
+  without the drafter and 1,597 MiB with it in the second draw.
 - **`f16` with the drafter is at the card's limit.** The card read 23,085 and 23,057 MiB of
   24,463 at its highest. In the second draw the drafter adds 707 MiB at load at `q8_0` and 335
   MiB at `f16` while the floor fell by 62 MiB, so about 310 MiB of that launch are not accounted
@@ -91,13 +98,19 @@ highest reading above the floor read after the tier stopped; 1,536 MiB is needed
 
 | condition | reading | result |
 | --- | --- | --- |
-| 1 accepted | all four `q8_0` launches start and reach `ready` with the type in their argv, with no flash attention flag, which is the engine's `auto` | met on the argv; the model host's log at its level has no line that names the type |
+| 1 accepted | all four `q8_0` launches start and reach `ready` with the type in their argv, with no flash attention flag, which is the engine's `auto`; at load the second draw's `q8_0` launch reads 1,068 MiB less, where the engine projects 1,073 MiB less | the start is met; the log line the rule names is not shown, because the model host's log at its level has no line that names the type, so the argv and the memory are read in its place |
 | 2 gain | at draft length 3, the length the tier ships with, 454 and 688 MiB less; without the drafter 358 and 1,068 MiB less | met |
 | 3 rate | without drafting 0.913 and 0.912; at draft length 3 1.035 and 1.018; prompt pass 1.03 to 1.08 | met, by 0.012 without drafting |
 | 4 output | one prompt of 4,028 tokens at temperature 0 at 8K with every layer on the card: the 8-bit reply is the 16-bit reply token for token, 119 of 119, and two 16-bit launches agree | passes |
 
-**The deep pick's Q4 file meets the rule in the shape the stack starts.** What limits that:
+**The deep pick's Q4 file meets conditions 2, 3 and 4 in the shape the stack starts, and
+condition 1 by its argv and its memory in place of a log line.** What limits that:
 
+- Condition 1 asks for a log that names `q8_0` for K and V. No log of this file names a cache
+  type: the model host's has no such line at its level, and the log probe of 2026-11-18
+  (`bench/q8-kvlog.jsonl`) drew other models. That the type is in effect is read from the
+  memory: 1,068 MiB less at load in the second draw, against the 1,073 MiB between the
+  engine's two projections.
 - The no-draft rate passes the 0.90 of condition 3 by 0.012, in two draws that agree to 0.001.
   One fixed launch drawn eight times the same night spread by 0.034 of its fastest row
   ([the rows of 2026-11-20](kv-cache-remaining-cells.md)), so one launch per row cannot tell
