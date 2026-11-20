@@ -98,6 +98,10 @@ Each launch is `python3 q8-probes/deepwhole.py <label> f16|q8_0 none|mtp [note]`
 1. The drafted pair at 8K, where neither type is at the card's limit, to see whether `f16` keeps
    the 1.10 lead it has without the drafter.
 2. The four launches with the desktop's apps at 4,750 MiB or more, the load the budget counts.
+3. The log line the rule's first condition asks for, which no log of this file has: one `q8_0`
+   launch with the engine's log at level 4 and flash attention at `auto`, `python3
+   tools/q8-kvlog.py gemma-4-31B:q8_0:3:auto`, which writes the engine's cache lines to
+   `bench/q8-kvlog.jsonl` as it did for other models on 2026-11-18.
 
 What would close it: `CORTEX_KV_CACHE_TYPE_BRAIN`'s default set from the readings, or the reason
 recorded in ADR-0077 decision 8 that it stays `f16`; and the question of the tier's context or
