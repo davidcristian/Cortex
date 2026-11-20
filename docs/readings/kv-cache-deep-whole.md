@@ -167,3 +167,26 @@ by the same model host at its default, logs `K (f16)` and `V (f16)` on all four 
 
 Method: `bash ~/.cache/cortex-run/2026-11-20/default-live.sh <label> [compose.lv4.yml]`, compose
 project `cortexn25`, which the script removes; logs in `logs/default-<label>-host.log` there.
+
+## A handoff on compose defaults
+
+**2026-11-20**, on the same image and build, with a brain built from the tree. The stack was the
+brain, Redis and the model host from the repo's compose files.
+
+- **Nothing optional named.** With only the models mount named, the cortex started with no
+  cache type in its argv, one turn got its reply, and the brain logged no warning.
+- **Only escalation on.** `CORTEX_ESCALATION=1`, `CORTEX_MODELHOST_BACKEND=supervisor` and the
+  pick's file as `CORTEX_MODEL_FILE_BRAIN`, with no drafter and no cache type variable. One chat
+  of three turns: a code word to keep, a task the cortex handed over with `escalate_to_brain`,
+  and a question about both.
+- **While the deep tier served** the cortex was `stopped` and the deep server's argv ended
+  `--cache-ram 0 --cache-type-k q8_0 --cache-type-v q8_0`, with no drafter flag. Redis held the
+  session's messages, `cortex:handoff:active` and the handoff's own key.
+- **After it** the deep phase's reply of 162 decoded tokens was in the chat, the deep tier was
+  `stopped` and a new cortex process was `ready`. That process answered the third turn with the
+  code word of the first turn and the deep model's explanation. The session's list in Redis had
+  all 7 messages, and both handoff keys were gone.
+- **Card**: 21,655 MiB of 24,463 at the highest reading, 18,370 MiB above the floor of 3,285 MiB.
+
+Method: `bash ~/.cache/cortex-run/2026-11-20/a2/live.sh`, compose project `cortexn25`, which the
+script removes; the record is `a2/logs/live.txt` there.
