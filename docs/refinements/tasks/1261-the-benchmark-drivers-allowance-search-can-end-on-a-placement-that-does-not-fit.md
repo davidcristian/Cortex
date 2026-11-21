@@ -41,7 +41,9 @@ the search aims at 250 to 500: the checks at 1,400 loaded 16,945 and 17,055 MiB,
 End the search on the last allowance whose check kept the headroom, and stop when two checks in
 a row return a placement already seen. Start a drafted launch from the allowance the no-draft
 search ended on plus the drafter's measured cost, not from a fixed guess. Then draw the cell
-again through the driver (R-1243 has the commands) and replace the upper readings.
+again through the driver and replace the upper readings
+([R-1270](1270-some-cache-type-cells-have-no-row-beside-a-16-bit-row-of-their-own-night.md)
+has the commands).
 
 What would close it: the search changed in `bench3.py` and `rep.py`, and the Qwen3.8-27B cell at
 64K drawn through it with a measured 16-bit row.
@@ -50,3 +52,6 @@ What would close it: the search changed in `bench3.py` and `rep.py`, and the Qwe
 
 - 2026-11-20: filed when the search did not settle for Qwen3.8-27B at 64K while the rows of
   [R-1243](1243-every-tier-holds-its-context-in-the-default-16-bit-cache.md) were drawn.
+- 2026-11-21: the commands for the cell are in
+  [R-1270](1270-some-cache-type-cells-have-no-row-beside-a-16-bit-row-of-their-own-night.md)
+  since R-1243 closed.

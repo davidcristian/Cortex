@@ -242,4 +242,4 @@ Condition 3 is read on ratios of one night where a pair exists.
 No default changed (ADR-0077 decision 8). [The rows of 2026-11-20](kv-cache-remaining-cells.md)
 have the cells this night left: the CPU rows, the drafter's cache for the chat models, the split
 files, Qwen3.5-2B at 256K beside a pair of its own night, and the last draft lengths of
-Qwen3.6-35B-A3B. Qwen3.8-Flash-Next is still to draw (R-1243).
+Qwen3.6-35B-A3B. [The rows of 2026-11-21](kv-cache-flash-next.md) have Qwen3.8-Flash-Next.

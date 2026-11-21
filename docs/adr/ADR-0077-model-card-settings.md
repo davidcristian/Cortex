@@ -103,13 +103,12 @@ The cards were read on 2026-11-16, when the models mount moved to the files
    `--spec-draft-n-max` after the drafter and its type. At the cortex's 16K context a length of 3
    wrote at 1.76 times the no-draft rate, against 1.73 at 2 and 1.61 at 4, the length the gemma
    cards recommend. At the subagent's 8K it wrote at 1.60 times, and 4 to 6 were slower
-   ([readings](../readings/tier-drafters.md)). The deep tier's 3 is the engine's own default,
-   which gemma-4-31B's rows were drawn at. At 16 bits the pick's Q4 file wrote fastest at 5 at
-   16K and 20K and at 3 at 24K, where 4 is over the card's budget
-   ([readings](../readings/nvfp4-deep-tier.md)), so 3 is the longest length that fits at every
-   context the layer fits at. At `q8_0`, the tier's default, 3 is also that file's fastest
-   length at 16K ([readings](../readings/kv-cache-types.md)); a deployment of it at `f16` at
-   16K or 20K sets 5.
+   ([readings](../readings/tier-drafters.md)). The deep tier's 3 is the engine's own default, which
+   gemma-4-31B's rows were drawn at. At 16 bits the pick's Q4 file wrote fastest at 5 at 16K and 20K
+   and at 3 at 24K, where 4 is over the card's budget ([readings](../readings/nvfp4-deep-tier.md)),
+   so 3 is the longest length that fits at every context the layer fits at. At `q8_0`, the tier's
+   default, 3 is also that file's fastest length at 16K ([readings](../readings/kv-cache-types.md));
+   a deployment of it at `f16` at 16K or 20K sets 5.
 
    A GPU subagent server of more than one slot is given a drafter only when its file is listed.
    Every listed file is a gemma file, whose card names no slot limit, and the subagent pick was
@@ -137,21 +136,23 @@ The cards were read on 2026-11-16, when the models mount moved to the files
    also cannot leave a flag out when its variable is empty, so a drafter there would need an
    entry script before a deployment could turn it off.
 
-8. **Each tier has a KV cache type setting. The deep tier's default is `q8_0` and every other
-   tier's is the engine's 16 bits.**
-   `CORTEX_KV_CACHE_TYPE`, `CORTEX_KV_CACHE_TYPE_BRAIN` and `CORTEX_KV_CACHE_TYPE_SUBAGENT_GPU`
-   take `f16` or `q8_0`, the two types the readings have rows for, and any other value is refused
-   when the settings are read. At `f16` a tier names no flag. At `q8_0`, `cache_flags` in
-   `tiers.py` writes `--cache-type-k q8_0 --cache-type-v q8_0`, and `--cache-type-k-draft q8_0
-   --cache-type-v-draft q8_0` after them when the tier drafts: a tier sets one type for the
-   whole server, as the rows did.
+8. **Each tier has a KV cache type setting. The deep tier's default is `q8_0` and every other tier's
+   is the engine's 16 bits.** `CORTEX_KV_CACHE_TYPE`, `CORTEX_KV_CACHE_TYPE_BRAIN` and
+   `CORTEX_KV_CACHE_TYPE_SUBAGENT_GPU` take `f16` or `q8_0`, the two types the readings have rows
+   for, and any other value is refused when the settings are read. At `f16` a tier names no flag. At
+   `q8_0`, `cache_flags` in `tiers.py` writes `--cache-type-k q8_0 --cache-type-v q8_0`, and
+   `--cache-type-k-draft q8_0 --cache-type-v-draft q8_0` after them when the tier drafts: a tier
+   sets one type for the whole server, as the rows did.
 
    The defaults follow the rule the readings wrote before their rows
    ([KV cache types](../readings/kv-cache-types.md)): the engine accepts the type, the tier gains
    a step of context or 250 MiB, the rate stays at 0.90 of the 16-bit rate or more, and the
    output check passes. A ratio divides two rows of one night where both were drawn
    ([every model](../readings/kv-cache-every-model.md)). No file of the cortex or of a subagent
-   server meets it, so those tiers stay at `f16`.
+   server meets it, so those tiers stay at `f16`. Qwen3.8-Flash-Next, a deep candidate split
+   between the card, RAM and disk and no tier's file, meets it as written
+   ([readings](../readings/kv-cache-flash-next.md)): 0.93 to 0.98 of its 16-bit rate, and a
+   memory gain of 272 to 424 MiB that is what the engine's fit leaves over. No default follows.
 
    The deep tier meets it on both files [ADR-0004](ADR-0004-model-lineup.md) names for it, so
    its default is `q8_0`: in `config.py`, and as the substitution default of

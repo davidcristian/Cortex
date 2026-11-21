@@ -227,7 +227,9 @@ tools/q8-output-report.py --texts`.
   nothing for gemma-4-12B. The host gives the drafter the model's type; no tier's default file
   has a Qwen draft layer, so nothing changes on these rows.
 
-No default changed on these rows. R-1243 has the cells that are left: Qwen3.8-Flash-Next, one
-draft length of Qwen3.6-35B-A3B, the drafted CPU rows, and the 16-bit rows at the fastest 8-bit
-lengths. It also names the tasks filed for the driver's allowance search, its cap on the CPU
-filled pass and the drafter's cache of a Qwen tier.
+No default changed on these rows. [The rows of 2026-11-21](kv-cache-flash-next.md) have
+Qwen3.8-Flash-Next, the one model this night left.
+[R-1270](../refinements/tasks/1270-some-cache-type-cells-have-no-row-beside-a-16-bit-row-of-their-own-night.md)
+has the cells that are left: one draft length of Qwen3.6-35B-A3B, the drafted CPU rows, and the
+16-bit rows at the fastest 8-bit lengths. R-1243 names the tasks filed for the driver's allowance
+search, its cap on the CPU filled pass and the drafter's cache of a Qwen tier.

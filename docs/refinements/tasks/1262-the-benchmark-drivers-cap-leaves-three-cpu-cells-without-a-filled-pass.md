@@ -42,3 +42,6 @@ a line there saying why the tier does not need them (the CPU servers ship at 8K)
 - 2026-11-20: filed when the CPU rows of
   [R-1243](1243-every-tier-holds-its-context-in-the-default-16-bit-cache.md) at 16K and 32K came
   back with short prompts only for three cells.
+- 2026-11-21: the drafted CPU rows that wait for this task are in
+  [R-1270](1270-some-cache-type-cells-have-no-row-beside-a-16-bit-row-of-their-own-night.md)
+  since R-1243 closed.
