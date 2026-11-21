@@ -71,7 +71,7 @@ holding no digit, a word of the part asking to forget that names the request of 
 or of a row the turn deleted, keeps each match no word of the message names. A word for all that
 ends a clause or is before a word for and asks for every row, so it keeps none this way. The last
 three rows of the table are not fixed by this read: the second is kept by the rows the message
-permits, in the last section, and the first and third are filed.
+permits, in the last section, and the first and third are kept since 2026-11-21 by `_coded` and `_same_fact` (`forget_permit.py`): replayed over the 42,356 generated messages and 6,093 calls of the strings of the brain's forget tests, no generated case changed, no row was newly listed, and 605 rows were newly kept in 310 calls of 152 strings, each a card or phone row for the call text `card` or `phone` under a string holding a code word and naming neither.
 
 Replay, the build before the change against the tree:
 

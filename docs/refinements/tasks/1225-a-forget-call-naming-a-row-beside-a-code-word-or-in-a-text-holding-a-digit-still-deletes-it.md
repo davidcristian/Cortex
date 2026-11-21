@@ -1,9 +1,8 @@
 # A forget call naming a row beside a code word or in a text holding a digit still deletes it
 
-**Status:** open, actionable
+**Status:** done 2026-11-21
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-15
 
 The forget card lists a match of a call text holding no digit only when the message permits it,
 and only when the message holds a whole value that a stored row holds (`permitted` in
@@ -38,3 +37,20 @@ The card shows each row before anything is deleted.
 
 - 2026-11-15: filed from the calls the store read of the message's named rows does not reach
   ([readings](../../readings/forget-everything-but-call.md#a-call-naming-a-row-the-message-does-not-name-2026-11-15)).
+- 2026-11-21: done. Both forms still deleted the row before the change. `message_rows`
+  (`forget_permit.py`) now narrows both. In a message holding no digit whose part asking to
+  forget names a stored row, a call text holding a digit lists only the rows so named and each
+  row holding a whole value of one, as a recall does (`_same_fact`). In a message whose part
+  asking to forget names no stored row and holds no word for all, a call text holding no digit
+  lists only the rows whose request holds a code word of that part, when a stored row or a row
+  the turn deleted holds one (`_coded`). This is narrower than step 2: the code word names the
+  rows holding that same word. Replayed before and after over the 42,356 generated messages,
+  1,500 added cases and 6,093 calls of the strings of the brain's forget tests: 0 generated
+  cases list a row asked to keep, before and after, no generated or added case changed, no row
+  was newly listed, and 605 rows were newly kept in 310 calls of 152 test strings, each a card
+  or phone row for the call text `card` or `phone` under a string holding a code word and
+  naming neither. One cost is outside the replay: with a code row stored, `Forget that code.`
+  with the call text `card` keeps a card the chat just stored, and with the card's value as the
+  call text still deletes it. The listing is `cmp_v2.txt` in
+  `/home/david/.cache/cortex-run/2026-11-21/f3/`. The forms left are filed:
+  [R-1286](1286-a-forget-naming-a-code-deletes-another-row-for-a-call-text-holding-a-digit-or-after-a-word-for-all.md).

@@ -1,5 +1,6 @@
 """Find the stored rows a forget message permits a call to list, read without the call's text."""
 
+import re
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import replace
 
@@ -13,6 +14,7 @@ from cortex_core.forget_clauses import (
     beside,
     clauses,
     kept_again,
+    parts,
 )
 from cortex_core.forget_inside import bounded, content, may_keep, request
 from cortex_core.forget_keep_named import forget_named
@@ -27,12 +29,54 @@ from cortex_core.tools import ToolCall
 
 Listing = Callable[[ToolCall], Awaitable[tuple[str, ...] | str]]
 _PLACE = forms.words(forms.PLACE)
+_TOKEN = re.compile(r"[^\W_]+")
+_REPLY = "\nAssistant: "
 
 
 def call_text(call: ToolCall) -> str:
     """The text the call names, stripped; empty when the argument is missing or not a string."""
     value = call.arguments.get("text")
     return value.strip() if isinstance(value, str) else ""
+
+
+def _digit(text: str) -> bool:
+    """Whether ``text`` holds a digit."""
+    return any(char.isdigit() for char in text)
+
+
+def _same_fact(
+    call: ToolCall, told: Sequence[MemoryRecord], seen: Sequence[MemoryRecord]
+) -> frozenset[str] | None:
+    """The ids a message holding no digit permits a call text holding one to list: the rows
+    ``told`` it names and each of ``seen`` holding a whole value of one, as a recall of it does.
+    ``None`` when it names no row or holds a digit."""
+    if not told or _digit(call.stamp.query):
+        return None
+    values = {key for row in told for key in whole_values(row.text)}
+    shared = {row.id for row in seen if not values.isdisjoint(whole_values(row.text))}
+    return frozenset(shared | {row.id for row in told})
+
+
+async def _coded(
+    store: MemoryStore,
+    scope: MemoryScope,
+    call: ToolCall,
+    told: Sequence[MemoryRecord],
+    seen: Sequence[MemoryRecord],
+) -> frozenset[str] | None:
+    """The ids a message naming no row of ``told`` and no word for all permits a call text holding
+    no digit to list: the stored rows, and those of ``seen``, whose request holds a code word it
+    asks to forget. ``None`` when no row does or it is no such message."""
+    tokens = parts(call.stamp.query)[0]
+    codes = {token for token in tokens if code_word(token)}
+    if told or not EVERY.isdisjoint(tokens):
+        return None
+    scopes = scope.read_scopes(call.stamp.session_id)
+    rows = list(seen)
+    for word in sorted(codes):
+        rows += await store.find_text(word, limit=FORGET_CHOSEN_LIMIT + 1, scopes=scopes)
+    asked = {row.id: _TOKEN.findall(row.text.split(_REPLY, 1)[0].lower()) for row in rows}
+    return frozenset(row for row, words in asked.items() if not codes.isdisjoint(words)) or None
 
 
 async def permitted(
@@ -42,7 +86,7 @@ async def permitted(
     value of the message, and each of ``told`` holding none that ``may_keep`` does not keep.
     ``None`` when the call's text holds a digit or no stored row holds a value of the message."""
     query, values = call.stamp.query, whole_values(call.stamp.query).values()
-    if any(char.isdigit() for char in call_text(call)):
+    if _digit(call_text(call)):
         return None
     ids: set[str] = set()
     read = False
@@ -113,9 +157,14 @@ async def message_rows(
     listing: Listing,
 ) -> tuple[list[MemoryRecord], frozenset[str] | None]:
     """The rows ``forget_named`` reads from the call's message, and the ids it permits a call to
-    list: those of ``permitted``, less each row a forget of everything keeps as unread."""
+    list: for a call text holding a digit those of ``_same_fact``, else those of ``permitted`` or
+    ``_coded``, less each row a forget of everything keeps as unread."""
     told = await forget_named(store, scope, call, FORGET_CHOSEN_LIMIT + 1, seen)
     allowed = await permitted(call, told, listing)
+    if _digit(call_text(call)):
+        allowed = _same_fact(call, told, seen)
+    elif allowed is None:
+        allowed = await _coded(store, scope, call, told, seen)
     beyond = await _beyond_every(store, scope, call, seen)
     if beyond is None or allowed is None:
         return told, allowed if beyond is None else beyond
