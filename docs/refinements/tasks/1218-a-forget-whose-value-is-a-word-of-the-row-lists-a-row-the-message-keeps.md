@@ -25,8 +25,9 @@ the message asks to forget. Of 42,356 generated messages 4 list such a row.
 - 2026-11-15: filed with the change that keeps a row a keep clause names beside another row
   ([readings](../../readings/forget-keep-except.md#the-role-of-a-row-named-after-the-value-2026-11-15)).
 - 2026-11-21: done. Both messages still listed all three rows. `kept_again` now reads a call
-  text that is itself a word naming a row as that row's name where it follows a word for the or
-  my, so the run `the card stays` names the card to keep. Both messages keep all three rows, as
+  text that is itself a word naming a row as the value at its first place and just after it, and
+  as that row's name at every later place, so the runs `the card stays` and `card stays` name the
+  card to keep. Both messages keep all three rows, as
   they do for the call text `4242`, and `Forget the card card.` and `Forget the card card, only
   the card.` list them as before. Over the generator the cases listing a row the message asks to
   keep went from 18 to 14, with no row newly listed and 16 newly kept. Two of the 16 are rows the
@@ -36,5 +37,3 @@ the message asks to forget. Of 42,356 generated messages 4 list such a row.
   place of the word as a name also kept the card of `Forget the card card but the locker.`, which
   the call text `4242` lists. The replay is in
   [the readings](../../readings/forget-keep-except.md#the-role-of-a-row-named-after-the-value-2026-11-15).
-  A row named to stay with no word for the or my is still listed, as in `card stays`:
-  [R-1281](1281-a-forget-whose-value-is-a-word-of-the-row-lists-a-row-named-to-stay-with-no-article.md).

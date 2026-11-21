@@ -47,6 +47,10 @@ async def _forget(query: str, value: str) -> list[str]:
         ("Forget the card card. The card stays.", "card"),
         ("Forget card on the card. My card stays.", "card"),
         ("Forget the card tulip, the tulip stays.", "tulip"),
+        ("Forget the card card, card stays.", "card"),
+        ("Forget the card card, that card stays.", "card"),
+        ("Forget the card card but card stays.", "card"),
+        ("Forget card on card but the locker.", "card"),
     ],
 )
 async def test_a_row_named_again_to_stay_is_kept_when_the_value_is_a_word_naming_it(
@@ -80,13 +84,15 @@ async def test_a_value_that_is_a_word_is_still_deleted_where_no_run_names_its_ro
         ("Forget the card card, the card stays.", "card", {"card"}),
         ("Forget card on the card, my card stays.", "card", {"card"}),
         ("Forget the card card but the locker.", "card", {"locker"}),
-        ("Forget the card card, card stays.", "card", set[str]()),
+        ("Forget the card card, card stays.", "card", {"card"}),
+        ("Forget the card card but card stays.", "card", {"card"}),
+        ("Forget the card card.", "card", set[str]()),
         ("Forget tulip, I told you the tulip yesterday.", "tulip", set[str]()),
         ("Forget the card 4242, the card and the 4242 stay.", "4242", set[str]()),
         ("Forget the card 4242, the 4242 on the card stays.", "4242", {"card"}),
     ],
 )
-def test_kept_again_reads_a_word_value_after_a_word_for_the_as_a_row_name(
+def test_kept_again_reads_a_word_value_past_its_first_place_as_a_row_name(
     query: str, value: str, words: set[str]
 ) -> None:
     assert kept_again(query, value, _NAMED) == words

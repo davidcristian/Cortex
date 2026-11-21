@@ -116,8 +116,8 @@ never a reading of what the tree does now.
 - **[R-1277](tasks/1277-an-effort-set-on-a-template-that-reads-none-is-logged-at-info.md)** An effort set on a template that reads none is logged at INFO (inference). Its claim was checked against the code on 2026-11-21.
 - **[R-1279](tasks/1279-no-scan-fails-when-a-compose-file-gives-the-effort-variable-an-empty-default.md)** No scan fails when a compose file gives the effort variable an empty default (repo-checks). Its claim was checked against the code on 2026-11-21.
 - **[R-1280](tasks/1280-a-word-naming-no-row-before-the-row-a-keep-clause-names-again-lists-it.md)** A word naming no row before the row a keep clause names again lists it (memory). Its claim was checked against the code on 2026-11-21.
-- **[R-1281](tasks/1281-a-forget-whose-value-is-a-word-of-the-row-lists-a-row-named-to-stay-with-no-article.md)** A forget whose value is a word of the row lists a row named to stay with no article (memory). Its claim was checked against the code on 2026-11-21.
 - **[R-1282](tasks/1282-a-romanian-row-named-with-its-article-outside-a-keep-clause-names-no-row.md)** A Romanian row named with its article outside a keep clause names no row (memory). Its claim was checked against the code on 2026-11-21.
+- **[R-1283](tasks/1283-a-keep-clause-naming-the-row-to-forget-and-a-second-row-its-word-names-lists-the-first.md)** A keep clause naming the row to forget and a second row its word names lists the first (memory). Its claim was checked against the code on 2026-11-21.
 
 ### Actionable, once a port changes (1)
 
@@ -733,8 +733,8 @@ never a reading of what the tree does now.
 - [R-1241](tasks/1241-the-embedder-is-sent-no-task-prefix.md) The embedder is sent no task prefix. open, actionable.
 - [R-1265](tasks/1265-a-word-no-stored-row-holds-after-a-word-for-all-lists-every-row-holding-the-value.md) A word no stored row holds after a word for all lists every row holding the value. open, actionable.
 - [R-1280](tasks/1280-a-word-naming-no-row-before-the-row-a-keep-clause-names-again-lists-it.md) A word naming no row before the row a keep clause names again lists it. open, actionable.
-- [R-1281](tasks/1281-a-forget-whose-value-is-a-word-of-the-row-lists-a-row-named-to-stay-with-no-article.md) A forget whose value is a word of the row lists a row named to stay with no article. open, actionable.
 - [R-1282](tasks/1282-a-romanian-row-named-with-its-article-outside-a-keep-clause-names-no-row.md) A Romanian row named with its article outside a keep clause names no row. open, actionable.
+- [R-1283](tasks/1283-a-keep-clause-naming-the-row-to-forget-and-a-second-row-its-word-names-lists-the-first.md) A keep clause naming the row to forget and a second row its word names lists the first. open, actionable.
 
 ### orchestrator
 
