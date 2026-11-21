@@ -65,8 +65,9 @@ async def test_a_build_that_lists_no_levels_is_sent_the_levels_own_name(
     assert await _ask(_props({"supports_reasoning_effort": True}), effort) == effort.value
 
 
-async def test_a_level_the_server_does_not_list_is_not_sent() -> None:
-    caps = {"supports_reasoning_effort": True, "reasoning_effort_levels": ["low", "high"]}
+@pytest.mark.parametrize("levels", [["low", "high"], []])
+async def test_a_level_the_server_does_not_list_is_not_sent(levels: list[str]) -> None:
+    caps = {"supports_reasoning_effort": True, "reasoning_effort_levels": levels}
     assert await _ask(_props(caps), ReasoningEffort.MEDIUM) is None
 
 
@@ -102,11 +103,19 @@ async def test_an_answer_the_probe_cannot_read_raises(
         await _ask(response, ReasoningEffort.MEDIUM)
 
 
-async def test_a_server_that_cannot_be_reached_raises_naming_the_transport_error() -> None:
+@pytest.mark.parametrize(
+    ("error", "reason"),
+    [
+        (httpx.ConnectError("no route to host"), "ConnectError: no route to host"),
+        (httpx.ReadTimeout("no answer in time"), "ReadTimeout: no answer in time"),
+    ],
+)
+async def test_a_request_that_fails_or_times_out_raises_naming_the_transport_error(
+    error: httpx.TransportError, reason: str
+) -> None:
     def refuse(_request: httpx.Request) -> httpx.Response:
-        msg = "no route to host"
-        raise httpx.ConnectError(msg)
+        raise error
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(refuse)) as client:
-        with pytest.raises(EffortProbeError, match="ConnectError: no route to host"):
+        with pytest.raises(EffortProbeError, match=reason):
             await effort_wire_name(_ENDPOINT, ReasoningEffort.MEDIUM, client)
