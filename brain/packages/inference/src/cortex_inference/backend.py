@@ -63,7 +63,7 @@ class LlamaCppBackend:
     """``InferenceBackend`` over a llama-server OpenAI-compatible endpoint.
 
     The ``http_client`` is injected, so a generation, which may stream for a long time, runs under
-    the root's per-read stall bound; only the system message probe sets a timeout of its own.
+    the root's per-read stall bound; the system message and effort probes each set their own.
     """
 
     def __init__(
