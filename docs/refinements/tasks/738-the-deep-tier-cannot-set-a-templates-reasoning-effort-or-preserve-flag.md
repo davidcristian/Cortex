@@ -127,3 +127,6 @@ and the maintainer declines step two.
   every item of the handoff reading
   ([readings](../../readings/model-swap.md#a-handoff-on-the-deep-pick)), so condition 1 of the
   rule holds. Conditions 2 and 3 are not drawn.
+- 2026-11-21: filed
+  [R-1274](1274-the-effort-checks-props-read-has-no-measured-answer-time.md): the `/props` read
+  the adapter makes before each deep completion has no measured answer time.
