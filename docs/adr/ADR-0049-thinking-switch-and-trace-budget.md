@@ -176,23 +176,26 @@ how those measurements are taken is [ADR-0050](ADR-0050-live-probe-records.md).
     reason [ADR-0071](ADR-0071-leading-system-messages.md) decision 3 gives.
 19. **A level that is not sent costs the request nothing and is reported once.** A template that
     reports no capability, a list without the level and a probe that fails each send the request
-    without the field. The backend logs `reasoning effort not sent because the served template
-    does not read it` or `reasoning effort probe failed; sending no effort` at `WARNING`, and
+    without the field. The backend logs `reasoning effort probe failed; sending no effort` at
+    `WARNING`, and `reasoning effort not sent because the served template does not read it` and
     `reasoning effort sent` at `INFO`, with `endpoint`, `model` and `effort`, each only when an
-    endpoint's outcome changes. A deep tier on a gemma file, whose template reads no level, is
-    therefore named in the brain's log on its first handoff and not on the ones after it. The
-    stream contract holds the obligation: a request naming an effort is answered by an engine
-    whose template refuses one.
-20. **Only the deep tier's reply names a level, from `CORTEX_REASONING_EFFORT_BRAIN`.**
-    `SwapConfig.brain_effort` reads `low`, `medium` or `high`; any other word fails the brain at
-    boot, and unset, the default, names none. `StreamEngines` adds the level to the bounds of the
+    endpoint's outcome changes. The unread line is `INFO` because decision 20's default names a
+    level on every deep tier: a deep tier on a gemma file, whose template reads no level, runs as
+    it was deployed, and is named in the brain's log on its first handoff and not on the ones
+    after it. The stream contract holds the obligation: a request naming an effort is answered by
+    an engine whose template refuses one.
+20. **Only the deep tier's reply names a level, from `CORTEX_REASONING_EFFORT_BRAIN`, and the
+    default is `medium`.** `SwapConfig.brain_effort` reads `low`, `medium` or `high`. Unset, it is
+    `medium`; an empty value names no level, so the template applies its own; any other word
+    fails the brain at boot. `StreamEngines` adds the level to the bounds of the
     deep phase's tool loop and to no other request: a cortex turn, the side calls of decision 5 on
     either tier and a delegated task name none. The model host's `--reasoning-effort` flag is not
     used: it hands the template any word unchecked, and a word the Qwen3.8 template does not take
-    then fails every reply while the tier reports ready. The default stays unset until the rows
-    are drawn that the rule in
-    [R-738](../refinements/tasks/738-the-deep-tier-cannot-set-a-templates-reasoning-effort-or-preserve-flag.md)
-    names.
+    then fails every reply while the tier reports ready. `medium` is the default because the
+    three conditions of a rule written before its rows all held on the deep pick: a handoff
+    rendered the level, 0 of 100 framed injection draws obeyed at `medium` as at `xhigh`, and 24
+    of 24 stop-row draws stopped against 23 of 24, the drafted cell at a median of 2378 reasoning
+    tokens against 2883.5 ([readings](../readings/deep-effort.md#the-rule-applied)).
 
 ## Consequences
 
@@ -200,7 +203,8 @@ how those measurements are taken is [ADR-0050](ADR-0050-live-probe-records.md).
   to run on a tier whose trace is bounded; the drain's warning reports the failure when it happens.
 - A tier flag an older build does not know fails that server at startup rather than being ignored.
 - A reply cap on a deployment whose probe answered no is bounded only by the tier's own flag.
-- A request that names an effort costs one extra `GET /props` inside its lease.
+- A deep reply names an effort by default, and each such request costs one extra `GET /props`
+  inside its lease.
 - What a bounded trace costs the answer is not measured. The side calls' zeros rest on their trace
   being discarded unread, not on a measurement of what it was worth.
 

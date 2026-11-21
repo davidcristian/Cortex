@@ -95,16 +95,16 @@ lineup](../readings/model-lineup.md), [deep candidates](../readings/deep-candida
    ([readings](../readings/kv-cache-every-model.md)): started as the model host starts the tier, at
    16K with every layer on the card, it read 18,375 to 19,774 MiB above the floor over eight
    launches ([readings](../readings/kv-cache-deep-whole.md)). On four written questions at the
-   shipped 16384 context, the pick stopped on 11 of 12 draws at its template's default effort
-   (`xhigh`), 12 with its draft layer and 12 at `medium`, the alternate on 12
+   shipped 16384 context, the pick stopped on 11 of 12 draws at its template's own effort
+   (`xhigh`), 12 with its draft layer and 12 at `medium` with and without it, the alternate on 12
    ([readings](../readings/deep-candidates.md#the-stop-rows-at-16384)). At 8192 the alternate
    stopped on 11, Qwen3.6-35B-A3B (at `UD-Q3_K_XL`) on 6 and gemma-4-26B-A4B on 5, the one count
    apart. At the engine's sampler, thinking on, the pick at the shipped 16384 and `q8_0` obeys 0 of
-   100 framed injection draws against 0 unframed, with its draft layer and without, and the
-   alternate 0 against 8 at 8192. The pick has three costs: a median of 2327 reasoning tokens a draw
-   at `xhigh` against the alternate's 1434; no QAT weights and none of the cortex's family, template
-   or prompt idiom; and an effort no default sets and a preserve flag the tier cannot set
-   ([R-738](../refinements/tasks/738-the-deep-tier-cannot-set-a-templates-reasoning-effort-or-preserve-flag.md)).
+   100 framed injection draws against 0 unframed, at `xhigh` with its draft layer and without and at
+   `medium` with it, and the alternate 0 against 8 at 8192. The pick has three costs: a median of
+   2378 reasoning tokens a draw at the default `medium` with its draft layer, 1182.5 without, against
+   the alternate's 1434 ([readings](../readings/deep-effort.md)); no QAT weights and none of the
+   cortex's family, template or prompt idiom; and a preserve flag the tier cannot set ([R-1276](../refinements/tasks/1276-the-deep-tier-never-sends-the-templates-preserve-flag.md)).
    The two mixture-of-experts entries decode about four times as fast as the alternate, but each
    draw of theirs that did not stop filled the context reasoning. Qwen3.8-Flash-Next fits neither
    the card nor this machine's memory: paged from the mount it took 1.65 times the stall bound to
@@ -210,7 +210,7 @@ lineup](../readings/model-lineup.md), [deep candidates](../readings/deep-candida
   measurements
   ([R-637](../refinements/tasks/637-the-delegated-run-ceilings-were-sized-on-the-unpinned-cpu-tier.md)).
 - The two older mixture-of-experts entries and Qwen3.8-Flash-Next have no injection row. The
-  pick's row was drawn at its template's default effort, and another effort needs its own.
+  pick's rows were drawn at its template's `xhigh` and at the default `medium`; `low` has none.
 - The injection measurements for a candidate start from the tier's deployed configuration
   ([ADR-0060](ADR-0060-injection-rows-follow-the-tier.md)).
 

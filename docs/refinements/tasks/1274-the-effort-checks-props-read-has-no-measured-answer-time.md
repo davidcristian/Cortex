@@ -30,3 +30,5 @@ ADR-0049 decision 18 would then state.
 
 - 2026-11-21: filed when the effort check was built
   ([R-738](738-the-deep-tier-cannot-set-a-templates-reasoning-effort-or-preserve-flag.md)).
+- 2026-11-21: `medium` became the deep tier's default effort, so every deep completion of a
+  default deployment makes this read, and not only one whose deployment wrote a level.

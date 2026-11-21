@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from cortex_core import (
@@ -40,15 +40,20 @@ class SwapConfig(BaseSettings):
     brain_decode_tps: float = Field(
         default=0.0, ge=0, validation_alias="CORTEX_SWAP_BRAIN_DECODE_TPS"
     )
-    # Unset sends no level, so the deep model's template applies its own default.
+    # An empty value sends no level, so the deep model's template applies its own default.
     brain_effort: ReasoningEffort | None = Field(
-        default=None, validation_alias="CORTEX_REASONING_EFFORT_BRAIN"
+        default=ReasoningEffort.MEDIUM, validation_alias="CORTEX_REASONING_EFFORT_BRAIN"
     )
     swap_drain_timeout_s: float = Field(default=DEFAULT_SWAP_DRAIN_TIMEOUT_S, ge=0)
     swap_load_timeout_s: float = Field(default=DEFAULT_SWAP_LOAD_TIMEOUT_S, ge=0)
     swap_tier_recheck_s: float = Field(
         default=DEFAULT_TIER_RECHECK_INTERVAL_S, gt=0, validation_alias="CORTEX_SWAP_TIER_HEAL_S"
     )
+
+    @field_validator("brain_effort", mode="before")
+    @classmethod
+    def _an_empty_effort_names_no_level(cls, value: object) -> object:
+        return None if value == "" else value
 
     @model_validator(mode="after")
     def _escalation_needs_a_host_and_an_endpoint(self) -> "SwapConfig":

@@ -1,15 +1,14 @@
 # The deep tier cannot set a template's reasoning effort or preserve flag
 
-**Status:** open, actionable
+**Status:** done 2026-11-21
 **Area:** inference-model-manager
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-11-21
 
 The Qwen3.8 template reads `reasoning_effort` (`xhigh` by default, `high` rendered as `xhigh`,
 `medium`, `low`; any other value raises with thinking on) and `preserve_thinking` (on by default).
-The deep tier sends the effort only where `CORTEX_REASONING_EFFORT_BRAIN` is set, which no default
-does, and never the preserve flag, so the deep pick, Qwen3.8-27B (ADR-0004 decision 8), runs at
-`xhigh`, which is not its best measured setting. At the deep tier's earlier
+With no effort sent, the deep pick, Qwen3.8-27B (ADR-0004 decision 8), runs at `xhigh`, which is
+not its best measured setting. The deep tier sends the level `CORTEX_REASONING_EFFORT_BRAIN`
+names, `medium` by default, and never the preserve flag. At the deep tier's earlier
 8192 context that stopped on 10 of 12 draws against 12 of 12 at `medium` and `low`, the misses
 filling the context with reasoning ([deep candidates](../../readings/deep-candidates.md)). At
 the shipped 16384 it stopped on 11 of 12 without a drafter and 12 of 12 with its draft layer, at
@@ -22,7 +21,7 @@ On them depth is set only by the thinking switch and the trace budget.
 
 ## Proposal
 
-**Step one, a default level for the deep tier.** Built on 2026-11-21 except for the default
+**Step one, a default level for the deep tier.** Built on 2026-11-21, with `medium` as the default
 ([ADR-0049](../../adr/ADR-0049-thinking-switch-and-trace-budget.md) decisions 17 to 20).
 `GenerationBounds.effort` is an optional `ReasoningEffort` of three, and the brain setting
 `CORTEX_REASONING_EFFORT_BRAIN` (`low`, `medium` or `high`, a typo failing the start) puts it on
@@ -33,7 +32,7 @@ without the field, and the brain logs that once for the endpoint. Nothing is hel
 server, so a swap changes nothing. The model host's `--reasoning-effort` flag is rejected: it
 passes any value unchecked and a bad one fails every reply while the tier reports ready. The
 preserve flag stays out until a multi-turn row shows the empty earlier thoughts matter; then the
-argv takes `--no-reasoning-preserve`.
+argv takes `--no-reasoning-preserve` ([R-1276](1276-the-deep-tier-never-sends-the-templates-preserve-flag.md)).
 
 **The rule that decides the default**, written on 2026-11-21 before any row it names was drawn.
 The setting's default becomes `medium` when all three hold on Qwen3.8-27B as the model host starts
@@ -64,12 +63,8 @@ only reason to change the default. A failed condition is recorded with its rows 
 nothing that ships. When the default is set, a deep tier on a gemma file logs the warning for a
 level nobody set, so the same change lowers that line to `INFO` for the default's own level.
 
-**Step two, optional: one user preference.** One level for every turn, written with `SetPreference`
-and read by the brain, which changes ADR-0032's rule that the brain never parses a preference, and
-hidden where the serving model has no effort setting, which today is every pick but the deep one. It is not
-a per-message control, because the deep handoff's confirm card already asks mid-turn whether to
-think harder. Names await the maintainer's pick: **Wade, Swim, Dive** (recommended; the overlay's
-surfaces are water already), or Stroll, Hike, Trek, or Presto, Andante, Largo; key `reply.effort`.
+**Step two, optional: one user preference**, is
+[R-1275](1275-no-user-preference-sets-the-reasoning-effort.md).
 
 **What closes it.** The three rows of the rule drawn and the default decided by it. Declined if ADR-0004 drops both Qwen3.8 candidates
 and the maintainer declines step two.
@@ -130,3 +125,15 @@ and the maintainer declines step two.
 - 2026-11-21: filed
   [R-1274](1274-the-effort-checks-props-read-has-no-measured-answer-time.md): the `/props` read
   the adapter makes before each deep completion has no measured answer time.
+- 2026-11-21: done. The rule's two undrawn conditions were drawn on the pick with its draft layer
+  ([readings](../../readings/deep-effort.md)). Condition 2: 0 of 100 framed and 0 of 100
+  unframed injection draws obeyed at `medium`, none void, as at `xhigh`. Condition 3: the drafted
+  `medium` cell's 5 undrawn draws all stopped, so 24 of the 24 `medium` draws stopped against 23
+  of 24 at `xhigh`, and the drafted cell's median of 2378 reasoning tokens is under 2883.5. All
+  three conditions hold, so `CORTEX_REASONING_EFFORT_BRAIN` defaults to `medium`, an empty value
+  names no level, and the line for a template that reads none is logged at `INFO` (ADR-0049
+  decisions 19 and 20). The drafted cell's median is above the 1000 to 1900 the stop rows
+  predicted for it. Filed: [R-1275](1275-no-user-preference-sets-the-reasoning-effort.md), the user preference that was step two;
+  [R-1276](1276-the-deep-tier-never-sends-the-templates-preserve-flag.md), the preserve flag; and
+  [R-1277](1277-an-effort-set-on-a-template-that-reads-none-is-logged-at-info.md), for a level a
+  deployment sets on a template that reads none.

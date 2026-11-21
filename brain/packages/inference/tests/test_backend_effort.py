@@ -57,6 +57,9 @@ def _messages() -> list[Message]:
     ]
 
 
+_UNREAD = "reasoning effort not sent because the served template does not read it"
+
+
 def _backend(server: EffortServer) -> LlamaCppBackend:
     client = httpx.AsyncClient(transport=httpx.MockTransport(server))
     manager = SingleResidentModelManager("brain", _ENDPOINT)
@@ -124,12 +127,7 @@ async def test_a_template_that_reads_no_effort_gets_the_request_without_one_and_
         assert await _reply(backend, _MEDIUM) == "ok"
     assert server.chats == [_UNBOUNDED_BODY, _UNBOUNDED_BODY]
     assert len(server.asked) == 2
-    assert _logged(caplog) == [
-        (
-            logging.WARNING,
-            "reasoning effort not sent because the served template does not read it",
-        )
-    ]
+    assert _logged(caplog) == [(logging.INFO, _UNREAD)]
     (record,) = [r for r in caplog.records if "effort" in r.getMessage()]
     assert (record.__dict__["endpoint"], record.__dict__["model"], record.__dict__["effort"]) == (
         _ENDPOINT,
@@ -167,10 +165,10 @@ async def test_the_answer_is_asked_again_on_every_request_and_a_change_is_logged
         server.caps = NO_EFFORT_CAPS
         await _reply(backend, _MEDIUM)
     assert server.chats == [_UNBOUNDED_BODY, _MEDIUM_BODY, _MEDIUM_BODY, _UNBOUNDED_BODY]
-    assert [level for level, _ in _logged(caplog)] == [
-        logging.WARNING,
-        logging.INFO,
-        logging.WARNING,
+    assert _logged(caplog) == [
+        (logging.INFO, _UNREAD),
+        (logging.INFO, "reasoning effort sent"),
+        (logging.INFO, _UNREAD),
     ]
     sent = next(r for r in caplog.records if r.getMessage() == "reasoning effort sent")
     assert (

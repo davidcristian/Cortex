@@ -327,7 +327,7 @@ async def test_the_deployments_reply_bounds_reach_both_phases_of_a_turn() -> Non
         await swap_closer(swap)()
 
     asked = {request.model: request.bounds for request in backend.requests}
-    assert asked == {"cortex": bounds, "brain": bounds}
+    assert asked == {"cortex": bounds, "brain": replace(bounds, effort=ReasoningEffort.MEDIUM)}
 
 
 async def test_a_stream_s_turn_announces_a_handoff_it_waits_behind() -> None:
@@ -537,7 +537,7 @@ async def test_the_deep_tier_s_effort_is_named_on_the_deep_reply_and_on_no_other
     reply_bounds: GenerationBounds | None,
     deep_bounds: GenerationBounds,
 ) -> None:
-    monkeypatch.setenv("CORTEX_REASONING_EFFORT_BRAIN", "medium")
+    monkeypatch.delenv("CORTEX_REASONING_EFFORT_BRAIN", raising=False)
     swap = _swap_runtime()
     order = [TextChunk('{"order": [0]}')]
     backend = _Leasing(
@@ -567,10 +567,10 @@ async def test_the_deep_tier_s_effort_is_named_on_the_deep_reply_and_on_no_other
 
 
 @pytest.mark.parametrize("reply_bounds", [None, GenerationBounds(max_tokens=512, thinking=False)])
-async def test_with_no_effort_set_the_deep_reply_has_the_bounds_the_deployment_gave(
+async def test_with_the_effort_setting_empty_the_deep_reply_has_the_bounds_the_deployment_gave(
     monkeypatch: pytest.MonkeyPatch, reply_bounds: GenerationBounds | None
 ) -> None:
-    monkeypatch.delenv("CORTEX_REASONING_EFFORT_BRAIN", raising=False)
+    monkeypatch.setenv("CORTEX_REASONING_EFFORT_BRAIN", "")
     backend = _Model(
         {
             "cortex": [[_ESCALATE_CALL], [TextChunk("handing over. ")]],

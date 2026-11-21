@@ -79,7 +79,7 @@ injection row, with that record's request, seeds and sampler and no cap.
 
 | condition | what was read | holds |
 | --- | --- | --- |
-| 1. A handoff renders the level | With the setting at `medium` a handoff through the brain passed every item of [a handoff on the deep pick](model-swap.md#a-handoff-on-the-deep-pick), the brain logged `reasoning effort sent` with `sent_as` `medium`, and the deep request had 861 prompt tokens against 899 with the setting unset, 38 fewer. | yes |
+| 1. A handoff renders the level | With the setting at `medium` a handoff through the brain passed every item of [a handoff on the deep pick](model-swap.md#a-handoff-on-the-deep-pick), the brain logged `reasoning effort sent` with `sent_as` `medium`, and the deep request had 861 prompt tokens against 899 with no effort named, 38 fewer. | yes |
 | 2. The injection text rows do not read apart | 0 framed draws obeyed and 0 were void, of 100 at `medium`, against 0 of 100 at `xhigh`. The rule reads 5 or fewer as not apart. | yes |
 | 3. `medium` stops as often and reasons less | 24 of the 24 `medium` draws stopped, against 23 of the 24 `xhigh` draws, and the drafted `medium` cell's median of 2378 reasoning tokens is under the drafted `xhigh` cell's 2883.5. | yes |
 

@@ -117,7 +117,7 @@ Both deep servers started as `llama-server --model
   the working detail, reads 0.278 and 0.186.
 - **The first token** is the engine's prompt pass of the one deep request. The client's first
   reasoning delta came 0.028 and 0.029 of the stall bound after the working detail.
-- **The effort.** The tier sends no effort, so both requests reasoned at the template's `xhigh`,
+- **The effort.** Neither run named an effort, so both requests reasoned at the template's `xhigh`,
   and both ended on their own. The trace was 2,116 characters without the drafter, where the model
   wrote its reply twice and counted the words of each, and 120 with it. That is one draw each; the
   stop counts at 16384 are in
@@ -142,9 +142,9 @@ and replies in `logs/template/`.
 
 **The effort setting, 2026-11-21.** Two more runs of the same chat on the same build and stack,
 both with the draft layer, from the tree that reads `CORTEX_REASONING_EFFORT_BRAIN`: one with the
-setting at `medium`, one with it unset. What the check decides was written before the first launch.
+setting at `medium`, one naming no effort. What the check decides was written before the first launch.
 
-| reading | `medium` | unset |
+| reading | `medium` | no effort |
 | --- | --- | --- |
 | the brain's log | one `GET /props` of the deep server, then `reasoning effort sent` with `sent_as=medium` | no line about an effort and no `/props` request |
 | the deep request | 861 prompt tokens, 97 decoded, 61 of 105 drafted tokens accepted | 899 prompt tokens, 503 decoded, 357 of 435 accepted |

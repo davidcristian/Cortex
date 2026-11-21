@@ -33,7 +33,7 @@ host and never enters the container. With escalation off there is no `escalate_t
 conductor and no boot recovery. The `model-host` sidecar itself comes up with the GPU override
 either way and serves the cortex.
 
-The other settings: `CORTEX_MODEL_BRAIN` (the deep tier's id, default `brain`), `CORTEX_REASONING_EFFORT_BRAIN` (unset, or `low`, `medium` or `high`: the effort the deep reply asks for where the tier's template reads one, which Qwen3.8's does and gemma's does not; any other word fails the brain at boot),
+The other settings: `CORTEX_MODEL_BRAIN` (the deep tier's id, default `brain`), `CORTEX_REASONING_EFFORT_BRAIN` (default `medium`, or `low` or `high`: the effort the deep reply asks for where the tier's template reads one, which Qwen3.8's does and gemma's does not; to send no effort, set it to an empty value, `CORTEX_REASONING_EFFORT_BRAIN=`, which `docker compose config` renders as `""`, and Qwen3.8 then reasons at its template's own `xhigh`; any other word fails the brain at boot),
 `CORTEX_SWAP_EVICT_MODELS` (further hosted tiers a swap stops first, as a JSON list such as
 `["subagent-gpu", "subagent-gpu-2"]`, one id per server of the GPU subagent tier; a comma-separated string fails the brain at boot, and so does a list naming the
 cortex or the deep tier; an id the model host does not have refuses each handoff before anything is stopped, and at boot the brain logs `the model host has a model the evict list leaves out, so a handoff does not stop it` for each hosted server the list omits), `CORTEX_SWAP_BRAIN_VRAM_MIB` (0, the deep tier's measured VRAM cost),

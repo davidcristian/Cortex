@@ -164,7 +164,7 @@ class LlamaCppBackend:
             return None
         if name is None:
             if self._effort_changed(endpoint, "unread"):
-                _logger.warning(
+                _logger.info(
                     "reasoning effort not sent because the served template does not read it",
                     extra=fields,
                 )

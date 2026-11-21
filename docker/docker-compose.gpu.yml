@@ -21,6 +21,7 @@ services:
       CORTEX_INFERENCE_LOAD_WAIT_S:
       CORTEX_MODEL_CORTEX:
       CORTEX_MODEL_BRAIN:
+      # Unset, the deep reply asks for `medium`; set to an empty value, it names no effort.
       CORTEX_REASONING_EFFORT_BRAIN:
       CORTEX_ESCALATION:
       CORTEX_MODELHOST_BACKEND:

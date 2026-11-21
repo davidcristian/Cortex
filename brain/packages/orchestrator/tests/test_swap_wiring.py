@@ -165,10 +165,15 @@ def test_the_tier_recheck_interval_is_read_from_the_deployments_variable(
     assert SwapConfig().swap_tier_recheck_s == 7.5
 
 
-def test_the_deep_tier_names_no_effort_unless_the_deployment_sets_one(
+def test_the_deep_tier_s_effort_is_medium_unless_the_deployment_sets_one(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.delenv("CORTEX_REASONING_EFFORT_BRAIN", raising=False)
+    assert SwapConfig().brain_effort is ReasoningEffort.MEDIUM
+
+
+def test_an_empty_effort_setting_names_no_level(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_REASONING_EFFORT_BRAIN", "")
     assert SwapConfig().brain_effort is None
 
 

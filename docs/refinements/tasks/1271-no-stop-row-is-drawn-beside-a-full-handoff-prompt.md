@@ -12,15 +12,15 @@ sends the chat with the question. A full 24,000 character window with the deep t
 leaves 5,521 to 6,873 tokens of the 16384
 ([history window](../../readings/history-window.md#the-cortexs-whole-prompt)).
 
-On 2026-11-21, at the template's default effort, 5 of the 24 draws of Qwen3.8-27B generated
+On 2026-11-21, at the template's own `xhigh`, 5 of the 24 draws of Qwen3.8-27B generated
 more than 5,521 tokens: 6,799, 6,960, 11,169, 15,610 and 16,080. Four of the five count as
-stopped in the 16384 rows. So does the one `medium` draw of 12 that did, at 10,207 without a
+stopped in the 16384 rows. So does the one `medium` draw of 24 that did, at 10,207 without a
 drafter, and the one `low` draw of 12, at 7,086 with the draft layer.
 
 ## What to draw
 
 The four questions, three seeds each, behind a prompt filled to about 10,800 tokens, on the deep
-pick as the model host starts it: at the default effort and at `medium`, and the same row on
+pick as the model host starts it: at the default `medium` and at `xhigh`, and the same row on
 gemma-4-31B. Count the draws that stop with a reply.
 
 What would close it: the row in deep candidates, and ADR-0004 decision 8 stating the stop count
@@ -32,3 +32,9 @@ effort at which no draw of the 16384 rows generates more than 5,521 tokens.
 
 - 2026-11-21: filed by the stop rows at 16384
   ([R-1266](1266-qwen38-27b-has-no-stop-row-at-the-shipped-16384-context.md)).
+- 2026-11-21: `medium` is the deep tier's default effort since
+  [R-738](738-the-deep-tier-cannot-set-a-templates-reasoning-effort-or-preserve-flag.md) closed, and
+  the decline condition is not met. Of the 24 `medium` draws at 16384, the 12 drafted ones
+  generated at most 5,123 tokens and one undrafted draw generated 10,207
+  ([readings](../../readings/deep-effort.md#the-drafted-medium-stop-cell)). The row is still to
+  draw.
