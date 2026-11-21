@@ -184,8 +184,11 @@ how those measurements are taken is [ADR-0050](ADR-0050-live-probe-records.md).
     endpoint's outcome changes. The unread line is `INFO` because decision 20's default names a
     level on every deep tier: a deep tier on a gemma file, whose template reads no level, runs as
     it was deployed, and is named in the brain's log on its first handoff and not on the ones
-    after it. The stream contract holds the obligation: a request naming an effort is answered by
-    an engine whose template refuses one.
+    after it. It is `WARNING` where `GenerationBounds.effort_written` is true, which
+    `StreamEngines` sets when the deployment set the variable
+    (`SwapConfig.brain_effort_written`): a level somebody wrote does nothing on that tier. Bounds
+    that do not say are logged at `INFO`. The stream contract holds the obligation: a request
+    naming an effort is answered by an engine whose template refuses one.
 20. **Only the deep tier's reply names a level, from `CORTEX_REASONING_EFFORT_BRAIN`, and the
     default is `medium`.** `SwapConfig.brain_effort` reads `low`, `medium` or `high`. Unset, it is
     `medium`; an empty value names no level, so the template applies its own; any other word

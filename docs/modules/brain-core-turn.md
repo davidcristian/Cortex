@@ -28,7 +28,7 @@ tools in [brain-core-tools.md](brain-core-tools.md), delegated work in
   one stateless streamed completion. `model` is a logical id (ADR-0004), and **an implementation
   answers only for the ids it serves**, failing with `InferenceError` on one it does not
   (ADR-0068 decision 8). `schema` constrains decoding to a JSON Schema (ADR-0028). `bounds` is a
-  `GenerationBounds(max_tokens, thinking, trace_tokens, effort)` (ADR-0048; `effort` is an optional `ReasoningEffort` of `LOW`, `MEDIUM` or `HIGH`, sent only where the served template reads one, ADR-0049 decision 17), where `thinking=False` is a
+  `GenerationBounds(max_tokens, thinking, trace_tokens, effort, effort_written)` (ADR-0048; `effort` is an optional `ReasoningEffort` of `LOW`, `MEDIUM` or `HIGH`, sent only where the served template reads one, ADR-0049 decision 17, and `effort_written` is true where the deployment wrote that level and false where a default names it, decision 19), where `thinking=False` is a
   request to the chat template and **not a guarantee** (ADR-0049), so an implementation passes it
   on, never enforces it, and lets a trace that arrived anyway cross as `ReasoningChunk`, the
   caller's only evidence the switch did not work; `trace_tokens` is the half the engine applies,

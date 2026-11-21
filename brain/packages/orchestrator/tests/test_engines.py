@@ -523,21 +523,27 @@ async def test_the_deep_phase_s_recall_is_judged_by_the_deep_model() -> None:
 
 
 @pytest.mark.parametrize(
-    ("reply_bounds", "deep_bounds"),
+    ("written", "reply_bounds", "deep_bounds"),
     [
-        (None, GenerationBounds(effort=ReasoningEffort.MEDIUM)),
+        (None, None, GenerationBounds(effort=ReasoningEffort.MEDIUM)),
         (
+            None,
             GenerationBounds(max_tokens=512, trace_tokens=64),
             GenerationBounds(max_tokens=512, trace_tokens=64, effort=ReasoningEffort.MEDIUM),
         ),
+        ("medium", None, GenerationBounds(effort=ReasoningEffort.MEDIUM, effort_written=True)),
+        ("high", None, GenerationBounds(effort=ReasoningEffort.HIGH, effort_written=True)),
     ],
 )
 async def test_the_deep_tier_s_effort_is_named_on_the_deep_reply_and_on_no_other_request(
     monkeypatch: pytest.MonkeyPatch,
+    written: str | None,
     reply_bounds: GenerationBounds | None,
     deep_bounds: GenerationBounds,
 ) -> None:
     monkeypatch.delenv("CORTEX_REASONING_EFFORT_BRAIN", raising=False)
+    if written is not None:
+        monkeypatch.setenv("CORTEX_REASONING_EFFORT_BRAIN", written)
     swap = _swap_runtime()
     order = [TextChunk('{"order": [0]}')]
     backend = _Leasing(

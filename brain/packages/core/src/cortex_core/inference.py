@@ -76,6 +76,8 @@ class GenerationBounds:
     thinking: bool = True
     trace_tokens: int | None = None
     effort: ReasoningEffort | None = None
+    # True where the deployment wrote the level, False where a default names it.
+    effort_written: bool = False
 
     def __post_init__(self) -> None:
         if self.max_tokens is not None and self.max_tokens < 1:

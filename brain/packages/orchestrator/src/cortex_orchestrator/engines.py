@@ -45,12 +45,12 @@ __all__ = ["DeepTier", "StreamEngines"]
 
 
 def _with_effort(
-    bounds: GenerationBounds | None, effort: ReasoningEffort | None
+    bounds: GenerationBounds | None, effort: ReasoningEffort | None, *, written: bool
 ) -> GenerationBounds | None:
     """``bounds`` naming the level a tier asks for; unchanged when the tier asks for none."""
     if effort is None:
         return bounds
-    return replace(bounds or GenerationBounds(), effort=effort)
+    return replace(bounds or GenerationBounds(), effort=effort, effort_written=written)
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,7 +106,9 @@ class StreamEngines:
         phase = replace(
             caps,
             escalation=None,
-            bounds=_with_effort(self.bounds, deep.swap.brain_effort),
+            bounds=_with_effort(
+                self.bounds, deep.swap.brain_effort, written=deep.swap.brain_effort_written
+            ),
             memory=self._recaller(self.backend, brain),
             window=self._window(self.backend, brain),
             tools=build_cortex_tools(

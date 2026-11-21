@@ -131,12 +131,10 @@ and the maintainer declines step two.
   `medium` cell's 5 undrawn draws all stopped, so 24 of the 24 `medium` draws stopped against 23
   of 24 at `xhigh`, and the drafted cell's median of 2378 reasoning tokens is under 2883.5. All
   three conditions hold, so `CORTEX_REASONING_EFFORT_BRAIN` defaults to `medium`, an empty value
-  names no level, and the line for a template that reads none is logged at `INFO` (ADR-0049
-  decisions 19 and 20). The drafted cell's median is above the 1000 to 1900 the stop rows
-  predicted for it. Filed: [R-1275](1275-no-user-preference-sets-the-reasoning-effort.md), the user preference that was step two;
-  [R-1276](1276-the-deep-tier-never-sends-the-templates-preserve-flag.md), the preserve flag; and
-  [R-1277](1277-an-effort-set-on-a-template-that-reads-none-is-logged-at-info.md), for a level a
-  deployment sets on a template that reads none.
+  names no level, and the line for a template that reads none is logged at `INFO` for the default
+  and at `WARNING` for a level the deployment wrote (ADR-0049 decisions 19 and 20). The drafted cell's median is above the 1000 to 1900 the stop rows
+  predicted for it. Filed: [R-1275](1275-no-user-preference-sets-the-reasoning-effort.md), the user preference that was step two, and
+  [R-1276](1276-the-deep-tier-never-sends-the-templates-preserve-flag.md), the preserve flag.
 - 2026-11-21: the default read live in two handoffs on compose defaults. With the variable absent
   the brain read the deep server's `/props` once and logged `reasoning effort sent` with `sent_as`
   `medium`, and the deep request had 861 prompt tokens. With it empty the brain logged no line

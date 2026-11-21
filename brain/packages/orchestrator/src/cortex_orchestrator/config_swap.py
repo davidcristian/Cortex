@@ -55,6 +55,11 @@ class SwapConfig(BaseSettings):
     def _an_empty_effort_names_no_level(cls, value: object) -> object:
         return None if value == "" else value
 
+    @property
+    def brain_effort_written(self) -> bool:
+        """Whether the deployment set ``CORTEX_REASONING_EFFORT_BRAIN`` itself."""
+        return "brain_effort" in self.model_fields_set
+
     @model_validator(mode="after")
     def _escalation_needs_a_host_and_an_endpoint(self) -> "SwapConfig":
         if not self.escalation:

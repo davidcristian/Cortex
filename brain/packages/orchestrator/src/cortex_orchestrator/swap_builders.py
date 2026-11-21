@@ -49,6 +49,7 @@ class SwapRuntime:
     rechecker: TierRechecker
     close: Callable[[], Awaitable[None]]
     brain_effort: ReasoningEffort | None = None
+    brain_effort_written: bool = False
 
 
 def build_swap_runtime(  # noqa: PLR0913 -- one more injected collaborator than the DI ceiling
@@ -77,6 +78,7 @@ def build_swap_runtime(  # noqa: PLR0913 -- one more injected collaborator than 
         rechecker=rechecker,
         close=_release_all(rechecker.aclose, handoffs.aclose, close_host),
         brain_effort=swap.brain_effort,
+        brain_effort_written=swap.brain_effort_written,
     )
 
 

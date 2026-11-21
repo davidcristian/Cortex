@@ -2,6 +2,7 @@ import json
 import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from datetime import UTC, datetime
 
 import httpx
@@ -117,23 +118,41 @@ async def test_an_effort_beside_thinking_off_is_not_sent_and_not_asked_about() -
     assert server.asked == []
 
 
+@pytest.mark.parametrize(
+    ("bounds", "level", "named"),
+    [
+        (_MEDIUM, logging.INFO, "medium"),
+        (replace(_MEDIUM, effort_written=True), logging.WARNING, "medium"),
+        (GenerationBounds(effort=ReasoningEffort.LOW, effort_written=True), logging.WARNING, "low"),
+    ],
+)
 async def test_a_template_that_reads_no_effort_gets_the_request_without_one_and_is_named_once(
-    caplog: pytest.LogCaptureFixture,
+    bounds: GenerationBounds, level: int, named: str, caplog: pytest.LogCaptureFixture
 ) -> None:
     server = EffortServer(caps=NO_EFFORT_CAPS, reply=_REPLY)
     backend = _backend(server)
     with caplog.at_level(logging.INFO, logger=_LOGGER):
-        assert await _reply(backend, _MEDIUM) == "ok"
-        assert await _reply(backend, _MEDIUM) == "ok"
+        assert await _reply(backend, bounds) == "ok"
+        assert await _reply(backend, bounds) == "ok"
     assert server.chats == [_UNBOUNDED_BODY, _UNBOUNDED_BODY]
     assert len(server.asked) == 2
-    assert _logged(caplog) == [(logging.INFO, _UNREAD)]
+    assert _logged(caplog) == [(level, _UNREAD)]
     (record,) = [r for r in caplog.records if "effort" in r.getMessage()]
     assert (record.__dict__["endpoint"], record.__dict__["model"], record.__dict__["effort"]) == (
         _ENDPOINT,
         "brain",
-        "medium",
+        named,
     )
+
+
+async def test_a_level_the_deployment_wrote_is_sent_and_logged_as_the_default_is(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    server = EffortServer(caps=QWEN38_CAPS, reply=_REPLY)
+    with caplog.at_level(logging.INFO, logger=_LOGGER):
+        assert await _reply(_backend(server), replace(_MEDIUM, effort_written=True)) == "ok"
+    assert server.chats == [_MEDIUM_BODY]
+    assert _logged(caplog) == [(logging.INFO, "reasoning effort sent")]
 
 
 async def test_a_probe_that_fails_sends_no_effort_and_warns_once_with_the_reason(

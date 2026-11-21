@@ -106,7 +106,7 @@ ADR-0009 decision 8), `call_timeout_s =
   `brain_decode_tps` (0.0) the rate the deep phase judges a real completion against (ADR-0055
   decisions 4 and 5); `brain_effort` (`medium`, `CORTEX_REASONING_EFFORT_BRAIN`) is the
   `ReasoningEffort` the deep reply names, `low`, `medium` or `high`, an empty value naming none
-  and any other word failing at boot (ADR-0049 decision 20); `swap_drain_timeout_s` (60 s),
+  and any other word failing at boot (ADR-0049 decision 20), and the `brain_effort_written` property is true when the deployment set that variable (decision 19); `swap_drain_timeout_s` (60 s),
   `swap_load_timeout_s` (300 s) and
   `swap_tier_recheck_s` (30 s, `CORTEX_SWAP_TIER_HEAL_S`, pacing the check of every evicted tier,
   ADR-0054 decisions 3 and 4)

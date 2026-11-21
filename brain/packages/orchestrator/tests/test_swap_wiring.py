@@ -172,6 +172,16 @@ def test_the_deep_tier_s_effort_is_medium_unless_the_deployment_sets_one(
     assert SwapConfig().brain_effort is ReasoningEffort.MEDIUM
 
 
+@pytest.mark.parametrize(("written", "is_written"), [(None, False), ("medium", True), ("", True)])
+def test_an_effort_is_marked_written_only_where_the_deployment_set_the_variable(
+    monkeypatch: pytest.MonkeyPatch, written: str | None, *, is_written: bool
+) -> None:
+    monkeypatch.delenv("CORTEX_REASONING_EFFORT_BRAIN", raising=False)
+    if written is not None:
+        monkeypatch.setenv("CORTEX_REASONING_EFFORT_BRAIN", written)
+    assert SwapConfig().brain_effort_written is is_written
+
+
 def test_an_empty_effort_setting_names_no_level(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CORTEX_REASONING_EFFORT_BRAIN", "")
     assert SwapConfig().brain_effort is None
