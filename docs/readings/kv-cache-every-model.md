@@ -2,8 +2,8 @@
 
 The rows of 2026-11-19 for
 [R-1243](../refinements/tasks/1243-every-tier-holds-its-context-in-the-default-16-bit-cache.md):
-every model the baseline of 2026-11-16 drew that has rows at `--cache-type-k q8_0 --cache-type-v
-q8_0`, set beside a 16-bit row of the same night. The rule a tier must meet, the budget, the rate
+every model [the baseline of 2026-11-16](model-baseline.md) drew that has rows at
+`--cache-type-k q8_0 --cache-type-v q8_0`, set beside a 16-bit row of the same night. The rule a tier must meet, the budget, the rate
 and the draft ladder are those of [the first cache type readings](kv-cache-types.md), on the same
 build, b12375 from the `cortex-model-host` image. Memory is the highest reading of a row less what
 the card held before the load, in MiB. A rate is a ratio, and each ratio says which two rows it

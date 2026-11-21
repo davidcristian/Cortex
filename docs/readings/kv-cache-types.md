@@ -4,11 +4,11 @@ A server holds its context in the KV cache. The engine's default type for it is 
 server but the deep tier's starts at. `--cache-type-k q8_0 --cache-type-v q8_0` asks for an 8-bit
 type that takes about half the memory per token of context.
 [R-1243](../refinements/tasks/1243-every-tier-holds-its-context-in-the-default-16-bit-cache.md)
-asks whether a tier should set it. This record holds the rows that decide that, beside the rows the
-model baseline of 2026-11-16 drew at 16 bits. Memory is `nvidia-smi` `memory.used` at the highest
-reading of a row, less what the card held before the load, and stays absolute because a reader
-compares it with their own card. A rate describes only the card it was read on, so each one is
-written as a ratio of the 16-bit rate at the same context and draft length.
+asks whether a tier should set it. This record holds the rows that decide that, beside the 16-bit
+rows of [the model baseline of 2026-11-16](model-baseline.md). Memory is `nvidia-smi`
+`memory.used` at the highest reading of a row, less what the card held before the load, and stays
+absolute because a reader compares it with their own card. A rate describes only the card it was
+read on, so each one is written as a ratio of the 16-bit rate at the same context and draft length.
 
 ## How the rows are drawn
 

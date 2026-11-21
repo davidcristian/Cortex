@@ -16,7 +16,8 @@ so each one is written as a ratio of the no-draft rate of the same file at the s
 | subagent drafter | `unsloth/gemma-4-E4B-it-qat-GGUF/mtp-gemma-4-E4B-it-Q8_0.gguf` |
 
 Every row is from **2026-11-18** on `llama-server` build b12375 from the `cortex-model-host`
-image, on the 24 GB card (24,463 MiB), unless it names the model baseline of 2026-11-16.
+image, on the 24 GB card (24,463 MiB), unless it names
+[the model baseline of 2026-11-16](model-baseline.md).
 
 ## The cortex file at its default context
 
@@ -54,7 +55,7 @@ Method: `tools/tier-drafters.py gemma-4-12B 16384 cortex-16k 7250 0,1,2,3,4,5` u
 ## The subagent file at its default context
 
 The baseline drew the subagent file at 8K, the tier's default
-(`measurements/model-baseline-2026-11-16/baseline.md`, 2026-11-16 and 2026-11-17, the method
+([the rows of the model baseline](model-baseline-rows.md), 2026-11-16 and 2026-11-17, the method
 above with `-fa off`). A length of 3 wrote at 1.60 times the no-draft rate, and 4 to 6 were slower
 than 3. At 128K a length of 2 was the fastest. On two slots of one server at 8K the drafter at a
 length of 3 wrote at 1.45 times the no-draft rate with one slot busy
@@ -216,7 +217,7 @@ One request alone gained 0.18. With both slots busy the median request wrote at 
 no-draft median, so the row fails the rule on two requests at once, the case the server's
 second slot is for. The drafter cost 201 MiB. The model baseline of 2026-11-16 read the same
 file on the same image with four CPUs, one slot and a filled 8K context
-(`measurements/model-baseline-2026-11-16/baseline.md`): 1.09 times the no-draft rate at a draft
+([its rows](model-baseline-rows.md)): 1.09 times the no-draft rate at a draft
 length of 3, and under it at 1, 2, 4 and 5, down to about 0.7 at 5. Qwen3.5-2B and Qwen3.5-0.8B
 wrote at about 0.8 of their no-draft rates at a length of 1 and slower at 2 and 3. Method:
 `cpudraw7.sh slots slots-draft` and `cpudrive7.py` in `~/.cache/cortex-run/2026-11-18/`, logs

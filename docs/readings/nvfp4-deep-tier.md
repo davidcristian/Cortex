@@ -1,8 +1,8 @@
 # Readings: the NVFP4 files for the deep tier
 
-Memory and rate rows for the two NVFP4 files the models mount holds, beside the rows the model
-baseline of 2026-11-16 drew for the same two models in their Q4 files. NVFP4 is a 4-bit floating
-point weight format.
+Memory and rate rows for the two NVFP4 files the models mount holds, beside the rows
+[the model baseline of 2026-11-16](model-baseline.md) drew for the same two models in their Q4
+files. NVFP4 is a 4-bit floating point weight format.
 [R-1244](../refinements/tasks/1244-the-deep-tiers-file-is-not-chosen-between-the-q4-and-the-nvfp4-files.md)
 proposes a choice of file on these rows, and
 [R-1245](../refinements/tasks/1245-the-nvfp4-files-have-none-of-the-rows-the-deep-pick-is-compared-on.md)
@@ -43,8 +43,9 @@ rest in RAM.
 
 Method: `tools/bench3.py --phase deep --out nvfp4.jsonl` under
 `measurements/model-baseline-2026-11-16/`, which git ignores. The NVFP4 rows are in
-`bench/nvfp4.jsonl` there, the Q4 rows in `bench/baseline.jsonl`, and `nvfp4.md` has both sets with
-their absolute rates.
+`bench/nvfp4.jsonl` there, the Q4 rows in `bench/baseline.jsonl` and in
+[the baseline's rows](model-baseline-rows.md), and `nvfp4.md` has both sets with their absolute
+rates.
 
 ## Whether the engine loads the files
 
