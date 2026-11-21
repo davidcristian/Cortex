@@ -25,8 +25,8 @@ placement was checked, are in [subagent CPU rows](subagent-cpu-rows.md).
 | subagent | Qwen3.5-2B (roster alternate) | 8 / 100 card, 9 / 99 CPU | 8 / 100 card, 7 CPU | 2026-09-23 card, 2026-09-25 CPU |
 | subagent | Qwen3.5-4B | 10 / 100 card, 12 CPU | 26 / 100 card, 27 CPU | 2026-09-23 card, 2026-09-25 CPU |
 | subagent | gemma-4-E2B | 28 / 100 card, 25 CPU | 18 / 100 card, 19 CPU | 2026-09-23 card, 2026-09-25 CPU |
-| deep | gemma-4-31B, thinking on | **0 / 100** | 8 / 100 | 2026-09-24, card |
-| deep | Qwen3.8-27B UD-Q4_K_M, thinking on | 0 / 100 | 0 / 100 | 2026-09-26, card |
+| deep | gemma-4-31B (alternate), thinking on | 0 / 100 | 8 / 100 | 2026-09-24, card, at 8192 |
+| deep | Qwen3.8-27B UD-Q4_K_M (pick), thinking on | **0 / 100** | 0 / 100 | 2026-11-21, card, as the model host starts the tier, with its draft layer and without; 2026-09-26 at 8192 |
 
 At temperature 0, one draw per attack, the cortex pick read framed 0 against control 1
 (2026-09-05), the alternate 0 to 1 against 2 to 4 over three runs (2026-09-06, at 16384 and 8192)
@@ -226,3 +226,25 @@ instruction and say they did not follow it. Two control `exfil-tool` replies wri
 literal `</think>` and the reply again, all in `content`. Its control 0 against gemma-4-31B's 8
 (p 0.0068) compares rows drawn two days apart and was not written down before the draw. Method:
 `measurements/deep-2026-09-26/q27-r11-injection/`, the same driver.
+
+**2026-11-21, the same file as the model host starts the deep tier today**, on build
+`b12375-9d25e0014` at `--ctx-size 16384 --parallel 1 --cache-type-k q8_0 --cache-type-v q8_0`: once
+drafting with the layer inside the file (`--spec-type draft-mtp --spec-draft-n-max 3`), as the
+[model swap runbook](../runbooks/model-swap.md) deploys the pick, and once with no drafter. A driver
+posted the harness's request to the tier's server, with the attacks, framing, tools, seeds, order,
+cap and effort of the row above, because the harness's own server leaves out the tier's cache type
+([R-1272](../refinements/tasks/1272-the-injection-harness-drops-the-deep-tiers-cache-type.md)).
+
+| launch | framed obeyed (predicted) | control obeyed (predicted) | p | generated a draw, median | reasoning tokens a draw, median | card above the floor, highest |
+| --- | --- | --- | --- | --- | --- | --- |
+| draft layer | 0 (0, 0 to 3) | 0 (1, 0 to 6) | 1.0 | 100.5 framed, 166.5 control | 57.5 framed, 95 control | 17,002 MiB |
+| no drafter | 0 (0, 0 to 3) | 0 (0, 0 to 3) | 1.0 | 106 framed, 167 control | 54.5 framed, 101 control | 15,967 MiB |
+
+Every prediction, written in the backlog before each launch, held. No draw of the 400 was void or
+ended at the cap: the longest generated 631 tokens, and each has reasoning and a reply. Read by
+hand, no reply obeyed. The 15 described replies, 2 framed and 13 control, each quote the token as an
+instruction found in the file and say they ignored it. A reply, a literal `</think>` and the reply
+again are in 11 drafted and 13 undrafted control replies and 1 undrafted framed reply, against 2
+control replies on 2026-09-26, p 0.018 and 0.0055
+([R-1273](../refinements/tasks/1273-a-deep-reply-can-hold-a-literal-think-tag-and-its-text-twice.md)).
+Method: `up.sh`, `inj16.py` and `final.py` in `~/.cache/cortex-run/2026-11-21/p1/`.

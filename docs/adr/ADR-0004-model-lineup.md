@@ -85,25 +85,25 @@ lineup](../readings/model-lineup.md), [deep candidates](../readings/deep-candida
    subagent runbook's override table says what each costs, and gemma-4-E2B and Qwen3.5-0.8B are the
    two to override to last.
 
-8. **Deep: Qwen3.8-27B `UD-Q4_K_M`; gemma-4-31B QAT q4_0 is the alternate.** What decides is
-   whether the file fits whole on the card inside the model budget, 18,177 MiB at the highest
-   reading of a row; the other axes do not separate the two. The pick's file fits whole up to
-   24K drafting with the layer in its own file and 40K without
-   ([readings](../readings/nvfp4-deep-tier.md)), and the tier started on it at 16K and `q8_0`
-   read 16,991 MiB above the card's floor at its highest
+8. **Deep: Qwen3.8-27B `UD-Q4_K_M`; gemma-4-31B QAT q4_0 is the alternate.** What decides is whether
+   the file fits whole on the card inside the model budget, 18,177 MiB at the highest reading of a
+   row; the other axes do not separate the two. The pick's file fits whole up to 24K drafting with
+   the layer in its own file and 40K without ([readings](../readings/nvfp4-deep-tier.md)), and the
+   tier started on it at 16K and `q8_0` read 16,991 MiB above the card's floor at its highest
    ([R-1243](../refinements/tasks/1243-every-tier-holds-its-context-in-the-default-16-bit-cache.md)).
    The alternate's file fits whole at no context at 16 bits
-   ([readings](../readings/kv-cache-every-model.md)): started as the model host starts the
-   tier, at 16K with every layer on the card, it read 18,375 to 19,774 MiB above the floor over
-   eight launches ([readings](../readings/kv-cache-deep-whole.md)).
-   On four written questions at the shipped 16384 context, the pick stopped on 11 of 12 draws at its
-   template's default effort (`xhigh`), 12 with its draft layer and 12 at `medium`, the alternate on
-   12 ([readings](../readings/deep-candidates.md#the-stop-rows-at-16384)). At 8192 the alternate
+   ([readings](../readings/kv-cache-every-model.md)): started as the model host starts the tier, at
+   16K with every layer on the card, it read 18,375 to 19,774 MiB above the floor over eight
+   launches ([readings](../readings/kv-cache-deep-whole.md)). On four written questions at the
+   shipped 16384 context, the pick stopped on 11 of 12 draws at its template's default effort
+   (`xhigh`), 12 with its draft layer and 12 at `medium`, the alternate on 12
+   ([readings](../readings/deep-candidates.md#the-stop-rows-at-16384)). At 8192 the alternate
    stopped on 11, Qwen3.6-35B-A3B (at `UD-Q3_K_XL`) on 6 and gemma-4-26B-A4B on 5, the one count
-   apart. At the engine's sampler, thinking on, the pick obeys 0 of 100 framed injection draws
-   against 0 unframed, and the alternate 0 against 8. The pick has three costs: a median of 2327
-   reasoning tokens a draw at `xhigh` against the alternate's 1434; no QAT weights and none of the
-   cortex's family, template or prompt idiom; and an effort and a preserve flag the tier cannot set
+   apart. At the engine's sampler, thinking on, the pick at the shipped 16384 and `q8_0` obeys 0 of
+   100 framed injection draws against 0 unframed, with its draft layer and without, and the
+   alternate 0 against 8 at 8192. The pick has three costs: a median of 2327 reasoning tokens a draw
+   at `xhigh` against the alternate's 1434; no QAT weights and none of the cortex's family, template
+   or prompt idiom; and an effort and a preserve flag the tier cannot set
    ([R-738](../refinements/tasks/738-the-deep-tier-cannot-set-a-templates-reasoning-effort-or-preserve-flag.md)).
    The two mixture-of-experts entries decode about four times as fast as the alternate, but each
    draw of theirs that did not stop filled the context reasoning. Qwen3.8-Flash-Next fits neither

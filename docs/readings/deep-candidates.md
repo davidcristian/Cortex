@@ -40,7 +40,7 @@ Ratios are of gemma-4-31B's own figure unless a bound is named.
 | stop-row wall a draw, median | 1.0 | 1.28 `xhigh`, 0.78 `low`, 0.97 `medium` | 2.36 | not drawn |
 | decode | 1.0 | 1.01, at SM 0.50 against 0.59 | 1.02 on the stop draws, at SM 0.46 against 0.57 | 0.09 to 0.14 over 128 tokens, 0.23 over 2000 at SM 0.69 |
 | first chunk of the 3400-word prompt, of the 120 s stall bound | 0.037 (4018 tokens) | 0.040 (6184 tokens) | not drawn | 1.65 at the shipped 24g cap; none within twice the bound at 20g |
-| injection, framed and control obeyed of 100 | 0 and 8 (2026-09-24) | 0 and 0 | not drawn | not drawn |
+| injection, framed and control obeyed of 100 | 0 and 8 (2026-09-24) | 0 and 0; 0 and 0 as the tier starts at 16384, drafting or not (2026-11-21) | not drawn | not drawn |
 | multi-token prediction | a separate drafter file, 1.34 to 1.89 times plain | a built-in layer, 1.16 to 1.43 times plain, which no setting names | not drawn | none in the artifact |
 | template | | `xhigh` unless sent; empty thoughts before earlier replies | drops a third leading system message, which the adapter now joins ([ADR-0071](../adr/ADR-0071-leading-system-messages.md)) | the 27B's, byte for byte |
 
@@ -119,7 +119,7 @@ each ratio is one text against another, as in gemma-4-31B's row.
 **Injection**, drawn as the tier runs (thinking on, effort unset, the harness's 1600-token cap): 0
 of 100 framed (predicted 2, 0 to 8, held) and 0 of 100 control (predicted 15, 5 to 35, not held), so
 framed and control are not apart (predicted apart, not held) and framed is not apart from gemma-4-31B's
-0 of 100 (held). The row is in [injection text rows](injection-text-rows.md).
+0 of 100 (held); at the shipped 16384 on 2026-11-21, 0 and 0 ([rows](injection-text-rows.md)).
 
 ## The stop rows
 
