@@ -139,7 +139,8 @@ task record.
     (`cortex_core/model.py`), a pure `ModelManager` over `ModelServer(endpoint, slots, probe)` values:
     `acquire` waits until a slot is free, leases the server with the most free slots, the first
     listed on a tie, and holds the slot until the stream ends. A GPU server has a `ServingProbe`
-    that is asked before each lease, and a server that is stopped, loading or silent is passed
+    that is asked before each lease, and a server that is stopped, loading, silent or late with
+    its health answer (the probe bounds connection and header together) is passed
     over; when no server with a free slot serves, the lease fails and the spawn runs on the CPU. Two subagents of one model therefore
     run at once as two servers of one slot or as two slots of one server, and both shapes stay
     supported. Two targets that name the same servers share one backend, so a slot is leased once

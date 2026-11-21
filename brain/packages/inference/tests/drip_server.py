@@ -1,4 +1,4 @@
-"""A loopback HTTP server that sends one path's answer a byte at a time."""
+"""A loopback HTTP server that sends one path's body, or its whole answer, a byte at a time."""
 
 import asyncio
 import re
@@ -13,12 +13,16 @@ _HEAD = b"HTTP/1.1 200 OK\r\nContent-Length: %d\r\nConnection: close\r\n\r\n"
 
 @dataclass
 class DripServer:
-    """Drips ``slow_body`` on ``slow_path`` and answers every other path with ``reply`` at once."""
+    """Drips ``slow_body`` on ``slow_path``, its header too when ``drip_head`` is set.
+
+    Every other path is answered with ``reply`` at once.
+    """
 
     slow_path: str
     slow_body: bytes
     reply: bytes = b""
     pause_s: float = 0.01
+    drip_head: bool = False
     dripped: int = 0
     bodies: list[bytes] = field(default_factory=list[bytes])
     endpoint: str = ""
@@ -29,17 +33,19 @@ class DripServer:
         body = await reader.readexactly(int(length[1])) if length else b""
         slow = head.split(b" ")[1].decode() == self.slow_path
         answer = self.slow_body if slow else self.reply
-        writer.write(_HEAD % len(answer))
+        whole = _HEAD % len(answer) + answer
         try:
             if slow:
-                for at in range(len(answer)):
+                at_once = 0 if self.drip_head else len(whole) - len(answer)
+                writer.write(whole[:at_once])
+                for at in range(at_once, len(whole)):
                     await asyncio.sleep(self.pause_s)
-                    writer.write(answer[at : at + 1])
+                    writer.write(whole[at : at + 1])
                     await writer.drain()
                     self.dripped += 1
             else:
                 self.bodies.append(body)
-                writer.write(answer)
+                writer.write(whole)
                 await writer.drain()
         except ConnectionError:
             pass

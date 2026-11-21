@@ -4,6 +4,8 @@ from dataclasses import dataclass
 
 import httpx
 
+from cortex_inference.probe_bound import ProbeTimeoutError, answered_within
+
 _HEALTH_PATH = "/health"
 
 # Written as numbers rather than through httpx's enum, as in ``trace_probe.py``. llama-server
@@ -62,6 +64,7 @@ class LlamaServerProbe:
     ) -> None:
         self._url = f"{endpoint.rstrip('/')}{_HEALTH_PATH}"
         self._transport = transport
+        self._timeout_s = timeout_s
         self._timeout = httpx.Timeout(timeout_s).as_dict()
         self._wording = wording
 
@@ -70,15 +73,19 @@ class LlamaServerProbe:
         """The part this probe asks about."""
         return self._wording.part
 
-    async def fault(self) -> str | None:
-        """``None`` when the server says it is ready, and why not otherwise."""
+    async def _exchange(self) -> httpx.Response:
         # The transport rather than a client: a client logs each request at INFO, which for a
         # check every few seconds would be most of the brain's log.
         request = httpx.Request("GET", self._url, extensions={"timeout": self._timeout})
+        response = await self._transport.handle_async_request(request)
+        await response.aclose()
+        return response
+
+    async def fault(self) -> str | None:
+        """``None`` when the server says it is ready within ``timeout_s``, and why not otherwise."""
         try:
-            response = await self._transport.handle_async_request(request)
-            await response.aclose()
-        except httpx.HTTPError:
+            response = await answered_within(self._timeout_s, self._exchange())
+        except (httpx.HTTPError, ProbeTimeoutError):
             return self._wording.down
         if response.status_code == _READY_STATUS:
             return None

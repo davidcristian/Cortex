@@ -12,7 +12,7 @@ decode rate when the server reports one (ADR-0055 decision 4). No orchestration 
 wire, `decode.py` maps the wire back, `backend.py` keeps what neither can own (the lease, the HTTP
 call, and the order events leave in), `trace_probe.py` asks a server one question before any
 request is built, `system_probe.py` asks the leased server one before a request that opens with
-several system messages, `effort_probe.py` asks it one before a request that names an effort, `probe_bound.py` (`answered_within`, `ProbeTimeoutError`) bounds the whole answer of each of those three, and `serving_probe.py` asks the cortex's server, or a subagent's, whether
+several system messages, `effort_probe.py` asks it one before a request that names an effort, `probe_bound.py` (`answered_within`, `ProbeTimeoutError`) bounds the whole answer of each of those three and of the health probe, and `serving_probe.py` asks the cortex's server, or a subagent's, whether
 it is serving. Package-internal modules have no leading underscore, which marks a private module.
 
 ## Public contract
@@ -21,7 +21,7 @@ it is serving. Package-internal modules have no leading underscore, which marks 
 `TraceProbeUnansweredError`, `TRACE_BUDGET_PROBE_TIMEOUT_S`, `LlamaServerProbe`, `ServerWording`, `subagent_wording`, `gpu_server_wording`, `CORTEX_DOWN` and `CORTEX_LOADING`.
 `LlamaServerProbe(endpoint, transport, *, timeout_s, wording)` is the core's `ServingProbe` over
 `GET {endpoint}/health`: `None` on 200, `wording.loading` on the 503 llama-server answers until its
-model is loaded, `wording.down` on any `httpx.HTTPError`, and the status in its line otherwise. The
+model is loaded, `wording.down` on any `httpx.HTTPError` or when the connection, the header and the close together outlast `timeout_s` (`answered_within`, since the number httpx gets bounds each read and a header sent a byte at a time stays under it), and the status in its line otherwise. A lease therefore passes over a GPU server whose health answer is late as it does over a stopped one, and the serving watch, whose own bound starts first, still reports `did not answer within`. The
 wording is the cortex's (`CORTEX_LOADING`, `CORTEX_DOWN`) unless `subagent_wording(name)` is given, or `gpu_server_wording(name, endpoint)` for the probe a GPU subagent server is asked through before each lease. It
 sends on an `httpx.AsyncBaseTransport` rather than a client, since a client logs every request at
 INFO. `tests/serving_contract.py` is the contract it and `ScriptedServingProbe` pass.
