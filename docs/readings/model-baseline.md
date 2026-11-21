@@ -120,7 +120,8 @@ Its three seeds read 0.99 to 1.01 of their median.
   at 64K and draft length 2 read about 1.3 times the rate, 1.2 times the prompt pass and 1.7 GB
   less card memory. The rows here keep the card's setting. The stack passes no flash attention
   flag, and the engine then turns it on ([the first cache type readings](kv-cache-types.md),
-  group 1). No reply with it on was compared with a reply with it off.
+  group 1). [The rows at an 8-bit cache](model-baseline-q8-rows.md) begin with the 16-bit ladder
+  drawn with it on. No reply with it on was compared with a reply with it off.
 - **The gemma-4-E4B prompt pass with flash attention off read 0.29 of its first value on
   2026-11-17**, at 64K, while the card stayed nearly idle. The cause is not known. Every
   gemma-4-E4B row here is of 2026-11-16. A check after the machine was restarted on 2026-11-17
@@ -201,8 +202,8 @@ of the second table are of 2026-11-17 and divide by the anchor of 2026-11-16.
 ## What these rows do not say
 
 - Nothing about what a model writes: no stop row, reasoning count or injection row is here.
-- Nothing about another cache type. The 8-bit rows of the same tables are in the cache type
-  records, which start at [the first cache type readings](kv-cache-types.md).
+- Nothing about another cache type. [The baseline at an 8-bit cache](model-baseline-q8.md) has
+  the same tables drawn with `--cache-type-k q8_0 --cache-type-v q8_0`.
 - Nothing about a rate on another night. A level here is the anchor's rate of 2026-11-16 times a
   ratio, and
   [R-1259](../refinements/tasks/1259-the-same-launch-reads-a-different-rate-on-another-night.md)

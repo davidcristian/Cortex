@@ -144,8 +144,8 @@ With room kept for one subagent server, each model beside its 16-bit pair of the
 | Qwen3.5-9B | none | 7,525 MiB | 6,757 MiB | 0.95 | 0.98 |
 | Qwen3.5-9B | 3 | 8,398 MiB | 7,625 MiB | 0.91 | 0.97 |
 
-The 8-bit ladders at 128K and 256K were drawn too and have no 16-bit row of the night; `q8.md`
-has them beside the baseline's rows.
+The 8-bit ladders at 128K and 256K were drawn too and have no 16-bit row of the night;
+[the rows of the baseline at an 8-bit cache](model-baseline-q8-rows.md) have them.
 
 ## The subagent tier
 
