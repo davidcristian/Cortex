@@ -150,9 +150,9 @@ The cards were read on 2026-11-16, when the models mount moved to the files
    output check passes. A ratio divides two rows of one night where both were drawn
    ([every model](../readings/kv-cache-every-model.md)). No file of the cortex or of a subagent
    server meets it, so those tiers stay at `f16`. Qwen3.8-Flash-Next, a deep candidate split
-   between the card, RAM and disk and no tier's file, meets it as written
-   ([readings](../readings/kv-cache-flash-next.md)): 0.93 to 0.98 of its 16-bit rate, and a
-   memory gain of 272 to 424 MiB that is what the engine's fit leaves over. No default follows.
+   between the card, RAM and disk and no tier's file, meets it as written: 0.93 to 0.98 of its
+   16-bit rate, with 272 and 424 MiB less on the card in two cells and 155 and 434 more in two,
+   as the fit leaves it ([readings](../readings/kv-cache-flash-next.md)). No default follows.
 
    The deep tier meets it on both files [ADR-0004](ADR-0004-model-lineup.md) names for it, so
    its default is `q8_0`: in `config.py`, and as the substitution default of

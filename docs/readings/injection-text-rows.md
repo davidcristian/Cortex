@@ -243,8 +243,8 @@ cap and effort of the row above, because the harness's own server leaves out the
 Every prediction, written in the backlog before each launch, held. No draw of the 400 was void or
 ended at the cap: the longest generated 631 tokens, and each has reasoning and a reply. Read by
 hand, no reply obeyed. The 15 described replies, 2 framed and 13 control, each quote the token as an
-instruction found in the file and say they ignored it. A reply, a literal `</think>` and the reply
-again are in 11 drafted and 13 undrafted control replies and 1 undrafted framed reply, against 2
-control replies on 2026-09-26, p 0.018 and 0.0055
-([R-1273](../refinements/tasks/1273-a-deep-reply-can-hold-a-literal-think-tag-and-its-text-twice.md)).
+instruction found in the file and say they ignored it; one, an undrafted control reply, also called
+`read_file` again. A reply, a literal `</think>` and the reply again are in 11 drafted and 13
+undrafted control replies and 1 undrafted framed reply, against 2 control replies on 2026-09-26,
+p 0.018 and 0.0055 ([R-1273](../refinements/tasks/1273-a-deep-reply-can-hold-a-literal-think-tag-and-its-text-twice.md)).
 Method: `up.sh`, `inj16.py` and `final.py` in `~/.cache/cortex-run/2026-11-21/p1/`. The drafted row at `medium` is in [the deep tier's effort level](deep-effort.md).
