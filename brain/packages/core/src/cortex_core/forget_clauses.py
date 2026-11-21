@@ -233,12 +233,17 @@ def beside(
 
 def kept_again(query: str, value: str, named: frozenset[str]) -> set[str]:
     """The words of ``named`` in a run of ``query`` after ``value`` whose ``_role`` is ``UNREAD``,
-    past the last place the run holds ``value``; none of a run with a keep clause or negation."""
+    past the last place the run holds ``value``, which a ``value`` of words of ``named`` is not
+    after a word for the or my; none of a run with a keep clause or negation."""
     wanted = [token for token in _TOKEN.findall(value.lower()) if token not in _MARKS]
-    size = len(wanted)
+    size, naming = len(wanted), named.issuperset(wanted)
     found: set[str] = set()
     for run, keeps in _runs(query, value):
-        ends = (at + size for at in range(len(run) - size + 1) if run[at : at + size] == wanted)
+        ends = (
+            at + size
+            for at in range(len(run) - size + 1)
+            if run[at : at + size] == wanted and not (naming and at and run[at - 1] in WHOSE)
+        )
         words = named.intersection(run[max(ends, default=0) :])
         if words and not keeps and NOT.isdisjoint(run) and _role(run, named) == UNREAD:
             found |= words
