@@ -120,3 +120,10 @@ and the maintainer declines step two.
   where the proposal sent `high`, and a failed or negative check is logged once for an endpoint,
   not on every request. The rule that decides the default is in the proposal, written before its
   rows.
+- 2026-11-21: the setting read live, after the rule was in the tree. Two handoffs through the
+  brain on the pick with its draft layer: at `medium` the brain asked the deep server's `/props`
+  once and logged `reasoning effort sent`, and the deep request had 861 prompt tokens against 899
+  with the setting unset, where the brain asked nothing and logged nothing. Both runs passed
+  every item of the handoff reading
+  ([readings](../../readings/model-swap.md#a-handoff-on-the-deep-pick)), so condition 1 of the
+  rule holds. Conditions 2 and 3 are not drawn.

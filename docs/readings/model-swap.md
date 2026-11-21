@@ -140,6 +140,30 @@ there, beside `turns.jsonl`, `states.txt`, `smi.txt`, `host.log` and `brain.log`
 `python3 summary.py logs/<label>` prints its figures. `template.sh` is the render, with its bodies
 and replies in `logs/template/`.
 
+**The effort setting, 2026-11-21.** Two more runs of the same chat on the same build and stack,
+both with the draft layer, from the tree that reads `CORTEX_REASONING_EFFORT_BRAIN`: one with the
+setting at `medium`, one with it unset. What the check decides was written before the first launch.
+
+| reading | `medium` | unset |
+| --- | --- | --- |
+| the brain's log | one `GET /props` of the deep server, then `reasoning effort sent` with `sent_as=medium` | no line about an effort and no `/props` request |
+| the deep request | 861 prompt tokens, 97 decoded, 61 of 105 drafted tokens accepted | 899 prompt tokens, 503 decoded, 357 of 435 accepted |
+| the deep trace | 67 characters | 1,199 characters |
+| card's floor before and after | 4,564 and 4,556 MiB | 4,566 and 4,556 MiB |
+| highest reading above the floor | 16,989 MiB | 16,989 MiB |
+| load and first token, each as a share of its bound | 0.19 and 0.028 | 0.19 and 0.028 |
+
+The 38 prompt tokens between the two requests are the `xhigh` sentence the template leaves out at
+`medium`, the difference between the stop rows' 322 and 284. A deep request leaves out the cortex's
+own sentence about the handoff, so both runs sent the deep server the same messages. Both runs read
+as the drafted run above did: the same states and argv while the deep tier served, then the deep
+reply with no note, the code word and the explanation in the third turn, all 7 messages, no handoff
+key, and no warning or error in the brain's log. One draw at each setting says nothing about how
+long a level reasons; the stop rows do. `/props` of the cortex server, gemma-4-12B on the same
+build, reports `supports_reasoning_effort` false and an empty `reasoning_effort_levels`, the answer
+on which the adapter sends no field. Method: `run.sh medium layer medium` and `run.sh unset layer
+none` in `~/.cache/cortex-run/2026-11-21/b1/`, with `notes.md` and `logs/<label>/` as above.
+
 ## The overlay's view of a handoff
 
 **2026-10-06**, 24 GB card, the shipped cortex and gemma-4-31B (deep context 16384), one `cortexov`
