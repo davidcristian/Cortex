@@ -67,7 +67,7 @@ own cost: under WSL the driver puts part of its last buffers in system memory wi
 gigabyte still free, and the check cannot see memory taken during the load. On this card the
 alternate, gemma-4-31B, costs 19125 MiB at an 8192 context and spilled beside an idle peer at up
 to 19967 MiB free, so 20125 refuses every spill seen by at least 158 MiB; at 16384 it costs 664 to
-667 MiB more, and 20783 keeps 149 of those 158 MiB. The pick's spill point is not drawn
+667 MiB more, and 20783 keeps 149 of those 158 MiB. The pick at 16384 and `q8_0` costs 15950 MiB without its drafter and 16991 with its draft layer ([readings](../readings/model-swap.md#a-handoff-on-the-deep-pick)); its spill point is not drawn
 ([R-741](../refinements/tasks/741-a-qwen38-27b-deep-tier-has-no-measured-fit-figure-or-decode-floor.md)).
 **So on a 24 GB card leave co-residency off**: at the alternate's figure the check refuses every
 handoff beside the E4B tier, each costing a reload. The same figure guards the ordinary handoff,

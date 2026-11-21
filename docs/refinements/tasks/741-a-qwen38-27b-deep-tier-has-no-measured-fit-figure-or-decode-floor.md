@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** resource-governance
 **Origin:** [ADR-0055](../../adr/ADR-0055-co-residency-and-spill-watch.md)
-**Verified:** 2026-11-20
+**Verified:** 2026-11-21
 
 A deployment declares the deep tier's cost in `CORTEX_SWAP_BRAIN_VRAM_MIB`, the figure the fit check
 compares free memory against, and its spill-watch minimum in `CORTEX_SWAP_BRAIN_DECODE_TPS`. The
@@ -52,3 +52,9 @@ of gemma-4-31B's row, the decode floor from `test_decode_cadence_live.py`, and t
   One more cost was read since: 16,991 MiB above the floor at 16384 with `q8_0`, drafting at
   length 3 (R-1243's History, 2026-11-18). None of the three draws named here was made.
   Filed: [R-1268](1268-no-handoff-has-run-through-the-brain-on-qwen38-27b.md) for a handoff through the brain on this file.
+- 2026-11-21: the handoffs of R-1268 ran with `CORTEX_SWAP_BRAIN_VRAM_MIB=16991` and the fit
+  check passed with 19,441 and 19,456 MiB free. At 16384 and `q8_0` the tier read 15,950 MiB above
+  the floor without its drafter and 16,991 again with the draft layer
+  ([readings](../../readings/model-swap.md#a-handoff-on-the-deep-pick)), and the runbook now
+  gives both. One reply each was decoded on a clear card, 878 tokens plain and 103 drafted at
+  1.58 times the plain rate, which is no floor. None of the three draws named here was made.

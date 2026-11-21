@@ -70,6 +70,76 @@ Method: run 2 of `measurements/sitting-2026-10-02b/`, rows `772swap`, `772kill` 
 Phase times are the client's own clock, sidecar states its 1 s polls of `GET /models/{model}`, and
 decode rates the brain's `the deep model's decode rate for this handoff` log line.
 
+## A handoff on the deep pick
+
+**2026-11-21**, 24 GB card (24,463 MiB) beside the desktop's apps, engine build b12375 from the
+`cortex-model-host` image, with a brain built from the tree, Redis and the model host from the
+repo's compose files. Beside the models mount, four variables were named: `CORTEX_ESCALATION=1`,
+`CORTEX_MODELHOST_BACKEND=supervisor`,
+`CORTEX_MODEL_FILE_BRAIN=unsloth/Qwen3.8-27B-GGUF/Qwen3.8-27B-UD-Q4_K_M.gguf` and
+`CORTEX_SWAP_BRAIN_VRAM_MIB=16991`. Every other setting was on its compose default. Two runs, each
+on a fresh stack: one without a drafter, one with `CORTEX_MODEL_FILE_BRAIN_DRAFT` naming the same
+file. Each run is one chat of three turns: a code word to keep, a task the cortex handed over with
+`escalate_to_brain`, and a question about both. The pass rule and the card's expected readings were
+written before the first launch.
+
+16991 is the highest reading of this file with its draft layer as the model host starts it
+([R-1243](../refinements/tasks/1243-every-tier-holds-its-context-in-the-default-16-bit-cache.md),
+2026-11-18). That is the larger of the two launches, so the fit check compared the free figure
+with a number at or above the cost of both. It passed with 19,441 and 19,456 MiB free. The model
+host reports the card's `memory.free`, which was 315 and 318 MiB under the total less the floor.
+
+Both deep servers started as `llama-server --model
+/models/unsloth/Qwen3.8-27B-GGUF/Qwen3.8-27B-UD-Q4_K_M.gguf --host 0.0.0.0 --port 8081 -ngl 99
+--ctx-size 16384 --parallel 1 --jinja --cache-ram 0`, followed by the flags in the first row.
+
+| reading | no drafter | draft layer |
+| --- | --- | --- |
+| rest of the argv | `--cache-type-k q8_0 --cache-type-v q8_0` | `--spec-type draft-mtp --spec-draft-n-max 3 --cache-type-k q8_0 --cache-type-v q8_0 --cache-type-k-draft q8_0 --cache-type-v-draft q8_0`, with no `--model-draft` |
+| card's floor before and after | 4,707 and 4,680 MiB | 4,689 and 4,680 MiB |
+| highest reading above the floor before | 15,950 MiB (expected 15,500 to 16,100) | 16,991 MiB (expected 16,800 to 17,200) |
+| free at the highest reading | 3,806 MiB | 2,783 MiB |
+| load, as a share of `CORTEX_SWAP_LOAD_TIMEOUT_S` | 0.28 | 0.19 |
+| first token, as a share of `CORTEX_INFERENCE_STALL_TIMEOUT_S` | 0.027 | 0.028 |
+| the deep request | 899 prompt tokens, 878 decoded | 899 prompt tokens, 103 decoded, 58 of 132 drafted tokens accepted |
+| deep phase, swap back and whole turn, each over the run's own load | 0.31, 0.42 and 1.75 | 0.09, 0.62 and 1.74 |
+
+- **While the deep tier served**, in both runs, the cortex was `stopped` and the deep tier `ready`.
+  Redis held the session's list of 4 messages, `cortex:handoff:active` and the handoff's own key.
+  No 1 s poll of the two tiers read both loaded.
+- **After it**, in both runs, the deep reply was in the chat below the cortex's sentence about the
+  handoff, with no note. The deep tier was `stopped` and a new cortex process `ready`. That
+  process answered the third turn with the code word and the deep model's explanation. The
+  session's list had all 7 messages, both handoff keys were gone, and the brain's log had no
+  warning or error.
+- **The load** is the deep server's own clock from its start to `listening`. The run without a
+  drafter was the file's first load of the night. The client's clock, from the loading detail to
+  the working detail, reads 0.278 and 0.186.
+- **The first token** is the engine's prompt pass of the one deep request. The client's first
+  reasoning delta came 0.028 and 0.029 of the stall bound after the working detail.
+- **The effort.** The tier sends no effort, so both requests reasoned at the template's `xhigh`,
+  and both ended on their own. The trace was 2,116 characters without the drafter, where the model
+  wrote its reply twice and counted the words of each, and 120 with it. That is one draw each; the
+  stop count at 16384 is
+  [R-1266](../refinements/tasks/1266-qwen38-27b-has-no-stop-row-at-the-shipped-16384-context.md)'s.
+  The drafted request decoded at 1.58 times the rate of the other, over replies of 103 and 878
+  tokens.
+- **The template.** Neither deep request had more than one leading system message, since the
+  stack had no memory store and the chat no recap, so the brain's system message probe did not
+  run ([R-1269](../refinements/tasks/1269-no-handoff-on-qwen38-27b-has-sent-three-leading-system-messages.md)).
+  One more launch of the model host alone rendered three bodies through `POST /apply-template` on
+  the deep server. Three leading system messages render in order as one system block below the
+  `xhigh` sentence. Each earlier reply, and the `escalate_to_brain` call, renders behind an empty
+  thought, and the request ends in an open thought. `/props` reports
+  `supports_reasoning_effort` with the levels `low`, `medium` and `xhigh`, and
+  `supports_preserve_reasoning`.
+
+Method: `bash ~/.cache/cortex-run/2026-11-21/h1/run.sh nodraft none` and `run.sh draft layer`,
+compose project `cortexn26`, which each script removes. A run's record is `logs/<label>/live.txt`
+there, beside `turns.jsonl`, `states.txt`, `smi.txt`, `host.log` and `brain.log`, and
+`python3 summary.py logs/<label>` prints its figures. `template.sh` is the render, with its bodies
+and replies in `logs/template/`.
+
 ## The overlay's view of a handoff
 
 **2026-10-06**, 24 GB card, the shipped cortex and gemma-4-31B (deep context 16384), one `cortexov`

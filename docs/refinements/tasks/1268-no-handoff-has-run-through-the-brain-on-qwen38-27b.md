@@ -1,9 +1,8 @@
 # No handoff has run through the brain on Qwen3.8-27B
 
-**Status:** open, actionable
+**Status:** done 2026-11-21
 **Area:** inference-model-manager
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-11-20
 
 ADR-0004 decision 8 names `Qwen3.8-27B-UD-Q4_K_M` as the deep pick. Every handoff the readings
 record ran on gemma-4-31B: the swap rows ([model swap](../../readings/model-swap.md)) and the
@@ -48,3 +47,12 @@ shows filed.
 
 - 2026-11-20: filed when the maintainer made Qwen3.8-27B the deep pick. The handoff of that day
   ran on gemma-4-31B.
+- 2026-11-21: done. Two handoffs ran through the brain, Redis and the model host on this file at
+  16384 and `q8_0`, one without a drafter and one with the draft layer, with
+  `CORTEX_SWAP_BRAIN_VRAM_MIB=16991`. Every item listed above read as a clean handoff in both.
+  The card read 15,950 and 16,991 MiB above its floor at the highest, the load was 0.28 and 0.19
+  of the load bound and the first token 0.027 and 0.028 of the stall bound
+  ([readings](../../readings/model-swap.md#a-handoff-on-the-deep-pick)). The runbook now gives
+  both costs. Each deep request had one leading system message, so
+  [R-1269](1269-no-handoff-on-qwen38-27b-has-sent-three-leading-system-messages.md) is filed for
+  a handoff with three.

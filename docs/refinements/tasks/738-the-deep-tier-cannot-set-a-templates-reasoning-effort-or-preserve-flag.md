@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** inference-model-manager
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-11-20
+**Verified:** 2026-11-21
 
 The Qwen3.8 template reads `reasoning_effort` (`xhigh` by default, `high` rendered as `xhigh`,
 `medium`, `low`; any other value raises with thinking on) and `preserve_thinking` (on by default).
@@ -67,3 +67,12 @@ and the maintainer declines step two.
   and at `medium` and `low` on 12 of 12. `GenerationBounds` still has no effort field.
   Filed: [R-1266](1266-qwen38-27b-has-no-stop-row-at-the-shipped-16384-context.md) for the stop row at 16384 and
   [R-1267](1267-qwen38-27bs-injection-row-was-drawn-at-8192-on-an-earlier-build.md) for the injection row.
+- 2026-11-21: checked against the tree and the model host's b12375 build. No file under
+  `brain/packages` names `reasoning_effort` or `preserve_thinking`. `/props` of the deep server
+  on Qwen3.8-27B reports `supports_reasoning_effort` with the levels `low`, `medium` and `xhigh`
+  and `supports_preserve_reasoning`, and its log at each start says preserving reasoning is on by
+  default and names `--no-reasoning-preserve`. Two handoffs through the brain at `xhigh` ended on
+  their own after 878 and 103 decoded tokens, and a render of the handoff's messages on that
+  server puts an empty thought before each earlier reply
+  ([readings](../../readings/model-swap.md#a-handoff-on-the-deep-pick)). The proposal is
+  unchanged.
