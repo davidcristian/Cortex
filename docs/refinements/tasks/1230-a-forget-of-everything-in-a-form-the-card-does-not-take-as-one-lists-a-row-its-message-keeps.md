@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-15
+**Verified:** 2026-11-21
 
 A forget of everything that names a stored row in a role no reader reads keeps every row
 (`message_rows` in `forget_permit.py`). It is read only from a word for all of the table of forms
@@ -44,3 +44,10 @@ or `4242` ([readings](../../readings/forget-everything-unread-role.md)):
   3 kept, and the others need the set of step 2, read only to keep. `Uită tot în afară de card.`
   drew no forget call on the stack brain
   ([readings](../../readings/forget-everything-unread-role.md#drawn-after-the-card-changes-2026-11-15)).
+- 2026-11-21: checked each message against the tree through `ForgetChosenTool`. All seven still
+  delete the card with the call text `card` and with `4242`, and keep the locker code and the
+  phone for `4242`. The four in other languages do the same over rows stored in their own
+  language, for the word of the card row and for `4242`. No rule was built. With no new word
+  read, `my card stays` differs from `my card holds` only by a word no reader reads, so a rule
+  that keeps a named row before such a word also keeps the card of `Forget everything my card
+  holds.`, a near miss of step 1, and its cost over the generator was not counted. Left open.
