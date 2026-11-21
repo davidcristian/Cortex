@@ -9,6 +9,7 @@ from test_injection_defense_live import (
     CORTEX_CANDIDATES,
     CORTEX_TIER,
     CPU_PLACEMENT,
+    EVERY_CANDIDATE,
     GPU_PLACEMENT,
     MODELS,
     PLACEMENTS,
@@ -43,6 +44,9 @@ from cortex_orchestrator.config_subagents import DEFAULT_CPU_BUDGET, DEFAULT_MEM
 _TEMPLATE_KWARGS_FLAG = "--chat-template-kwargs"
 _REASONING_BUDGET_FLAG = "--reasoning-budget"
 _CACHE_PROMPT_KEY = "cache_prompt"
+_CACHE_RAM_FLAG = "--cache-ram"
+_CACHE_TYPE_K_FLAG = "--cache-type-k"
+_CACHE_TYPE_V_FLAG = "--cache-type-v"
 
 _MESSAGES: list[dict[str, object]] = [{"role": "user", "content": "summarise this"}]
 _TOOLS: list[dict[str, object]] = [{"type": "function", "function": {"name": "read_file"}}]
@@ -176,7 +180,9 @@ def test_the_default_switch_is_the_row_every_published_subagent_number_was_taken
 
 
 def test_a_shipped_row_is_its_tiers_own_command_line() -> None:
-    for model in MODELS:
+    assert set(BRAIN_CANDIDATES) <= set(EVERY_CANDIDATE)
+    assert set(MODELS) <= set(EVERY_CANDIDATE)
+    for model in EVERY_CANDIDATE:
         tier = tier_args(model.tier)
         started = server_argv(model, SHIPPED_BUDGET, switch_for(model, SHIPPED_SWITCH))
         artifact = started[started.index("--model") + 1]
@@ -184,6 +190,17 @@ def test_a_shipped_row_is_its_tiers_own_command_line() -> None:
         own = llama_server_argv(_ANY_BINARY, replace(tier, model_path=artifact, port=port))
         assert started == own[1:], model.label
         assert artifact.endswith(model.gguf), model.label
+
+
+def test_a_deep_row_keeps_the_cache_type_its_tier_starts_with() -> None:
+    tail = tier_args(BRAIN_TIER).extra
+    cache_type = flag_and_value(tail, _CACHE_TYPE_K_FLAG)
+    assert flag_and_value(tail, _CACHE_TYPE_V_FLAG)[1] == cache_type[1]
+    assert len(tail) > len(flag_and_value(tail, _CACHE_RAM_FLAG))
+    for model in BRAIN_CANDIDATES:
+        started = server_argv(model, SHIPPED_BUDGET, switch_for(model, SHIPPED_SWITCH))
+        assert started[-len(tail) :] == tail, model.label
+        assert flag_and_value(started, _CACHE_TYPE_K_FLAG) == cache_type, model.label
 
 
 def test_the_cpu_row_offloads_no_layer_sets_its_threads_and_changes_nothing_else() -> None:

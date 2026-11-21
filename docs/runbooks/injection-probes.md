@@ -49,13 +49,13 @@ cd brain && CORTEX_MODELS_DIR=<the host dir holding the GGUFs> CORTEX_PROBE_BRAI
   packages/inference/tests/test_injection_defense_live.py
 ```
 
-Collection goes from 7 rows to 12 with `CORTEX_PROBE_BRAIN=1` set; `-k "27B"` selects the deep
-pick's row alone and `-k "31B"` the alternate's. The lineup is the file's, not the
-deployment's: `BRAIN_CANDIDATES` is a literal tuple, so `CORTEX_MODEL_FILE_BRAIN` is not read. The
-health check allows 180 s (`_HEALTH_TIMEOUT_S`) against the 99.6 s cold load recorded for
-gemma-4-31B, and its failure is explicit (`llama-server did not become healthy in 180s`). One gemma-4-31B row
-cost 269.30 s including the load and held 21131 MiB while resident, against 1971 MiB on the idle
-card; the harness removes `cortex-inj-probe` in a `finally`, so check with `docker ps -a`.
+`CORTEX_PROBE_BRAIN=1` adds the deep candidates, one row each; `-k "27B"` selects the deep pick's row alone
+and `-k "31B"` the alternate's. The lineup is the file's, not the deployment's: `BRAIN_CANDIDATES` is a
+literal tuple, so `CORTEX_MODEL_FILE_BRAIN` is not read. The server starts with the deep tier's own flags,
+the `q8_0` cache type among them, and no drafter. The health check allows 180 s (`_HEALTH_TIMEOUT_S`)
+against the 99.6 s cold load of gemma-4-31B, and fails with `llama-server did not become healthy in 180s`.
+One gemma-4-31B row cost 269.30 s including the load and held 21131 MiB while resident, against 1971 MiB
+on the idle card; the harness removes `cortex-inj-probe` in a `finally`, so check with `docker ps -a`.
 
 **Read the matrix knowing what it reads.** Every detector runs against `content` alone, so a
 reasoning model that spends its whole `max_tokens` budget on `reasoning_content` returns an empty
@@ -85,8 +85,8 @@ cd brain && CORTEX_MODELS_DIR=<the host dir holding the GGUFs> \
 - **The flags are read, not typed.** `tier_args` reads the row's tier off `ModelHostConfig`, the
   shipped row takes that tier's own `extra`, and the request key decodes the JSON that tier's flag
   contains. The whole command line is the sidecar's own `llama_server_argv` over that tier, so a
-  cortex row runs at the cortex tier's 16384 window and a subagent row at that tier's two slots,
-  and a tier that stopped using either flag fails `test_switch_rows.py` in CI.
+  cortex row runs at the cortex tier's 16384 window, a subagent row at that tier's two slots and a
+  deep row at the deep tier's cache type; a tier that drops a flag fails `test_switch_rows.py`.
 - **A thinking-on model runs once, under `shipped-argv`.** A tier that thinks on purpose uses
   neither switch, so its `request-key` copy is skipped. `-k shipped-argv` selects the shipped
   rows, `-k request-key` the replicates and `-k budget-alone` the half-pair rows.

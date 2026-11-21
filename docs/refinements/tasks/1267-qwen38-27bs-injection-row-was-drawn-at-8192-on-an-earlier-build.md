@@ -72,9 +72,9 @@ read.
   without a drafter. No draw of the 400 was void or ended at the 1600-token cap, no framed count
   reads apart from 0, and every prediction held
   ([readings](../../readings/injection-text-rows.md)). ADR-0004 decision 8 now gives the rows at
-  the shipped context and cache type. The harness was not changed, and its deep row still leaves
-  out the tier's cache type:
-  [R-1272](1272-the-injection-harness-drops-the-deep-tiers-cache-type.md). Filed too:
+  the shipped context and cache type. A driver drew the rows on the model host's server; the
+  harness's own row starts from the `server-cuda` tag, an earlier engine build on that machine:
+  [R-1284](1284-an-injection-row-does-not-say-which-engine-build-it-ran-on.md). Filed too:
   [R-1273](1273-a-deep-reply-can-hold-a-literal-think-tag-and-its-text-twice.md), for the
   replies that write `</think>` and their text a second time. R-738 has given the tier no effort
   level, so no row at another effort was drawn.

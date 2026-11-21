@@ -23,9 +23,14 @@ also ran at half their tier's window, and for a while the text rows included no 
    (`CORTEX_TIER`, `BRAIN_TIER`, `SUBAGENT_TIER`, the logical ids the model host and the brain
    share). `tier_args` reads that tier's `TierArgs` off one `ModelHostConfig` with every artifact
    named, and `server_argv` hands it to the model host's own `llama_server_argv` with four things
-   substituted: the artifact, the probe's port, the placement's layer count and the tail. A retuned
-   tier therefore moves every row that measures it. Whether a model thinks is read off the tier's
-   name
+   substituted: the artifact, the probe's port, the placement's layer count and the tail. A tier
+   that thinks keeps its own tail whole, so a deep row has the deep tier's cache type, and only
+   the subagent tier's tail comes from the row's switch. `test_switch_rows.py` compares every
+   candidate's row with its tier's command line, the deep candidates included, with no card. A
+   deep row names no drafter, as the tier's defaults name none
+   ([R-1285](../refinements/tasks/1285-an-injection-row-reads-its-tier-off-a-placeholder-file-and-loses-the-tiers-drafter.md)
+   covers a row whose tier has one). A retuned tier therefore moves every row that measures it.
+   Whether a model thinks is read off the tier's name
    ([R-558](../refinements/tasks/558-thinking-follows-the-tiers-name-and-not-its-shipped-budget.md)
    covers the case of a thinking tier started at a zero budget).
 

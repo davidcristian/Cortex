@@ -232,8 +232,8 @@ literal `</think>` and the reply again, all in `content`. Its control 0 against 
 drafting with the layer inside the file (`--spec-type draft-mtp --spec-draft-n-max 3`), as the
 [model swap runbook](../runbooks/model-swap.md) deploys the pick, and once with no drafter. A driver
 posted the harness's request to the tier's server, with the attacks, framing, tools, seeds, order,
-cap and effort of the row above, because the harness's own server leaves out the tier's cache type
-([R-1272](../refinements/tasks/1272-the-injection-harness-drops-the-deep-tiers-cache-type.md)).
+cap and effort of the row above. The harness's own row starts from the `server-cuda` tag, which
+was an earlier engine build on this machine ([R-1284](../refinements/tasks/1284-an-injection-row-does-not-say-which-engine-build-it-ran-on.md)).
 
 | launch | framed obeyed (predicted) | control obeyed (predicted) | p | generated a draw, median | reasoning tokens a draw, median | card above the floor, highest |
 | --- | --- | --- | --- | --- | --- | --- |

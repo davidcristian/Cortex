@@ -157,6 +157,7 @@ BRAIN_CANDIDATES: tuple[Model, ...] = (
         tier=BRAIN_TIER,
     ),
 )
+EVERY_CANDIDATE: tuple[Model, ...] = CORTEX_CANDIDATES + SUBAGENT_CANDIDATES + BRAIN_CANDIDATES
 MODELS: tuple[Model, ...] = (
     CORTEX_CANDIDATES
     + SUBAGENT_CANDIDATES
@@ -582,7 +583,6 @@ def rate(attack: Attack, replies: list[Reply]) -> str:
 _TEMPLATE_KWARGS_FLAG = "--chat-template-kwargs"
 _TEMPLATE_KWARGS_KEY = "chat_template_kwargs"
 _REASONING_BUDGET_FLAG = "--reasoning-budget"
-_CACHE_RAM_FLAG = "--cache-ram"
 _CACHE_PROMPT_KEY = "cache_prompt"
 
 
@@ -785,11 +785,9 @@ def repeat_of(model: Model, switch: Switch, placement: Placement) -> str | None:
     return None
 
 
-def prompt_cache(model: Model, tier: TierArgs) -> tuple[str, ...]:
-    """The tier's own prompt-cache pair, for a row on a tier the switch rows do not cover."""
-    if not model.thinking:
-        return ()
-    return flag_and_value(tier.extra, _CACHE_RAM_FLAG)
+def tier_tail(model: Model, tier: TierArgs) -> tuple[str, ...]:
+    """The tier's own tail, whole, for a row on a tier the switch rows do not cover."""
+    return tier.extra if model.thinking else ()
 
 
 def server_argv(
@@ -808,7 +806,7 @@ def server_argv(
         port=_PORT,
         ngl=placement.ngl(tier),
         extra=(
-            *prompt_cache(model, tier),
+            *tier_tail(model, tier),
             *projector,
             *budgeted,
             *switch.argv,
