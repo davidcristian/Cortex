@@ -39,6 +39,11 @@ def names(words: set[str], row: set[str], *, kind: frozenset[str] | None = None)
     return not words.isdisjoint(row) or not kinds(listing).isdisjoint(kinds(row))
 
 
+def bare(word: str) -> set[str]:
+    """``word`` and its form less the Romanian article ``ul``, as ``dulap`` of ``dulapul``."""
+    return {word, word.removesuffix("ul")}
+
+
 def limited(words: list[str], named: set[str]) -> bool:
     """Whether a word of ``words`` before their first value is a kind word or one a word of
     ``named`` starts, as ``card`` of ``every card 4242`` or ``lockers`` beside a row holding

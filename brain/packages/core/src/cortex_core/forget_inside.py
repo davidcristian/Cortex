@@ -19,7 +19,7 @@ from cortex_core.forget_clauses import (
     kept_again,
     parts,
 )
-from cortex_core.forget_kinds import MINUS, names, read_kinds
+from cortex_core.forget_kinds import MINUS, bare, names, read_kinds
 from cortex_core.forget_languages import FUNCTION, readings
 from cortex_core.forget_unnamed import just_said, quantifies, row_words, unnamed
 from cortex_core.memory import MemoryRecord
@@ -235,7 +235,7 @@ def _restated(query: str, text: str, named: frozenset[str], rows: list[set[str]]
         held = content(query, " ".join(kept)) - EXCEPT
         again = held & forgot
         lead = kept[: next((at for at, word in enumerate(kept) if word in again), 0)]
-        others = {word: [row for row in rows if names({word}, row)] for word in held - forgot}
+        others = {word: [row for row in rows if names(bare(word), row)] for word in held - forgot}
         unread = any(word in lead and not other for word, other in others.items())
         clash = any(names(again, row) for other in others.values() for row in other)
         found |= set() if unread or clash else again

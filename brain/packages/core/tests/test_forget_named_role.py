@@ -191,6 +191,9 @@ async def test_a_forget_of_every_value_limited_to_a_row_keeps_the_other_rows(
         ("Forget my old card 4242, keep the new card statement.", ("old", "new"), ["new"]),
         ("Forget all 4242 on the card but not the phone.", _ENGLISH, ["locker", "phone"]),
         ("Forget all 4242 and the card except the phone.", _ENGLISH, ["locker", "phone"]),
+        ("Uită cardul 4242, păstrează dulapul.", _ROMANIAN, ["dulap", "telefonul"]),
+        ("Uită cardul 4242, nu vreau cardul.", _ROMANIAN, ["dulap", "telefonul"]),
+        ("Uită cardul 4242, păstrează consulul și cardul.", _ROMANIAN, ["dulap", "telefonul"]),
     ],
 )
 async def test_a_row_the_message_asks_for_in_words_a_reader_reads_is_still_deleted(
@@ -221,6 +224,8 @@ async def test_a_row_the_message_asks_for_in_words_a_reader_reads_is_still_delet
         ("Olvida la tarjeta 4242, la tarjeta se queda.", _SPANISH),
         ("Uită cardul 4242, cardul rămâne.", _ROMANIAN),
         ("Uită cardul 4242, dar păstrează cardul.", _ROMANIAN),
+        ("Uită cardul 4242, păstrează dulapul și cardul.", _ROMANIAN),
+        ("Uită cardul 4242 exceptând dulapul exceptând cardul.", _ROMANIAN),
     ],
 )
 async def test_a_row_named_to_forget_and_again_to_keep_is_kept(

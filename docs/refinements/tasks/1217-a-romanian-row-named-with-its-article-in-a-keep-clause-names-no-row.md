@@ -1,9 +1,8 @@
 # A Romanian row named with its article in a keep clause names no row
 
-**Status:** open, actionable
+**Status:** done 2026-11-21
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-21
 
 Over the rows `Ține minte că codul de la dulap este 4242.`, `Ține minte că cardul meu este 4111
 1111 1111 4242.` and `Ține minte că telefonul meu este 0721 555 4242.`, with the call text `4242`,
@@ -35,3 +34,12 @@ article against a row holding it without one.
   naming no row ([R-1216](1216-a-keep-clause-naming-the-row-to-forget-beside-a-word-for-only-lists-it.md)),
   so `păstrează cardul și dulapul` and `exceptând cardul exceptând dulapul` keep the card and the
   generator's count fell from 35 to 14. The messages above name `dulapul` before the card.
+- 2026-11-21: done for the keep clause. `_restated` reads each other word of the clause less the
+  Romanian article `ul` (`bare` in `forget_kinds.py`), so `dulapul` names the row holding
+  `dulap` and both messages above keep the card. Over the generator the cases listing a row the
+  message asks to keep went from 14 to 0, with no row newly listed and 27 newly kept, none a
+  row its message asks to delete. The forms `le`, `a` and `ua` are not read: `Ioana` would name
+  the row of `Ioan`, `Joshua` that of `Josh` and `apple` that of `app`. Reading the article in
+  `names` for every reader listed rows the message does not ask for, so the other readers
+  still compare whole words: [R-1282](1282-a-romanian-row-named-with-its-article-outside-a-keep-clause-names-no-row.md). The replay is in
+  [the readings](../../readings/forget-keep-except.md#the-role-of-a-row-named-after-the-value-2026-11-15).

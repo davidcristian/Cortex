@@ -10,7 +10,7 @@ from cortex_core import (
     MemoryRecord,
     ToolCall,
 )
-from cortex_core.forget_kinds import kinds, names
+from cortex_core.forget_kinds import bare, kinds, names
 from cortex_core.forget_unnamed import unnamed
 from cortex_core.tools import TurnStamp
 
@@ -106,6 +106,28 @@ def test_a_kind_is_read_only_from_the_closed_table() -> None:
         set(),
     )
     assert (names({"telefon"}, {"phone"}), names({"telefon"}, {"card"})) == (True, False)
+
+
+@pytest.mark.parametrize(("word", "held"), [("dulapul", "dulap"), ("barul", "bar")])
+def test_a_word_read_bare_names_a_row_holding_it_less_the_romanian_article_ul(
+    word: str, held: str
+) -> None:
+    assert (names(bare(word), {held, "code"}), names({word}, {held, "code"})) == (True, False)
+
+
+@pytest.mark.parametrize(
+    ("word", "held"),
+    [
+        ("dulapului", "dulap"),
+        ("dulapuri", "dulap"),
+        ("ioana", "ioan"),
+        ("numele", "nume"),
+        ("joshua", "josh"),
+        ("apple", "app"),
+    ],
+)
+def test_a_word_read_bare_names_no_row_holding_it_less_another_ending(word: str, held: str) -> None:
+    assert not names(bare(word), {held, "code"})
 
 
 @pytest.mark.parametrize(
