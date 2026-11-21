@@ -187,7 +187,9 @@ how those measurements are taken is [ADR-0050](ADR-0050-live-probe-records.md).
 20. **Only the deep tier's reply names a level, from `CORTEX_REASONING_EFFORT_BRAIN`, and the
     default is `medium`.** `SwapConfig.brain_effort` reads `low`, `medium` or `high`. Unset, it is
     `medium`; an empty value names no level, so the template applies its own; any other word
-    fails the brain at boot. `StreamEngines` adds the level to the bounds of the
+    fails the brain at boot. The gpu overlay passes the variable as a bare key, and
+    `settingscheck.py` fails an empty compose default for it, which would send no level in every
+    deployment that sets nothing. `StreamEngines` adds the level to the bounds of the
     deep phase's tool loop and to no other request: a cortex turn, the side calls of decision 5 on
     either tier and a delegated task name none. The model host's `--reasoning-effort` flag is not
     used: it hands the template any word unchecked, and a word the Qwen3.8 template does not take

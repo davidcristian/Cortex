@@ -1,4 +1,4 @@
-"""Fail when a setting a brain module reads is in no compose file for the service running it."""
+"""Fail when a setting a brain module reads is in no compose file for its service, or emptied."""
 
 import argparse
 import json
@@ -16,6 +16,7 @@ from settingsfields import Settings, SettingsReadError, module_directory, read_s
 
 MODULE_FLAG = "-m"
 _CMD = re.compile(r"^CMD\s+(?P<argv>.*?)\s*$")
+_EMPTY_DEFAULT = re.compile(r"^\$\{[A-Za-z_]\w*:?-\}$")
 
 MIN_CLASSES = 1
 
@@ -67,7 +68,7 @@ class SettingsCheckError(Exception):
 
 
 class Fault(NamedTuple):
-    """One setting a service does not receive, or one exemption that no longer holds."""
+    """One setting a service does not receive or receives empty, or one stale exemption."""
 
     where: str
     detail: str
@@ -111,11 +112,18 @@ def image_command(dockerfile: Path) -> tuple[str, ...] | None:
 
 
 class Stack(NamedTuple):
-    """Every compose file read together: each service's argv, and the keys in its environment."""
+    """Every compose file read together: each service's argv, its keys, and each key some file
+    gives an empty default, with the first such file."""
 
     files: int
     argv: dict[str, tuple[str, ...]]
     keys: dict[str, frozenset[str]]
+    emptied: dict[str, dict[str, str]]
+
+
+def emptied_keys(environment: tuple[tuple[str, str], ...]) -> list[str]:
+    """The keys of one environment whose whole value is a substitution with an empty default."""
+    return [key for key, value in environment if _EMPTY_DEFAULT.match(value) is not None]
 
 
 def read_stack(root: Path) -> Stack:
@@ -123,11 +131,15 @@ def read_stack(root: Path) -> Stack:
     argv: dict[str, tuple[str, ...]] = {}
     keys: dict[str, set[str]] = {}
     built: dict[str, list[Path]] = {}
+    emptied: dict[str, dict[str, str]] = {}
     paths = compose_files(root)
     for path in paths:
         text = path.read_text(encoding="utf-8")
         for started in read_starts(text):
             keys.setdefault(started.service, set()).update(key for key, _ in started.environment)
+            for key in emptied_keys(started.environment):
+                shown = path.relative_to(root).as_posix()
+                emptied.setdefault(started.service, {}).setdefault(key, shown)
             if started.command is None:
                 continue
             if argv.setdefault(started.service, started.command) != started.command:
@@ -143,7 +155,8 @@ def read_stack(root: Path) -> Stack:
             and (command := image_command(dockerfiles[0])) is not None
         ):
             argv[name] = command
-    return Stack(len(paths), argv, {name: frozenset(named) for name, named in keys.items()})
+    named = {name: frozenset(found) for name, found in keys.items()}
+    return Stack(len(paths), argv, named, emptied)
 
 
 def held(root: Path, stack: Stack) -> dict[str, Settings]:
@@ -160,14 +173,21 @@ def held(root: Path, stack: Stack) -> dict[str, Settings]:
 def judge(
     services: dict[str, Settings], stack: Stack, exempt: tuple[Exemption, ...]
 ) -> list[Fault]:
-    """Every field no file names for the service reading it, and every exemption gone stale."""
+    """Every field unnamed for its service or emptied by a file, and every stale exemption."""
     reasons = {exemption.name: exemption.why for exemption in exempt}
     faults: list[Fault] = []
     declared: set[str] = set()
     for service, settings in services.items():
         keys = stack.keys.get(service, frozenset())
+        emptied = stack.emptied.get(service, {})
         for field in settings.fields:
             declared.add(field.name)
+            if field.name in emptied and not field.empty_default:
+                detail = (
+                    f"has an empty default for {service}, and {field.owner} defaults it to "
+                    "something else, so unset it arrives empty; write it as a bare key"
+                )
+                faults.append(Fault(f"{emptied[field.name]}: {field.name}", detail))
             where = f"{field.file}: {field.owner}.{field.name}"
             if field.named_by(keys) and field.name in reasons:
                 detail = f"is exempt, yet a compose file names it for {service}; drop the exemption"
@@ -236,14 +256,16 @@ def main(argv: list[str] | None = None) -> int:
         print(
             f"\nsettingscheck: {len(scanned.faults)} problem(s). A setting no compose file names "
             "never reaches the container, so name it as a bare key in the environment of the "
-            "service that reads it, or exempt it in settingscheck.py with the reason.",
+            "service that reads it, or exempt it in settingscheck.py with the reason. An empty "
+            "default replaces the default the class has unless that default is the empty string.",
             file=sys.stderr,
         )
         return 1
     print(
         f"settingscheck OK: the {scanned.fields} field(s) of {scanned.classes} settings class(es) "
         f"read by {', '.join(scanned.services)} are each named in that service's environment by "
-        f"one of {scanned.files} compose file(s), or exempt with a reason"
+        f"one of {scanned.files} compose file(s), or exempt with a reason, and an empty compose "
+        "default is given only to a field that defaults to the empty string"
     )
     return 0
 

@@ -16,6 +16,8 @@ SETTINGS_BASE = "BaseSettings"
 PREFIX_KEYWORD = "env_prefix"
 DELIMITER_KEYWORD = "env_nested_delimiter"
 ALIAS_KEYWORD = "validation_alias"
+DEFAULT_KEYWORD = "default"
+WRAPPER_CALL = "SecretStr"
 MAP_ANNOTATION = "dict"
 UNREAD_ANNOTATION = "ClassVar"
 
@@ -25,12 +27,13 @@ class SettingsReadError(Exception):
 
 
 class Field(NamedTuple):
-    """One settings field: the variable it reads, and the delimiter its entries take if a map."""
+    """One settings field: its variable, its entry delimiter if a map, and if it defaults to ""."""
 
     file: str
     owner: str
     name: str
     delimiter: str | None
+    empty_default: bool = False
 
     def named_by(self, keys: frozenset[str]) -> bool:
         """Whether ``keys`` names this field whole, or names one entry of it when it is a map."""
@@ -74,6 +77,15 @@ def _keyword(call: ast.Call, name: str, strings: dict[str, str], where: str) -> 
             raise SettingsReadError(msg)
         return value
     return None
+
+
+def _empty_default(value: ast.expr | None, strings: dict[str, str]) -> bool:
+    """Whether a default is the empty string, written bare, in `Field` or in `SecretStr`."""
+    if isinstance(value, ast.Call):
+        inner = [keyword.value for keyword in value.keywords if keyword.arg == DEFAULT_KEYWORD]
+        inner += value.args if _call_name(value) == WRAPPER_CALL else []
+        return len(inner) == 1 and _empty_default(inner[0], strings)
+    return value is not None and text(value, strings) == ""
 
 
 def _config(node: ast.ClassDef) -> ast.Call | None:
@@ -127,7 +139,8 @@ def _fields(
             alias = _keyword(statement.value, ALIAS_KEYWORD, strings, f"{where}.{name}")
         env = alias if alias is not None else prefix + name.upper()
         mapped = delimiter if outer == MAP_ANNOTATION else None
-        read.append(Field(shown, node.name, env, mapped))
+        empty = _empty_default(statement.value, strings)
+        read.append(Field(shown, node.name, env, mapped, empty))
     return read
 
 

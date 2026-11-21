@@ -66,6 +66,44 @@ def test_a_map_is_named_whole_or_by_one_entry_and_nothing_else_is() -> None:
     assert not plain.named_by(frozenset({"CORTEX_DEMO_PLAIN__X"}))
 
 
+DEFAULTS = """
+EMPTY = ""
+
+class Demo(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="D_")
+
+    bare_empty: str = ""
+    named_empty: str = EMPTY
+    field_empty: str = Field(default="", validation_alias="D_FIELD_EMPTY")
+    secret_empty: SecretStr = SecretStr("")
+    field_secret_empty: SecretStr = Field(default=SecretStr(EMPTY))
+    word: str = "info"
+    absent: str | None = None
+    field_absent: str | None = Field(default=None)
+    field_level: Level | None = Field(default=Level.MEDIUM)
+    bounded: int = Field(gt=0)
+    undefaulted: str
+    secret_word: SecretStr = SecretStr("x")
+    secret_bare: SecretStr = SecretStr()
+    wrapped: Other = Other("")
+    built: list[str] = Field(default_factory=list)
+    imported: str = IMPORTED_EMPTY
+"""
+
+
+def test_a_field_defaults_to_the_empty_string_only_when_its_class_writes_one() -> None:
+    _, read = fields(DEFAULTS)
+    assert [field.name for field in read if field.empty_default] == [
+        "D_BARE_EMPTY",
+        "D_NAMED_EMPTY",
+        "D_FIELD_EMPTY",
+        "D_SECRET_EMPTY",
+        "D_FIELD_SECRET_EMPTY",
+    ]
+    assert len(read) == 16
+    assert not Field("demo.py", "Demo", "D_WORD", None).empty_default
+
+
 def test_a_class_without_a_prefix_reads_bare_upper_case_names() -> None:
     _, read = fields(
         "class Bare(BaseSettings):\n"

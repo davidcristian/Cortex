@@ -7,6 +7,7 @@ from settingscheck import (
     Exemption,
     SettingsCheckError,
     check,
+    held,
     image_command,
     main,
     module_run,
@@ -150,6 +151,70 @@ def test_a_service_with_no_environment_owes_every_field(tmp_path: Path) -> None:
     base = BASE.replace("    environment:\n      CORTEX_DEMO_LEVEL:\n", "")
     faults = check(tree(tmp_path, base=base, overlay="services: {}\n"), (PORT,)).faults
     assert len(faults) == 2
+
+
+@pytest.mark.parametrize("written", ['"${CORTEX_DEMO_LEVEL:-}"', "${CORTEX_DEMO_LEVEL-}"])
+def test_an_empty_default_for_a_field_that_defaults_to_something_else_fails(
+    tmp_path: Path, written: str
+) -> None:
+    base = BASE.replace("CORTEX_DEMO_LEVEL:\n", f"CORTEX_DEMO_LEVEL: {written}\n")
+    faults = check(tree(tmp_path, base=base), (PORT,)).faults
+    assert [(fault.where, fault.detail) for fault in faults] == [
+        (
+            "docker/docker-compose.yml: CORTEX_DEMO_LEVEL",
+            "has an empty default for app, and Demo defaults it to something else, so unset it "
+            "arrives empty; write it as a bare key",
+        )
+    ]
+
+
+def test_an_empty_default_is_reported_once_at_the_first_file_writing_it(tmp_path: Path) -> None:
+    emptied = '      CORTEX_DEMO_LEVEL: "${CORTEX_DEMO_LEVEL:-}"\n'
+    base = BASE.replace("      CORTEX_DEMO_LEVEL:\n", emptied)
+    stack = read_stack(tree(tmp_path, base=base, overlay=OVERLAY + emptied))
+    assert stack.emptied == {"app": {"CORTEX_DEMO_LEVEL": "docker/docker-compose.extra.yml"}}
+    assert len(check(tmp_path, (PORT,)).faults) == 1
+
+
+@pytest.mark.parametrize(
+    "written",
+    ['"${CORTEX_DEMO_LEVEL:-info}"', '""', '"${CORTEX_DEMO_LEVEL:-}x"', '"${CORTEX_DEMO_LEVEL:?}"'],
+)
+def test_a_value_that_is_not_an_empty_default_is_not_one(tmp_path: Path, written: str) -> None:
+    base = BASE.replace("CORTEX_DEMO_LEVEL:\n", f"CORTEX_DEMO_LEVEL: {written}\n")
+    assert check(tree(tmp_path, base=base), (PORT,)).faults == []
+
+
+def test_an_empty_default_passes_for_a_field_that_defaults_to_the_empty_string(
+    tmp_path: Path,
+) -> None:
+    base = BASE.replace("CORTEX_DEMO_LEVEL:\n", 'CORTEX_DEMO_LEVEL: "${CORTEX_DEMO_LEVEL:-}"\n')
+    tree(tmp_path, base=base)
+    config = tmp_path / "brain/packages/demo/src/cortex_demo/config.py"
+    config.write_text(SETTINGS.replace("'info'", "''"), encoding="utf-8")
+    assert check(tmp_path, (PORT,)).faults == []
+
+
+def test_an_empty_default_on_another_service_or_one_entry_of_a_map_is_not_read(
+    tmp_path: Path,
+) -> None:
+    base = BASE.replace("CORTEX_DEMO_COSTS:\n", 'CORTEX_DEMO_LEVEL: "${CORTEX_DEMO_LEVEL:-}"\n')
+    overlay = OVERLAY.replace('"4"', '"${CORTEX_DEMO_COSTS__SPAWN:-}"')
+    scanned = check(tree(tmp_path, base=base, overlay=overlay), (PORT,))
+    assert scanned.faults == []
+
+
+def test_the_shipped_fields_an_empty_value_changes_do_not_default_to_the_empty_string() -> None:
+    read = {
+        field.name: field.empty_default
+        for settings in held(REPO_ROOT, read_stack(REPO_ROOT)).values()
+        for field in settings.fields
+    }
+    assert not read["CORTEX_REASONING_EFFORT_BRAIN"]
+    assert not read["CORTEX_MODEL_FILE_CORTEX_DRAFT"]
+    assert not read["CORTEX_MODEL_FILE_SUBAGENT_GPU_DRAFT"]
+    assert read["CORTEX_EMAIL_SMTP_PASSWORD"]
+    assert read["CORTEX_SEAM_TOKEN"]
 
 
 def test_an_exemption_a_file_names_fails(tmp_path: Path) -> None:

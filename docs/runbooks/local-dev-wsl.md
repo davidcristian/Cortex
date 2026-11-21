@@ -98,8 +98,10 @@ the tool overrides replace with one `CORTEX_TOOLS_ENDPOINTS__<name>` key each; t
 both at once. The map-shaped settings `CORTEX_TOOLS_ALLOW` and `CORTEX_SUBAGENTS_ROSTER` are
 contributed one key at a time by the override that brings the server they describe.
 `just check-settingscheck` fails when a settings field reaches its service from no file and is not
-one of those two, and it treats the model host and the email sidecar the same way. To see what a
-given stack will hand the brain, render it without starting anything:
+one of those two, and it treats the model host and the email sidecar the same way. It also fails
+when a file writes an empty default (`"${NAME:-}"`) for a field whose own default is not the empty
+string, since an unset variable then arrives empty where a bare key leaves the class default. To
+see what a given stack will hand the brain, render it without starting anything:
 
 ```bash
 docker compose --project-directory . -f docker/docker-compose.yml [-f <override> ...] config brain

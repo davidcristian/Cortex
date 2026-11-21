@@ -97,7 +97,7 @@ because adding it afterwards is a rewrite.
    - `samplecheck.py`: a log line a runbook shows matches the call that writes it.
    - `rostercheck.py`: a list of names a document keeps matches the set it describes.
    - `flagcheck.py`: every subagent server has the flags its tier requires.
-   - `settingscheck.py`: every setting a brain module reads is in its compose service's environment.
+   - `settingscheck.py`: every setting a brain module reads is in its compose service's environment, with no empty default its class lacks.
    - `backlogcheck.py`: each index matches its task files, every link resolves, and no task file name has a banned word.
 
    Each of them runs unconditionally, in CI too, and this list is itself compared against the recipes that run

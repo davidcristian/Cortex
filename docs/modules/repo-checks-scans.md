@@ -221,17 +221,17 @@ classifiable; its domain is every artifact `artifactnames.py` finds structurally
 ## `settingscheck.py`
 
 Every setting a brain module reads must appear in the environment of the compose service that runs
-it (ADR-0063 decisions 10 to 13). A variable no compose file mentions never enters the container,
-whatever the host sets, and the module then runs its default with nothing reported. On 2026-09-17,
-45 of the brain's 89 fields were in that state.
+it (ADR-0063 decisions 10 to 14). A variable no compose file mentions never enters the container,
+and the module then runs its default with nothing reported: on 2026-09-17, 45 of the brain's 89
+fields were in that state. An empty default (`"${NAME:-}"`) fails on a field whose class default is
+not the empty string, because an unset variable then arrives empty in place of that default.
 
 Both sets are computed. A service is checked when its argv runs `python -m <module>` and
-`brain/packages/*/src/<module>` exists, the argv being its compose command or, for a service that
-writes none, the last exec-form `CMD` of the Dockerfile it builds; that finds `brain`, `mcp-email`
-and `model-host` without listing any of them. A service's keys are the union of its environment keys
-across every compose file, and a bare pass-through key counts. `EXEMPT` lists the fields left out on
-purpose with a reason each, and an exemption fails once a compose file adds its field or no module
-reads it, so a renamed field cannot leave a stale entry behind.
+`brain/packages/*/src/<module>` exists, the argv being its compose command or the last exec-form
+`CMD` of the Dockerfile it builds; that finds `brain`, `mcp-email` and `model-host` without listing
+them. A service's keys are the union of its environment keys across every compose file, and a bare
+key counts. `EXEMPT` lists the fields left out on purpose with a reason each, and an exemption fails
+once a compose file adds its field or no module reads it, so a renamed field leaves no stale entry.
 
 ## `backlogcheck.py`
 

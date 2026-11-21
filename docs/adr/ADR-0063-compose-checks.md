@@ -142,6 +142,18 @@ each reads compose with a line reader that raises on any form it was not taught.
     reasons. The scan is separate from `defaultcheck.py` and `flagcheck.py`, which also read
     compose, because neither's subject or success line describes this rule.
 
+14. **An empty compose default is written only for a field whose own default is the empty
+    string.** A value written `"${NAME:-}"` or `${NAME-}` passes an unset variable to the
+    container as an empty string, where a bare key passes nothing and the class default applies.
+    `settingsfields.py` reads each field's default from its class: the empty string written bare,
+    as a constant of the same module, as `Field(default=...)` or inside `SecretStr(...)` counts,
+    and every other default does not, one the reader cannot reduce included. A file that writes
+    an empty default for any other field of the service fails, and the report names the file and
+    the variable. Three fields read an empty value as something their default is not, and the
+    rule finds them without a list: the deep tier's reasoning effort
+    ([ADR-0049](ADR-0049-thinking-switch-and-trace-budget.md) decision 20) and the drafter files
+    of the cortex and the GPU subagents, where empty starts the tier without a drafter.
+
 ## Consequences
 
 - `docker compose up` cannot create a directory the index would take, one variable cannot have two

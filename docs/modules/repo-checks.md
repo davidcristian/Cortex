@@ -64,7 +64,7 @@ were split out of it to stay under the 300-line limit. Grouped by what reads the
   `composestarts.py` for each service's command and environment. Both sets rest on
   `artifactnames.py`, every model file this tree mentions and the variable it is written under.
 - `settingscheck.py` reads `settingsfields.py` for the variables one module's settings classes
-  read. The stack side comes from the readers above.
+  read and whether each defaults to the empty string. The stack side comes from the readers above.
 - `backlogcheck.py` reads `backlog.py` for the task-file grammar, `backlogindex.py` for the index
   renderer, `backloganchors.py` for the anchors a document offers and the links aimed at them,
   `headingshapes.py` for which headings a slug can be computed from, and `bannedwords.py` for the
