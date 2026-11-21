@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** inference-model-manager
 **Origin:** [ADR-0077](../../adr/ADR-0077-model-card-settings.md)
-**Verified:** 2026-11-20
+**Verified:** 2026-11-21
 
 A rate row of the model baseline depends on the night it was drawn. On 2026-11-19 the same 16-bit
 launch was drawn again for one cell of each model, and it read 1.06 to 1.23 times the rate of the
@@ -58,30 +58,37 @@ Not recorded in a row, so not compared: the revision of the driver script, the s
 after its restart between 2026-11-17 and 2026-11-18, and what other apps did with the card while
 a row ran.
 
-## The fixed launch on two consecutive nights
+## The fixed launch on three consecutive nights
 
 Step 1 below asks for one fixed launch on every measurement night: gemma-4-12B at 64K, 16 bits,
-no draft, on build b12375. It has three rows of 2026-11-19 and eight of 2026-11-20, in
-`bench/q8-ref.jsonl` (`python3 q8-probes/slot3.py drift` prints them). Each row as a ratio of the
-fastest row of 2026-11-19:
+no draft, on build b12375. It has three rows of 2026-11-19, eight of 2026-11-20 and two of
+2026-11-21, in `bench/q8-ref.jsonl` (`python3 q8-probes/slot3.py drift` prints them). Each row
+as a ratio of the fastest row of 2026-11-19:
 
 | night | rows | slowest | median | fastest |
 | --- | --- | --- | --- | --- |
 | 2026-11-19 | 3 | 0.975 | 0.980 | 1.000 |
 | 2026-11-20 | 8 | 0.996 | 1.017 | 1.031 |
+| 2026-11-21 | 2 | 0.991 | 0.993 | 0.995 |
 
 - **What it says.** The median of 2026-11-20 is 1.037 times the median of 2026-11-19, and the
   rows of the two nights overlap: the slowest row of the second night is under the fastest of
   the first. Inside 2026-11-20 the slowest row reads 0.966 of the fastest. So between these two
   nights nothing of the size of the 1.15 this cell read between 2026-11-16 and 2026-11-19 took
   place, and the difference between them is about the spread inside one night.
+- **The third night is between the first two.** The two rows of 2026-11-21, the first and the
+  last launch of that night's rows, read 0.979 and 0.975 of the median of 2026-11-20, and their
+  median is 1.014 times the median of 2026-11-19. The last reads 0.996 of the first. Across the
+  three nights every row is inside 0.975 to 1.031 of the fastest row of 2026-11-19.
 - **What it does not say.** It names no cause. Every row of both nights ran at the highest power
   limit the card reads. On 2026-11-20 the desktop's apps held 3,993 to 4,256 MiB before the
   first four rows and 3,277 to 3,302 MiB before the last four; the first four read 0.985 to 1.00
-  of the night's fastest row and the last four 0.966 to 0.989, two ranges that overlap. Two
-  nights are one pair, so whether a later night stays this close is not shown. A row still does
-  not record the driver's revision, the display driver's version or the card's clock readings as
-  absolute values, so the baseline nights cannot be compared with these two on those fields.
+  of the night's fastest row and the last four 0.966 to 0.989, two ranges that overlap. On
+  2026-11-21 they held 4,598 and 4,567 MiB, more than before any row of the two earlier nights,
+  and the rate is between theirs. Three nights do not show that a later one stays this close. A
+  row still does not record the driver's revision, the display driver's version or the card's
+  clock readings as absolute values, so the baseline nights cannot be compared with these three
+  on those fields.
 
 ## Readings that divide rows of two nights
 
@@ -107,8 +114,8 @@ of one date. That stops new ratios across nights. Left:
 
 1. Find the cause. Keep drawing one fixed launch as the first and the last launch of every
    measurement night into `bench/q8-ref.jsonl` (the drift check's launch, gemma-4-12B at 64K
-   without drafting: `python3 q8-probes/drift.py first <name>`); 2026-11-19 and 2026-11-20 have
-   it. Still to build: the driver records what a row lacks, which is its own revision, the
+   without drafting: `python3 q8-probes/drift.py first <name>`); 2026-11-19, 2026-11-20 and
+   2026-11-21 have it. Still to build: the driver records what a row lacks, which is its own revision, the
    display driver's version and the card's clock readings as absolute values.
 2. Check the two records of the fourth bullet above row by row, and search the records for a
    ratio of two baseline rows of different dates.
@@ -124,3 +131,8 @@ either drawn again inside one night or marked as dividing two nights.
   1.037 times the median of the three rows of 2026-11-19, and the rows of the two nights overlap.
   No cause is found: the driver records none of the three fields a row lacks. Left open for
   those fields and for step 2.
+- 2026-11-21: the fixed launch was drawn as the first and the last launch of the night's rate
+  rows. They read 0.979 and 0.975 of the median of 2026-11-20, and the last reads 0.996 of the
+  first, so three nights in a row are inside 0.975 to 1.031 of one row. No cause is found: the
+  driver still records none of the three fields a row lacks. Left open for those fields and for
+  step 2.
