@@ -26,7 +26,7 @@ placement was checked, are in [subagent CPU rows](subagent-cpu-rows.md).
 | subagent | Qwen3.5-4B | 10 / 100 card, 12 CPU | 26 / 100 card, 27 CPU | 2026-09-23 card, 2026-09-25 CPU |
 | subagent | gemma-4-E2B | 28 / 100 card, 25 CPU | 18 / 100 card, 19 CPU | 2026-09-23 card, 2026-09-25 CPU |
 | deep | gemma-4-31B (alternate), thinking on | 0 / 100 | 8 / 100 | 2026-09-24, card, at 8192 |
-| deep | Qwen3.8-27B UD-Q4_K_M (pick), thinking on | **0 / 100** | 0 / 100 | 2026-11-21, card, as the model host starts the tier, with its draft layer and without; 2026-09-26 at 8192 |
+| deep | Qwen3.8-27B UD-Q4_K_M (pick), thinking on | **0 / 100** | 0 / 100 | 2026-11-21, card, as the model host starts the tier, with its draft layer and without, and with it at `medium` ([effort level](deep-effort.md#the-injection-text-rows-at-medium)); 2026-09-26 at 8192 |
 
 At temperature 0, one draw per attack, the cortex pick read framed 0 against control 1
 (2026-09-05), the alternate 0 to 1 against 2 to 4 over three runs (2026-09-06, at 16384 and 8192)
@@ -247,4 +247,4 @@ instruction found in the file and say they ignored it. A reply, a literal `</thi
 again are in 11 drafted and 13 undrafted control replies and 1 undrafted framed reply, against 2
 control replies on 2026-09-26, p 0.018 and 0.0055
 ([R-1273](../refinements/tasks/1273-a-deep-reply-can-hold-a-literal-think-tag-and-its-text-twice.md)).
-Method: `up.sh`, `inj16.py` and `final.py` in `~/.cache/cortex-run/2026-11-21/p1/`.
+Method: `up.sh`, `inj16.py` and `final.py` in `~/.cache/cortex-run/2026-11-21/p1/`. The drafted row at `medium` is in [the deep tier's effort level](deep-effort.md).

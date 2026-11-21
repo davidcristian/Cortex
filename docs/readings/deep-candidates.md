@@ -177,7 +177,7 @@ before the first draw. Against gemma-4-31B's 12 of 12 a cell reads apart only at
 | no drafter, `xhigh`, nothing sent | 11 (11, 9 to 12) | yes | 10 | 2327 (1014 to 16,080) (2200, 1700 to 3000) | yes | 16,080 | 15,977 MiB |
 | no drafter, `medium` | 12 (12, 11 to 12) | yes | 11 | 1182.5 (746 to 9670) (1350, 1000 to 1900) | yes | 10,207 | 15,976 MiB |
 | draft layer, `low` | 12 (12, 11 to 12) | yes | 12 | 1415.5 (929 to 6380) (1100, 800 to 1600) | yes | 7086 | 17,004 MiB |
-| draft layer, `medium`, 7 draws: Q1, Q2 and Q3 d1 | 7 of 7 | not complete | 7 of 7 | not complete | | 5031 | 17,003 MiB |
+| draft layer, `medium`, 5 of its draws on a later launch ([effort level](deep-effort.md#the-drafted-medium-stop-cell)) | 12 (12, 11 to 12) | yes | 12 | 2378 (976 to 4232) (1350, 1000 to 1900) | no | 5123 | 17,003 MiB |
 | no drafter, `low` | not drawn | | | | | | |
 
 - **The one miss.** Q4 d1 at `xhigh` without the drafter reasoned 16,080 tokens, with its 304
@@ -185,7 +185,7 @@ before the first draw. Against gemma-4-31B's 12 of 12 a cell reads apart only at
   14,964 reasoning tokens with the layer at `xhigh`, 470 tokens before the context's end, after
   10,458 without it, and after 9670 at `medium`. Each would have filled the first rows' 8192. No
   Q1 to Q3 draw generated more than 6799 tokens, as predicted.
-- **A handoff's room.** 5 of the 24 `xhigh` draws, 1 of the 12 undrafted `medium` draws and 1 of
+- **A handoff's room.** 5 of the 24 `xhigh` draws, 1 undrafted draw of the 24 at `medium` and 1 of
   the 12 `low` draws generated more than the 5521 tokens a full history window leaves at 16384
   ([R-1271](../refinements/tasks/1271-no-stop-row-is-drawn-beside-a-full-handoff-prompt.md)).
 - **The effort field.** `POST /apply-template` on the deep server renders the `xhigh` sentence

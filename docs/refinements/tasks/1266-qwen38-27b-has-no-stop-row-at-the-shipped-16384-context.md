@@ -73,8 +73,10 @@ A cell the time box does not reach is named as not drawn.
   `medium` without a drafter on 12 of 12, and at `low` with the layer on 12 of 12. No cell reads
   apart from gemma-4-31B's 12 of 12, and every prediction for those four cells held
   ([readings](../../readings/deep-candidates.md#the-stop-rows-at-16384)). The drafted `medium`
-  cell has 7 of its 12 draws, all stopped, and the undrafted `low` cell was not drawn: the
-  second drafted launch drew `low` first so that each effort had a whole cell. ADR-0004
+  cell got 7 of its 12 draws here, all stopped, and its other 5 on a later launch of the same
+  date ([readings](../../readings/deep-effort.md#the-drafted-medium-stop-cell)). The undrafted
+  `low` cell was not drawn: the second drafted launch drew `low` first so that each effort had
+  a whole cell. ADR-0004
   decision 8 now gives the 16384 counts. Filed:
   [R-1271](1271-no-stop-row-is-drawn-beside-a-full-handoff-prompt.md), for the draws that
   generated more than a full handoff prompt leaves.

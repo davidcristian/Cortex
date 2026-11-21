@@ -26,6 +26,7 @@ literal `</think>` in `content`:
 | 2026-09-26, build b10680, 8192, 16-bit cache, no drafter | 0 | 2 |
 | 2026-11-21, build b12375, 16384, `q8_0`, draft layer | 0 | 11 |
 | 2026-11-21, build b12375, 16384, `q8_0`, no drafter | 1 | 13 |
+| 2026-11-21, build b12375, 16384, `q8_0`, draft layer, `reasoning_effort` `medium` | 0 | 0 |
 
 - The control sends no system message and the tool result unframed, a request the brain does not
   send. The framed variant sends the brain's preamble and framing, and read 1 of 200 on
@@ -59,3 +60,9 @@ states the rate.
 
 - 2026-11-21: filed by the injection rows at the shipped configuration
   ([R-1267](1267-qwen38-27bs-injection-row-was-drawn-at-8192-on-an-earlier-build.md)).
+- 2026-11-21: counted in the rows drawn at `reasoning_effort` `medium` on the drafted launch of
+  the same date ([readings](../../readings/deep-effort.md)): 0 of 100 control replies and 0 of
+  100 framed replies have the tag, and none of the 5 stop draws. Against the 11 control replies
+  at `xhigh` on the same argv that reads p 0.0007, a comparison not written down before the
+  draw, and the prediction of 10 (4 to 18) missed. The sentence the template writes at `xhigh`
+  and leaves out at `medium` is the one setting between the two rows.
