@@ -226,17 +226,19 @@ def request(row: MemoryRecord) -> set[str]:
 
 
 def _restated(query: str, text: str, named: frozenset[str], rows: list[set[str]]) -> set[str]:
-    """The words of ``named`` that ``query`` names to forget and again to keep: in a clause asking
-    to keep whose other words each name only ``rows`` those words do not, or in ``kept_again``."""
+    """The words of ``named`` that ``query`` names to forget and again to keep: in ``kept_again``,
+    or in a keep clause where no other word names a row they name or, before them, names none."""
     forgot = content(query, " ".join(parts(query)[0]))
     found = kept_again(query, text, named)
     for clause in clauses(query):
-        held = content(query, " ".join(parts(" ".join(clause))[1])) - EXCEPT
-        held = {word for word in held if not KEEP.fullmatch(word)}
+        kept = [word for word in parts(" ".join(clause))[1] if not KEEP.fullmatch(word)]
+        held = content(query, " ".join(kept)) - EXCEPT
         again = held & forgot
-        others = [[row for row in rows if names({word}, row)] for word in held - forgot]
-        apart = all(other and not any(names(again, row) for row in other) for other in others)
-        found |= again if apart else set()
+        lead = kept[: next((at for at, word in enumerate(kept) if word in again), 0)]
+        others = {word: [row for row in rows if names({word}, row)] for word in held - forgot}
+        unread = any(word in lead and not other for word, other in others.items())
+        clash = any(names(again, row) for other in others.values() for row in other)
+        found |= set() if unread or clash else again
     return found & named
 
 

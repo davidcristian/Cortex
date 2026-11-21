@@ -181,10 +181,14 @@ async def test_a_forget_of_every_value_limited_to_a_row_keeps_the_other_rows(
         ("Forget the card 4242, I don't need the card.", _ENGLISH, ["locker", "phone"]),
         ("Forget the card 4242, the card one, thanks.", _ENGLISH, ["locker", "phone"]),
         ("Forget the card 4242 and the phone, keep the phone.", _ENGLISH, ["locker", "phone"]),
-        ("Forget the card 4242, keep the card statement.", _ENGLISH, ["locker", "phone"]),
-        ("Forget the card 4242, keep the card and the statement.", _ENGLISH, ["locker", "phone"]),
+        ("Forget the card 4242, keep the statement.", _ENGLISH, ["locker", "phone"]),
+        ("Forget the card 4242, keep the phone only on the phone.", _ENGLISH, ["locker", "phone"]),
+        ("Forget the card 4242, I don't want the card anymore.", _ENGLISH, ["locker", "phone"]),
+        ("Forget the card 4242 only on the card.", _ENGLISH, ["locker", "phone"]),
         ("Forget the card 4242, keep the phone and the locker.", _ENGLISH, ["locker", "phone"]),
         ("Forget my old card 4242, keep the new card.", ("old", "new"), ["new"]),
+        ("Forget my old card 4242, keep only the new card.", ("old", "new"), ["new"]),
+        ("Forget my old card 4242, keep the new card statement.", ("old", "new"), ["new"]),
         ("Forget all 4242 on the card but not the phone.", _ENGLISH, ["locker", "phone"]),
         ("Forget all 4242 and the card except the phone.", _ENGLISH, ["locker", "phone"]),
     ],
@@ -220,6 +224,25 @@ async def test_a_row_the_message_asks_for_in_words_a_reader_reads_is_still_delet
     ],
 )
 async def test_a_row_named_to_forget_and_again_to_keep_is_kept(
+    query: str, ids: tuple[str, ...]
+) -> None:
+    assert (await _forget(query, *ids))[1] == sorted(ids)
+
+
+@pytest.mark.parametrize(
+    ("query", "ids"),
+    [
+        ("Forget the card 4242, keep the card only on the phone.", _ENGLISH),
+        ("Forget the card 4242 except the card only on the card.", _ENGLISH),
+        ("Forget the card 4242, not the card only on the phone.", _ENGLISH),
+        ("Forget the card 4242, keep the card only.", _ENGLISH),
+        ("Forget the card 4242, keep the card statement.", _ENGLISH),
+        ("Forget the card 4242, keep the card and the statement.", _ENGLISH),
+        ("Oublie la carte 4242, garde la carte seulement sur le téléphone.", _FRENCH),
+        ("Oublie la carte 4242 sauf la carte seulement sur la carte.", _FRENCH),
+    ],
+)
+async def test_a_row_named_again_to_keep_beside_a_word_naming_no_row_is_kept(
     query: str, ids: tuple[str, ...]
 ) -> None:
     assert (await _forget(query, *ids))[1] == sorted(ids)
