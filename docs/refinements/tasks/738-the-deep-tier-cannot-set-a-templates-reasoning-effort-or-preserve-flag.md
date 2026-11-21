@@ -10,10 +10,10 @@ The Qwen3.8 template reads `reasoning_effort` (`xhigh` by default, `high` render
 The deep tier sends neither, so the deep pick, Qwen3.8-27B (ADR-0004 decision 8), runs at `xhigh`,
 which is not its best measured setting. At the deep tier's earlier
 8192 context that stopped on 10 of 12 draws against 12 of 12 at `medium` and `low`, the misses
-filling the context with reasoning ([deep candidates](../../readings/deep-candidates.md)). No
-Qwen3.8 draw was taken at the shipped 16384, where gemma-4-31B's one miss at 8192 reasoned 418
-tokens further and replied
-([deep tier at 16384](../../readings/history-window.md#the-deep-tier-at-16384)).
+filling the context with reasoning ([deep candidates](../../readings/deep-candidates.md)). At
+the shipped 16384 it stopped on 11 of 12 without a drafter and 12 of 12 with its draft layer, at
+a median of 2327 and 2883.5 reasoning tokens a draw, and at `medium` on 12 of 12 at a median of
+1182.5 ([the stop rows at 16384](../../readings/deep-candidates.md#the-stop-rows-at-16384)).
 
 Only the Qwen3.8 template reads the effort: the gemma, Qwen3.5 and Qwen3.6 templates render every
 value the same as none ([thinking-switch readings](../../readings/thinking-switch.md#the-effort-and-preserve-settings)).
@@ -76,3 +76,11 @@ and the maintainer declines step two.
   server puts an empty thought before each earlier reply
   ([readings](../../readings/model-swap.md#a-handoff-on-the-deep-pick)). The proposal is
   unchanged.
+- 2026-11-21: the stop rows at 16384 are this task's evidence
+  ([readings](../../readings/deep-candidates.md#the-stop-rows-at-16384)). `reasoning_effort` as
+  a request field changes the render on b12375, and `chat_template_kwargs` renders the same
+  bytes. Without a drafter `medium` stopped on 12 of 12 at a median of 1182.5 reasoning tokens,
+  against 11 of 12 and 2327 at `xhigh`; the one `xhigh` miss spent the whole context. With the
+  draft layer `low` stopped on 12 of 12 at 1415.5 and `xhigh` on 12 of 12 at 2883.5. One `medium`
+  draw still reasoned 9670 tokens before it replied. The undrafted `low` cell was not drawn and
+  the drafted `medium` cell has 7 of 12 draws. The recommendation of `medium` is unchanged.

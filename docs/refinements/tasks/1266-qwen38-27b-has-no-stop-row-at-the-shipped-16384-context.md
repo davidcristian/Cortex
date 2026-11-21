@@ -1,9 +1,8 @@
 # Qwen3.8-27B has no stop row at the shipped 16384 context
 
-**Status:** open, actionable
+**Status:** done 2026-11-21
 **Area:** inference-model-manager
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-11-20
 
 ADR-0004 decision 8 names `Qwen3.8-27B-UD-Q4_K_M` as the deep pick and says the stop counts do
 not separate it from gemma-4-31B. Those counts were drawn on 2026-09-26 on engine build b10680,
@@ -41,7 +40,41 @@ What would close it: the rows added to the stop rows of deep candidates, and ADR
 changed where it says no stop count was drawn at 16384, or the decision reopened if `xhigh` reads
 apart from gemma-4-31B's 12 of 12.
 
+## Prediction
+
+Written on 2026-11-21 before the first counted draw. Against gemma-4-31B's 12 of 12 a cell reads
+apart, by the stop rows' two-sided Fisher test at p below 0.05, only at 7 of 12 or fewer.
+
+| cell | stops of 12 (range) | reasoning tokens a draw, median (range) |
+| --- | --- | --- |
+| draft layer, `xhigh` (nothing sent) | 11 (9 to 12) | 2200 (1700 to 3000) |
+| no drafter, `xhigh` (nothing sent) | 11 (9 to 12) | 2200 (1700 to 3000) |
+| no drafter, `medium` | 12 (11 to 12) | 1350 (1000 to 1900) |
+| draft layer, `medium` | 12 (11 to 12) | 1350 (1000 to 1900) |
+| no drafter, `low` | 12 (11 to 12) | 1100 (800 to 1600) |
+| draft layer, `low` | 12 (11 to 12) | 1100 (800 to 1600) |
+
+- **The misses.** Both 8192 misses at `xhigh` were Q4 draws. Predicted: at most one Q4 draw in
+  each `xhigh` cell reasons to the end of the 16384 context, and no draw of Q1 to Q3 does.
+- **The drafter.** Predicted to change no count by more than one draw at any effort, and to
+  change the text of most replies, because a drafted launch decodes in batches of another size.
+  The null result is the same count, within one draw, in both cells of an effort.
+- **The effort field.** Predicted: `reasoning_effort` as a top-level request field changes the
+  rendered prompt on b12375 as it did on b10680.
+
+A cell the time box does not reach is named as not drawn.
+
 ## History
 
 - 2026-11-20: filed when the maintainer made Qwen3.8-27B the deep pick on its fit inside the
   model budget. The stop counts the decision calls level were drawn at 8192.
+- 2026-11-21: drawn on build b12375 as the model host starts the tier, at 16384 and `q8_0`. At
+  `xhigh` the pick stopped on 11 of 12 without a drafter and 12 of 12 with its draft layer; at
+  `medium` without a drafter on 12 of 12, and at `low` with the layer on 12 of 12. No cell reads
+  apart from gemma-4-31B's 12 of 12, and every prediction for those four cells held
+  ([readings](../../readings/deep-candidates.md#the-stop-rows-at-16384)). The drafted `medium`
+  cell has 7 of its 12 draws, all stopped, and the undrafted `low` cell was not drawn: the
+  second drafted launch drew `low` first so that each effort had a whole cell. ADR-0004
+  decision 8 now gives the 16384 counts. Filed:
+  [R-1271](1271-no-stop-row-is-drawn-beside-a-full-handoff-prompt.md), for the draws that
+  generated more than a full handoff prompt leaves.

@@ -120,8 +120,8 @@ Both deep servers started as `llama-server --model
 - **The effort.** The tier sends no effort, so both requests reasoned at the template's `xhigh`,
   and both ended on their own. The trace was 2,116 characters without the drafter, where the model
   wrote its reply twice and counted the words of each, and 120 with it. That is one draw each; the
-  stop count at 16384 is
-  [R-1266](../refinements/tasks/1266-qwen38-27b-has-no-stop-row-at-the-shipped-16384-context.md)'s.
+  stop counts at 16384 are in
+  [deep candidates](deep-candidates.md#the-stop-rows-at-16384).
   The drafted request decoded at 1.58 times the rate of the other, over replies of 103 and 878
   tokens.
 - **The template.** Neither deep request had more than one leading system message, since the

@@ -96,20 +96,20 @@ lineup](../readings/model-lineup.md), [deep candidates](../readings/deep-candida
    ([readings](../readings/kv-cache-every-model.md)): started as the model host starts the
    tier, at 16K with every layer on the card, it read 18,375 to 19,774 MiB above the floor over
    eight launches ([readings](../readings/kv-cache-deep-whole.md)).
-   On four written questions, three seeds each, at the tier's earlier 8192 context, the pick
-   stopped on 10 of 12 at its template's default effort (`xhigh`) and on 12 at `low` and at
-   `medium`, the alternate on 11, Qwen3.6-35B-A3B (at `UD-Q3_K_XL`) on 6 and gemma-4-26B-A4B on
-   5; only the A4B's count reads apart from the alternate's. At the engine's sampler, thinking
-   on, the pick obeys 0 of 100 framed injection draws against 0 unframed, and the alternate 0
-   against 8. The pick has four costs: a median of 2189 reasoning tokens a draw at its default
-   effort against the alternate's 1434; no QAT weights and none of the cortex's family, template
-   or prompt idiom; an effort level and a preserve flag the tier cannot set
-   ([R-738](../refinements/tasks/738-the-deep-tier-cannot-set-a-templates-reasoning-effort-or-preserve-flag.md));
-   and no stop count drawn at the shipped 16384. The two mixture-of-experts entries decode about
-   four times as fast as the alternate, but each draw of theirs that did not stop filled the
-   context reasoning. Qwen3.8-Flash-Next fits neither the card nor this machine's memory: paged
-   from the mount it took 1.65 times the stall bound to its first token, and whether it stops
-   was not drawn. The deep tier has no default artifact: a deployment names the pick to start it.
+   On four written questions at the shipped 16384 context, the pick stopped on 11 of 12 draws at its
+   template's default effort (`xhigh`), 12 with its draft layer and 12 at `medium`, the alternate on
+   12 ([readings](../readings/deep-candidates.md#the-stop-rows-at-16384)). At 8192 the alternate
+   stopped on 11, Qwen3.6-35B-A3B (at `UD-Q3_K_XL`) on 6 and gemma-4-26B-A4B on 5, the one count
+   apart. At the engine's sampler, thinking on, the pick obeys 0 of 100 framed injection draws
+   against 0 unframed, and the alternate 0 against 8. The pick has three costs: a median of 2327
+   reasoning tokens a draw at `xhigh` against the alternate's 1434; no QAT weights and none of the
+   cortex's family, template or prompt idiom; and an effort and a preserve flag the tier cannot set
+   ([R-738](../refinements/tasks/738-the-deep-tier-cannot-set-a-templates-reasoning-effort-or-preserve-flag.md)).
+   The two mixture-of-experts entries decode about four times as fast as the alternate, but each
+   draw of theirs that did not stop filled the context reasoning. Qwen3.8-Flash-Next fits neither
+   the card nor this machine's memory: paged from the mount it took 1.65 times the stall bound to
+   its first token, and whether it stops was not drawn. The deep tier has no default artifact: a
+   deployment names the pick to start it.
 
 9. **Embedder: nomic-embed-text-v1.5 Q8_0**, 768-dimensional, on the CPU (`-ngl 0`), negligible in
    memory. `nomic-embed-text-v2-moe` is the multilingual alternative. The override is

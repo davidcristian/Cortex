@@ -157,6 +157,50 @@ adapter now joins the three for this template, so the recap reaches it
 ([ADR-0071](../adr/ADR-0071-leading-system-messages.md)). It loaded in 96.8 s (16,417 MiB; 16,443
 on 2026-08-04).
 
+## The stop rows at 16384
+
+**2026-11-21**, the pick's file alone on the 24 GB card, engine build `b12375-9d25e0014` from the
+`cortex-model-host` image. Only the model host of the repo's compose files was started, with
+`CORTEX_MODEL_FILE_BRAIN` naming the file and every other setting on its compose default; the
+cortex was stopped and the deep tier started over the control API. The drafted launches also named
+the file as `CORTEX_MODEL_FILE_BRAIN_DRAFT`. Every deep server ran `-ngl 99 --ctx-size 16384
+--parallel 1 --jinja --cache-ram 0 --cache-type-k q8_0 --cache-type-v q8_0`, the drafted ones with
+`--spec-type draft-mtp --spec-draft-n-max 3` and both draft cache flags at `q8_0`. The draws are
+the cells' above, with the same request, no cap and the sampler of 2026-09-26; `medium` and `low`
+are the request field `reasoning_effort`. The predictions were written into
+[R-1266](../refinements/tasks/1266-qwen38-27b-has-no-stop-row-at-the-shipped-16384-context.md)
+before the first draw. Against gemma-4-31B's 12 of 12 a cell reads apart only at 7 or fewer.
+
+| cell | stopped (predicted) | held | right | reasoning tokens, median (range) (predicted) | held | longest draw, generated | card above the floor, highest |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| draft layer, `xhigh`, nothing sent | 12 (11, 9 to 12) | yes | 11 | 2883.5 (831 to 14,964) (2200, 1700 to 3000) | yes | 15,610 | 17,002 MiB |
+| no drafter, `xhigh`, nothing sent | 11 (11, 9 to 12) | yes | 10 | 2327 (1014 to 16,080) (2200, 1700 to 3000) | yes | 16,080 | 15,977 MiB |
+| no drafter, `medium` | 12 (12, 11 to 12) | yes | 11 | 1182.5 (746 to 9670) (1350, 1000 to 1900) | yes | 10,207 | 15,976 MiB |
+| draft layer, `low` | 12 (12, 11 to 12) | yes | 12 | 1415.5 (929 to 6380) (1100, 800 to 1600) | yes | 7086 | 17,004 MiB |
+| draft layer, `medium`, 7 draws: Q1, Q2 and Q3 d1 | 7 of 7 | not complete | 7 of 7 | not complete | | 5031 | 17,003 MiB |
+| no drafter, `low` | not drawn | | | | | | |
+
+- **The one miss.** Q4 d1 at `xhigh` without the drafter reasoned 16,080 tokens, with its 304
+  prompt tokens the whole context, and returned no reply. Three more Q4 draws stopped late: after
+  14,964 reasoning tokens with the layer at `xhigh`, 470 tokens before the context's end, after
+  10,458 without it, and after 9670 at `medium`. Each would have filled the first rows' 8192. No
+  Q1 to Q3 draw generated more than 6799 tokens, as predicted.
+- **A handoff's room.** 5 of the 24 `xhigh` draws, 1 of the 12 undrafted `medium` draws and 1 of
+  the 12 `low` draws generated more than the 5521 tokens a full history window leaves at 16384
+  ([R-1271](../refinements/tasks/1271-no-stop-row-is-drawn-beside-a-full-handoff-prompt.md)).
+- **The effort field.** `POST /apply-template` on the deep server renders the `xhigh` sentence
+  when nothing, `high` or `xhigh` is sent, a `low` sentence at `low` and no effort sentence at
+  `medium`: 322, 310 and 284 prompt tokens on Q3, which a completion's `usage.prompt_tokens`
+  matched. `chat_template_kwargs` naming the effort renders the same bytes as the field.
+- **The drafter.** 12 against 11 at `xhigh` is the predicted null result. No drafted reply has
+  the undrafted reply's text. The drafted `xhigh` cell decoded at 1.98 times the undrafted cell's
+  median rate, with 32,347 of 56,589 drafted tokens accepted.
+- **Right by hand.** Wrong: Q4 d1 with the layer at `xhigh` (the owner alone on a Saturday that
+  needs two people for four hours), Q2 d1 without it (3764/1365) and Q2 d1 at `medium` (284/105).
+
+Method: `up.sh`, `stop16.py` and `effort_probe.py` in `~/.cache/cortex-run/2026-11-21/s1/` over the
+first rows' `questions.py`; `cells/` there has every reply and `grades.md` the hand reading.
+
 ## Qwen3.8-Flash-Next
 
 Its feasibility rows, at the shipped 24g cap and at a 20g cap, are in
