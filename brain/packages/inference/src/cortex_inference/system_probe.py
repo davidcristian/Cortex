@@ -4,6 +4,8 @@ from typing import cast
 
 import httpx
 
+from cortex_inference.probe_bound import ProbeTimeoutError, answered_within
+
 __all__ = ["SYSTEM_PROBE_TIMEOUT_S", "SystemProbeError", "delivers_system_messages"]
 
 _APPLY_TEMPLATE_PATH = "/apply-template"
@@ -13,8 +15,9 @@ _APPLY_TEMPLATE_PATH = "/apply-template"
 _RENDERED_STATUS = 200
 _TEMPLATE_RAISED_STATUS = 500
 
-# The probe runs inside the model lease on every request that opens with several system messages.
-# Its worst answer over four servers, idle and beside a generation, took 0.013 of this bound.
+# The probe runs inside the model lease on every request that opens with several system messages,
+# so the bound is over the whole answer. The worst of four servers, idle and beside a generation,
+# took 0.013 of it.
 SYSTEM_PROBE_TIMEOUT_S = 2.0
 
 
@@ -69,8 +72,10 @@ async def delivers_system_messages(
     }
     url = f"{endpoint.rstrip('/')}{_APPLY_TEMPLATE_PATH}"
     try:
-        response = await client.post(url, json=body, timeout=SYSTEM_PROBE_TIMEOUT_S)
-    except httpx.HTTPError as err:
+        response = await answered_within(
+            SYSTEM_PROBE_TIMEOUT_S, client.post(url, json=body, timeout=SYSTEM_PROBE_TIMEOUT_S)
+        )
+    except (httpx.HTTPError, ProbeTimeoutError) as err:
         msg = f"the template render request failed: {type(err).__name__}: {err}"
         raise SystemProbeError(msg) from err
     if response.status_code == _TEMPLATE_RAISED_STATUS:

@@ -12,7 +12,7 @@ decode rate when the server reports one (ADR-0055 decision 4). No orchestration 
 wire, `decode.py` maps the wire back, `backend.py` keeps what neither can own (the lease, the HTTP
 call, and the order events leave in), `trace_probe.py` asks a server one question before any
 request is built, `system_probe.py` asks the leased server one before a request that opens with
-several system messages, `effort_probe.py` asks it one before a request that names an effort, and `serving_probe.py` asks the cortex's server, or a subagent's, whether
+several system messages, `effort_probe.py` asks it one before a request that names an effort, `probe_bound.py` (`answered_within`, `ProbeTimeoutError`) bounds the whole answer of each of those three, and `serving_probe.py` asks the cortex's server, or a subagent's, whether
 it is serving. Package-internal modules have no leading underscore, which marks a private module.
 
 ## Public contract
@@ -98,7 +98,7 @@ own, so the adapter asks the template rather than choosing one layout for every 
 
 `delivers_system_messages(endpoint, model, count, client)` in `system_probe.py` POSTs `count`
 system messages, each holding a distinct marker, and a user `.` to `{endpoint}/apply-template`,
-with no tools and a timeout of `SYSTEM_PROBE_TIMEOUT_S` (2.0 s) on that request. It returns `True`
+with no tools, its whole answer bounded by `SYSTEM_PROBE_TIMEOUT_S` (2.0 s). It returns `True`
 when the rendered `prompt` holds every marker in order, and `False` when one is missing or out of
 order or the server answers 500, which it does when a template raises. Any other answer raises
 `SystemProbeError`. `stream` asks inside the lease whenever `leading_system_count(messages)` is two
@@ -108,7 +108,7 @@ one's stamp. A lone system message, and one after any other role, are never touc
 cached, since the model file behind an endpoint can change under a running brain. The backend logs
 `system message probe answered` at `INFO` (`endpoint`, `system_messages`, `delivers`) and
 `system message probe failed; joining the leading system messages` at `WARNING` (`endpoint`,
-`system_messages`, `error`), each only when an endpoint's outcome for a count changes. **An effort is sent the same way** (ADR-0049 decisions 18 and 19). `effort_wire_name(endpoint, effort, client)` in `effort_probe.py` reads `chat_template_caps` from `GET {endpoint}/props` under `EFFORT_PROBE_TIMEOUT_S` (2.0 s) and returns the name `GenerationBounds.effort` is sent under, or `None`: nothing unless `supports_reasoning_effort` is true, the first of the level's names (`low`; `medium`; `high`, then `xhigh`) that `reasoning_effort_levels` has, and the level's own name where the build lists none. An answer it cannot read raises `EffortProbeError`. `stream` asks inside the lease when the bounds name an effort and leave thinking on, and `build_payload(..., effort=name)` adds `reasoning_effort` as the one extra field; `None` and a failure send the request without it. The backend logs `reasoning effort sent` (`endpoint`, `model`, `effort`, `sent_as`) and `reasoning effort not sent because the served template does not read it` at `INFO`, and `reasoning effort probe failed; sending no effort` at `WARNING`, each only when an endpoint's outcome changes. Bounds naming no effort send the bytes they sent before, and no probe.
+`system_messages`, `error`), each only when an endpoint's outcome for a count changes. **An effort is sent the same way** (ADR-0049 decisions 18 and 19). `effort_wire_name(endpoint, effort, client)` in `effort_probe.py` reads `chat_template_caps` from `GET {endpoint}/props`, its whole answer bounded by `EFFORT_PROBE_TIMEOUT_S` (2.0 s), and returns the name `GenerationBounds.effort` is sent under, or `None`: nothing unless `supports_reasoning_effort` is true, the first of the level's names (`low`; `medium`; `high`, then `xhigh`) that `reasoning_effort_levels` has, and the level's own name where the build lists none. An answer it cannot read raises `EffortProbeError`. `stream` asks inside the lease when the bounds name an effort and leave thinking on, and `build_payload(..., effort=name)` adds `reasoning_effort` as the one extra field; `None` and a failure send the request without it. The backend logs `reasoning effort sent` (`endpoint`, `model`, `effort`, `sent_as`) and `reasoning effort not sent because the served template does not read it` at `INFO`, and `reasoning effort probe failed; sending no effort` at `WARNING`, each only when an endpoint's outcome changes. Bounds naming no effort send the bytes they sent before, and no probe.
 
 ## The trace budget, and why it is a constructor argument
 
@@ -131,7 +131,7 @@ on the same backend log nothing. A zero sent beside `thinking=False` is not repo
 reported. The flag is read and written with no await between, so concurrent streams print one line.
 
 `reads_a_trace_budget(endpoint, model, client)` is the capability probe: one POST with an
-out-of-range budget, bounded by `TRACE_BUDGET_PROBE_TIMEOUT_S`. A build that parses the key rejects
+out-of-range budget, its whole answer bounded by `TRACE_BUDGET_PROBE_TIMEOUT_S`. A build that parses the key rejects
 it by name (HTTP 400, `b10666-4e97ac86e` on 2026-08-29); one that does not answers the completion
 (HTTP 200, `b9870-2d973636e` a minute later). Any other 2xx or 4xx is no. A transport error or a
 5xx, such as the 503 of a server still loading, raises `TraceProbeUnansweredError`.

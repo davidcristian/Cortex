@@ -8,6 +8,7 @@ import logging
 
 import httpx
 
+from cortex_inference.probe_bound import ProbeTimeoutError, answered_within
 from cortex_inference.request import TRACE_BUDGET_KEY
 
 __all__ = [
@@ -30,9 +31,9 @@ _OUT_OF_RANGE = -2
 _REFUSED_STATUS = 400
 _UNAVAILABLE_FROM = 500
 
-# The probe's whole timeout. Sized from what the request costs on the slowest tier this repo
-# ships, the subagent pick on CPU: a five-token prompt evaluates in 235 to 310 ms and one token
-# decodes in 111 ms, so five seconds is roughly ten times the cost.
+# The bound on the probe's whole answer. Sized from what the request costs on the slowest tier
+# this repo ships, the subagent pick on CPU: a five-token prompt evaluates in 235 to 310 ms and
+# one token decodes in 111 ms, so five seconds is roughly ten times the cost.
 TRACE_BUDGET_PROBE_TIMEOUT_S = 5.0
 
 _logger = logging.getLogger(__name__)
@@ -59,10 +60,11 @@ async def reads_a_trace_budget(endpoint: str, model: str, client: httpx.AsyncCli
         TRACE_BUDGET_KEY: _OUT_OF_RANGE,
     }
     try:
-        response = await client.post(
-            _probe_url(endpoint), json=body, timeout=TRACE_BUDGET_PROBE_TIMEOUT_S
+        response = await answered_within(
+            TRACE_BUDGET_PROBE_TIMEOUT_S,
+            client.post(_probe_url(endpoint), json=body, timeout=TRACE_BUDGET_PROBE_TIMEOUT_S),
         )
-    except httpx.HTTPError as err:
+    except (httpx.HTTPError, ProbeTimeoutError) as err:
         raise TraceProbeUnansweredError(str(err)) from err
     if response.status_code >= _UNAVAILABLE_FROM:
         msg = f"the server answered {response.status_code}"

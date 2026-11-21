@@ -5,6 +5,7 @@ from typing import cast
 import httpx
 
 from cortex_core.inference import ReasoningEffort
+from cortex_inference.probe_bound import ProbeTimeoutError, answered_within
 
 __all__ = ["EFFORT_PROBE_TIMEOUT_S", "EffortProbeError", "effort_wire_name"]
 
@@ -21,7 +22,8 @@ _WIRE_NAMES: dict[ReasoningEffort, tuple[str, ...]] = {
     ReasoningEffort.HIGH: ("high", "xhigh"),
 }
 
-# The probe runs inside the model lease on every request that names an effort.
+# The probe runs inside the model lease on every request that names an effort, so the bound is
+# over the whole answer.
 EFFORT_PROBE_TIMEOUT_S = 2.0
 
 
@@ -68,8 +70,10 @@ async def effort_wire_name(
     """
     url = f"{endpoint.rstrip('/')}{_PROPS_PATH}"
     try:
-        response = await client.get(url, timeout=EFFORT_PROBE_TIMEOUT_S)
-    except httpx.HTTPError as err:
+        response = await answered_within(
+            EFFORT_PROBE_TIMEOUT_S, client.get(url, timeout=EFFORT_PROBE_TIMEOUT_S)
+        )
+    except (httpx.HTTPError, ProbeTimeoutError) as err:
         msg = f"the properties request failed: {type(err).__name__}: {err}"
         raise EffortProbeError(msg) from err
     if response.status_code != _ANSWERED_STATUS:

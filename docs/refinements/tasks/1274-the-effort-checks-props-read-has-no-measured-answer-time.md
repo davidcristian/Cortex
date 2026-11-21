@@ -6,20 +6,16 @@
 **Verified:** 2026-11-21
 
 A request that names a reasoning effort reads `GET /props` of the leased server inside the lease,
-under `EFFORT_PROBE_TIMEOUT_S`, 2.0 s (`effort_probe.py`, ADR-0049 decision 18). The bound is the
-one the system message probe has, whose worst answer was measured over 240 probes on four servers
-(ADR-0071 decision 3). No reading says how long `/props` takes on the deep server. Its body holds
-the whole chat template, and the read runs before every completion of a deep phase's tool loop.
+with the whole answer bounded by `EFFORT_PROBE_TIMEOUT_S`, 2.0 s (`effort_probe.py`, ADR-0049
+decision 18). The bound is the one the system message probe has, whose worst answer was measured
+over 240 probes on four servers (ADR-0071 decision 3). No reading says how long `/props` takes on
+the deep server. Its body holds the whole chat template, and the read runs before every
+completion of a deep phase's tool loop.
 
 The two live reads, on Qwen3.8-27B with its draft layer on build b12375, were answered, and each
 completion's headers arrived 0.0025 of that bound after the answer
 ([readings](../../readings/model-swap.md#a-handoff-on-the-deep-pick)). That says nothing about how
 long the read itself took.
-
-The 2.0 s bounds each read of the answer and not the whole of it, which is how httpx applies a
-timeout given as one number. Through `effort_wire_name` on 2026-11-21, a loopback server that
-took the request and sent nothing cost 1.01 of the bound before the probe failed. One that sent
-its answer 12 bytes a second was waited on for 4.5 times the bound, and its answer was then read.
 
 ## Proposal
 
@@ -27,8 +23,7 @@ Read `/props` 240 times on the deep server as the model host starts it, idle and
 generation on its one slot, through the adapter's client and timeout. Write the worst answer, as a
 share of the 2.0 s bound, into the readings and beside the constant. A worst answer above 0.25 of
 the bound is a reason to ask once for each model process and not before every request, which
-ADR-0049 decision 18 would then state. The same rows say whether the read needs one bound over
-the whole answer.
+ADR-0049 decision 18 would then state.
 
 **What closes it.** The readings row and the constant's comment, or the changed check.
 

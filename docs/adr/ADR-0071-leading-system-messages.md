@@ -45,8 +45,8 @@ test could fail on it.
 3. **It asks the leased server on every such request.** Inside the model lease, before the
    completion, `delivers_system_messages` (`system_probe.py`) sends one `POST /apply-template` to
    `lease.endpoint`: as many system messages as the request opens with, each holding a distinct
-   marker, then a user message `.`, with no tools and no template arguments, and a 2.0 s timeout of
-   its own. `/apply-template` renders the template and nothing else: it takes no slot and decodes
+   marker, then a user message `.`, with no tools and no template arguments, and a 2.0 s bound of
+   its own over the whole answer. `/apply-template` renders the template and nothing else: it takes no slot and decodes
    nothing, so it answers while a one-slot server is decoding. The answer is not cached, because
    the file behind an endpoint can change while the brain runs (the model host restarted with
    another `CORTEX_MODEL_FILE_*`, or a subagent server recreated from an override), and a stale

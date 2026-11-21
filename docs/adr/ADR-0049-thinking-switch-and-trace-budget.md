@@ -114,7 +114,7 @@ how those measurements are taken is [ADR-0050](ADR-0050-live-probe-records.md).
     the check. Every other 2xx or 4xx is no, and the request then sends no budget. A transport
     error or a 5xx (a server still loading) is no answer: the request goes without a budget and the
     probe is asked again before the next one, until an engine answers. `GET /props` does not answer the question, and its `build_info` is only a proxy for
-    it. `on` and `off` fix the answer and open no socket. The probe is bounded by
+    it. `on` and `off` fix the answer and open no socket. The probe's whole answer is bounded by
     `TRACE_BUDGET_PROBE_TIMEOUT_S` (5 s), well above the sub-second answer measured on the slowest
     tier the repo ships.
 12. **The first answer is kept for the process and covers the deep tier.** Whether the engine reads a
@@ -165,7 +165,9 @@ how those measurements are taken is [ADR-0050](ADR-0050-live-probe-records.md).
     ([thinking switch](../readings/thinking-switch.md#the-effort-and-preserve-settings)).
 18. **The adapter sends it as `reasoning_effort`, under a name the leased server lists.** Inside
     the lease, before the completion, `effort_wire_name` (`effort_probe.py`) reads
-    `chat_template_caps` from `GET /props` of `lease.endpoint`, with a 2.0 s timeout of its own.
+    `chat_template_caps` from `GET /props` of `lease.endpoint`, with a 2.0 s bound of its own over
+    the whole answer: `answered_within` (`probe_bound.py`) ends the read at the bound, since a
+    number given to httpx bounds each read and an answer sent a few bytes at a time outlasts it.
     Unless `supports_reasoning_effort` is true, nothing is sent. Where the answer has a
     `reasoning_effort_levels` list, a level is sent under the first of its names the list has:
     `low`, `medium`, and for the top level `high`, then `xhigh`. Build `b12375` lists `low`,
