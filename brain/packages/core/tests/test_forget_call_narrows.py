@@ -154,3 +154,40 @@ async def test_a_call_holding_a_digit_deletes_a_row_the_message_names_and_its_re
     query: str, text: str, ids: tuple[str, ...], said: str, gone: set[str]
 ) -> None:
     assert (await _deleted(query, text, ids, said))[0] == gone
+
+
+@pytest.mark.parametrize(
+    ("query", "text", "ids", "said"),
+    [
+        ("Forget my gym code.", "my card is 4111", _THREE, ""),
+        ("Forget my gym code.", "phone is 0721", _THREE, ""),
+        ("Forget my code.", "my card is 4111", _THREE, ""),
+        ("Forget my gym code.", "my card is 4111", _THREE, "phone"),
+        ("Oublie le code de la salle.", "ma carte est 4111", ("casier", "carte"), ""),
+    ],
+)
+async def test_a_call_holding_a_digit_beside_a_code_word_naming_another_stored_row_deletes_nothing(
+    query: str, text: str, ids: tuple[str, ...], said: str
+) -> None:
+    assert (await _deleted(query, text, ids, said))[0] == set()
+
+
+async def test_a_word_call_beside_a_code_word_keeps_the_row_the_chat_just_stored() -> None:
+    assert (await _deleted("Forget that code.", "phone", said="phone"))[0] == set()
+
+
+@pytest.mark.parametrize(
+    ("query", "text", "ids", "gone"),
+    [
+        ("Forget my gym password.", "my card is 4111", _THREE, {"card"}),
+        ("Forget my gym code.", "my card is 4111", ("card", "phone"), {"card"}),
+        ("Forget my code 4242.", "4242", _THREE, {"locker"}),
+        ("Forget every code 4242.", "4242", _THREE, {"locker"}),
+        ("Forget everything.", "my card is 4111", _THREE, {"card"}),
+        ("Forget everything and my code.", "my card is 4111", _THREE, {"card"}),
+    ],
+)
+async def test_a_call_holding_a_digit_beside_no_code_word_naming_a_stored_row_deletes_what_it_names(
+    query: str, text: str, ids: tuple[str, ...], gone: set[str]
+) -> None:
+    assert (await _deleted(query, text, ids))[0] == gone

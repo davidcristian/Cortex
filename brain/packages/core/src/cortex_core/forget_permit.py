@@ -20,7 +20,7 @@ from cortex_core.forget_inside import bounded, content, may_keep, request
 from cortex_core.forget_keep_named import forget_named
 from cortex_core.forget_kinds import MINUS, names
 from cortex_core.forget_results import ALREADY_DELETED, FORGET_CHOSEN_LIMIT, NONE_FOUND
-from cortex_core.forget_unnamed import TOPIC
+from cortex_core.forget_unnamed import TOPIC, just_said
 from cortex_core.memory import MemoryRecord
 from cortex_core.memory_values import code_word, whole_values
 from cortex_core.ports import MemoryStore
@@ -64,19 +64,24 @@ async def _coded(
     told: Sequence[MemoryRecord],
     seen: Sequence[MemoryRecord],
 ) -> frozenset[str] | None:
-    """The ids a message naming no row of ``told`` and no word for all permits a call text holding
-    no digit to list: the stored rows, and those of ``seen``, whose request holds a code word it
-    asks to forget. ``None`` when no row does or it is no such message."""
+    """The ids a message naming no row of ``told`` and no word for all permits a call to list: each
+    row, stored or of ``seen``, whose request holds a code word it asks to forget, and for a call
+    text holding a digit the row ``just_said`` reads. ``None`` if none does or both hold a digit."""
     tokens = parts(call.stamp.query)[0]
     codes = {token for token in tokens if code_word(token)}
-    if told or not EVERY.isdisjoint(tokens):
+    valued = _digit(call_text(call))
+    if told or not EVERY.isdisjoint(tokens) or (valued and _digit(call.stamp.query)):
         return None
     scopes = scope.read_scopes(call.stamp.session_id)
     rows = list(seen)
     for word in sorted(codes):
         rows += await store.find_text(word, limit=FORGET_CHOSEN_LIMIT + 1, scopes=scopes)
     asked = {row.id: _TOKEN.findall(row.text.split(_REPLY, 1)[0].lower()) for row in rows}
-    return frozenset(row for row, words in asked.items() if not codes.isdisjoint(words)) or None
+    held = {row for row, words in asked.items() if not codes.isdisjoint(words)}
+    said = just_said(list(seen), call.stamp.session_id) if valued else None
+    if not held:
+        return None
+    return frozenset(held if said is None else held | {said})
 
 
 async def permitted(
@@ -157,13 +162,13 @@ async def message_rows(
     listing: Listing,
 ) -> tuple[list[MemoryRecord], frozenset[str] | None]:
     """The rows ``forget_named`` reads from the call's message, and the ids it permits a call to
-    list: for a call text holding a digit those of ``_same_fact``, else those of ``permitted`` or
-    ``_coded``, less each row a forget of everything keeps as unread."""
+    list: for a call text holding a digit those of ``_same_fact``, else those of ``permitted``,
+    or those of ``_coded`` when neither reads it, less each row a forget of everything keeps."""
     told = await forget_named(store, scope, call, FORGET_CHOSEN_LIMIT + 1, seen)
     allowed = await permitted(call, told, listing)
     if _digit(call_text(call)):
         allowed = _same_fact(call, told, seen)
-    elif allowed is None:
+    if allowed is None:
         allowed = await _coded(store, scope, call, told, seen)
     beyond = await _beyond_every(store, scope, call, seen)
     if beyond is None or allowed is None:
