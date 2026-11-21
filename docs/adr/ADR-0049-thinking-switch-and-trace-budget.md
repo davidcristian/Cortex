@@ -154,12 +154,53 @@ how those measurements are taken is [ADR-0050](ADR-0050-live-probe-records.md).
     to differ by the control alone. The kwarg alone has no row: on the plain request the test posts,
     it renders what the request-key row renders.
 
+### The effort level
+
+17. **`GenerationBounds.effort` is an optional level of three**, `ReasoningEffort.LOW`, `MEDIUM` or
+    `HIGH`, for a template that reads one. `None`, the default, names no level, and the request is
+    then the one sent before the field existed. Qwen3.8's is the only template in the lineup that
+    reads a level: it puts a sentence asking for careful thought first in the system turn at its
+    top level, which is also what it renders when nothing is sent, one asking for brief thought at
+    `low`, and none at `medium`
+    ([thinking switch](../readings/thinking-switch.md#the-effort-and-preserve-settings)).
+18. **The adapter sends it as `reasoning_effort`, under a name the leased server lists.** Inside
+    the lease, before the completion, `effort_wire_name` (`effort_probe.py`) reads
+    `chat_template_caps` from `GET /props` of `lease.endpoint`, with a 2.0 s timeout of its own.
+    Unless `supports_reasoning_effort` is true, nothing is sent. Where the answer has a
+    `reasoning_effort_levels` list, a level is sent under the first of its names the list has:
+    `low`, `medium`, and for the top level `high`, then `xhigh`. Build `b12375` lists `low`,
+    `medium` and `xhigh` for Qwen3.8, so the top level reaches it as `xhigh`; the template also
+    takes `high`, renders it as `xhigh`, and raises on any other word. A build that lists no
+    levels is sent the level's own name. A level beside `thinking=False` is neither sent nor
+    asked about, since the template reads none with thinking off. Nothing is cached, for the
+    reason [ADR-0071](ADR-0071-leading-system-messages.md) decision 3 gives.
+19. **A level that is not sent costs the request nothing and is reported once.** A template that
+    reports no capability, a list without the level and a probe that fails each send the request
+    without the field. The backend logs `reasoning effort not sent because the served template
+    does not read it` or `reasoning effort probe failed; sending no effort` at `WARNING`, and
+    `reasoning effort sent` at `INFO`, with `endpoint`, `model` and `effort`, each only when an
+    endpoint's outcome changes. A deep tier on a gemma file, whose template reads no level, is
+    therefore named in the brain's log on its first handoff and not on the ones after it. The
+    stream contract holds the obligation: a request naming an effort is answered by an engine
+    whose template refuses one.
+20. **Only the deep tier's reply names a level, from `CORTEX_REASONING_EFFORT_BRAIN`.**
+    `SwapConfig.brain_effort` reads `low`, `medium` or `high`; any other word fails the brain at
+    boot, and unset, the default, names none. `StreamEngines` adds the level to the bounds of the
+    deep phase's tool loop and to no other request: a cortex turn, the side calls of decision 5 on
+    either tier and a delegated task name none. The model host's `--reasoning-effort` flag is not
+    used: it hands the template any word unchecked, and a word the Qwen3.8 template does not take
+    then fails every reply while the tier reports ready. The default stays unset until the rows
+    are drawn that the rule in
+    [R-738](../refinements/tasks/738-the-deep-tier-cannot-set-a-templates-reasoning-effort-or-preserve-flag.md)
+    names.
+
 ## Consequences
 
 - Nothing requires a new side call to set the zero the three set, or a future cap-and-switch bound
   to run on a tier whose trace is bounded; the drain's warning reports the failure when it happens.
 - A tier flag an older build does not know fails that server at startup rather than being ignored.
 - A reply cap on a deployment whose probe answered no is bounded only by the tier's own flag.
+- A request that names an effort costs one extra `GET /props` inside its lease.
 - What a bounded trace costs the answer is not measured. The side calls' zeros rest on their trace
   being discarded unread, not on a measurement of what it was worth.
 

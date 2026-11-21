@@ -9,6 +9,7 @@ from cortex_core import (
     DEFAULT_SWAP_DRAIN_TIMEOUT_S,
     DEFAULT_SWAP_LOAD_TIMEOUT_S,
     DEFAULT_TIER_RECHECK_INTERVAL_S,
+    ReasoningEffort,
     ResidencyPlan,
 )
 
@@ -38,6 +39,10 @@ class SwapConfig(BaseSettings):
     brain_vram_mib: int = Field(default=0, ge=0, validation_alias="CORTEX_SWAP_BRAIN_VRAM_MIB")
     brain_decode_tps: float = Field(
         default=0.0, ge=0, validation_alias="CORTEX_SWAP_BRAIN_DECODE_TPS"
+    )
+    # Unset sends no level, so the deep model's template applies its own default.
+    brain_effort: ReasoningEffort | None = Field(
+        default=None, validation_alias="CORTEX_REASONING_EFFORT_BRAIN"
     )
     swap_drain_timeout_s: float = Field(default=DEFAULT_SWAP_DRAIN_TIMEOUT_S, ge=0)
     swap_load_timeout_s: float = Field(default=DEFAULT_SWAP_LOAD_TIMEOUT_S, ge=0)

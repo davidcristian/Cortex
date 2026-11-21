@@ -8,11 +8,11 @@ makes (ADR-0009), why the completion ended when the server says (ADR-0048), and 
 decode rate when the server reports one (ADR-0055 decision 4). No orchestration and no session state
 (the one hard rule); the core talks only to `InferenceBackend`.
 
-**Six modules, split by the direction a value travels.** `request.py` maps core values onto the
+**Seven modules, split by the direction a value travels.** `request.py` maps core values onto the
 wire, `decode.py` maps the wire back, `backend.py` keeps what neither can own (the lease, the HTTP
 call, and the order events leave in), `trace_probe.py` asks a server one question before any
 request is built, `system_probe.py` asks the leased server one before a request that opens with
-several system messages, and `serving_probe.py` asks the cortex's server, or a subagent's, whether
+several system messages, `effort_probe.py` asks it one before a request that names an effort, and `serving_probe.py` asks the cortex's server, or a subagent's, whether
 it is serving. Package-internal modules have no leading underscore, which marks a private module.
 
 ## Public contract
@@ -108,7 +108,7 @@ one's stamp. A lone system message, and one after any other role, are never touc
 cached, since the model file behind an endpoint can change under a running brain. The backend logs
 `system message probe answered` at `INFO` (`endpoint`, `system_messages`, `delivers`) and
 `system message probe failed; joining the leading system messages` at `WARNING` (`endpoint`,
-`system_messages`, `error`), each only when an endpoint's outcome for a count changes.
+`system_messages`, `error`), each only when an endpoint's outcome for a count changes. **An effort is sent the same way** (ADR-0049 decisions 18 and 19). `effort_wire_name(endpoint, effort, client)` in `effort_probe.py` reads `chat_template_caps` from `GET {endpoint}/props` under `EFFORT_PROBE_TIMEOUT_S` (2.0 s) and returns the name `GenerationBounds.effort` is sent under, or `None`: nothing unless `supports_reasoning_effort` is true, the first of the level's names (`low`; `medium`; `high`, then `xhigh`) that `reasoning_effort_levels` has, and the level's own name where the build lists none. An answer it cannot read raises `EffortProbeError`. `stream` asks inside the lease when the bounds name an effort and leave thinking on, and `build_payload(..., effort=name)` adds `reasoning_effort` as the one extra field; `None` and a failure send the request without it. The backend logs `reasoning effort sent` at `INFO` (`endpoint`, `model`, `effort`, `sent_as`), and `reasoning effort not sent because the served template does not read it` and `reasoning effort probe failed; sending no effort` at `WARNING`, each only when an endpoint's outcome changes. Bounds naming no effort send the bytes they sent before, and no probe.
 
 ## The trace budget, and why it is a constructor argument
 
@@ -207,10 +207,10 @@ for the completion those two close, each run twice by its `test_*_contract.py`. 
 adapter a real llama-server body, so a pass means the parser found the fact in bytes not written for
 the test.
 
-**The streaming contract states what every stream owes, and never when it owes it.** Twelve checks
-over five worlds a fixture arranges (a reasoning model answering, a completion that asks for a tool,
+**The streaming contract states what every stream owes, and never when it owes it.** Fourteen checks
+over seven worlds a fixture arranges (a reasoning model answering, a completion that asks for a tool, one that goes on calling,
 a completion with nothing to say, a backend that cannot answer, an engine whose template refuses a
-second system message): the reply is its deltas joined in arrival order; the thinking crosses as its
+second system message, one whose template refuses an effort): the reply is its deltas joined in arrival order; the thinking crosses as its
 own kind and is over before the reply starts; a deliberation that arrived despite a request asking
 for none crosses all the same, so an implementation reports what its deployment did rather than
 suppressing it to match the request; a trace that arrived despite a request budgeting it to zero
@@ -219,8 +219,8 @@ switch reads as a request (ADR-0049); a tool call crosses whole; a tool call nev
 words beside it; a completion that goes on calling ends one call past the round's cap; the two closing events arrive at most once each with the stop first and both after
 what they describe; a completion with nothing to say owes no event at all; an abandoned completion
 costs the backend nothing; a backend that cannot answer fails its caller with `InferenceError`; a
-backend answers only for a model it serves; and a request that opens with several system messages is
-answered, with every system text reaching the engine in order. Besides that cap nothing in it counts events, sizes
+backend answers only for a model it serves; a request that opens with several system messages is
+answered, with every system text reaching the engine in order; and a request naming an effort is answered where the template refuses one. Besides that cap nothing in it counts events, sizes
 one, or asks when one arrives, because the two implementations produce them at different rates from
 different sources.
 

@@ -13,6 +13,7 @@ from cortex_core import (
     HandoffStore,
     ModelHost,
     ModelHostError,
+    ReasoningEffort,
     ResidencyPlan,
     ScriptedModelHost,
     SessionStore,
@@ -47,6 +48,7 @@ class SwapRuntime:
     plan: ResidencyPlan
     rechecker: TierRechecker
     close: Callable[[], Awaitable[None]]
+    brain_effort: ReasoningEffort | None = None
 
 
 def build_swap_runtime(  # noqa: PLR0913 -- one more injected collaborator than the DI ceiling
@@ -74,6 +76,7 @@ def build_swap_runtime(  # noqa: PLR0913 -- one more injected collaborator than 
         plan=plan,
         rechecker=rechecker,
         close=_release_all(rechecker.aclose, handoffs.aclose, close_host),
+        brain_effort=swap.brain_effort,
     )
 
 

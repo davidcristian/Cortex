@@ -28,6 +28,7 @@ from cortex_core import (
     PlacementRequest,
     PlacementTarget,
     PlainFormatter,
+    ReasoningEffort,
     ScriptedModelHost,
     Sleeper,
     SubagentPlacer,
@@ -162,6 +163,28 @@ def test_the_tier_recheck_interval_is_read_from_the_deployments_variable(
 ) -> None:
     monkeypatch.setenv("CORTEX_SWAP_TIER_HEAL_S", "7.5")
     assert SwapConfig().swap_tier_recheck_s == 7.5
+
+
+def test_the_deep_tier_names_no_effort_unless_the_deployment_sets_one(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("CORTEX_REASONING_EFFORT_BRAIN", raising=False)
+    assert SwapConfig().brain_effort is None
+
+
+@pytest.mark.parametrize(
+    ("written", "effort"),
+    [
+        ("low", ReasoningEffort.LOW),
+        ("medium", ReasoningEffort.MEDIUM),
+        ("high", ReasoningEffort.HIGH),
+    ],
+)
+def test_the_deep_tier_s_effort_is_read_from_the_deployments_variable(
+    monkeypatch: pytest.MonkeyPatch, written: str, effort: ReasoningEffort
+) -> None:
+    monkeypatch.setenv("CORTEX_REASONING_EFFORT_BRAIN", written)
+    assert SwapConfig().brain_effort is effort
 
 
 def test_escalation_without_a_model_host_fails_at_boot() -> None:

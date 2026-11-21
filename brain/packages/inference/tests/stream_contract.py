@@ -15,6 +15,7 @@ from cortex_core import (
     InferenceEvent,
     Message,
     ReasoningChunk,
+    ReasoningEffort,
     Role,
     TextChunk,
     ToolCall,
@@ -54,6 +55,7 @@ class BackendUnderTest:
     wordless: Callable[[], InferenceBackend]
     unreachable: Callable[[], InferenceBackend]
     one_system_template: Callable[[], SystemLedWorld]
+    effort_blind_template: Callable[[], InferenceBackend]
     aclose: Callable[[], Awaitable[None]]
 
 
@@ -234,6 +236,15 @@ async def check_every_leading_system_text_reaches_the_engine_and_is_answered(
     )
 
 
+async def check_an_effort_the_served_template_does_not_read_costs_no_reply(
+    subject: BackendUnderTest,
+) -> None:
+    """A request naming an effort is answered by an engine whose template refuses one."""
+    bounds = GenerationBounds(effort=ReasoningEffort.MEDIUM)
+    events = await events_of(subject.effort_blind_template(), bounds=bounds)
+    assert _text(events) == CONTRACT_REPLY, f"the effort cost the reply: {events!r}"
+
+
 type StreamCheck = Callable[[BackendUnderTest], Awaitable[None]]
 
 STREAM_CHECKS: tuple[StreamCheck, ...] = (
@@ -250,4 +261,5 @@ STREAM_CHECKS: tuple[StreamCheck, ...] = (
     check_a_backend_that_cannot_answer_fails_with_inference_error,
     check_a_backend_answers_only_for_a_model_it_serves,
     check_every_leading_system_text_reaches_the_engine_and_is_answered,
+    check_an_effort_the_served_template_does_not_read_costs_no_reply,
 )

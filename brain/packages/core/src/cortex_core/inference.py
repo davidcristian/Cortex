@@ -60,6 +60,14 @@ class DecodeStop:
 type InferenceEvent = TextChunk | ReasoningChunk | ToolCall | DecodeCadence | DecodeStop
 
 
+class ReasoningEffort(Enum):
+    """How hard one request asks a reasoning model to think, where its template reads a level."""
+
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+
 @dataclass(frozen=True, slots=True)
 class GenerationBounds:
     """How far one request lets the model go before it must answer."""
@@ -67,6 +75,7 @@ class GenerationBounds:
     max_tokens: int | None = None
     thinking: bool = True
     trace_tokens: int | None = None
+    effort: ReasoningEffort | None = None
 
     def __post_init__(self) -> None:
         if self.max_tokens is not None and self.max_tokens < 1:

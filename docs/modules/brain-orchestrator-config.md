@@ -104,7 +104,9 @@ ADR-0009 decision 8), `call_timeout_s =
   ([co-residency](../readings/co-residency.md)); `brain_vram_mib` (0) is the free device memory the
   deep tier needs, compared against the host's reading immediately before the load, and
   `brain_decode_tps` (0.0) the rate the deep phase judges a real completion against (ADR-0055
-  decisions 4 and 5); `swap_drain_timeout_s` (60 s), `swap_load_timeout_s` (300 s) and
+  decisions 4 and 5); `brain_effort` (unset, `CORTEX_REASONING_EFFORT_BRAIN`) is the
+  `ReasoningEffort` the deep reply names, `low`, `medium` or `high`, any other word failing at
+  boot (ADR-0049 decision 20); `swap_drain_timeout_s` (60 s), `swap_load_timeout_s` (300 s) and
   `swap_tier_recheck_s` (30 s, `CORTEX_SWAP_TIER_HEAL_S`, pacing the check of every evicted tier,
   ADR-0054 decisions 3 and 4)
   are the timings. Escalation without a model host or a brain endpoint fails at boot, as does

@@ -27,6 +27,7 @@ from cortex_inference.decode import (
     raise_for_status,
     round_is_full,
 )
+from cortex_inference.effort_probe import EffortProbeError, effort_wire_name
 from cortex_inference.request import build_payload, join_leading_system, leading_system_count
 from cortex_inference.system_probe import SystemProbeError, delivers_system_messages
 from cortex_inference.trace_probe import TraceBudgetProbe
@@ -81,6 +82,7 @@ class LlamaCppBackend:
         self._reported_unsent_budget = False
         self._builds: dict[str, str] = {}
         self._probes: dict[tuple[str, int], str] = {}
+        self._efforts: dict[str, str] = {}
 
     async def _sends_trace_budget(self) -> bool | None:
         """Whether this request may send its trace budget; ``None`` while the engine is unasked."""
@@ -137,6 +139,40 @@ class LlamaCppBackend:
             )
         return not delivers
 
+    def _effort_changed(self, endpoint: str, outcome: str) -> bool:
+        """Record what became of an effort; ``True`` when it differs from the endpoint's last."""
+        if self._efforts.get(endpoint) == outcome:
+            return False
+        self._efforts[endpoint] = outcome
+        return True
+
+    async def _effort(
+        self, endpoint: str, model: str, bounds: GenerationBounds | None
+    ) -> str | None:
+        """The ``reasoning_effort`` this request sends, or ``None`` when it sends none."""
+        if bounds is None or bounds.effort is None or not bounds.thinking:
+            return None
+        fields = {"endpoint": endpoint, "model": model, "effort": bounds.effort.value}
+        try:
+            name = await effort_wire_name(endpoint, bounds.effort, self._client)
+        except EffortProbeError as err:
+            if self._effort_changed(endpoint, "failed"):
+                _logger.warning(
+                    "reasoning effort probe failed; sending no effort",
+                    extra=fields | {"error": str(err)},
+                )
+            return None
+        if name is None:
+            if self._effort_changed(endpoint, "unread"):
+                _logger.warning(
+                    "reasoning effort not sent because the served template does not read it",
+                    extra=fields,
+                )
+            return None
+        if self._effort_changed(endpoint, name):
+            _logger.info("reasoning effort sent", extra=fields | {"sent_as": name})
+        return name
+
     async def stream(
         self,
         model: str,
@@ -162,6 +198,7 @@ class LlamaCppBackend:
                     schema,
                     bounds,
                     send_trace_budget=sends is True,
+                    effort=await self._effort(lease.endpoint, model, bounds),
                 )
                 url = f"{lease.endpoint}{_CHAT_COMPLETIONS_PATH}"
                 async with self._client.stream("POST", url, json=payload) as response:

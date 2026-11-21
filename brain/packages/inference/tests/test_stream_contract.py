@@ -5,6 +5,7 @@ from functools import partial
 
 import httpx
 import pytest
+from effort_servers import NO_EFFORT_CAPS, EffortServer
 from stream_contract import (
     CONTRACT_ASIDE,
     CONTRACT_CALL,
@@ -174,6 +175,7 @@ def scripted() -> BackendUnderTest:
         wordless=partial(build, []),
         unreachable=unreachable,
         one_system_template=one_system_template,
+        effort_blind_template=deliberating,
         aclose=aclose,
     )
 
@@ -218,6 +220,9 @@ def adapter() -> BackendUnderTest:
         wordless=partial(build, _sse("[DONE]")),
         unreachable=unreachable,
         one_system_template=one_system_template,
+        effort_blind_template=lambda: over(
+            EffortServer(caps=NO_EFFORT_CAPS, reply=_deliberating_body())
+        ),
         aclose=aclose,
     )
 

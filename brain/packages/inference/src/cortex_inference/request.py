@@ -7,6 +7,7 @@ from cortex_core import Message, Role, ToolSpec, data_uri
 from cortex_core.inference import GenerationBounds, JsonSchema
 
 __all__ = [
+    "EFFORT_KEY",
     "TRACE_BUDGET_KEY",
     "build_payload",
     "join_leading_system",
@@ -19,6 +20,9 @@ __all__ = [
 # What llama.cpp calls a per-request trace budget on the wire. ``trace_probe.py`` asks a server
 # whether it parses this key, so the probe and the request must name the same thing.
 TRACE_BUDGET_KEY = "reasoning_budget_tokens"
+
+# The OpenAI request field llama.cpp hands a chat template as its ``reasoning_effort`` argument.
+EFFORT_KEY = "reasoning_effort"
 
 # The bytes llama.cpp's Jinja ``trim`` removes (C ``isspace``), written out because Python's
 # ``str.strip()`` also removes Unicode spaces the engine keeps.
@@ -100,7 +104,7 @@ def to_openai_tools(tools: Sequence[ToolSpec]) -> list[dict[str, object]]:
     ]
 
 
-def build_payload(
+def build_payload(  # noqa: PLR0913 -- the last two are answers the backend asked the engine for
     model: str,
     messages: Sequence[Message],
     tools: Sequence[ToolSpec],
@@ -108,6 +112,7 @@ def build_payload(
     bounds: GenerationBounds | None,
     *,
     send_trace_budget: bool = False,
+    effort: str | None = None,
 ) -> dict[str, object]:
     """The streaming chat-completion request body.
 
@@ -136,4 +141,8 @@ def build_payload(
         # the value without reporting anything.
         if send_trace_budget and bounds.trace_tokens is not None:
             payload[TRACE_BUDGET_KEY] = bounds.trace_tokens
+    # ``effort`` is the name the leased server's template takes for ``bounds.effort``, which
+    # only the backend can ask, so the level is never read from ``bounds`` here.
+    if effort is not None:
+        payload[EFFORT_KEY] = effort
     return payload

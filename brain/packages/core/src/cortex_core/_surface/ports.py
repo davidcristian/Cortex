@@ -68,6 +68,7 @@ from cortex_core.inference import (
     InferenceEvent,
     JsonSchema,
     ReasoningChunk,
+    ReasoningEffort,
     StopReason,
     TextChunk,
 )
@@ -159,6 +160,7 @@ __all__ = [
     "ProgressSink",
     "Provenance",
     "ReasoningChunk",
+    "ReasoningEffort",
     "RecallAuditSink",
     "ResidencyController",
     "ResidencyQueue",

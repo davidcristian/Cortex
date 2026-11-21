@@ -38,6 +38,7 @@ from cortex_core import (
     MemoryRecaller,
     Message,
     ModelLoadingError,
+    ReasoningEffort,
     RecordingConfirmer,
     RecordingProgressSink,
     RecordingSleeper,
@@ -519,6 +520,73 @@ async def test_the_deep_phase_s_recall_is_judged_by_the_deep_model() -> None:
     assert any(
         isinstance(event, TextDelta) and event.text.strip() == "deep answer" for event in events
     )
+
+
+@pytest.mark.parametrize(
+    ("reply_bounds", "deep_bounds"),
+    [
+        (None, GenerationBounds(effort=ReasoningEffort.MEDIUM)),
+        (
+            GenerationBounds(max_tokens=512, trace_tokens=64),
+            GenerationBounds(max_tokens=512, trace_tokens=64, effort=ReasoningEffort.MEDIUM),
+        ),
+    ],
+)
+async def test_the_deep_tier_s_effort_is_named_on_the_deep_reply_and_on_no_other_request(
+    monkeypatch: pytest.MonkeyPatch,
+    reply_bounds: GenerationBounds | None,
+    deep_bounds: GenerationBounds,
+) -> None:
+    monkeypatch.setenv("CORTEX_REASONING_EFFORT_BRAIN", "medium")
+    swap = _swap_runtime()
+    order = [TextChunk('{"order": [0]}')]
+    backend = _Leasing(
+        {
+            "cortex": [order, [_ESCALATE_CALL], [TextChunk("handing off")]],
+            "brain": [order, [TextChunk("deep answer")]],
+        },
+        swap,
+    )
+    memories = InMemoryMemoryStore()
+    await MemoryRecaller(memories, HashEmbedder(), SystemClock()).record("tea", session_id="s")
+
+    def recaller_for(backend: InferenceBackend, model: str) -> MemoryRecaller:
+        judge = JudgeRecallPolicy(backend, model, pool_factor=2)
+        return MemoryRecaller(memories, HashEmbedder(), SystemClock(), policy=judge)
+
+    engines = replace(_escalating(backend, swap), memory=recaller_for, bounds=reply_bounds)
+    await _escalate_under_lease(engines, swap)
+
+    judge, opening, closing, deep_judge, deep_reply = backend.requests
+    assert (deep_judge.model, deep_reply.model) == ("brain", "brain")
+    assert deep_reply.bounds == deep_bounds
+    assert (opening.bounds, closing.bounds) == (reply_bounds, reply_bounds)
+    for side_call in (judge, deep_judge):
+        assert side_call.bounds is not None
+        assert side_call.bounds.effort is None
+
+
+@pytest.mark.parametrize("reply_bounds", [None, GenerationBounds(max_tokens=512, thinking=False)])
+async def test_with_no_effort_set_the_deep_reply_has_the_bounds_the_deployment_gave(
+    monkeypatch: pytest.MonkeyPatch, reply_bounds: GenerationBounds | None
+) -> None:
+    monkeypatch.delenv("CORTEX_REASONING_EFFORT_BRAIN", raising=False)
+    backend = _Model(
+        {
+            "cortex": [[_ESCALATE_CALL], [TextChunk("handing over. ")]],
+            "brain": [[TextChunk("the deep answer")]],
+        }
+    )
+    swap = _swap_runtime()
+    try:
+        engines = replace(_escalating(backend, swap), bounds=reply_bounds)
+        engine = engines.for_stream(RecordingConfirmer(answer=True), RecordingProgressSink())
+        await _run(engine, "hello", turn_id="t1")
+    finally:
+        await swap_closer(swap)()
+
+    (deep,) = [request for request in backend.requests if request.model == "brain"]
+    assert deep.bounds is reply_bounds
 
 
 async def test_the_deep_phase_s_history_recap_is_written_by_the_deep_model() -> None:

@@ -33,6 +33,9 @@ MALFORMED: list[tuple[type[BaseSettings], str, str]] = [
     (ScheduleConfig, "CORTEX_SCHEDULE_TZ", "Mars/Olympus"),
     (SwapConfig, "CORTEX_SWAP_BRAIN_VRAM_MIB", "lots"),
     (SwapConfig, "CORTEX_MODELHOST_TIMEOUT_S", "soon"),
+    (SwapConfig, "CORTEX_REASONING_EFFORT_BRAIN", "medum"),
+    (SwapConfig, "CORTEX_REASONING_EFFORT_BRAIN", "xhigh"),
+    (SwapConfig, "CORTEX_REASONING_EFFORT_BRAIN", "Medium"),
     (ReplyBoundsConfig, "CORTEX_REPLY_THINKING", "perhaps"),
 ]
 

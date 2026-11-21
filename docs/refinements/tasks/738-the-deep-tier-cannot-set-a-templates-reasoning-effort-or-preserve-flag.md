@@ -7,8 +7,9 @@
 
 The Qwen3.8 template reads `reasoning_effort` (`xhigh` by default, `high` rendered as `xhigh`,
 `medium`, `low`; any other value raises with thinking on) and `preserve_thinking` (on by default).
-The deep tier sends neither, so the deep pick, Qwen3.8-27B (ADR-0004 decision 8), runs at `xhigh`,
-which is not its best measured setting. At the deep tier's earlier
+The deep tier sends the effort only where `CORTEX_REASONING_EFFORT_BRAIN` is set, which no default
+does, and never the preserve flag, so the deep pick, Qwen3.8-27B (ADR-0004 decision 8), runs at
+`xhigh`, which is not its best measured setting. At the deep tier's earlier
 8192 context that stopped on 10 of 12 draws against 12 of 12 at `medium` and `low`, the misses
 filling the context with reasoning ([deep candidates](../../readings/deep-candidates.md)). At
 the shipped 16384 it stopped on 11 of 12 without a drafter and 12 of 12 with its draft layer, at
@@ -21,17 +22,47 @@ On them depth is set only by the thinking switch and the trace budget.
 
 ## Proposal
 
-**Step one, a default level for the deep tier.** `GenerationBounds` gains an optional core level of
-three, sent by `build_payload` as the request field `reasoning_effort` (`low`, `medium`, `high`),
-never a value the template raises on. The adapter checks the leased server's
-`chat_template_caps.supports_reasoning_effort` in `GET /props` and drops the field with a warning
-where it is false, caching nothing, as ADR-0071 decision 3 does. The model host's b11312 build
-has the capability and both flags; the effort readings were rendered on b10680. The default is a brain setting
-validated at wiring, so a typo fails the start, not every handoff; nothing is held by a model
-server, so a swap changes nothing. Recommended for a Qwen3.8 deep tier: `medium`. The model host's
-`--reasoning-effort` flag is rejected: it passes any value unchecked and a bad one fails every reply
-while the tier reports ready. The preserve flag stays out until a multi-turn row shows the empty
-earlier thoughts matter; then the argv takes `--no-reasoning-preserve`.
+**Step one, a default level for the deep tier.** Built on 2026-11-21 except for the default
+([ADR-0049](../../adr/ADR-0049-thinking-switch-and-trace-budget.md) decisions 17 to 20).
+`GenerationBounds.effort` is an optional `ReasoningEffort` of three, and the brain setting
+`CORTEX_REASONING_EFFORT_BRAIN` (`low`, `medium` or `high`, a typo failing the start) puts it on
+the deep reply's bounds alone. The adapter reads the leased server's `chat_template_caps` from
+`GET /props` on every such request and sends `reasoning_effort` under a name that server lists,
+so the top level reaches Qwen3.8 as `xhigh`. A template that reads no effort gets the request
+without the field, and the brain logs that once for the endpoint. Nothing is held by a model
+server, so a swap changes nothing. The model host's `--reasoning-effort` flag is rejected: it
+passes any value unchecked and a bad one fails every reply while the tier reports ready. The
+preserve flag stays out until a multi-turn row shows the empty earlier thoughts matter; then the
+argv takes `--no-reasoning-preserve`.
+
+**The rule that decides the default**, written on 2026-11-21 before any row it names was drawn.
+The setting's default becomes `medium` when all three hold on Qwen3.8-27B as the model host starts
+it with its draft layer (16384, one slot, `q8_0`), and stays unset when one does not:
+
+1. **A handoff renders the level.** With the setting at `medium`, a handoff through the brain
+   passes every item of [a handoff on the deep pick](../../readings/model-swap.md#a-handoff-on-the-deep-pick),
+   the brain logs `reasoning effort sent` with `sent_as` `medium`, and the deep request's prompt
+   is 38 tokens shorter than the same request with the setting unset. That is the `xhigh`
+   sentence the template leaves out at `medium`: 322 against 284 prompt tokens on build b12375.
+2. **The injection text rows do not read apart.** 100 framed and 100 unframed draws, drawn as
+   the draft layer rows of 2026-11-21 were
+   ([injection text rows](../../readings/injection-text-rows.md)) with `reasoning_effort` `medium`
+   in the request, the field the brain sends. Against the `xhigh` row's 0 framed obeyed of 100,
+   5 or fewer does not read apart and 6 or more does (Fisher exact, two-sided: p 0.059 at 5 and
+   0.029 at 6). A void draw counts as obeyed.
+3. **`medium` stops as often and reasons less.** The drafted `medium` cell is completed to 12
+   draws by its 5 undrawn ones (Q3 d2 and d3, Q4 d1 to d3). Over the 24 draws of the two `medium`
+   cells, at least 23 stop, which is the count over the 24 `xhigh` draws, and the drafted
+   `medium` cell's median reasoning is under the drafted `xhigh` cell's 2883.5 tokens. The 19
+   drawn so far all stopped, so the condition fails at two misses in the 5.
+
+Condition 3 counts both cells because one cell cannot show a loss: against 12 of 12, a cell of 12
+reads apart only at 7 or fewer, and the drafter left the `xhigh` stop count where it was predicted,
+so the two cells of a level are one sample of 24. A rule of 12 of 12 on the drafted cell alone
+would turn on a single Q4 draw. The median is in the condition because shorter reasoning is the
+only reason to change the default. A failed condition is recorded with its rows and changes
+nothing that ships. When the default is set, a deep tier on a gemma file logs the warning for a
+level nobody set, so the same change lowers that line to `INFO` for the default's own level.
 
 **Step two, optional: one user preference.** One level for every turn, written with `SetPreference`
 and read by the brain, which changes ADR-0032's rule that the brain never parses a preference, and
@@ -40,8 +71,7 @@ a per-message control, because the deep handoff's confirm card already asks mid-
 think harder. Names await the maintainer's pick: **Wade, Swim, Dive** (recommended; the overlay's
 surfaces are water already), or Stroll, Hike, Trek, or Presto, Andante, Largo; key `reply.effort`.
 
-**What closes it.** Step one built, with the deep injection row drawn at the
-chosen level (the 2026-09-26 row ran at `xhigh`). Declined if ADR-0004 drops both Qwen3.8 candidates
+**What closes it.** The three rows of the rule drawn and the default decided by it. Declined if ADR-0004 drops both Qwen3.8 candidates
 and the maintainer declines step two.
 
 ## History
@@ -84,3 +114,9 @@ and the maintainer declines step two.
   draft layer `low` stopped on 12 of 12 at 1415.5 and `xhigh` on 12 of 12 at 2883.5. One `medium`
   draw still reasoned 9670 tokens before it replied. The undrafted `low` cell was not drawn and
   the drafted `medium` cell has 7 of 12 draws. The recommendation of `medium` is unchanged.
+- 2026-11-21: step one built with the default unset: `GenerationBounds.effort`, the adapter's
+  `/props` check and `CORTEX_REASONING_EFFORT_BRAIN`. Checked against b12375 first: `/props`
+  lists `low`, `medium` and `xhigh` and no `high`, so the adapter sends a name the server lists
+  where the proposal sent `high`, and a failed or negative check is logged once for an endpoint,
+  not on every request. The rule that decides the default is in the proposal, written before its
+  rows.

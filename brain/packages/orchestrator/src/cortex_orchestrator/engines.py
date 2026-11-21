@@ -21,6 +21,7 @@ from cortex_core import (
     LoadWaitTurns,
     MemoryRecaller,
     ProgressSink,
+    ReasoningEffort,
     SerialTurnRunner,
     SessionStore,
     SessionTurnLocks,
@@ -41,6 +42,15 @@ from cortex_orchestrator.swap_builders import SwapRuntime
 from cortex_orchestrator.window_builders import build_history_window
 
 __all__ = ["DeepTier", "StreamEngines"]
+
+
+def _with_effort(
+    bounds: GenerationBounds | None, effort: ReasoningEffort | None
+) -> GenerationBounds | None:
+    """``bounds`` naming the level a tier asks for; unchanged when the tier asks for none."""
+    if effort is None:
+        return bounds
+    return replace(bounds or GenerationBounds(), effort=effort)
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,6 +106,7 @@ class StreamEngines:
         phase = replace(
             caps,
             escalation=None,
+            bounds=_with_effort(self.bounds, deep.swap.brain_effort),
             memory=self._recaller(self.backend, brain),
             window=self._window(self.backend, brain),
             tools=build_cortex_tools(
