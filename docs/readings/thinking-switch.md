@@ -149,8 +149,8 @@ header, by SHA-256.
 
 **2026-09-26**, build `b10680-d7bd3bfca`: the 11 chat templates on the models mount, which cover 34
 GGUF files, every file of one template rendering the same bytes. Each template was rendered for 39
-requests under 15 server flag sets. Nothing in the repo sends either setting yet
-([R-738](../refinements/tasks/738-the-deep-tier-cannot-set-a-templates-reasoning-effort-or-preserve-flag.md)).
+requests under 15 server flag sets. The brain sends the effort only where
+`CORTEX_REASONING_EFFORT_BRAIN` is set, which no default does, and never the preserve flag ([R-738](../refinements/tasks/738-the-deep-tier-cannot-set-a-templates-reasoning-effort-or-preserve-flag.md)).
 
 | template | files | `reasoning_effort`, thinking on | `preserve_thinking` when unset |
 | --- | --- | --- | --- |

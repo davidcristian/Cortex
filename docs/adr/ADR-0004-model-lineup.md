@@ -103,7 +103,7 @@ lineup](../readings/model-lineup.md), [deep candidates](../readings/deep-candida
    100 framed injection draws against 0 unframed, with its draft layer and without, and the
    alternate 0 against 8 at 8192. The pick has three costs: a median of 2327 reasoning tokens a draw
    at `xhigh` against the alternate's 1434; no QAT weights and none of the cortex's family, template
-   or prompt idiom; and an effort and a preserve flag the tier cannot set
+   or prompt idiom; and an effort no default sets and a preserve flag the tier cannot set
    ([R-738](../refinements/tasks/738-the-deep-tier-cannot-set-a-templates-reasoning-effort-or-preserve-flag.md)).
    The two mixture-of-experts entries decode about four times as fast as the alternate, but each
    draw of theirs that did not stop filled the context reasoning. Qwen3.8-Flash-Next fits neither
