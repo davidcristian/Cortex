@@ -136,6 +136,9 @@ and the maintainer declines step two.
   predicted for it. Filed: [R-1275](1275-no-user-preference-sets-the-reasoning-effort.md), the user preference that was step two;
   [R-1276](1276-the-deep-tier-never-sends-the-templates-preserve-flag.md), the preserve flag; and
   [R-1277](1277-an-effort-set-on-a-template-that-reads-none-is-logged-at-info.md), for a level a
-  deployment sets on a template that reads none; and
-  [R-1278](1278-the-default-effort-has-no-live-handoff-on-compose-defaults.md), for a live
-  handoff with the variable unset and with it empty.
+  deployment sets on a template that reads none.
+- 2026-11-21: the default read live in two handoffs on compose defaults. With the variable absent
+  the brain read the deep server's `/props` once and logged `reasoning effort sent` with `sent_as`
+  `medium`, and the deep request had 861 prompt tokens. With it empty the brain logged no line
+  about an effort and read no `/props`, and the request had 899. Both passed every item of the
+  handoff reading ([readings](../../readings/model-swap.md#a-handoff-on-the-deep-pick)).

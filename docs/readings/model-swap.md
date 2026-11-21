@@ -140,29 +140,33 @@ there, beside `turns.jsonl`, `states.txt`, `smi.txt`, `host.log` and `brain.log`
 `python3 summary.py logs/<label>` prints its figures. `template.sh` is the render, with its bodies
 and replies in `logs/template/`.
 
-**The effort setting, 2026-11-21.** Two more runs of the same chat on the same build and stack,
-both with the draft layer, from the tree that reads `CORTEX_REASONING_EFFORT_BRAIN`: one with the
-setting at `medium`, one naming no effort. What the check decides was written before the first launch.
+**The effort setting, 2026-11-21.** Four more runs of the same chat on the same build and stack,
+all with the draft layer. Two ran while the setting had no default: one named `medium`, one named
+nothing. Two ran on the default of `medium`: one with the variable absent from the shell, one with
+it set to an empty value. What each pair decides was written before its first launch.
 
-| reading | `medium` | no effort |
-| --- | --- | --- |
-| the brain's log | one `GET /props` of the deep server, then `reasoning effort sent` with `sent_as=medium` | no line about an effort and no `/props` request |
-| the deep request | 861 prompt tokens, 97 decoded, 61 of 105 drafted tokens accepted | 899 prompt tokens, 503 decoded, 357 of 435 accepted |
-| the deep trace | 67 characters | 1,199 characters |
-| card's floor before and after | 4,564 and 4,556 MiB | 4,566 and 4,556 MiB |
-| highest reading above the floor | 16,989 MiB | 16,989 MiB |
-| load and first token, each as a share of its bound | 0.19 and 0.028 | 0.19 and 0.028 |
+| reading | `medium` named | nothing named, no default | absent, default `medium` | empty value |
+| --- | --- | --- | --- | --- |
+| the brain's log | one `GET /props` of the deep server, then `reasoning effort sent` with `sent_as=medium` | no line about an effort and no `/props` request | one `GET /props`, then `reasoning effort sent` with `sent_as=medium` | no line about an effort and no `/props` request |
+| the deep request | 861 prompt tokens, 97 decoded, 61 of 105 drafted tokens accepted | 899 prompt tokens, 503 decoded, 357 of 435 accepted | 861 prompt tokens, 1040 decoded, 687 of 1056 accepted | 899 prompt tokens, 559 decoded, 381 of 531 accepted |
+| the deep trace | 67 characters | 1,199 characters | 3,576 characters | 1,484 characters |
+| card's floor before and after | 4,564 and 4,556 MiB | 4,566 and 4,556 MiB | 4,575 and 4,575 MiB | 4,575 and 4,575 MiB |
+| highest reading above the floor | 16,989 MiB | 16,989 MiB | 16,995 MiB | 16,999 MiB |
+| load and first token, each as a share of its bound | 0.19 and 0.028 | 0.20 and 0.028 | 0.19 and 0.028 | 0.19 and 0.027 |
 
-The 38 prompt tokens between the two requests are the `xhigh` sentence the template leaves out at
-`medium`, the difference between the stop rows' 322 and 284. A deep request leaves out the cortex's
-own sentence about the handoff, so both runs sent the deep server the same messages. Both runs read
-as the drafted run above did: the same states and argv while the deep tier served, then the deep
-reply with no note, the code word and the explanation in the third turn, all 7 messages, no handoff
-key, and no warning or error in the brain's log. One draw at each setting says nothing about how
-long a level reasons; the stop rows do. `/props` of the cortex server, gemma-4-12B on the same
-build, reports `supports_reasoning_effort` false and an empty `reasoning_effort_levels`, the answer
-on which the adapter sends no field. Method: `run.sh medium layer medium` and `run.sh unset layer
-none` in `~/.cache/cortex-run/2026-11-21/b1/`, with `notes.md` and `logs/<label>/` as above.
+The 38 prompt tokens between a `medium` request and the other of its pair are the `xhigh` sentence
+the template leaves out at `medium`, the difference between the stop rows' 322 and 284. A deep
+request leaves out the cortex's own sentence about the handoff, so the runs of a pair sent the
+deep server the same messages. All four read as the drafted run above did: the same states and
+argv while the deep tier served, then the deep reply with no note, the code word and the
+explanation in the third turn, all 7 messages, no handoff key, and no warning or error in the
+brain's log. One draw at each setting says nothing about how long a level reasons, and the two
+`medium` draws decoded the fewest and the most tokens of the four; the stop rows count it.
+`/props` of the cortex server, gemma-4-12B on the same build, reports `supports_reasoning_effort`
+false and an empty `reasoning_effort_levels`, the answer on which the adapter sends no field.
+Method: `run.sh medium layer medium` and `run.sh unset layer none` in
+`~/.cache/cortex-run/2026-11-21/b1/`, then `run.sh absent layer none` and `run.sh empty layer
+empty` in `../a1/`, each with `notes.md` and `logs/<label>/` as above.
 
 ## The overlay's view of a handoff
 
