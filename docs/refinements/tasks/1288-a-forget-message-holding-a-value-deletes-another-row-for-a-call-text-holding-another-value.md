@@ -1,9 +1,8 @@
 # A forget message holding a value deletes another row for a call text holding another value
 
-**Status:** open, actionable
+**Status:** done 2026-11-22
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-21
 
 Over a locker code, a card and a phone that all end in `4242`, a message holding a value still
 deletes a row it does not ask for when the call text holds another value, in unit calls through
@@ -36,3 +35,14 @@ The card shows each row before anything is deleted.
 
 - 2026-11-21: filed while reading a call text holding a digit beside a code word
   ([R-1286](1286-a-forget-naming-a-code-deletes-another-row-after-a-word-for-all-or-for-a-code-word-in-another-number.md)).
+- 2026-11-22: done. Both messages deleted the card through `ForgetChosenTool` before the change.
+  `_apart` (`forget_permit.py`) reads a call text and a message that each hold a digit and share
+  no whole value, in a message that is no forget of everything. `permitted`, `_same_fact` and
+  `_coded` then read the message as they do for a call text holding no digit, and the call lists
+  nothing when none of them reads it. Replayed over the 42,356 generated messages and 10,235
+  calls of the strings of the brain's forget tests: no generated case changed, the count of
+  generated cases listing a row the message asks to keep is 0 before and after, no row was newly
+  listed, and 1,347 rows were newly kept in 658 strings, 7 of them rows the string asks to
+  delete ([readings](../../readings/forget-everything-but-call.md#a-call-naming-a-row-the-message-does-not-name-2026-11-15)).
+  Those 7 are filed:
+  [R-1299](1299-a-forget-call-naming-a-number-the-message-writes-with-a-letter-or-as-a-year-keeps-its-row.md).

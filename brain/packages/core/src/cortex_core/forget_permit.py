@@ -45,12 +45,12 @@ def _digit(text: str) -> bool:
 
 
 def _same_fact(
-    call: ToolCall, told: Sequence[MemoryRecord], seen: Sequence[MemoryRecord]
+    call: ToolCall, told: Sequence[MemoryRecord], seen: Sequence[MemoryRecord], *, apart: bool
 ) -> frozenset[str] | None:
-    """The ids a message holding no digit permits a call text holding one to list: the rows
-    ``told`` it names and each of ``seen`` holding a whole value of one, as a recall of it does.
-    ``None`` when it names no row or holds a digit."""
-    if not told or _digit(call.stamp.query):
+    """The ids a message permits a call text holding a digit to list: the rows ``told`` it names
+    and each of ``seen`` holding a whole value of one, as a recall of it does. ``None`` when it
+    names no row, or holds a digit and the call's values are not ``apart`` from its own."""
+    if not told or (_digit(call.stamp.query) and not apart):
         return None
     values = {key for row in told for key in whole_values(row.text)}
     shared = {row.id for row in seen if not values.isdisjoint(whole_values(row.text))}
@@ -63,14 +63,16 @@ async def _coded(
     call: ToolCall,
     told: Sequence[MemoryRecord],
     seen: Sequence[MemoryRecord],
+    *,
+    apart: bool,
 ) -> frozenset[str] | None:
-    """The ids a message naming no row of ``told`` and no word for all permits a call to list: each
-    row, stored or of ``seen``, whose request holds a code word it asks to forget, and for a call
-    text holding a digit the row ``just_said`` reads. ``None`` if none does or both hold a digit."""
+    """The ids a message naming no row of ``told`` and no word for all permits a call: each row,
+    stored or of ``seen``, whose request holds a code word it asks to forget, and for a text holding
+    a digit the row ``just_said`` reads. ``None`` if none does or both hold one not ``apart``."""
     tokens = parts(call.stamp.query)[0]
     codes = {token for token in tokens if code_word(token)}
     valued = _digit(call_text(call))
-    if told or not EVERY.isdisjoint(tokens) or (valued and _digit(call.stamp.query)):
+    if told or not EVERY.isdisjoint(tokens) or (valued and _digit(call.stamp.query) and not apart):
         return None
     scopes = scope.read_scopes(call.stamp.session_id)
     rows = list(seen)
@@ -85,13 +87,13 @@ async def _coded(
 
 
 async def permitted(
-    call: ToolCall, told: Sequence[MemoryRecord], listing: Listing
+    call: ToolCall, told: Sequence[MemoryRecord], listing: Listing, *, apart: bool = False
 ) -> frozenset[str] | None:
     """The ids of the rows the call's message permits a call to list: each ``listing`` lists for a
     value of the message, and each of ``told`` holding none that ``may_keep`` does not keep.
-    ``None`` when the call's text holds a digit or no stored row holds a value of the message."""
+    ``None`` when no stored row holds such a value, or the text holds a digit not ``apart``."""
     query, values = call.stamp.query, whole_values(call.stamp.query).values()
-    if _digit(call_text(call)):
+    if _digit(call_text(call)) and not apart:
         return None
     ids: set[str] = set()
     read = False
@@ -123,6 +125,15 @@ def everything(query: str) -> tuple[int, int] | None:
             if plain and token in EVERY and not valued and not topic:
                 return index, at
     return None
+
+
+def _apart(call: ToolCall) -> bool:
+    """Whether the call's text and its message each hold a digit and share no whole value, in a
+    message that is no forget of ``everything``: the message alone then says which rows."""
+    text, query = call_text(call), call.stamp.query
+    if not (_digit(text) and _digit(query)) or everything(query) is not None:
+        return False
+    return whole_values(text).keys().isdisjoint(whole_values(query))
 
 
 async def _beyond_every(
@@ -162,14 +173,17 @@ async def message_rows(
     listing: Listing,
 ) -> tuple[list[MemoryRecord], frozenset[str] | None]:
     """The rows ``forget_named`` reads from the call's message, and the ids it permits a call to
-    list: for a call text holding a digit those of ``_same_fact``, else those of ``permitted``,
-    or those of ``_coded`` when neither reads it, less each row a forget of everything keeps."""
+    list: those of ``permitted``, ``_same_fact`` or ``_coded``, the first that reads it, none for
+    a call ``_apart`` from it that no reader reads, less each row a forget of everything keeps."""
     told = await forget_named(store, scope, call, FORGET_CHOSEN_LIMIT + 1, seen)
-    allowed = await permitted(call, told, listing)
-    if _digit(call_text(call)):
-        allowed = _same_fact(call, told, seen)
+    apart = _apart(call)
+    allowed = await permitted(call, told, listing, apart=apart)
+    if allowed is None and _digit(call_text(call)):
+        allowed = _same_fact(call, told, seen, apart=apart)
     if allowed is None:
-        allowed = await _coded(store, scope, call, told, seen)
+        allowed = await _coded(store, scope, call, told, seen, apart=apart)
+    if allowed is None and apart:
+        allowed = frozenset[str]()
     beyond = await _beyond_every(store, scope, call, seen)
     if beyond is None or allowed is None:
         return told, allowed if beyond is None else beyond

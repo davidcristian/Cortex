@@ -191,3 +191,45 @@ async def test_a_call_holding_a_digit_beside_no_code_word_naming_a_stored_row_de
     query: str, text: str, ids: tuple[str, ...], gone: set[str]
 ) -> None:
     assert (await _deleted(query, text, ids))[0] == gone
+
+
+@pytest.mark.parametrize(
+    ("query", "text"),
+    [
+        ("Forget my locker code 4242.", "my card is 4111"),
+        ("Forget my gym code 9999.", "my card is 4111"),
+        ("Forget my locker code 4242.", "phone is 0721"),
+        ("Forget my gym password 9999.", "my card is 4111"),
+        ("Forget 9999.", "my card is 4111"),
+        ("Forget 9999, not everything.", "my card is 4111"),
+    ],
+)
+async def test_a_call_holding_a_digit_beside_a_message_holding_another_value_deletes_nothing(
+    query: str, text: str
+) -> None:
+    assert (await _deleted(query, text))[0] == set()
+
+
+@pytest.mark.parametrize(
+    ("query", "text", "gone"),
+    [
+        ("Forget 4242.", "4242", {"locker"}),
+        ("Forget my locker code 4242.", "locker code is 4242", {"locker"}),
+        ("Forget my card 4111.", "my card is 4111", {"card"}),
+        ("Forget my locker code 4242 and my card.", "my card is 4111", {"card"}),
+        ("Forget my card, I got it on 12 March.", "my card is 4111", {"card"}),
+        ("Forget everything, 4242 too.", "my card is 4111", {"card"}),
+        ("Forget 0721 555 4242.", "phone is 0721", {"phone"}),
+    ],
+)
+async def test_a_call_holding_a_digit_deletes_a_row_a_message_holding_a_value_also_asks_for(
+    query: str, text: str, gone: set[str]
+) -> None:
+    assert (await _deleted(query, text))[0] == gone
+
+
+async def test_a_call_holding_the_value_the_chat_just_stored_deletes_it_beside_another_code() -> (
+    None
+):
+    gone = (await _deleted("Forget that code 9999.", "4111 1111 1111 4242", said="card"))[0]
+    assert gone == {"card"}
