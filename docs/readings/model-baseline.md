@@ -8,8 +8,9 @@ records that start at [the first cache type readings](kv-cache-types.md). This r
 method, the anchor row every rate is written against, what the run found and the summary tables.
 [The rows](model-baseline-rows.md) have one table per model and tier.
 
-Memory is `nvidia-smi` `memory.used` at the highest reading of a row, less what the card held
-before the load, and stays absolute because a reader compares it with their own card. A rate
+Memory is `nvidia-smi` `memory.used` at the highest reading of a row, less the higher of what
+the card held before the load and after the unload, and stays absolute because a reader
+compares it with their own card. A rate
 describes only the card it was read on, so no rate is written here: each one is a ratio of
 another row of this baseline.
 
