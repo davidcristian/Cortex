@@ -4,8 +4,8 @@ The stop rows, the injection text rows and one handoff through the brain on
 `esatapedico/Qwen3.8-27B-NVFP4-MTP-GGUF/Qwen3.8-27B-NVFP4-MTP-MID-HIGH.gguf`, the NVFP4 file of
 the deep pick, beside the rows the pick's Q4 file, `Qwen3.8-27B-UD-Q4_K_M`, has from 2026-11-21.
 NVFP4 is another 4-bit encoding of the same weights, so a count drawn on one file is not a count
-for the other. The memory and rate rows of both files are in
-[the NVFP4 files for the deep tier](nvfp4-deep-tier.md). Which file the deep pick names is the
+for the other. The memory and rate rows of both files on this date are in
+[the Q4 and NVFP4 deep files on one night](nvfp4-deep-pair.md). Which file the deep pick names is the
 maintainer's choice, held in
 [R-1244](../refinements/tasks/1244-the-deep-tiers-file-is-not-chosen-between-the-q4-and-the-nvfp4-files.md);
 this record says what was read and makes no choice.
@@ -155,7 +155,7 @@ run with the variable absent.
   after its load, and the prediction for it missed. It took 1.8 times as long as the Q4 file's,
   on one draw and on rows of two dates, and both are under the bound. On a filled context this
   file's prompt pass reads 1.8 times the Q4 file's rate
-  ([the NVFP4 files for the deep tier](nvfp4-deep-tier.md)), on a server that has answered a
+  ([the Q4 and NVFP4 deep files on one night](nvfp4-deep-pair.md)), on a server that has answered a
   request before
   ([R-1290](../refinements/tasks/1290-the-qwen-nvfp4-files-first-prompt-pass-after-a-load-is-slower-in-one-handoff.md)).
 - **One draw** says nothing about how long the file reasons at `medium`; the stop rows count it.

@@ -14,7 +14,7 @@ drafted handoffs of 2026-11-21 took 0.027 to 0.028 for 861 or 899 tokens
 long, on one draw and on rows of two dates.
 
 The rate rows read the other way: on a filled context the NVFP4 file's prompt pass runs at 1.8
-times the Q4 file's rate ([readings](../../readings/nvfp4-deep-tier.md)). Those rows time a
+times the Q4 file's rate ([readings](../../readings/nvfp4-deep-pair.md)). Those rows time a
 prompt on a server that has answered a request before, so the two readings can both be true,
 and no row says which one a handoff gets.
 

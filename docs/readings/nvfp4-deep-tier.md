@@ -2,14 +2,16 @@
 
 Memory and rate rows for the two NVFP4 files the models mount holds, beside the rows
 [the model baseline of 2026-11-16](model-baseline.md) drew for the same two models in their Q4
-files. NVFP4 is a 4-bit floating point weight format.
-[R-1244](../refinements/tasks/1244-the-deep-tiers-file-is-not-chosen-between-the-q4-and-the-nvfp4-files.md)
-proposes a choice of file on these rows, and
+files. NVFP4 is a 4-bit floating point weight format. Both files of each model were drawn on one
+night at 16K, and those rows are in
+[the Q4 and NVFP4 deep files on one night](nvfp4-deep-pair.md). The choice of file is the
+maintainer's and is held in
+[R-1244](../refinements/tasks/1244-the-deep-tiers-file-is-not-chosen-between-the-q4-and-the-nvfp4-files.md);
 [R-1245](../refinements/tasks/1245-the-nvfp4-files-have-none-of-the-rows-the-deep-pick-is-compared-on.md)
-names the rows they do not have. Memory is `nvidia-smi` `memory.used` at the highest reading of a
-row, less what the card held before the load, and stays absolute because a reader compares it with
-their own card. A rate describes only the card it was read on, so each one is written as a ratio of
-another row's rate.
+names the rows the gemma NVFP4 file does not have. Memory is `nvidia-smi` `memory.used` at the
+highest reading of a row, less what the card held before the load, and stays absolute because a
+reader compares it with their own card. A rate describes only the card it was read on, so each one
+is written as a ratio of another row's rate.
 
 | name here | file under the models mount | size |
 | --- | --- | --- |
@@ -38,8 +40,8 @@ rest in RAM.
   of the next two lower powers (16K, 20K, 24K, 32K, 40K, 48K).
 - **Power.** A row of a model held whole is kept when `enforced.power.limit` over
   `power.max_limit` has a median of 0.84 or more across the row, the rule the baseline keeps a row
-  on. Two NVFP4 cells named below did not reach it. A split run loads the CPU and the limit falls:
-  the split rows of both gemma files were drawn at 0.80 to 0.87.
+  on. A split run loads the CPU and the limit falls: the split rows of both gemma files were drawn
+  at 0.80 to 0.87.
 
 Method: `tools/bench3.py --phase deep --out nvfp4.jsonl` under
 `measurements/model-baseline-2026-11-16/`, which git ignores. The NVFP4 rows are in
@@ -81,11 +83,15 @@ MiB of it, the `q8_0` token embedding, in RAM.
 | largest context with the draft layer | 32K, draft length 1 only (18,104 MiB; 2 reads 18,258 MiB, over) | 24K, draft lengths 1 to 3 (18,023 MiB at 3; 4 reads 18,249 MiB, over) |
 | largest context without drafting | 40K, 17,709 MiB (48K reads 18,229 MiB, over) | 40K, 17,973 MiB |
 
-Without drafting, and at the best draft length that fits:
+Each ratio of an NVFP4 row to a Q4 row below divides a row of 2026-11-18 by a row of 2026-11-16
+or 2026-11-17, and the same launch reads a different rate on another night
+([R-1259](../refinements/tasks/1259-the-same-launch-reads-a-different-rate-on-another-night.md)).
+At 16K, where [both files were drawn on one night](nvfp4-deep-pair.md), that division had read
+1.12 without drafting and 1.96 for the prompt pass, and one night reads 1.045 and 1.80. Without
+drafting, and at the best draft length that fits:
 
 | context | NVFP4 memory, no draft | Q4 memory, no draft | NVFP4 rate over Q4 rate, no draft | prompt pass, NVFP4 over Q4 | NVFP4 best draft length | Q4 best draft length | NVFP4 best rate over Q4 best rate |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 16K | 16,164 MiB | 16,409 MiB | 1.12 | 1.96 | 4, 17,431 MiB | 5, 17,766 MiB | 0.94 |
 | 20K | 16,413 MiB | 16,673 MiB | 1.11 | 1.94 | 2, 17,428 MiB | 5, 18,053 MiB | 0.92 |
 | 24K | 16,665 MiB | 16,931 MiB | 1.11 | 1.80 | 2, 17,699 MiB | 3, 18,023 MiB | 0.96 |
 | 32K | 17,189 MiB | not drawn | | | 1, 18,104 MiB | no length fits | |
@@ -95,8 +101,6 @@ Each draft length as a ratio of the same file's no-draft rate at that context:
 
 | context | file | 1 | 2 | 3 | 4 | 5 | 6 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 16K | NVFP4 | 1.41 | 1.55 | 1.50 | 1.58 | 1.43 | 1.33 |
-| 16K | Q4 | 1.26 | 1.49 | 1.76 | 1.82 | 1.88 | 1.72 |
 | 20K | NVFP4 | 1.35 | 1.52 | 1.46 | 1.48 | 1.37 | 1.28 |
 | 20K | Q4 | 1.25 | 1.68 | 1.79 | 1.80 | 1.84 | over |
 | 24K | NVFP4 | 1.34 | 1.52 | 1.45 | 1.44 | | |
@@ -106,30 +110,8 @@ Each draft length as a ratio of the same file's no-draft rate at that context:
 The NVFP4 file gains more than the Q4 file at draft length 1 and less at every length from 3 up.
 The share of drafted tokens accepted is within 0.04 of the Q4 file's at every length and context
 (0.71 to 0.74 at 1, 0.31 to 0.33 at 6), so the smaller gain does not come from fewer accepted
-tokens. Its ladders at 16K, 20K and 24K were drawn after the search, so that each has a Q4 row at
-the same context beside it. Two NVFP4 cells, 16K at draft 3 and 4, were drawn four times each and
-never under the power rule: the kept rows are at 0.82 and 0.83, and the four draws of each agree
-within 0.05 of the no-draft rate.
-
-### Both files on one night
-
-Every ratio above divides an NVFP4 row of 2026-11-18 by a Q4 row of 2026-11-16 or 2026-11-17,
-and the same launch reads a different rate on another night
-([the cache type rows of every model](kv-cache-every-model.md)). On **2026-11-19** both files
-were drawn at 20K with the 16-bit cache, without drafting and at one draft length each, the
-fastest of the file's 8-bit ladder: 2 for the NVFP4 file and 4 for the Q4 file.
-
-| at 20K | the rows above, of two nights | both rows of 2026-11-19 |
-| --- | --- | --- |
-| NVFP4 rate over Q4 rate, no draft | 1.11 | 1.05 |
-| prompt pass, NVFP4 over Q4 | 1.94 | 1.80 |
-| NVFP4 at draft length 2 over the Q4 file's fastest length | 0.92, the Q4 file at 5 | 0.91, the Q4 file at 4 |
-| NVFP4 memory under Q4 memory, no draft | 260 MiB | 249 MiB |
-
-With an 8-bit cache on the same night the two rate ratios are 1.05 and 0.91 again, and the NVFP4
-file takes 300 MiB less. The ratios at 16K, 24K and 40K divide the same two nights and were not
-drawn again. Method: `q8-probes/ref.py Qwen3.8-27B 20480 deep 0` and the same for
-`Qwen3.8-27B-NVFP4` under `measurements/model-baseline-2026-11-16/`, rows in `bench/q8-ref.jsonl`.
+tokens. Its ladders at 20K and 24K were drawn after the search, so that each has a Q4 row at the
+same context beside it. The ladders of both files at 16K are in the record of one night.
 
 ## gemma-4-31B: split with RAM
 
@@ -151,15 +133,13 @@ file at each context:
 | --- | --- | --- |
 | layers on the card at 16K, without and with the drafter | 53 and 51 | 55 and 53 |
 | layers on the card at 32K, without and with the drafter | 49 and 47 | 51 and 49 |
-| memory at 16K, no draft | 17,866 MiB and 4.0 GiB of RAM | 17,727 MiB and 4.0 GiB of RAM |
+| memory at 16K, no draft, 2026-11-22 | 17,865 MiB and 4.0 GiB of RAM | 17,700 MiB and 4.0 GiB of RAM |
 | memory at 32K, no draft | 17,736 MiB and 4.5 GiB of RAM | 17,887 MiB and 4.2 GiB of RAM |
-| best draft length at 16K | none | 1, at 1.24 of its no-draft rate |
+| best draft length at 16K, 2026-11-22 | none | 1, at 1.25 of its no-draft rate |
 | best draft length at 32K | none | none |
 
 | context | draft | NVFP4 rate over Q4 rate | NVFP4 over its no-draft rate | Q4 over its no-draft rate | drafted tokens accepted, NVFP4 | drafted tokens accepted, Q4 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 16K | none | 0.87 | 1 | 1 | | |
-| 16K | 1 | 0.69 | 0.98 | 1.24 | 0.69 | 0.85 |
 | 16K | 2 | 0.74 | 0.96 | 1.13 | 0.59 | 0.77 |
 | 16K | 3 | 0.66 | 0.89 | 1.17 | 0.51 | 0.70 |
 | 32K | none | 0.68 | 1 | 1 | | |
@@ -167,16 +147,19 @@ file at each context:
 | 32K | 2 | 0.81 | 0.88 | 0.73 | 0.57 | 0.76 |
 | 32K | 3 | 0.74 | 0.78 | 0.72 | 0.49 | 0.68 |
 
-Each NVFP4 ladder stopped at draft 3, its second fall in a row; the Q4 ladder at 16K went on to
-1.05 and 0.99 at draft 4 and 5. The prompt pass of the NVFP4 file is 1.46 of the Q4 file's at 16K
-and 1.21 at 32K without drafting. The drafter file comes from the Q4 file's folder: it drafts
-beside the NVFP4 file, and fewer of its tokens are accepted there at every length. The NVFP4 row
-at 16K without drafting had the lower power limit of the two (0.82 against 0.87 or more), so part
-of its 0.87 may be the limit; the two rows at 32K had nearly the same limit (0.84 and 0.85).
+16K without drafting and at draft length 1 is in
+[the record of one night](nvfp4-deep-pair.md#gemma-4-31b-at-16k-split-with-ram): the NVFP4 file
+writes 0.850 and 0.667 of the Q4 file's rate there. Every ratio of an NVFP4 row to a Q4 row in
+the table above divides an NVFP4 row of 2026-11-18 by a Q4 row of 2026-11-17, and the NVFP4 file
+has no row of one night at 32K or at draft lengths 2 and 3. At 16K that division had read 0.87
+and 0.69, and 1.46 for the prompt pass where one night reads 1.19. The Q4 file's 16-bit split
+rows were drawn again on 2026-11-19 and read 1.01 to 1.07 times its rows of 2026-11-17.
 
-These ratios divide NVFP4 rows of 2026-11-18 by Q4 rows of 2026-11-17. The Q4 file's 16-bit split
-rows were drawn again on 2026-11-19 and read 1.01 to 1.07 times its rows of 2026-11-17. The NVFP4
-file was not drawn again, so it has no ratio of one night.
+Each NVFP4 ladder stopped at draft 3, its second fall in a row; the Q4 ladder at 16K went on to
+1.05 and 0.99 at draft 4 and 5. The prompt pass of the NVFP4 file is 1.21 of the Q4 file's at
+32K without drafting, on two rows with nearly the same power limit (0.84 and 0.85). The drafter
+file comes from the Q4 file's folder: it drafts beside the NVFP4 file, and fewer of its tokens
+are accepted there at every length.
 
 ## What these rows do not say
 
