@@ -4,7 +4,7 @@ import re
 from typing import NamedTuple
 
 from composemounts import strip_quotes
-from composetargets import FLOW_OPENERS, KEY, ComposeServiceError, Targets
+from composetargets import FLOW_OPENERS, KEY, ComposeServiceError, Mounted, Targets
 
 COVERING_KEYS = frozenset({"volumes", "tmpfs"})
 
@@ -36,6 +36,7 @@ class Service(NamedTuple):
     image: str | None
     build: Build | None
     covered: tuple[str, ...]
+    temporary: tuple[str, ...]
 
     @property
     def builds(self) -> bool:
@@ -66,7 +67,7 @@ class _Draft:
         self.build_line = 0
         self.context: str | None = None
         self.dockerfile = DEFAULT_DOCKERFILE
-        self.covered: list[str] = []
+        self.mounted = Mounted([], [])
 
     def done(self) -> Service:
         """The finished service, with its covered paths frozen in the order they were written."""
@@ -76,7 +77,8 @@ class _Draft:
                 msg = f"line {self.build_line}: build names no context"
                 raise ComposeServiceError(msg)
             build = Build(self.context, self.dockerfile)
-        return Service(self.name, self.line, self.image, build, tuple(self.covered))
+        covered, temporary = tuple(self.mounted.covered), tuple(self.mounted.temporary)
+        return Service(self.name, self.line, self.image, build, covered, temporary)
 
 
 class _Reader:
@@ -197,7 +199,7 @@ class _Reader:
             self.targets.field(number, line.strip())
         else:
             entry = item.group("rest").strip()
-            self.targets.start(number, entry, self.draft.covered, whole=self.list_key == "tmpfs")
+            self.targets.start(number, entry, self.draft.mounted, whole=self.list_key == "tmpfs")
 
     def feed(self, number: int, line: str) -> None:
         """Offer one non-blank, non-comment line to the walk."""

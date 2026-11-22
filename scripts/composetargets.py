@@ -1,6 +1,7 @@
 """The container path a compose mount entry names, in every form compose accepts."""
 
 import re
+from typing import NamedTuple
 
 from composemounts import strip_quotes
 
@@ -13,6 +14,8 @@ _ALIAS = re.compile(r"^\*(?P<anchor>[\w.-]+)$")
 
 _FIELDS = 2
 
+KEPT_TYPES = frozenset({"volume", "bind"})
+
 
 class ComposeServiceError(Exception):
     """A compose file has a form this reader cannot read."""
@@ -24,6 +27,13 @@ def normalize(path: str) -> str:
     return trimmed or "/"
 
 
+class Mounted(NamedTuple):
+    """One service's mount targets: all of them, and those a new container gets empty."""
+
+    covered: list[str]
+    temporary: list[str]
+
+
 class Targets:
     """The mount entry currently open, and every anchor a path in it may be written through."""
 
@@ -31,7 +41,7 @@ class Targets:
         self.anchors: dict[str, str] = {}
         self.entry: dict[str, str] | None = None
         self.line = 0
-        self.sink: list[str] | None = None
+        self.sink: Mounted | None = None
 
     def resolve(self, number: int, text: str) -> str:
         """Turn one written path into the container path it means, following an alias to it."""
@@ -58,7 +68,10 @@ class Targets:
         if target is None:
             msg = f"line {line}: mount entry declares no target"
             raise ComposeServiceError(msg)
-        sink.append(self.resolve(line, target))
+        path = self.resolve(line, target)
+        sink.covered.append(path)
+        if fields.get("type") not in KEPT_TYPES or not fields.get("source"):
+            sink.temporary.append(path)
 
     def short(self, number: int, entry: str) -> str:
         """The container path a short-syntax mount names, its second colon-separated field."""
@@ -67,23 +80,25 @@ class Targets:
             msg = f"line {number}: short mount {entry!r} contains an expansion; use the long form"
             raise ComposeServiceError(msg)
         parts = text.split(":")
-        if len(parts) < _FIELDS:
+        if len(parts) < _FIELDS or not parts[0]:
             msg = f"line {number}: mount entry {entry!r} is not source:target"
             raise ComposeServiceError(msg)
         return self.resolve(number, parts[1])
 
-    def start(self, number: int, entry: str, sink: list[str], *, whole: bool) -> None:
+    def start(self, number: int, entry: str, sink: Mounted, *, whole: bool) -> None:
         """Begin one list entry: a whole path under `tmpfs:`, and a mount under `volumes:`."""
         self.close()
         if entry.startswith(FLOW_OPENERS):
             msg = f"line {number}: flow-style entry {entry!r} is not supported; use the block form"
             raise ComposeServiceError(msg)
         if whole:
-            sink.append(self.resolve(number, entry))
+            path = self.resolve(number, entry)
+            sink.covered.append(path)
+            sink.temporary.append(path)
             return
         pair = KEY.match(entry) if entry else None
         if entry and pair is None:
-            sink.append(self.short(number, entry))
+            sink.covered.append(self.short(number, entry))
             return
         self.entry, self.line, self.sink = {}, number, sink
         if pair is not None:

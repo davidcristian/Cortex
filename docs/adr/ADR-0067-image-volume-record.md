@@ -109,8 +109,9 @@ check`" into a category ([ADR-0011](ADR-0011-body-v1.md)).
 
 ### A path the environment names
 
-11. **A service given the card writes its compiled kernels under a mount, and `volumecheck.py`
-    checks the pair.** The card's library compiles kernels on first use and writes them to the
+11. **A service given the card writes its compiled kernels under a mount that outlives the
+    container, and `volumecheck.py` checks the pair.** The card's library compiles kernels on
+    first use and writes them to the
     directory `CUDA_CACHE_PATH` names. Unset, that is a directory under the home directory, in
     the container's own layer, and every new container compiles them again
     ([readings](../readings/deep-first-request.md#a-volume-for-the-compiled-kernels)). The stack
@@ -119,7 +120,13 @@ check`" into a category ([ADR-0011](ADR-0011-body-v1.md)).
     `runtime: nvidia` or a `gpus:` key) and fails one that sets no `CUDA_CACHE_PATH`. It also
     fails any service whose value is not an absolute path written out, or is under no mount of
     that service: a mount at the directory or above it contains it, and one beside or below it
-    does not. Services are merged across the compose files, as compose merges them, because
+    does not. The deepest mount that contains the directory is the one a write there reaches,
+    and it must be a named volume or a bind: a short `source:target` entry, or a long entry of
+    type `volume` or `bind` that names a source. A tmpfs, a volume with no source and every
+    other type fail, because a new container gets each of them empty. Any file mounting one
+    of those at that target fails the service, since the scan does not read which files run
+    together; a tmpfs that an override replaces with a volume therefore fails, and no file
+    here does that. Services are merged across the compose files, as compose merges them, because
     only the gpu overlay has the reservation. The scan has no service name and no path of its
     own: the reservation says which service, and the value is compared with the targets
     written beside it. The rule is in `volumecheck.py` because its subject is that scan's: a

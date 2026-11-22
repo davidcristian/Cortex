@@ -241,7 +241,7 @@ def main(argv: list[str] | None = None, inspect: Inspector = docker_volumes) -> 
         print(
             f"\nvolumecheck: {len(scanned.uncached)} problem(s) with where a service given the "
             f"card writes its compiled kernels. Set {CACHE_VARIABLE} for the service to a "
-            "directory under one of its mounts, with the path written out.",
+            "directory under a named volume or a bind, with the path written out.",
             file=sys.stderr,
         )
     if scanned.faults:

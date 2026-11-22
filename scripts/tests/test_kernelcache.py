@@ -183,3 +183,73 @@ def test_a_file_whose_environment_cannot_be_read_is_a_fault_and_gives_nothing() 
     assert kept.faults == (
         Lost(GPU, 0, "line 5: an environment written as a list is not supported"),
     )
+
+
+def _typed(kind: str, target: str = "/srv/keep", source: str = "") -> str:
+    named = f"        source: {source}\n" if source else ""
+    return f"      - type: {kind}\n{named}        target: {target}\n"
+
+
+TMPFS_LIST = "    tmpfs:\n      - /srv/keep\n"
+
+
+@pytest.mark.parametrize(
+    "mount",
+    [
+        "    volumes:\n" + _typed("tmpfs"),
+        TMPFS_LIST,
+        "    volumes:\n" + _typed("volume"),
+        "    volumes:\n" + _typed("image", source="host:1"),
+        "    volumes:\n      - target: /srv/keep\n        source: kernels\n",
+    ],
+)
+def test_a_mount_a_new_container_gets_empty_does_not_keep_the_kernels(mount: str) -> None:
+    (fault,) = _judge(_env(), mount, CARD)
+    assert (fault.path, fault.line) == (GPU, 2)
+    assert (
+        f"sets {CACHE_VARIABLE} to '/srv/keep/kernels' and the mount over it at '/srv/keep' "
+        "is not a named volume or a bind"
+    ) in fault.detail
+
+
+@pytest.mark.parametrize(
+    "mount",
+    [
+        "    volumes:\n" + _typed("bind", source="./kernels"),
+        "    volumes:\n" + _typed("volume", source="kernels"),
+        "    volumes:\n      - kernels:/srv/keep\n",
+        "    volumes:\n      - ./kernels:/srv/keep:rw\n",
+    ],
+)
+def test_a_named_volume_or_a_bind_in_either_syntax_keeps_the_kernels(mount: str) -> None:
+    assert _judge(_env(), mount, CARD) == ()
+
+
+def test_a_tmpfs_below_a_volume_and_over_the_directory_is_the_mount_that_is_judged() -> None:
+    nested = _mount() + _typed("tmpfs", "/srv/keep/kernels")
+    (fault,) = _judge(_env(), nested, CARD)
+    assert "the mount over it at '/srv/keep/kernels' is not a named volume" in fault.detail
+
+
+def test_a_volume_below_a_tmpfs_and_over_the_directory_keeps_the_kernels() -> None:
+    nested = "    volumes:\n" + _typed("tmpfs", "/srv") + _typed("volume", "/srv//keep/", "kernels")
+    assert _judge(_env(), nested, CARD) == ()
+
+
+def test_the_deepest_mount_is_found_by_its_path_parts_and_not_by_its_length() -> None:
+    long = "    volumes:\n" + _typed("tmpfs", "/srv" + "/" * 20 + "keep")
+    assert _judge(_env(), long + _typed("volume", "/srv/keep/kernels", "kernels"), CARD) == ()
+
+
+def test_a_tmpfs_beside_the_directory_changes_nothing() -> None:
+    assert _judge(_env(), _mount() + _typed("tmpfs", "/srv/keep/other"), CARD) == ()
+
+
+@pytest.mark.parametrize("order", [(0, 1), (1, 0)])
+def test_a_tmpfs_any_file_mounts_at_the_volumes_target_is_reported(order: tuple[int, int]) -> None:
+    mounts = (_mount(), TMPFS_LIST)
+    base = _source(_service(_env(), mounts[order[0]]), name="docker/docker-compose.yml")
+    overlay = _source(_service(mounts[order[1]], CARD))
+    (fault,) = kernel_caches([base, overlay]).faults
+    assert fault.path == "docker/docker-compose.yml"
+    assert "is not a named volume or a bind in every compose file" in fault.detail

@@ -278,3 +278,32 @@ def test_the_probe_file_really_covers_dovecots_two_declarations_through_its_anch
     text = (REPO_ROOT / "docker" / "docker-compose.imap-probe.yml").read_text(encoding="utf-8")
     probe = read_services(text).services[0]
     assert {"/srv/mail", "/etc/dovecot"} <= set(probe.covered)
+
+
+@pytest.mark.parametrize(
+    ("mounts", "temporary"),
+    [
+        ("    volumes:\n      - keep:/a\n      - ./b:/b:ro\n", ()),
+        ("    volumes:\n      - type: volume\n        source: keep\n        target: /a\n", ()),
+        ("    volumes:\n      - type: bind\n        source: ./b\n        target: /a\n", ()),
+        ("    volumes:\n      - type: tmpfs\n        target: /a\n", ("/a",)),
+        ("    volumes:\n      - type: volume\n        target: /a\n", ("/a",)),
+        ('    volumes:\n      - type: volume\n        source: ""\n        target: /a\n', ("/a",)),
+        ("    volumes:\n      - type: npipe\n        source: p\n        target: /a\n", ("/a",)),
+        ("    volumes:\n      - source: keep\n        target: /a\n", ("/a",)),
+        ("    tmpfs:\n      - /a\n", ("/a",)),
+        (
+            "    volumes:\n      - keep:/a\n      - type: tmpfs\n        target: /a/\n",
+            ("/a",),
+        ),
+    ],
+)
+def test_only_a_named_volume_or_a_bind_is_left_out_of_the_temporary_mounts(
+    mounts: str, temporary: tuple[str, ...]
+) -> None:
+    assert _one("services:\n  r:\n    image: r\n" + mounts).temporary == temporary
+
+
+def test_a_short_mount_with_no_source_is_refused() -> None:
+    with pytest.raises(ComposeServiceError, match="line 5: mount entry ':/a' is not source:target"):
+        read_services("services:\n  r:\n    image: r\n    volumes:\n      - :/a\n")

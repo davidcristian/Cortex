@@ -119,7 +119,7 @@ never a reading of what the tree does now.
 - **[R-1288](tasks/1288-a-forget-message-holding-a-value-deletes-another-row-for-a-call-text-holding-another-value.md)** A forget message holding a value deletes another row for a call text holding another value (memory). Its claim was checked against the code on 2026-11-21.
 - **[R-1292](tasks/1292-draft-length-2-against-3-on-the-qwen-nvfp4-file-has-six-texts.md)** Draft length 2 against 3 on the Qwen NVFP4 file has six texts (inference-model-manager). Its claim was checked against the code on 2026-11-22.
 - **[R-1294](tasks/1294-the-kernel-volume-has-no-row-on-the-nvfp4-file.md)** The kernel volume has no row on the NVFP4 file (inference-model-manager). Its claim was checked against the code on 2026-11-22.
-- **[R-1297](tasks/1297-a-tmpfs-over-the-kernel-directory-passes-volumecheck.md)** A tmpfs over the kernel directory passes volumecheck (repo-checks). Its claim was checked against the code on 2026-11-22.
+- **[R-1298](tasks/1298-a-named-volume-kept-in-memory-passes-the-kernel-rule.md)** A named volume kept in memory passes the kernel rule (repo-checks). Its claim was checked against the code on 2026-11-22.
 
 ### Actionable, once a port changes (1)
 
@@ -933,7 +933,7 @@ never a reading of what the tree does now.
 - [R-779](tasks/779-a-power-column-with-its-unit-only-in-the-header-is-not-searched.md) A power column with its unit only in the header is not searched. open, waiting for its trigger.
 - [R-781](tasks/781-a-shared-check-list-for-the-brain-transport.md) A shared check list for the brain transport. done 2026-10-04.
 - [R-838](tasks/838-a-clipboard-test-reaches-one-of-two-error-paths-by-a-race.md) A clipboard test reaches one of two error paths by a race. done 2026-10-11.
-- [R-1297](tasks/1297-a-tmpfs-over-the-kernel-directory-passes-volumecheck.md) A tmpfs over the kernel directory passes volumecheck. open, actionable.
+- [R-1298](tasks/1298-a-named-volume-kept-in-memory-passes-the-kernel-rule.md) A named volume kept in memory passes the kernel rule. open, actionable.
 
 ### resource-governance
 

@@ -27,6 +27,12 @@ _OUTSIDE = (
     "written to the container's own layer, and every new container compiles them again. Mount a "
     "volume that contains the directory."
 )
+_TEMPORARY = (
+    "service {service!r} sets " + CACHE_VARIABLE + " to {value!r} and the mount over it at "
+    "{target!r} is not a named volume or a bind in every compose file; a new container gets "
+    "any other mount empty, a tmpfs or a volume with no source among them, and compiles the "
+    "card's kernels again. Mount a named volume or a bind there."
+)
 _UNREAD = (
     "service {service!r} sets " + CACHE_VARIABLE + " to {value!r}, which is not an absolute "
     "container path written out, so it cannot be compared with the service's mounts. Write the "
@@ -83,10 +89,11 @@ def given_card(text: str, started: Started) -> bool:
 
 
 class _Stack(NamedTuple):
-    """Every file read together: per service, what it mounts over, where it sets the variable
-    with each value, and the first place it is given the card."""
+    """Every file read together: per service, what it mounts over, which of those mounts a new
+    container gets empty, where it sets the variable, and where it is first given the card."""
 
     covered: dict[str, set[str]]
+    temporary: dict[str, set[str]]
     written: dict[str, list[tuple[str, int, str]]]
     carded: dict[str, tuple[str, int]]
     refused: list[Lost]
@@ -94,7 +101,7 @@ class _Stack(NamedTuple):
 
 def _read(sources: Iterable[Source]) -> _Stack:
     """Merge every service across the files, as compose merges the files it is given."""
-    stack = _Stack({}, {}, {}, [])
+    stack = _Stack({}, {}, {}, {}, [])
     for source in sources:
         try:
             starts = read_starts(source.text)
@@ -103,6 +110,7 @@ def _read(sources: Iterable[Source]) -> _Stack:
             continue
         for service in source.found.services:
             stack.covered.setdefault(service.name, set()).update(service.covered)
+            stack.temporary.setdefault(service.name, set()).update(service.temporary)
         for started in starts:
             stack.written.setdefault(started.service, []).extend(
                 (source.name, started.line, value)
@@ -114,8 +122,15 @@ def _read(sources: Iterable[Source]) -> _Stack:
     return stack
 
 
+def _over(targets: Iterable[str], path: str) -> str | None:
+    """The deepest of ``targets`` that holds ``path``, which is the mount a write there reaches."""
+    holding = [target for target in targets if contains(target, path)]
+    return max(holding, key=lambda target: len(PurePosixPath(target).parts), default=None)
+
+
 def kernel_caches(sources: Iterable[Source]) -> Kept:
-    """Judge every service given the card, and every directory the variable is set to."""
+    """Judge every service given the card: a named volume or a bind must hold its directory,
+    because a new container gets a tmpfs or an anonymous volume empty and compiles again."""
     stack = _read(sources)
     faults = list(stack.refused)
     faults.extend(
@@ -124,10 +139,16 @@ def kernel_caches(sources: Iterable[Source]) -> Kept:
         if not stack.written.get(service)
     )
     for service, places in stack.written.items():
-        targets = stack.covered.get(service, ())
+        targets = stack.covered.get(service, set())
+        temporary = stack.temporary.get(service, set())
         for name, line, value in places:
             if not value.startswith("/") or "$" in value:
                 faults.append(Lost(name, line, _UNREAD.format(service=service, value=value)))
-            elif not any(contains(target, value) for target in targets):
+                continue
+            over = _over(targets, value)
+            if over is None:
                 faults.append(Lost(name, line, _OUTSIDE.format(service=service, value=value)))
+            elif over in temporary:
+                detail = _TEMPORARY.format(service=service, value=value, target=over)
+                faults.append(Lost(name, line, detail))
     return Kept(len(stack.carded), tuple(faults))

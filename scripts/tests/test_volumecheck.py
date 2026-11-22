@@ -268,13 +268,24 @@ def test_a_service_given_the_card_that_keeps_its_kernels_nowhere_is_reported(tre
     assert fault in scanned.faults
 
 
-def test_a_service_given_the_card_with_its_kernels_under_a_mount_is_accounted_for(
+_DIRECTORY = "    environment:\n      CUDA_CACHE_PATH: /srv/keep/k\n"
+
+
+def test_a_service_given_the_card_with_its_kernels_under_a_volume_is_accounted_for(
     tree: Path,
 ) -> None:
-    kept = "    environment:\n      CUDA_CACHE_PATH: /srv/keep/k\n    tmpfs:\n      - /srv/keep\n"
+    kept = _DIRECTORY + "    volumes:\n      - kernels:/srv/keep\n"
     _write(tree, "docker/docker-compose.gpu.yml", _service(_CARDED + kept, "cache"))
     scanned = volumecheck.check(tree, RECORDS)
     assert (scanned.carded, scanned.uncached) == (1, ())
+
+
+def test_a_service_given_the_card_with_its_kernels_under_a_tmpfs_is_reported(tree: Path) -> None:
+    emptied = _DIRECTORY + "    tmpfs:\n      - /srv/keep\n"
+    _write(tree, "docker/docker-compose.gpu.yml", _service(_CARDED + emptied, "cache"))
+    scanned = volumecheck.check(tree, RECORDS)
+    (fault,) = scanned.uncached
+    assert "the mount over it at '/srv/keep' is not a named volume or a bind" in fault.detail
 
 
 def test_a_file_the_reader_refuses_is_left_out_of_the_kernel_rule(tree: Path) -> None:
@@ -303,8 +314,8 @@ def test_main_counts_a_kernel_fault_apart_from_the_declarations(
     assert captured.out.startswith("docker/docker-compose.gpu.yml:2: service 'cache' is given")
     assert captured.err == (
         "\nvolumecheck: 1 problem(s) with where a service given the card writes its compiled "
-        "kernels. Set CUDA_CACHE_PATH for the service to a directory under one of its mounts, "
-        "with the path written out.\n"
+        "kernels. Set CUDA_CACHE_PATH for the service to a directory under a named volume or "
+        "a bind, with the path written out.\n"
     )
 
 
