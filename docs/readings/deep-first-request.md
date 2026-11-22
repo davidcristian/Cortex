@@ -34,7 +34,7 @@ two sizes, and the container decides which, not the load:
 The five first loads are the three of the pair record and two of these launches. A later load
 has 0.10 of a first load's fixed time. So a stack pays the larger time once, on the first
 handoff after it starts, and every later handoff pays the smaller one. Every row of the pair
-record was a first load.
+record's first handoff was a first load.
 
 ## What the larger time is
 
@@ -100,9 +100,10 @@ lengthen the load by 0.50 of one. The whole deep turn would be longer by the dif
 
 ## What these rows do not say
 
-- Anything about the NVFP4 file. Its fixed time on a first load is 2.03 times this file's, and
-  no later load of it is drawn
-  ([R-1293](../refinements/tasks/1293-the-nvfp4-files-first-request-is-drawn-only-on-a-new-containers-first-load.md)).
+- Anything about the NVFP4 file. Its first and later loads in one container are in
+  [the deep turn of a handoff](nvfp4-deep-pair.md#the-deep-turn-of-a-handoff): it compiles
+  kernels of its own after this file's, and its later loads have 0.07 of its first load's
+  fixed time. No row kept the directory across containers for it.
 - What the cortex and subagent tiers pay on their first request in a new container. The one
   cortex request above has no later request to divide it by.
 - What a cache written by another engine build or another driver does. The library names each
@@ -110,7 +111,8 @@ lengthen the load by 0.50 of one. The whole deep turn would be longer by the dif
 - What `--no-warmup` or the library's `CUDA_MODULE_LOADING=EAGER` do to the smaller time.
   Neither was drawn.
 - Anything at another prompt size. The pair record read the first load's fixed time the same
-  at 896 and at 10,856 prompt tokens.
+  at 896 and at 10,856 prompt tokens. The smaller time of its later loads read 0.64 as large
+  at 10,856 tokens as at 896 for this file and 0.86 for the NVFP4 file, three loads a cell.
 
 Method, under `measurements/model-baseline-2026-11-16/`: `nvfp4-probes/firstfixed.py` starts
 the model host once (compose project `cortexn27`) and starts and stops the deep tier through it

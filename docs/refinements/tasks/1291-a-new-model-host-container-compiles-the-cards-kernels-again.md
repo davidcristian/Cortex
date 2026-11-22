@@ -15,6 +15,15 @@ bound at `/home/cortex/.nv`, the first deep load of three new containers read 1.
 did not grow, so the time is removed and not moved into the load. The client's first token on
 those loads came at 0.28 of an untreated first load's.
 
+The NVFP4 file compiles kernels of its own. In one container that stayed up, its first load
+came after the Q4 file's and still had 0.91 of its first-load fixed time, which is 2.03 times
+the Q4 file's, and that request added 60 MB to the directory, more than the cortex tier's and
+the Q4 file's loads had written together
+([readings](../../readings/nvfp4-deep-pair.md#the-deep-turn-of-a-handoff)). Its later loads
+there had 0.07 of it, as the Q4 file's had. So a volume would keep both files' kernels, and a
+deployment of the NVFP4 file has more to save on its first handoff. No row drew that file
+with the directory kept across containers.
+
 **Proposed, not built: a named volume for that directory** on the `model-host` service of
 `docker/docker-compose.gpu.yml`, mounted at `/home/cortex/.nv`. It was not built on these rows
 because no rule for the change was written before they were drawn. The rule is below, and a
@@ -53,5 +62,4 @@ proposed for it.
 - 2026-11-22: filed by the rows of both Qwen files' first request after a load, which
   [R-1244](1244-the-deep-tiers-file-is-not-chosen-between-the-q4-and-the-nvfp4-files.md)
   compares the two files on. Rows on the Q4 file the same date named the time and what removes
-  it. The NVFP4 file's later loads are
-  [R-1293](1293-the-nvfp4-files-first-request-is-drawn-only-on-a-new-containers-first-load.md).
+  it, and rows of both files in one container said the NVFP4 file compiles its own.
