@@ -78,7 +78,7 @@ This starts `model-host`, the supervisor sidecar, which spawns one `llama-server
 cortex tier with every layer on the GPU (`-ngl 99`), and points the brain at
 `http://model-host:8080` with `CORTEX_INFERENCE_BACKEND=llamacpp`. The sidecar replaced the
 always-on `llama-cortex` service so a swap can stop the cortex and start the deep model, which no
-compose service can do (ADR-0030).
+compose service can do (ADR-0030). The `compute-cache` volume is the container's `/var/tmp`. `CUDA_CACHE_PATH` names `/var/tmp/ComputeCache` in it, where the card's library keeps the kernels it compiles on first use, 51 MB after a deep load, so a new container does not compile them again. Anything else a process writes to `/var/tmp` is in the volume too ([readings](../readings/deep-first-request.md#a-volume-for-the-compiled-kernels)).
 
 The sidecar's healthcheck asks whether the cortex tier is READY, not whether the daemon answers,
 so the brain waits for the model to finish loading. Watch `docker compose logs model-host` for
@@ -115,8 +115,7 @@ and the deep phase a handoff continues it with. To bound those two traces differ
 `CORTEX_REASONING_BUDGET` and `CORTEX_REASONING_BUDGET_BRAIN` and leave `CORTEX_REPLY_TRACE_TOKENS` unset.
 
 The key is sent only where the engine reads it, because a build that does not implement it
-ignores it without error. `CORTEX_INFERENCE_TRACE_LEVER=auto` asks the endpoint one question at
-boot. Ask it yourself with:
+ignores it without error. `CORTEX_INFERENCE_TRACE_LEVER=auto` asks the endpoint one question at boot. Ask it yourself with:
 
 ```
 curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8080/v1/chat/completions \
@@ -147,8 +146,7 @@ reads the key, or by restarting the brain against a build whose probe answers `r
 Restart the brain after pulling a newer llama.cpp or rebuilding the model host: the first answer is
 kept for the life of the brain process, and that staleness is not reported. If the boot line and the
 `curl` above disagree, the brain is the stale half. The brain logs the build each model's server names when it changes ([subagents-cpu.md](subagents-cpu.md) shows
-the line). Read the build off the model host image, since its build can use a newer base than the
-cached `:server-cuda` tag:
+the line). Read the build off the model host image, since its build can use a newer base than the cached `:server-cuda` tag:
 
 ```
 docker image inspect cortex-model-host \
@@ -248,3 +246,5 @@ total used minus a floor read at both ends of the run is the only instrument ava
 ```
 docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.gpu.yml down
 ```
+
+Add `-v` to also drop the volumes: `redis-data`, every conversation, and `compute-cache`, the kernels the card's library compiled, which the first deep request after the next start compiles again ([readings](../readings/deep-first-request.md#a-volume-for-the-compiled-kernels)).

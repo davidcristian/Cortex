@@ -148,7 +148,7 @@ the NVFP4 file's is 2.03 times the Q4 file's at both sizes.
 compiles the engine's kernels on their first use into a directory inside the container
 ([the deep tier's first request after a load](deep-first-request.md)). In the container that
 stayed up, the Q4 file's first load was the container's first deep load, and its fixed time
-read 1.05 of the first handoff's. The NVFP4 file's first load came next and read 0.91 of its
+read 1.06 of the first handoff's. The NVFP4 file's first load came next and read 0.91 of its
 own first handoff's, so the Q4 file's compile did not serve it. The Q4 file's first request
 added 24 files and 32 MB to that directory and the NVFP4 file's 8 files and 60 MB. None of the
 twelve later loads added a file, and their fixed time is 0.07 of a first load's for each file
@@ -198,7 +198,7 @@ inside two standard errors of 1. On a later handoff every reading of the whole t
 0.91 to 1.10 at both sizes, which the rule written before the rows reads as level. The first
 token moves between the two handoffs, from 1.76 to 0.94 at 896 tokens and from level to 0.60
 at 10,856, but it is 0.01 to 0.13 of a turn, and the load is 0.70 to 0.80 of it on both. A
-stack gets the first handoff once after each start and the later one every other time.
+container that keeps its kernels in its own layer gets the first handoff once after each start and the later one every other time. The stack keeps them in a volume, drawn on the Q4 file alone: there a new container's first deep load has the fixed time of a later one ([rows](deep-first-request.md#a-volume-for-the-compiled-kernels)).
 
 Method, under `measurements/model-baseline-2026-11-16/`. The first handoff:
 `nvfp4-probes/firstpass.py` for a launch, `firstread.py` and `firstturn.py` for the cells and
@@ -245,6 +245,6 @@ the same for `gemma-4-31B-NVFP4`, under `measurements/model-baseline-2026-11-16/
 - A later handoff with a cortex load between two deep loads, as a running stack has, and the
   NVFP4 file as a container's first deep load with the Q4 file's after it.
 - The load of a file the machine has not read since it started. Every load here came after
-  earlier loads of the same file on the night, and the load is 0.70 to 0.77 of the turn.
+  earlier loads of the same file on the night, and the load is 0.70 to 0.80 of the turn.
 - Nothing about the gemma NVFP4 file with every layer on the card, the shape the stack starts
   the tier in.

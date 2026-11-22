@@ -202,7 +202,7 @@ from the always-on `llama-cortex` service.
   image's **own** interpreter, the brain image's prebuilt venv pointing at a
   `/usr/local/bin/python3.12` Ubuntu 24.04 does not have. `WORKDIR` is `/srv/brain`, `/app` being
   where the base keeps the binary the supervisor starts. It runs as uid 10001 with the base image's
-  entrypoint cleared.
+  entrypoint cleared. Compose mounts the `compute-cache` volume at `/var/tmp`, which the image has with mode 1777, and sets `CUDA_CACHE_PATH` to `/var/tmp/ComputeCache`, so the card's library keeps its compiled kernels in the volume ([readings](../readings/deep-first-request.md#a-volume-for-the-compiled-kernels)).
 - **The control API is not published.** ADR-0030 says compose network only, and on WSL2 a
   `127.0.0.1` publish is reachable from Windows' own localhost too, so the default publishes only
   the cortex tier's `127.0.0.1:8080`. `docker/docker-compose.modelhost-loopback.yml` is the opt-in

@@ -62,9 +62,17 @@ the model host runs, under the baseline's 18,177 MiB model budget on the 24 GB c
     and 0.98 of the Q4 file's, and 1.05 and 0.90 with the load left out.
 
   The loads read 1.05 and 1.01, neither apart from 1 by the rule written before the rows, and
-  the load is 0.70 to 0.80 of a turn. By the same rule no whole turn reads apart from level,
-  at either size on either handoff. A stack gets the first handoff once after each start and
-  the later one every other time.
+  the load is 0.70 to 0.80 of a turn. The rule for a turn, written before the later rows, reads
+  0.91 to 1.10 as level. Both later turns are inside it by every reading, and so is the first
+  handoff's at 10,856 tokens. The first handoff's turn at 896 tokens reads 1.09 with the
+  twelve-text write ratio and 1.12 at the write rates of its own rows, one inside and one
+  outside.
+
+  Which handoff a stack gets depends on where the compiled kernels are kept. A container that
+  keeps them in its own layer gets the first handoff once after each start and the later one
+  every other time. The stack keeps them in a volume: on the Q4 file a new container's first
+  deep load then has the fixed time of a later load
+  ([readings](../../readings/deep-first-request.md#a-volume-for-the-compiled-kernels)).
 - **What the Qwen NVFP4 file writes.** Three stop cells, the injection text rows at `medium` and
   one handoff through the brain were drawn on 2026-11-22, and no count reads apart from the Q4
   file's.
@@ -88,10 +96,13 @@ the model host runs, under the baseline's 18,177 MiB model budget on the 24 GB c
 - What the gemma NVFP4 file writes. It has none of the rows the deep pick is compared on:
   [R-1245](1245-the-nvfp4-files-have-none-of-the-rows-the-deep-pick-is-compared-on.md).
 - What a later handoff gets with a cortex load between two deep loads, as a running stack
-  has: the later loads drawn followed one another with the cortex tier stopped. Whether a
-  kept kernel directory makes the NVFP4 file's first handoff read as its later one, as it
-  does for the Q4 file
-  ([R-1291](1291-a-new-model-host-container-compiles-the-cards-kernels-again.md)).
+  has: the later loads drawn followed one another with the cortex tier stopped.
+- Whether the volume the stack keeps its compiled kernels in makes the NVFP4 file's first
+  handoff read as its later one. It does for the Q4 file: a new container's first deep load
+  then has its first token at 0.286 of an untreated one's
+  ([readings](../../readings/deep-first-request.md#a-volume-for-the-compiled-kernels)). If it
+  does for both, a stack pays the first handoff above once a volume and engine build, not
+  after each start ([R-1294](1294-the-kernel-volume-has-no-row-on-the-nvfp4-file.md)).
 - Whether the two Qwen files differ in the shipped shape by less than 0.06. Twelve texts a file
   do not tell a smaller difference from none.
 - Whether draft length 2 is faster than 3 for the Qwen NVFP4 file at `q8_0`. Six texts a length
@@ -158,13 +169,15 @@ a stack start it does not arrive: that request costs the NVFP4 file twice the fi
 costs the Q4 file, and its first token is 1.76 times as late on a short handoff and no sooner
 on a full history window. On a later handoff it does arrive: the first token is level on a
 short handoff and comes at 0.60 of the Q4 file's on a full history window. The later handoff
-is the one a deployment gets more of, every handoff but the first after each start. It does
-not make the deep turn shorter, because the deep tier is loaded for each handoff and the load
-is 0.70 to 0.80 of the turn on both files: the whole turn reads 1.05 to 1.09 of the Q4 file's
-on the first handoff and 1.02 and 0.98 on a later one, none apart from level by the rule
-written before the rows. So B would bring the first token of a long later handoff forward,
-delay the first token of the first handoff after each start, and leave the length of every
-turn where it is, with a write rate that every reading puts under the Q4 file's. That
+is the one a deployment gets more of, every handoff but the first after each start. The
+faster prompt pass does not make the deep turn shorter, because the deep tier is loaded for
+each handoff and the load is 0.70 to 0.80 of the turn on both files: the whole turn reads 1.05
+to 1.09 of the Q4 file's on the first handoff and 1.02 and 0.98 on a later one, all inside the
+0.91 to 1.10 the rule written before the later rows reads as level, and 1.12 for the first
+handoff's short turn at the write rates of its own rows. So B would bring the first token of
+a long later handoff forward, delay the first token of the first handoff after each start,
+and leave the length of every turn where it is, with a write rate that every reading puts
+under the Q4 file's. That
 exchanges one first token for another and shortens nothing, so the proposal stays A, by less
 than the first handoff alone gave. B would be the better choice where the first token of long
 handoffs matters more than the first handoff after a start, or for a deep tier that stays
@@ -204,6 +217,7 @@ nothing from the drafter ADR-0004 names for the alternate, and holds more of the
   does not reach a handoff. A later handoff was drawn the same date, both files in turn in
   one container that stayed up, three later loads a cell: there it does, with the first token
   level at 896 prompt tokens and at 0.60 of the Q4 file's at 10,856, and the whole turn level
-  at both sizes. R-1291 filed for the compile that request pays once a container, and R-1292
+  at both sizes. The stack now keeps the kernels that request compiles in a volume, on rows of
+  the Q4 file; R-1294 filed for the NVFP4 file's row with it, and R-1292
   for draft length 2 against 3 on the NVFP4 file. What was measured, what is not known and
   the choice are written on those rows. The proposal is A.

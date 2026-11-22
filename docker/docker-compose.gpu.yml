@@ -125,6 +125,9 @@ services:
       CORTEX_MODELHOST_LOG_LEVEL:
       CORTEX_MODEL_SUBAGENT_GPU:
       CORTEX_NGL_SUBAGENT_GPU:
+      # Where the card's library keeps the kernels it compiles: a directory of the compute-cache
+      # volume below. Unset, the library writes them under the home directory, outside the volume.
+      CUDA_CACHE_PATH: /var/tmp/ComputeCache
     volumes:
       # Models stay on the host drive, mounted read-only; override the source with
       # CORTEX_MODELS_DIR.
@@ -132,6 +135,12 @@ services:
         source: "${CORTEX_MODELS_DIR:-./models}"
         target: /models
         read_only: true
+      # The kernels the card's library compiles on first use. Without the volume every new
+      # container compiles them again in its first deep request. The image has /var/tmp with
+      # mode 1777, so the image's user can write a volume mounted there.
+      - type: volume
+        source: compute-cache
+        target: /var/tmp
     ports:
       # The cortex tier's own port, on loopback only. Deliberately not published: the control API
       # (:9300), which can start and stop processes on the container holding the GPU and the models
@@ -167,3 +176,6 @@ services:
             - driver: nvidia
               count: 1
               capabilities: ["gpu"]
+
+volumes:
+  compute-cache:

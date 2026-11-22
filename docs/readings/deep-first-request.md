@@ -3,9 +3,8 @@
 What the first request to a newly loaded deep server takes beyond a later request of the same
 size, and where that time goes. It continues
 [the deep turn of a handoff](nvfp4-deep-pair.md#the-deep-turn-of-a-handoff), whose rows first
-read a fixed time there, and
-[R-1291](../refinements/tasks/1291-a-new-model-host-container-compiles-the-cards-kernels-again.md)
-proposes the change these rows point at. Nothing that ships was changed on them.
+read a fixed time there. The larger part of it is a compile, and the stack keeps what the
+compile writes in [a named volume](#a-volume-for-the-compiled-kernels).
 
 ## Two fixed times
 
@@ -98,16 +97,77 @@ time, since it has a pass of its own. A model host that sent it before reporting
 ready would bring the first token of a later handoff forward by 0.21 of a later pass and
 lengthen the load by 0.50 of one. The whole deep turn would be longer by the difference.
 
+## A volume for the compiled kernels
+
+**2026-11-22**, the same card, file, argv and requests, on the `cortex-model-host` image as it
+was built, with no image build. `docker/docker-compose.gpu.yml` mounts the named volume
+`compute-cache` at `/var/tmp` on `model-host` and sets `CUDA_CACHE_PATH=/var/tmp/ComputeCache`
+in its environment. The library reads that variable for its directory, and the model host
+starts each engine process with its own environment. The rule for the change was written before
+these rows: nine points, three new containers a cell, against untreated first loads of the
+same night.
+
+Ten launches and twelve deep loads, every row at a median power limit of 0.89 of the card's
+maximum with no reading under it. The untreated first loads are seven: the five above,
+one drawn earlier on that date, and one drawn in turn with these rows, which read 1.005 of the
+six's first prompt pass and 1.037 of their load. A kept volume is one an earlier container wrote.
+A later pass is the median over the 17 rows above and the 11 the model host started here.
+
+| point | the rule | read | holds |
+| --- | --- | --- | --- |
+| 1. the first token | a new container's first deep load on a kept volume, three of them: first prompt pass 1.6 later passes or less; the client's first token 0.40 or less of an untreated first load's | 1.41 (1.39 to 1.47); 0.286 (0.281 to 0.298) | yes |
+| 2. the whole deep turn | the load, the first token and 1,000 tokens written under 1 of the untreated turn by the medians | 0.981 (0.966 to 0.988) | yes |
+| 3. what must not change | the load within 0.10; the highest reading above the floor within 16 MiB of the untreated rows' 16,993 to 17,003 MiB; the first request's write rate within 0.05; both timeouts as they were | 1.022 (1.004 to 1.035); 16,993 in all three MiB; 1.010; the change names neither `CORTEX_SWAP_LOAD_TIMEOUT_S` nor `CORTEX_INFERENCE_STALL_TIMEOUT_S` | yes |
+| 4. an empty volume | three new volumes: each first container's first prompt pass and load within 0.10 of the untreated medians, and the files in the volume afterwards, owned by uid 10001 | first prompt pass 1.012, 1.004 and 1.005; load 0.999, 1.017 and 1.022; each volume 39 files and 51 MB, all owned by uid 10001, 20 MB of it after the cortex tier's load | yes |
+| 5. a later load in the same container | on an empty volume and on a kept one: a fixed time of 0.25 or less of an untreated first load's | 0.103 on the empty volume and 0.101 on the kept one | yes |
+| 6. an image that has the library's own directory | the same mount on an image with `/home/cortex/.nv` made by its user passes point 1 | one container: first prompt pass 1.45 later passes; first token 0.294; nothing written under `/home/cortex/.nv` | yes, on one container |
+| 7. a volume that is empty and owned by root | the first container that mounts it at `/var/tmp` writes it | one container: the volume was empty and owned by root with mode 755, took mode 1777 at the mount, and had the 39 files after, owned by uid 10001; first prompt pass 0.977 and load 1.025 of the untreated medians | yes |
+| 8. another engine build on a kept volume | it starts and answers; its first prompt pass is no longer than the same build's with no volume, and its load no longer than the same build's started the same way with no volume | build b12169 answered both requests; first prompt pass 0.93 of its own with no volume; load 0.99 | yes |
+| 9. the scans and the runbook | `volumecheck.py` and `bindcheck.py` pass; the runbook says what the volume has in it and that `down -v` removes it | both pass; [llamacpp-gpu.md](../runbooks/llamacpp-gpu.md#teardown) | yes |
+
+**A later load reads the volume as it reads a container's own layer.** The second deep load of
+the container on a new volume had 0.105 of its first load's fixed time, and a container with no
+volume reads 0.07 to 0.10 there.
+
+**Why the target is `/var/tmp`.** A new named volume takes the owner and mode of the image
+directory it is mounted over, and is owned by root with mode 755 where the image has none. The
+image has `/var/tmp`, empty and owned by root with mode 1777, so the image's user, uid 10001,
+can write a volume mounted there and the image needs no directory made for it. It has no
+`/home/cortex/.nv`, where the library writes when the variable is unset. Two launches mounted a
+volume there: each started and answered, the volume stayed empty and no log line named the
+directory, and a second deep load in one container had 0.98 of the first load's fixed time, so
+the library, with nowhere to write, compiled on every deep load. The volume holds whatever a
+process writes to `/var/tmp`. After a deep load that was the library's directory and nothing
+else.
+
+**Another engine build reads part of these and compiles the rest.** Build b12169, from
+`ghcr.io/ggml-org/llama.cpp:server-cuda`, was started by `docker run` as the same uid with the
+same argv. With no volume that build wrote 34 files and 43 MB. On the volume the model host's
+build had written, with the variable set, it added 17 files and 28 MB beside the 51 MB, and
+its first prompt pass read 0.93 of its own with no volume. Two earlier launches of it, on such
+a volume mounted for that build at the library's own directory, read 0.93 and then, with its
+own files there, 0.28. Its load, timed from `docker run` with no container yet, read 0.99 of
+the same build's started the same way with no volume, and 0.98 and 0.97 in the two earlier
+launches. So a rebuild that moves the engine build pays most of the compile once more, and the
+older build's files stay in the volume until `down -v` removes it.
+
 ## What these rows do not say
 
 - Anything about the NVFP4 file. Its first and later loads in one container are in
   [the deep turn of a handoff](nvfp4-deep-pair.md#the-deep-turn-of-a-handoff): it compiles
   kernels of its own after this file's, and its later loads have 0.07 of its first load's
-  fixed time. No row kept the directory across containers for it.
+  fixed time. No row drew it with the volume
+  ([R-1294](../refinements/tasks/1294-the-kernel-volume-has-no-row-on-the-nvfp4-file.md)).
 - What the cortex and subagent tiers pay on their first request in a new container. The one
   cortex request above has no later request to divide it by.
-- What a cache written by another engine build or another driver does. The library names each
-  file by a hash, and no launch here read a directory another build wrote.
+- What a cache written under another driver does. The library names each file by a hash, and
+  every launch here ran on one driver.
+- What the model host's build reads on the volume after another build wrote into it. Every
+  kept row was drawn before the other build's launch.
+- An image built from `brain/Dockerfile.modelhost` on that date. None was built: a build takes
+  the `server-cuda` base the registry has on that day, so it can change the engine build under
+  every tier. Point 6's image is the image as built with one `mkdir` run in it and stored as a
+  layer.
 - What `--no-warmup` or the library's `CUDA_MODULE_LOADING=EAGER` do to the smaller time.
   Neither was drawn.
 - Anything at another prompt size. The pair record read the first load's fixed time the same
@@ -118,6 +178,12 @@ Method, under `measurements/model-baseline-2026-11-16/`: `nvfp4-probes/firstfixe
 the model host once (compose project `cortexn27`) and starts and stops the deep tier through it
 for every load of the launch; `nvfp4-probes/fixedread.py` reads the groups. Rows in
 `bench/first-fixed-2026-11-22.jsonl` (17 rows, all kept), the three first loads of the pair
-record in `bench/pair-first-2026-11-22.jsonl`. The rule for each step was written in
-`nvfp4-probes/notes-2026-11-22.md` before its launch, and the engine's log and the container's
-file list are in the run directory beside the compose files.
+record in `bench/pair-first-2026-11-22.jsonl`. `nvfp4-probes/k2vol.py` draws the volume's
+launches from the compose file as it is and `nvfp4-probes/k2read.py` reads them against the
+nine points, rows in `bench/kernel-vartmp-2026-11-22.jsonl` (12 rows, all kept).
+`bench/kernel-volume-2026-11-22.jsonl` has the sixth untreated load, the other build's launch
+with no volume and its two earlier ones, and one launch of a volume mounted where the image has
+no directory; `bench/kernel-nobuild-2026-11-22.jsonl` has the other, with two deep loads in its
+one container. The rule for each step was written in `nvfp4-probes/notes-2026-11-22.md` before
+its launch, and the engine's log and the container's file list are in the run directory beside
+the compose files.
