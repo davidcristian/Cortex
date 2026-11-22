@@ -1,10 +1,8 @@
 # The deep tier's file is not chosen between the Q4 and the NVFP4 files
 
-**Status:** open, waiting for its trigger
+**Status:** done 2026-11-22
 **Area:** inference-model-manager
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Trigger:** a History line in this file recording the maintainer's pick of A, B or C below.
-**Verified:** 2026-11-22
 
 On 2026-11-17 the models mount gained two files meant for the deep tier, both in NVFP4, a 4-bit
 floating point weight format:
@@ -14,7 +12,8 @@ floating point weight format:
 
 ADR-0004 names `Qwen3.8-27B-UD-Q4_K_M` as the deep pick and `gemma-4-31B-it-qat` as the alternate.
 Nothing in a tier default or a runbook names an NVFP4 file. This task was filed because the model
-baseline of 2026-11-16 had no row for either file. It has them now, and what is left is the choice.
+baseline of 2026-11-16 had no row for either file. It has them now, and on 2026-11-22 the
+maintainer chose A below: both deep entries keep their Q4 file.
 
 ## What was measured
 
@@ -102,16 +101,15 @@ the model host runs, under the baseline's 18,177 MiB model budget on the 24 GB c
   then has its first token at 0.286 of an untreated one's
   ([readings](../../readings/deep-first-request.md#a-volume-for-the-compiled-kernels)). If it
   does for both, a stack pays the first handoff above once a volume and engine build, not
-  after each start ([R-1294](1294-the-kernel-volume-has-no-row-on-the-nvfp4-file.md)).
+  after each start. No row drew the NVFP4 file with the volume.
 - Whether the two Qwen files differ in the shipped shape by less than 0.06. Twelve texts a file
   do not tell a smaller difference from none.
 - Whether draft length 2 is faster than 3 for the Qwen NVFP4 file at `q8_0`. Six texts a length
-  read 1.05 to 1.06, each text faster at length 2, on one launch a length
-  ([R-1292](1292-draft-length-2-against-3-on-the-qwen-nvfp4-file-has-six-texts.md)).
+  read 1.05 to 1.06, each text faster at length 2, on one launch a length.
 - How long a handoff loads a file the machine has not read since it started. Every load drawn
   came after earlier loads of the same file on the night.
-- The Qwen NVFP4 file's injection rows at `xhigh` and its undrafted `xhigh` stop cell
-  ([R-1289](1289-the-qwen-nvfp4-file-has-no-injection-row-at-xhigh-and-no-undrafted-xhigh-stop-cell.md)).
+- The Qwen NVFP4 file's injection rows at `xhigh` and its undrafted `xhigh` stop cell, which
+  were not drawn.
 - How the card multiplies the NVFP4 type. The engine's log does not say, and no other build was
   run.
 - The gemma NVFP4 file in the shape the stack starts the tier in, every layer on the card
@@ -132,9 +130,9 @@ the choice changes the file ADR-0004 names for an entry, and no compose default 
 
 - **The lineup.** ADR-0004's lineup table and its decision 8 name `Qwen3.8-27B-UD-Q4_K_M`.
 - **The cache type default.** ADR-0077 decision 8 tells a deployment that names an NVFP4 file
-  to set `CORTEX_KV_CACHE_TYPE_BRAIN=f16`, and says a choice that moves the pick moves the
-  default back to `f16`. It rests on one row: the rule of
-  [the cache type readings](../../readings/kv-cache-types.md) reads the rate "at every context
+  to set `CORTEX_KV_CACHE_TYPE_BRAIN=f16`, and its default follows the files ADR-0004 names,
+  so a choice that moves the pick moves the default back to `f16`. It rests on one row: the rule
+  of [the cache type readings](../../readings/kv-cache-types.md) reads the rate "at every context
   where both types have a row", and the file writes 0.81 of its 16-bit rate at 32K at draft
   length 1 (2026-11-18). At 16384, the context the tier ships at, the rows of 2026-11-22 meet
   all four conditions: the model host starts the file at `q8_0`; it takes 469 to 490 MiB less,
@@ -148,7 +146,7 @@ the choice changes the file ADR-0004 names for an entry, and no compose default 
 - **The draft length.** `DEFAULT_BRAIN_DRAFT_LENGTH` in
   `brain/packages/model_manager/src/cortex_model_manager/config.py` is 3 for whichever file a
   deployment names. Length 2 read 1.049 of length 3 twice for the NVFP4 file and is not shown
-  to be faster (R-1292), so B changes nothing there on these rows.
+  to be faster on six texts, so B changes nothing there on these rows.
 - **The runbook.** [The model swap runbook](../../runbooks/model-swap.md) names the Q4 file's
   path as `CORTEX_MODEL_FILE_BRAIN` and gives the pick's cost for `CORTEX_SWAP_BRAIN_VRAM_MIB`
   as 15950 MiB without its drafter and 16991 with its draft layer. The NVFP4 file's highest
@@ -160,7 +158,8 @@ the choice changes the file ADR-0004 names for an entry, and no compose default 
 the alternate's drafter, since no draft length is faster than no drafting for the gemma NVFP4
 file. Under A nothing changes.
 
-**Proposed, not chosen: A.** The rows of 2026-11-22 give no reason to move the pick's file. In
+**Chosen by the maintainer on 2026-11-22: A**, which was also the proposal on these rows. The
+rows of 2026-11-22 give no reason to move the pick's file. In
 the shape the tier ships in the NVFP4 file is not shown to write faster, and every reading puts
 it under the Q4 file. Its counts do not read apart. Both files fit at 16384 with room, so 190
 MiB less changes nothing the tier does there. Its one advantage is a prompt pass at 1.79 of the
@@ -178,10 +177,10 @@ handoff's short turn at the write rates of its own rows. So B would bring the fi
 a long later handoff forward, delay the first token of the first handoff after each start,
 and leave the length of every turn where it is, with a write rate that every reading puts
 under the Q4 file's. That
-exchanges one first token for another and shortens nothing, so the proposal stays A, by less
+exchanges one first token for another and shortens nothing, so the proposal was A, by less
 than the first handoff alone gave. B would be the better choice where the first token of long
 handoffs matters more than the first handoff after a start, or for a deep tier that stays
-loaded and answers several long prompts, which the stack does not run. C is not proposed: the
+loaded and answers several long prompts, which the stack does not run. C was not proposed: the
 gemma NVFP4 file writes 0.850 of the Q4 file's rate in the split run this budget needs, gets
 nothing from the drafter ADR-0004 names for the alternate, and holds more of the card.
 
@@ -207,7 +206,7 @@ nothing from the drafter ADR-0004 names for the alternate, and holds more of the
   for that pick: B now moves the pick's file, and with it the cache type default.
 - 2026-11-21: the maintainer asked for both files of the pick to be drawn again on one night,
   under the model baseline's conditions, before choosing.
-- 2026-11-22: the trigger has not fired: no History line records a pick. Both Qwen files were
+- 2026-11-22: both Qwen files were
   drawn on one night at 16384 in the shape the tier ships in, every row at one power limit:
   eight cells on three texts, the four drafted cells again on twelve texts, a draft ladder for
   each file at each cache type, and the gemma pair split with RAM. The Qwen NVFP4 file's stop,
@@ -218,6 +217,9 @@ nothing from the drafter ADR-0004 names for the alternate, and holds more of the
   one container that stayed up, three later loads a cell: there it does, with the first token
   level at 896 prompt tokens and at 0.60 of the Q4 file's at 10,856, and the whole turn level
   at both sizes. The stack now keeps the kernels that request compiles in a volume, on rows of
-  the Q4 file; R-1294 filed for the NVFP4 file's row with it, and R-1292
-  for draft length 2 against 3 on the NVFP4 file. What was measured, what is not known and
+  the Q4 file; the NVFP4 file has no row with it. What was measured, what is not known and
   the choice are written on those rows. The proposal is A.
+- 2026-11-22: done. The maintainer chose A: the pick stays `Qwen3.8-27B-UD-Q4_K_M` and the
+  alternate stays `gemma-4-31B-it-qat`. ADR-0004's lineup, the deep tier's `q8_0` cache type
+  default, the draft length and the runbook's deployment line stay as they are. R-1245 is
+  declined with it, and the rows not drawn on the NVFP4 files stay undrawn.

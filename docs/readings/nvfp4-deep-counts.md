@@ -6,8 +6,8 @@ the deep pick, beside the rows the pick's Q4 file, `Qwen3.8-27B-UD-Q4_K_M`, has 
 NVFP4 is another 4-bit encoding of the same weights, so a count drawn on one file is not a count
 for the other. The memory and rate rows of both files on this date are in
 [the Q4 and NVFP4 deep files on one night](nvfp4-deep-pair.md). Which file the deep pick names is the
-maintainer's choice, held in
-[R-1244](../refinements/tasks/1244-the-deep-tiers-file-is-not-chosen-between-the-q4-and-the-nvfp4-files.md);
+maintainer's choice, and on 2026-11-22 it stayed the Q4 file
+([R-1244](../refinements/tasks/1244-the-deep-tiers-file-is-not-chosen-between-the-q4-and-the-nvfp4-files.md));
 this record says what was read and makes no choice.
 
 ## How the rows were drawn
@@ -168,8 +168,7 @@ run with the variable absent.
 - The injection rows at the template's `xhigh` and the row without the drafter. The Q4 file's
   rows there have a literal `</think>` in 11 and 13 of 100 control replies
   ([R-1273](../refinements/tasks/1273-a-deep-reply-can-hold-a-literal-think-tag-and-its-text-twice.md)),
-  and no row here says whether the NVFP4 file writes one at `xhigh`
-  ([R-1289](../refinements/tasks/1289-the-qwen-nvfp4-file-has-no-injection-row-at-xhigh-and-no-undrafted-xhigh-stop-cell.md)).
+  and no row here says whether the NVFP4 file writes one at `xhigh`.
 - Any row on the gemma NVFP4 file (R-1245).
 
 Method: `up.sh`, `check.py`, `stop16.py`, `inj16m.py`, `run.sh` and `final.py` in

@@ -5,8 +5,8 @@ Memory and rate rows for the two NVFP4 files the models mount holds, beside the 
 files. NVFP4 is a 4-bit floating point weight format. Both files of each model were drawn on one
 night at 16K, and those rows are in
 [the Q4 and NVFP4 deep files on one night](nvfp4-deep-pair.md). The choice of file is the
-maintainer's and is held in
-[R-1244](../refinements/tasks/1244-the-deep-tiers-file-is-not-chosen-between-the-q4-and-the-nvfp4-files.md);
+maintainer's, and on 2026-11-22 both deep entries kept their Q4 file
+([R-1244](../refinements/tasks/1244-the-deep-tiers-file-is-not-chosen-between-the-q4-and-the-nvfp4-files.md));
 [R-1245](../refinements/tasks/1245-the-nvfp4-files-have-none-of-the-rows-the-deep-pick-is-compared-on.md)
 names the rows the gemma NVFP4 file does not have. Memory is `nvidia-smi` `memory.used` at the
 highest reading of a row, less what the card held before the load, and stays absolute because a

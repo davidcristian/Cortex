@@ -1,10 +1,8 @@
 # The gemma NVFP4 file has none of the rows the deep pick is compared on
 
-**Status:** open, waiting for its trigger
+**Status:** declined 2026-11-22
 **Area:** inference-model-manager
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Trigger:** a History line in task 1244 recording a choice that names the gemma NVFP4 file for the alternate.
-**Verified:** 2026-11-22
 
 ADR-0004 decision 8 picks the deep tier's model on fit inside the model budget, with the other
 axes level. The rows behind those axes are the stop row (four written questions, three
@@ -31,11 +29,12 @@ What is not known:
   how many reasoning tokens a draw spends.
 - Whether it obeys a framed or an unframed injection draw more often than its Q4 file.
 
-Why it waits: the rows are wanted only if the choice of
-[R-1244](1244-the-deep-tiers-file-is-not-chosen-between-the-q4-and-the-nvfp4-files.md) names the
-gemma NVFP4 file. That file does not fit whole on the 24 GB card. Split with RAM on 2026-11-22 it
-wrote 0.85 of its Q4 file's rate without drafting and 0.67 with the drafter, so its rows cost
-more card time than the Qwen file's did.
+Why it waited: the rows were wanted only if the choice of
+[R-1244](1244-the-deep-tiers-file-is-not-chosen-between-the-q4-and-the-nvfp4-files.md) named the
+gemma NVFP4 file, and on 2026-11-22 that choice kept both Q4 files. The NVFP4 file does not
+fit whole on the 24 GB card. Split with RAM on 2026-11-22 it wrote 0.85 of its Q4 file's rate
+without drafting and 0.67 with the drafter, so its rows would cost more card time than the
+Qwen file's did.
 
 What would close it: the stop row and the injection row drawn on the gemma NVFP4 file as the
 stack would start it, on the engine build the model host runs, with the gemma Q4 file drawn the
@@ -95,7 +94,8 @@ A row the time box does not reach is named as not drawn.
   the handoff's missed: the card's highest reading, 3 MiB over its range, and the first token,
   which both files drawn in turn read the same way
   ([readings](../../readings/nvfp4-deep-pair.md#the-deep-turn-of-a-handoff)).
-  The undrafted `xhigh` cell and the injection rows at `xhigh` were not drawn
-  ([R-1289](1289-the-qwen-nvfp4-file-has-no-injection-row-at-xhigh-and-no-undrafted-xhigh-stop-cell.md)).
+  The undrafted `xhigh` cell and the injection rows at `xhigh` were not drawn.
   What is left here is the gemma NVFP4 file, which the task now names and waits on the choice
   of R-1244 for.
+- 2026-11-22: declined. The maintainer's choice in R-1244 keeps the Q4 file for both deep
+  entries, so no choice names the gemma NVFP4 file and its rows are not wanted.

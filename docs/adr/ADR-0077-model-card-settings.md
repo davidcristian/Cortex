@@ -175,9 +175,9 @@ The cards were read on 2026-11-16, when the models mount moved to the files
    names. A deployment on either Q4 file keeps it. A deployment that names an NVFP4 file sets
    `CORTEX_KV_CACHE_TYPE_BRAIN=f16`: the NVFP4 file of Qwen3.8-27B writes 0.81 of its 16-bit
    rate at 32K at 8 bits, and the NVFP4 file of gemma-4-31B has no row held whole. The default
-   follows the files ADR-0004 names, so a choice in
+   follows the files ADR-0004 names, and the choice recorded in
    [R-1244](../refinements/tasks/1244-the-deep-tiers-file-is-not-chosen-between-the-q4-and-the-nvfp4-files.md)
-   that moves the pick to an NVFP4 file moves the default back to `f16`.
+   keeps both deep entries on their Q4 file, so the default stays `q8_0`.
 
    The drafter's cache keeps the model's type. The draft layer inside a Qwen file takes more
    memory with its cache at 8 bits than at 16, 82 to 86 MiB on the pick's file at 48K

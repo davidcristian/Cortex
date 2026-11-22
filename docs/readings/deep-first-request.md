@@ -156,8 +156,7 @@ older build's files stay in the volume until `down -v` removes it.
 - Anything about the NVFP4 file. Its first and later loads in one container are in
   [the deep turn of a handoff](nvfp4-deep-pair.md#the-deep-turn-of-a-handoff): it compiles
   kernels of its own after this file's, and its later loads have 0.07 of its first load's
-  fixed time. No row drew it with the volume
-  ([R-1294](../refinements/tasks/1294-the-kernel-volume-has-no-row-on-the-nvfp4-file.md)).
+  fixed time. No row drew it with the volume.
 - What the cortex and subagent tiers pay on their first request in a new container. The one
   cortex request above has no later request to divide it by.
 - What a cache written under another driver does. The library names each file by a hash, and

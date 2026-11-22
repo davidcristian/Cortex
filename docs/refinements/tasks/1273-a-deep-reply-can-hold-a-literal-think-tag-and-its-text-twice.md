@@ -71,5 +71,4 @@ states the rate.
   draft layer 0 of 100 control replies and 0 of 100 framed replies have the tag, the Q4 file's
   counts at that level. None of its 36 stop draws has one, 24 at `medium` and 12 at `xhigh`, and
   the reply of its one handoff has none. Its injection rows at `xhigh`, where the Q4 file has
-  the tag in 11 and 13 of 100 control replies, are not drawn
-  ([R-1289](1289-the-qwen-nvfp4-file-has-no-injection-row-at-xhigh-and-no-undrafted-xhigh-stop-cell.md)).
+  the tag in 11 and 13 of 100 control replies, are not drawn.

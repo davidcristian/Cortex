@@ -2,9 +2,9 @@
 
 Rate and memory rows of 2026-11-22 for the two files each deep entry could name, its Q4 file and
 its NVFP4 file, with both files of a pair drawn in turn on one night at a 16K context. The
-maintainer asked for them so that the choice held in
+maintainer asked for them so that the choice of
 [R-1244](../refinements/tasks/1244-the-deep-tiers-file-is-not-chosen-between-the-q4-and-the-nvfp4-files.md)
-rests on rows of one night. This record says what was read and makes no choice.
+rested on rows of one night, and on 2026-11-22 kept both Q4 files. This record says what was read.
 
 [The NVFP4 files for the deep tier](nvfp4-deep-tier.md) has the four files' names and sizes, the
 loader facts, the budget and the rows at other contexts, which divide two nights.
@@ -91,8 +91,7 @@ length 2 reads 1.05 to 1.06 of length 3, with a standard error of about 0.04 whe
 the twelve texts is taken for each length. Text by text the six read 1.019 to 1.177, each one
 faster at length 2, and three of them are the texts the length was picked on. One launch a
 length was drawn, and two launches of a cell sit up to 0.018 apart. Length 2 read faster twice
-and is not shown to be faster
-([R-1292](../refinements/tasks/1292-draft-length-2-against-3-on-the-qwen-nvfp4-file-has-six-texts.md)).
+and is not shown to be faster: the comparison rests on six texts.
 The ladders' no-draft launches read the NVFP4 file at 1.062 (`q8_0`) and 1.066 (`f16`) of the
 Q4 file, one launch each.
 
