@@ -17,8 +17,12 @@ What is not known:
 
 - What the engine does in that time. The rows time the request and read no engine log line
   for it.
-- Whether it belongs to the draft layer. Every row started the tier with the file's own draft
-  layer at `--spec-draft-n-max 3`, and no row has the first request of a server without one.
+- Whether it belongs to the draft layer. Every row of that record started the tier with the
+  file's own draft layer at `--spec-draft-n-max 3`. The stop cells have one draw that says it
+  does not: the first counted draw of each file's launch without a drafter, the NVFP4 file's
+  `medium` cell of 2026-11-22 and the Q4 file's `xhigh` cell of 2026-11-21, has a prompt pass
+  of 266 and 304 tokens that took 0.98 and 1.11 of that file's fixed time. One draw a file on
+  another prompt is not a row drawn for it.
 - Whether a request the model host sends before it reports the tier ready would take that
   time out of the first token. It would add the same time to the load, so the whole deep turn
   of a handoff would not change, only how long the deep request waits for its first token.

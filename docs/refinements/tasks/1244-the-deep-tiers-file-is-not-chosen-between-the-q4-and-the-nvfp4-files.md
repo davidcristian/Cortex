@@ -41,7 +41,7 @@ the model host runs, under the baseline's 18,177 MiB model budget on the 24 GB c
   file's 8-bit rate is 0.94 to 1.00 of its 16-bit rate, with 452 to 490 MiB less.
 - **Draft length.** The Q4 file's fastest length is 5 at both cache types, at 1.007 and 1.014
   of length 3. The NVFP4 file's is 4 at `f16`, at 1.020, and 2 at `q8_0`, where length 2 read
-  1.049 of length 3 on each of two sets of three texts, about one standard error.
+  1.049 of length 3 on each of two sets of three texts and is not shown to be faster.
 - **A handoff's deep turn**: the load, the first request after it, and 1,000 tokens written,
   drawn on 2026-11-22 with both files in turn, three loads a cell
   ([readings](../../readings/nvfp4-deep-pair.md#the-deep-turn-of-a-handoff)). The first request
@@ -51,7 +51,9 @@ the model host runs, under the baseline's 18,177 MiB model budget on the 24 GB c
   10,856 tokens of a full history window. The 1.79 above is a server that has answered before,
   which a handoff's deep server has not. The loads read 1.05, which is not apart from 1 by the
   rule written before the rows. The whole turn on the NVFP4 file is 1.09 of the Q4 file's at
-  896 tokens and 1.05 at 10,856, and 1.21 and 1.03 with the load left out.
+  896 tokens and 1.05 at 10,856, and 1.21 and 1.03 with the load left out. With the two loads
+  taken as equal it is 1.05 and 1.01. At 10,856 tokens the first token is level, so what is
+  over 1 there is the load ratio and the write ratio, and neither is shown apart from 1.
 - **What the Qwen NVFP4 file writes.** Three stop cells, the injection text rows at `medium` and
   one handoff through the brain were drawn on 2026-11-22, and no count reads apart from the Q4
   file's.
@@ -80,7 +82,10 @@ the model host runs, under the baseline's 18,177 MiB model budget on the 24 GB c
 - Whether the two Qwen files differ in the shipped shape by less than 0.06. Twelve texts a file
   do not tell a smaller difference from none.
 - Whether draft length 2 is faster than 3 for the Qwen NVFP4 file at `q8_0`. Six texts a length
-  read 1.05 to 1.06 with a standard error of about 0.04.
+  read 1.05 to 1.06, each text faster at length 2, on one launch a length
+  ([R-1292](1292-draft-length-2-against-3-on-the-qwen-nvfp4-file-has-six-texts.md)).
+- How long a handoff loads a file the machine has not read since it started. Every load drawn
+  came after earlier loads of the same file on the night.
 - The Qwen NVFP4 file's injection rows at `xhigh` and its undrafted `xhigh` stop cell
   ([R-1289](1289-the-qwen-nvfp4-file-has-no-injection-row-at-xhigh-and-no-undrafted-xhigh-stop-cell.md)).
 - How the card multiplies the NVFP4 type. The engine's log does not say, and no other build was
@@ -118,8 +123,8 @@ the choice changes the file ADR-0004 names for an entry, and no compose default 
   0.966 of the Q4 file as shipped. No default was changed on these rows.
 - **The draft length.** `DEFAULT_BRAIN_DRAFT_LENGTH` in
   `brain/packages/model_manager/src/cortex_model_manager/config.py` is 3 for whichever file a
-  deployment names. No row shows another length faster for the NVFP4 file, so B changes
-  nothing there.
+  deployment names. Length 2 read 1.049 of length 3 twice for the NVFP4 file and is not shown
+  to be faster (R-1292), so B changes nothing there on these rows.
 - **The runbook.** [The model swap runbook](../../runbooks/model-swap.md) names the Q4 file's
   path as `CORTEX_MODEL_FILE_BRAIN` and gives the pick's cost for `CORTEX_SWAP_BRAIN_VRAM_MIB`
   as 15950 MiB without its drafter and 16991 with its draft layer. The NVFP4 file's highest
@@ -138,11 +143,12 @@ MiB less changes nothing the tier does there. Its one advantage, a prompt pass a
 Q4 file's rate, does not reach a handoff. The deep tier is loaded for each handoff, the first
 request after a load costs the NVFP4 file twice the fixed time it costs the Q4 file, and its
 first token is 1.76 times as late on a short handoff and no sooner on a full history window.
-The whole deep turn reads 1.05 to 1.09 of the Q4 file's. B would be the better choice only for
-a deep tier that stays loaded and answers several long prompts, which the stack does not run.
-C is not proposed: the
-gemma NVFP4 file writes 0.850 of the Q4 file's rate in the split run this budget needs, gets
-nothing from the drafter ADR-0004 names for the alternate, and holds more of the card.
+The whole deep turn reads 1.05 to 1.09 of the Q4 file's, and 1.01 to 1.05 with the two loads
+taken as equal: longer on a short handoff, and not shorter on a full history window. B would
+be the better choice only for a deep tier that stays loaded and answers several long prompts,
+which the stack does not run. C is not proposed: the gemma NVFP4 file writes 0.850 of the Q4
+file's rate in the split run this budget needs, gets nothing from the drafter ADR-0004 names
+for the alternate, and holds more of the card.
 
 ## History
 
@@ -173,5 +179,5 @@ nothing from the drafter ADR-0004 names for the alternate, and holds more of the
   injection and handoff counts were drawn the same night (R-1245), and so was the first
   request after a load on both files, at two prompt sizes and three loads a cell: the NVFP4
   file's faster prompt pass does not reach a handoff. R-1291 filed for what that first request
-  spends its fixed time on. What was measured, what is not known and the choice are written on
-  those rows. The proposal is A.
+  spends its fixed time on, and R-1292 for draft length 2 against 3 on the NVFP4 file. What
+  was measured, what is not known and the choice are written on those rows. The proposal is A.

@@ -65,8 +65,8 @@ before the first of the eight and again after the last, read 0.992 of its first 
 
 The twelve-text columns are the reading of the drafted cells, and the last column is what they
 replace. As the tier ships, the NVFP4 file is not shown to write at another rate than the Q4
-file: both readings are inside 1 plus or minus two standard errors, both are under 1, and the
-1.014 of three texts is not seen again. With both files at `f16` the NVFP4 file is the slower
+file: both readings are inside 1 plus or minus two standard errors, the mean by 0.002, both
+are under 1, and the 1.014 of three texts is not seen again. With both files at `f16` the NVFP4 file is the slower
 one by more than two standard errors. The cells without a drafter have three texts only: the
 NVFP4 file reads 1.023 of the Q4 file at `q8_0` and 1.045 at `f16`, on launches up to 0.040
 apart, and the 8-bit rate is 0.957 of the 16-bit rate for the Q4 file and 0.937 for the NVFP4
@@ -86,10 +86,15 @@ same ladder's no-draft row:
 Every length fits, at about 150 MiB more a length. Three of the fastest lengths are within 1.02
 of length 3, less than one launch of three texts separates. For the NVFP4 file at `q8_0`, length
 2 over length 3 reads 1.049 here and, on three other texts (seeds 107 to 109), 1.049 by the
-median and 1.039 by the mean, where the Q4 file reads 0.966 and 0.928. Over the six texts a
-length that is 1.05 to 1.06 with a standard error of about 0.04: length 2 read faster twice and
-is not shown to be faster. The ladders' no-draft launches read the NVFP4 file at 1.062 (`q8_0`)
-and 1.066 (`f16`) of the Q4 file, one launch each.
+median and 1.039 by the mean, where the Q4 file reads 0.966 and 0.928. Over the six texts
+length 2 reads 1.05 to 1.06 of length 3, with a standard error of about 0.04 when the spread of
+the twelve texts is taken for each length. Text by text the six read 1.019 to 1.177, each one
+faster at length 2, and three of them are the texts the length was picked on. One launch a
+length was drawn, and two launches of a cell sit up to 0.018 apart. Length 2 read faster twice
+and is not shown to be faster
+([R-1292](../refinements/tasks/1292-draft-length-2-against-3-on-the-qwen-nvfp4-file-has-six-texts.md)).
+The ladders' no-draft launches read the NVFP4 file at 1.062 (`q8_0`) and 1.066 (`f16`) of the
+Q4 file, one launch each.
 
 Method, under `measurements/model-baseline-2026-11-16/`: `nvfp4-probes/pairwhole.py` for the
 cells (`PAIR_SEEDS=12` for twelve texts), `nvfp4-probes/ladder2.py` for the ladders and the two
@@ -133,8 +138,8 @@ says what the time is spent on
 ([R-1291](../refinements/tasks/1291-the-first-request-after-a-deep-load-takes-a-fixed-time-no-row-explains.md)).
 
 **What a handoff gets.** On a server that has answered before, the NVFP4 file's prompt pass
-runs at 1.46 and 1.76 times the Q4 file's rate here, and at 1.79 on the filled context above.
-A handoff does not get that rate. Its first token comes 1.76 times as late on the NVFP4 file at
+runs at 1.46 and 1.76 times the Q4 file's rate here, and at 1.79 on the filled context above,
+over the four drafted `q8_0` launches of each file. A handoff does not get that rate. Its first token comes 1.76 times as late on the NVFP4 file at
 896 tokens, which the one handoff drawn on each file had read as 1.8 on two dates, and no
 sooner than the Q4 file's at 10,856. By the second passes of the larger size the two files'
 first passes are level at about 10,800 prompt tokens: under that size the Q4 file's first token
@@ -144,8 +149,8 @@ comes first.
 standard error of about 0.016, and the six loads of one file are 0.053 and 0.077 apart. The
 rule written before the rows asked for 0.10, so the loads do not read apart. Neither file's
 first load of the night was among these. Each file's first load here read 0.97 and 0.98 of the
-median of its later ones, and the page cache never held more than about 2 GB, so every load
-read its file through the models mount.
+median of its later ones. Before each load the page cache held no more than about 2 GB, so
+every load read its file through the models mount.
 
 **The write rates** are one text a cell, the same text at every load, so they say less than
 the twelve texts above. A first request does not write slower than a second: its rate is 1.03
@@ -164,7 +169,10 @@ The last five columns are NVFP4 over Q4. At the write rates these rows read, one
 whole turn is 1.117 and 1.041. With the two loads taken as equal it is 1.049 and 1.010. With a
 first pass as fast as a later one, the turn without the load would read 1.04 and 0.90, which
 is what the rate rows alone gave. By each of these readings the NVFP4 file's deep turn is not
-shorter than the Q4 file's at either size.
+shorter than the Q4 file's at either size. At 896 tokens it is longer by its first token. At
+10,856 the first token is level, and what is over 1 there is the load ratio, which does not
+read apart by the rule written first, and the write ratio, which is inside two standard errors
+of 1.
 
 Method, under `measurements/model-baseline-2026-11-16/`: `nvfp4-probes/firstpass.py` for a
 launch, `nvfp4-probes/firstread.py` and `firstturn.py` for the cells and the turn, rows in
@@ -207,5 +215,7 @@ the same for `gemma-4-31B-NVFP4`, under `measurements/model-baseline-2026-11-16/
 - Nothing finer than the two standard errors above. Twelve texts a file do not tell a difference
   of less than 0.06 between the two Qwen files from none.
 - What the first request after a load spends its fixed time on (R-1291).
+- The load of a file the machine has not read since it started. Every load here came after
+  earlier loads of the same file on the night, and the load is 0.70 to 0.77 of the turn.
 - Nothing about the gemma NVFP4 file with every layer on the card, the shape the stack starts
   the tier in.
