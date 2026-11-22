@@ -152,12 +152,13 @@ run with the variable absent.
 - **The card.** The highest reading left 3,174 MiB free, above the 1,536 MiB the budget keeps
   free. It is 3 MiB over its predicted range and 192 MiB under the Q4 file's.
 - **The first token** is the engine's prompt pass of the one deep request, the server's first
-  after its load, and the prediction for it missed. It took 1.8 times as long as the Q4 file's,
-  on one draw and on rows of two dates, and both are under the bound. On a filled context this
-  file's prompt pass reads 1.8 times the Q4 file's rate
-  ([the Q4 and NVFP4 deep files on one night](nvfp4-deep-pair.md)), on a server that has answered a
-  request before
-  ([R-1290](../refinements/tasks/1290-the-qwen-nvfp4-files-first-prompt-pass-after-a-load-is-slower-in-one-handoff.md)).
+  after its load, and the prediction for it missed. It took 1.8 times as long as the Q4 file's
+  of 2026-11-21, and both are under the bound. Both files drawn in turn on one date read 1.76
+  at a prompt of this size: the first request after a load has a fixed time on top of its
+  prompt pass on both files, and the NVFP4 file's is twice the Q4 file's
+  ([the deep turn of a handoff](nvfp4-deep-pair.md#the-deep-turn-of-a-handoff)). The 1.8 times
+  the Q4 file's rate that this file's prompt pass reads on a filled context is a server that
+  has answered a request before, which a handoff's deep server has not.
 - **One draw** says nothing about how long the file reasons at `medium`; the stop rows count it.
 
 ## What was not drawn

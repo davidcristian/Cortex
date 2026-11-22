@@ -117,7 +117,7 @@ never a reading of what the tree does now.
 - **[R-1285](tasks/1285-an-injection-row-reads-its-tier-off-a-placeholder-file-and-loses-the-tiers-drafter.md)** An injection row reads its tier off a placeholder file and loses the tier's drafter (untrusted-content). Its claim was checked against the code on 2026-11-21.
 - **[R-1286](tasks/1286-a-forget-naming-a-code-deletes-another-row-after-a-word-for-all-or-for-a-code-word-in-another-number.md)** A forget naming a code deletes another row after a word for all or for a code word in another number (memory). Its claim was checked against the code on 2026-11-21.
 - **[R-1288](tasks/1288-a-forget-message-holding-a-value-deletes-another-row-for-a-call-text-holding-another-value.md)** A forget message holding a value deletes another row for a call text holding another value (memory). Its claim was checked against the code on 2026-11-21.
-- **[R-1290](tasks/1290-the-qwen-nvfp4-files-first-prompt-pass-after-a-load-is-slower-in-one-handoff.md)** The Qwen NVFP4 file's first prompt pass after a load is slower in one handoff (inference-model-manager). Its claim was checked against the code on 2026-11-22.
+- **[R-1291](tasks/1291-the-first-request-after-a-deep-load-takes-a-fixed-time-no-row-explains.md)** The first request after a deep load takes a fixed time no row explains (inference-model-manager). Its claim was checked against the code on 2026-11-22.
 
 ### Actionable, once a port changes (1)
 
@@ -610,7 +610,7 @@ never a reading of what the tree does now.
 - [R-1275](tasks/1275-no-user-preference-sets-the-reasoning-effort.md) No user preference sets the reasoning effort. open, waiting for its trigger.
 - [R-1276](tasks/1276-the-deep-tier-never-sends-the-templates-preserve-flag.md) The deep tier never sends the template's preserve flag. open, waiting for its trigger.
 - [R-1289](tasks/1289-the-qwen-nvfp4-file-has-no-injection-row-at-xhigh-and-no-undrafted-xhigh-stop-cell.md) The Qwen NVFP4 file has no injection row at xhigh and no undrafted xhigh stop cell. open, waiting for its trigger.
-- [R-1290](tasks/1290-the-qwen-nvfp4-files-first-prompt-pass-after-a-load-is-slower-in-one-handoff.md) The Qwen NVFP4 file's first prompt pass after a load is slower in one handoff. open, actionable.
+- [R-1291](tasks/1291-the-first-request-after-a-deep-load-takes-a-fixed-time-no-row-explains.md) The first request after a deep load takes a fixed time no row explains. open, actionable.
 
 ### memory
 

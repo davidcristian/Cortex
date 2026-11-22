@@ -92,8 +92,9 @@ A row the time box does not reach is named as not drawn.
   `medium` 0 of 100 framed and 0 of 100 control injection draws obeyed; one handoff through the
   brain held every reading the Q4 file's handoffs passed on. No count reads apart from the Q4
   file's by the marks above, and every prediction in the table held for the rows drawn. Two of
-  the handoff's missed: the card's highest reading, 3 MiB over its range, and the first token
-  ([R-1290](1290-the-qwen-nvfp4-files-first-prompt-pass-after-a-load-is-slower-in-one-handoff.md)).
+  the handoff's missed: the card's highest reading, 3 MiB over its range, and the first token,
+  which both files drawn in turn read the same way
+  ([readings](../../readings/nvfp4-deep-pair.md#the-deep-turn-of-a-handoff)).
   The undrafted `xhigh` cell and the injection rows at `xhigh` were not drawn
   ([R-1289](1289-the-qwen-nvfp4-file-has-no-injection-row-at-xhigh-and-no-undrafted-xhigh-stop-cell.md)).
   What is left here is the gemma NVFP4 file, which the task now names and waits on the choice
