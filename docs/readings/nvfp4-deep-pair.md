@@ -133,15 +133,21 @@ the NVFP4 file's is twice the Q4 file's.** A file's first prompt pass less its s
 same at both prompt sizes: the larger prompt's over the smaller's reads 1.005 for the Q4 file
 and 1.004 for the NVFP4 file, where a time that grew with the prompt would read near 12. For
 the Q4 file that fixed time is 4.0 times its own later pass over 896 tokens, and for the NVFP4
-file 11.9 times its own. The NVFP4 file's is 2.03 times the Q4 file's at both sizes. No row
-says what the time is spent on
-([R-1291](../refinements/tasks/1291-the-first-request-after-a-deep-load-takes-a-fixed-time-no-row-explains.md)).
+file 11.9 times its own. The NVFP4 file's is 2.03 times the Q4 file's at both sizes.
+
+Every one of these loads was the first deep load of a new model host container. For the Q4
+file most of that time is the card's library compiling the engine's kernels, which a container
+pays once: a later load in the same container has 0.10 of it
+([the deep tier's first request after a load](deep-first-request.md)). The NVFP4 file has no
+row for a later load
+([R-1293](../refinements/tasks/1293-the-nvfp4-files-first-request-is-drawn-only-on-a-new-containers-first-load.md)).
 
 **What a handoff gets.** On a server that has answered before, the NVFP4 file's prompt pass
 runs at 1.46 and 1.76 times the Q4 file's rate here, and at 1.79 on the filled context above,
-over the four drafted `q8_0` launches of each file. A handoff does not get that rate. Its first token comes 1.76 times as late on the NVFP4 file at
-896 tokens, which the one handoff drawn on each file had read as 1.8 on two dates, and no
-sooner than the Q4 file's at 10,856. By the second passes of the larger size the two files'
+over the four drafted `q8_0` launches of each file. The first handoff after a stack start,
+which is what these rows are, does not get that rate. Its first token comes 1.76 times as late
+on the NVFP4 file at 896 tokens, which the one handoff drawn on each file had read as 1.8 on
+two dates, and no sooner than the Q4 file's at 10,856. By the second passes of the larger size the two files'
 first passes are level at about 10,800 prompt tokens: under that size the Q4 file's first token
 comes first.
 
@@ -156,7 +162,7 @@ every load read its file through the models mount.
 the twelve texts above. A first request does not write slower than a second: its rate is 1.03
 and 1.04 of the second request's for the Q4 file, and 0.96 and 1.10 for the NVFP4 file.
 
-**The whole deep turn**, with 1,000 tokens written: each file's load by the median of its six
+**The whole deep turn of that first handoff**, with 1,000 tokens written: each file's load by the median of its six
 loads, the first token by the client's clock, and the writing at the rate of the Q4 cell's
 first request, with the NVFP4 file at 0.943 of it, the mean of twelve texts.
 
@@ -214,7 +220,8 @@ the same for `gemma-4-31B-NVFP4`, under `measurements/model-baseline-2026-11-16/
   [the NVFP4 files for the deep tier](nvfp4-deep-tier.md) and divide rows of two nights.
 - Nothing finer than the two standard errors above. Twelve texts a file do not tell a difference
   of less than 0.06 between the two Qwen files from none.
-- What the first request after a load spends its fixed time on (R-1291).
+- The NVFP4 file's first request on a later load of a container, and whether its fixed time is
+  the compile the Q4 file's is (R-1293).
 - The load of a file the machine has not read since it started. Every load here came after
   earlier loads of the same file on the night, and the load is 0.70 to 0.77 of the turn.
 - Nothing about the gemma NVFP4 file with every layer on the card, the shape the stack starts

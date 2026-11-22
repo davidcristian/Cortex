@@ -44,9 +44,12 @@ the model host runs, under the baseline's 18,177 MiB model budget on the 24 GB c
   1.049 of length 3 on each of two sets of three texts and is not shown to be faster.
 - **A handoff's deep turn**: the load, the first request after it, and 1,000 tokens written,
   drawn on 2026-11-22 with both files in turn, three loads a cell
-  ([readings](../../readings/nvfp4-deep-pair.md#the-deep-turn-of-a-handoff)). The first request
-  after a load has a fixed time on top of its prompt pass on both files, the same at 896 and at
-  10,856 prompt tokens, and the NVFP4 file's is 2.03 times the Q4 file's. So the NVFP4 file's
+  ([readings](../../readings/nvfp4-deep-pair.md#the-deep-turn-of-a-handoff)). Every load was
+  the first deep load of a new model host container, which is the first handoff after a stack
+  start. That first request has a fixed time on top of its prompt pass on both files, the same
+  at 896 and at 10,856 prompt tokens, and the NVFP4 file's is 2.03 times the Q4 file's. A later
+  load in the same container has 0.10 of it on the Q4 file
+  ([readings](../../readings/deep-first-request.md)) and no row on the NVFP4 file. So the NVFP4 file's
   first token comes 1.76 times as late on an 896-token handoff and no sooner (0.998) on the
   10,856 tokens of a full history window. The 1.79 above is a server that has answered before,
   which a handoff's deep server has not. The loads read 1.05, which is not apart from 1 by the
@@ -76,9 +79,10 @@ the model host runs, under the baseline's 18,177 MiB model budget on the 24 GB c
 
 - What the gemma NVFP4 file writes. It has none of the rows the deep pick is compared on:
   [R-1245](1245-the-nvfp4-files-have-none-of-the-rows-the-deep-pick-is-compared-on.md).
-- What the first request after a load spends its fixed time on, and why the NVFP4 file's is
-  twice the Q4 file's
-  ([R-1291](1291-the-first-request-after-a-deep-load-takes-a-fixed-time-no-row-explains.md)).
+- What a later handoff of one stack gets on the NVFP4 file, and whether its fixed time on a
+  first load is the compile the Q4 file's is. The two files' first tokens are compared on the
+  first handoff after a stack start only
+  ([R-1293](1293-the-nvfp4-files-first-request-is-drawn-only-on-a-new-containers-first-load.md)).
 - Whether the two Qwen files differ in the shipped shape by less than 0.06. Twelve texts a file
   do not tell a smaller difference from none.
 - Whether draft length 2 is faster than 3 for the Qwen NVFP4 file at `q8_0`. Six texts a length
@@ -140,9 +144,11 @@ file. Under A nothing changes.
 the shape the tier ships in the NVFP4 file is not shown to write faster, and every reading puts
 it under the Q4 file. Its counts do not read apart. Both files fit at 16384 with room, so 190
 MiB less changes nothing the tier does there. Its one advantage, a prompt pass at 1.79 of the
-Q4 file's rate, does not reach a handoff. The deep tier is loaded for each handoff, the first
-request after a load costs the NVFP4 file twice the fixed time it costs the Q4 file, and its
-first token is 1.76 times as late on a short handoff and no sooner on a full history window.
+Q4 file's rate, does not reach the first handoff after a stack start, the only handoff drawn
+on both files. The deep tier is loaded for each handoff, that first request costs the NVFP4
+file twice the fixed time it costs the Q4 file, and its first token is 1.76 times as late on a
+short handoff and no sooner on a full history window. A later handoff of the same stack has no
+row on the NVFP4 file (R-1293), so whether the faster prompt pass reaches it is not known.
 The whole deep turn reads 1.05 to 1.09 of the Q4 file's, and 1.01 to 1.05 with the two loads
 taken as equal: longer on a short handoff, and not shorter on a full history window. B would
 be the better choice only for a deep tier that stays loaded and answers several long prompts,
@@ -177,7 +183,9 @@ for the alternate, and holds more of the card.
   eight cells on three texts, the four drafted cells again on twelve texts, a draft ladder for
   each file at each cache type, and the gemma pair split with RAM. The Qwen NVFP4 file's stop,
   injection and handoff counts were drawn the same night (R-1245), and so was the first
-  request after a load on both files, at two prompt sizes and three loads a cell: the NVFP4
-  file's faster prompt pass does not reach a handoff. R-1291 filed for what that first request
-  spends its fixed time on, and R-1292 for draft length 2 against 3 on the NVFP4 file. What
+  request after a load on both files, at two prompt sizes and three loads a cell, each the
+  first deep load of a new model host container: there the NVFP4 file's faster prompt pass
+  does not reach a handoff. R-1291 filed for the compile that request pays once a container,
+  R-1293 for the NVFP4 file's later loads, and R-1292 for draft length 2 against 3 on the
+  NVFP4 file. What
   was measured, what is not known and the choice are written on those rows. The proposal is A.

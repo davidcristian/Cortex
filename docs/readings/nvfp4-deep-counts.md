@@ -154,8 +154,9 @@ run with the variable absent.
 - **The first token** is the engine's prompt pass of the one deep request, the server's first
   after its load, and the prediction for it missed. It took 1.8 times as long as the Q4 file's
   of 2026-11-21, and both are under the bound. Both files drawn in turn on one date read 1.76
-  at a prompt of this size: the first request after a load has a fixed time on top of its
-  prompt pass on both files, and the NVFP4 file's is twice the Q4 file's
+  at a prompt of this size: the first deep load of a new model host container, which this
+  handoff's was, has a fixed time on top of its prompt pass on both files, and the NVFP4
+  file's is twice the Q4 file's
   ([the deep turn of a handoff](nvfp4-deep-pair.md#the-deep-turn-of-a-handoff)). The 1.8 times
   the Q4 file's rate that this file's prompt pass reads on a filled context is a server that
   has answered a request before, which a handoff's deep server has not.
