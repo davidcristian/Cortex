@@ -180,8 +180,9 @@ file was not drawn again, so it has no ratio of one night.
 
 ## What these rows do not say
 
-- Nothing about what either NVFP4 file writes. No stop row, reasoning count or injection row
-  exists for them (R-1245).
+- Nothing about what the gemma NVFP4 file writes. No stop row, reasoning count or injection row
+  exists for it (R-1245). The Qwen NVFP4 file's rows are in
+  [what the Qwen NVFP4 file writes](nvfp4-deep-counts.md).
 - Nothing about a deployment that gives the deep tier more of the card than 18,177 MiB.
 - Nothing about an 8-bit context cache, which has its own record:
   [the cache type rows of every model](kv-cache-every-model.md).

@@ -66,3 +66,10 @@ states the rate.
   at `xhigh` on the same argv that reads p 0.0007, a comparison not written down before the
   draw, and the prediction of 10 (4 to 18) missed. The sentence the template writes at `xhigh`
   and leaves out at `medium` is the one setting between the two rows.
+- 2026-11-22: counted on the pick's NVFP4 file, drawn as the model host starts the tier
+  ([readings](../../readings/nvfp4-deep-counts.md)): at `reasoning_effort` `medium` with the
+  draft layer 0 of 100 control replies and 0 of 100 framed replies have the tag, the Q4 file's
+  counts at that level. None of its 36 stop draws has one, 24 at `medium` and 12 at `xhigh`, and
+  the reply of its one handoff has none. Its injection rows at `xhigh`, where the Q4 file has
+  the tag in 11 and 13 of 100 control replies, are not drawn
+  ([R-1289](1289-the-qwen-nvfp4-file-has-no-injection-row-at-xhigh-and-no-undrafted-xhigh-stop-cell.md)).
