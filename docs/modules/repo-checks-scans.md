@@ -138,23 +138,23 @@ and a variable written once is never compared. Exit 1 prints one line per refuse
 
 Every volume an image declares must be covered by a mount or a tmpfs in each compose service that
 runs it (ADR-0067). A `VOLUME` in an image takes effect whether or not a compose file asked for it:
-a container with nothing at that path gets an anonymous volume, which `docker compose down` leaves
-on the host unless it was given `--volumes`.
+a container with nothing there gets an anonymous volume, which `down` without `--volumes` leaves.
 
 What an image declares is recorded in `imagevolumes.py` rather than read, because `just check` runs
-on a clean dev box and in CI with no docker daemon. `--recompute`, which `just image-volumes` runs,
-pulls every image it did not build, asks a real docker what each declares, and reports every row
-that has changed in either direction. The pull is what makes it a fresh measurement: most of these
-references are moving tags, and a local cache read would confirm a month-old image.
+with no docker daemon. `--recompute`, which `just image-volumes` runs, pulls every image it did
+not build, asks a real docker what each declares, and reports every row that has changed in either
+direction. The pull makes it a fresh measurement: most references are moving tags.
 
 The cover may be a bind, a named volume or a tmpfs, and it must sit at exactly the declared path.
-The rule is per compose file rather than per merged stack, because `just up` runs the base file
-alone. Two further rules cover the three images this repo builds: every path one of its Dockerfiles
-declares must appear in that image's row, and so must every path declared by the image its last
-stage is built on, including the `ONBUILD VOLUME` triggers that base would fire. The three together
-are a minimum for a built image rather than all of what it declares. A build-only service's image
-name is computed as `{project}-{service}`, the project read from the file's own `name:` and
-otherwise from the single bare-stemmed base file.
+The rule is per compose file, because `just up` runs the base file alone. Two further rules cover
+the three images this repo builds: every path one of its Dockerfiles declares must appear in that
+image's row, and so must every path declared by the image its last stage is built on, including the
+`ONBUILD VOLUME` triggers that base would fire. The three together are a minimum for a built image
+rather than all of what it declares. A build-only service's image name is computed as
+`{project}-{service}`, the project read from the file's own `name:` and otherwise from the single
+bare-stemmed base file. A last rule reads the merged stack (`kernelcache.py`, ADR-0067 decision 11):
+a service given the card must set `CUDA_CACHE_PATH`, written out, to a directory under one of its
+mounts. Otherwise every new container compiles the card's kernels again with no error.
 
 ## `stubcheck.py`
 

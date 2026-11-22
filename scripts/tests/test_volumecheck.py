@@ -255,6 +255,59 @@ def test_a_compose_file_that_is_not_text_is_a_refused_file(tree: Path) -> None:
     assert scanned.faults == [*scanned.refused]
 
 
+_CARDED = "    image: cache:1\n    runtime: nvidia\n"
+
+
+def test_a_service_given_the_card_that_keeps_its_kernels_nowhere_is_reported(tree: Path) -> None:
+    _write(tree, "docker/docker-compose.gpu.yml", _service(_CARDED, "cache"))
+    scanned = volumecheck.check(tree, RECORDS)
+    assert scanned.carded == 1
+    (fault,) = scanned.uncached
+    assert (fault.path, fault.line) == ("docker/docker-compose.gpu.yml", 2)
+    assert "service 'cache' is given the card" in fault.detail
+    assert fault in scanned.faults
+
+
+def test_a_service_given_the_card_with_its_kernels_under_a_mount_is_accounted_for(
+    tree: Path,
+) -> None:
+    kept = "    environment:\n      CUDA_CACHE_PATH: /srv/keep/k\n    tmpfs:\n      - /srv/keep\n"
+    _write(tree, "docker/docker-compose.gpu.yml", _service(_CARDED + kept, "cache"))
+    scanned = volumecheck.check(tree, RECORDS)
+    assert (scanned.carded, scanned.uncached) == (1, ())
+
+
+def test_a_file_the_reader_refuses_is_left_out_of_the_kernel_rule(tree: Path) -> None:
+    _write(tree, "docker/docker-compose.gpu.yml", _service(_CARDED + "    volumes: [a:/b]\n"))
+    scanned = volumecheck.check(tree, RECORDS)
+    assert (len(scanned.refused), scanned.carded, scanned.uncached) == (1, 0, ())
+
+
+def test_main_counts_a_kernel_fault_apart_from_the_declarations(
+    tree: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real = volumecheck.check
+
+    def exact(root: Path) -> volumecheck.Scan:
+        return real(root, RECORDS)
+
+    monkeypatch.setattr(volumecheck, "check", exact)
+    _write(tree, "docker/docker-compose.gpu.yml", _service(_CARDED, "cache"))
+    _write(
+        tree,
+        "docker/docker-compose.db.yml",
+        _service("    image: db:1\n    tmpfs:\n      - /var/lib/db\n"),
+    )
+    assert volumecheck.main(["--root", str(tree)]) == 1
+    captured = capsys.readouterr()
+    assert captured.out.startswith("docker/docker-compose.gpu.yml:2: service 'cache' is given")
+    assert captured.err == (
+        "\nvolumecheck: 1 problem(s) with where a service given the card writes its compiled "
+        "kernels. Set CUDA_CACHE_PATH for the service to a directory under one of its mounts, "
+        "with the path written out.\n"
+    )
+
+
 def test_a_tree_with_no_compose_file_is_a_failure_not_a_pass(tmp_path: Path) -> None:
     with pytest.raises(volumecheck.ComposeSearchError, match="matched nothing cannot fail"):
         volumecheck.check(tmp_path, RECORDS)
@@ -272,6 +325,10 @@ def test_check_counts_the_files_definitions_declarations_and_images_it_read(tree
 
 def test_the_repo_itself_is_clean() -> None:
     assert volumecheck.check(REPO_ROOT).faults == []
+
+
+def test_the_repo_really_gives_a_service_the_card_for_the_kernel_rule_to_read() -> None:
+    assert volumecheck.check(REPO_ROOT).carded >= 1
 
 
 def test_the_repo_really_declares_volumes_for_this_check_to_read() -> None:
@@ -300,7 +357,8 @@ def test_main_states_what_it_read_beside_the_result(capsys: pytest.CaptureFixtur
     assert "service definition(s) and " in out
     assert "image(s) counting the bases those builds stand on, " in out
     assert "2 Dockerfile(s) here declare and inherit nothing their row does not contain" in out
-    assert "does not contain, triggers included" in out
+    assert "does not contain, triggers included; " in out
+    assert "service(s) given the card set CUDA_CACHE_PATH to a directory under a mount" in out
 
 
 _REFUSED = (

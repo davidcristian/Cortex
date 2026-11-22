@@ -49,6 +49,8 @@ were split out of it to stay under the 300-line limit. Grouped by what reads the
   `imagevolumes.py` for the recorded answer about each image; `dockerfilevolumes.py` for what a
   Dockerfile here declares; and `dockerfilebases.py` for the image its last stage is built on.
   `imagedrift.py` asks a real docker the same questions and prints every row that has changed.
+  `kernelcache.py` reads which services are given the card and where each writes its compiled
+  kernels, with `composestarts.py` for each service's environment.
 - `stubcheck.py` reads `protocomments.py` for what a comment is on either side of its comparison.
 - `samplecheck.py` reads `logsamples.py` for what a documented log line claims to print,
   `logcalls.py` for what the call writing it attaches, `logfields.py` for that call's field list,

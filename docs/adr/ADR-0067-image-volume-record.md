@@ -107,6 +107,24 @@ check`" into a category ([ADR-0011](ADR-0011-body-v1.md)).
     recorded path no side declares is the one place a further source can appear, and a rule
     demanding equality would fail a correct record.
 
+### A path the environment names
+
+11. **A service given the card writes its compiled kernels under a mount, and `volumecheck.py`
+    checks the pair.** The card's library compiles kernels on first use and writes them to the
+    directory `CUDA_CACHE_PATH` names. Unset, that is a directory under the home directory, in
+    the container's own layer, and every new container compiles them again
+    ([readings](../readings/deep-first-request.md#a-volume-for-the-compiled-kernels)). The stack
+    starts and answers the same either way, so only a scan reports the loss. `kernelcache.py`
+    reads which services a compose file gives the card (a `driver: nvidia` device reservation,
+    `runtime: nvidia` or a `gpus:` key) and fails one that sets no `CUDA_CACHE_PATH`. It also
+    fails any service whose value is not an absolute path written out, or is under no mount of
+    that service: a mount at the directory or above it contains it, and one beside or below it
+    does not. Services are merged across the compose files, as compose merges them, because
+    only the gpu overlay has the reservation. The scan has no service name and no path of its
+    own: the reservation says which service, and the value is compared with the targets
+    written beside it. The rule is in `volumecheck.py` because its subject is that scan's: a
+    container path that needs a mount over it.
+
 ## Consequences
 
 - `just check` asks what every compose service leaves uncovered on every commit, in CI too, with no
@@ -138,7 +156,8 @@ check`" into a category ([ADR-0011](ADR-0011-body-v1.md)).
 ## Related
 
 - Code: `scripts/volumecheck.py`, `imagevolumes.py`, `imagedrift.py`, `dockerfilevolumes.py`,
-  `dockerfilebases.py`, `composeservices.py`, `composetargets.py`; recipes `check-volumecheck` and
+  `dockerfilebases.py`, `composeservices.py`, `composetargets.py`, `kernelcache.py`,
+  `composestarts.py`; recipes `check-volumecheck` and
   `image-volumes`.
 - [Readings: what images declare](../readings/image-volumes.md);
   [repo checks](../modules/repo-checks.md).

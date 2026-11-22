@@ -1,4 +1,4 @@
-"""Fail when an image a compose file runs declares a volume the service does not cover."""
+"""Fail when a path a compose service must cover is one it mounts nothing over."""
 
 import argparse
 import sys
@@ -11,6 +11,7 @@ from composeservices import ComposeFile, ComposeServiceError, Service, read_serv
 from dockerfilevolumes import undeclared
 from imagedrift import Inspector, docker_volumes, report_drift
 from imagevolumes import IMAGE_VOLUMES, RECORD_PATH, Row
+from kernelcache import CACHE_VARIABLE, Source, kernel_caches
 
 _UNCOVERED = (
     "service {service!r} runs {reference!r}, which declares VOLUME {path!r}, and mounts nothing "
@@ -57,11 +58,13 @@ class Scan(NamedTuple):
     findings: list[Fault]
     refused: tuple[Fault, ...] = ()
     unasked: tuple[Fault, ...] = ()
+    carded: int = 0
+    uncached: tuple[Fault, ...] = ()
 
     @property
     def faults(self) -> list[Fault]:
         """Every fault, unreadable files first, in the order `main` prints them."""
-        return [*self.refused, *self.unasked, *self.findings]
+        return [*self.refused, *self.unasked, *self.findings, *self.uncached]
 
 
 class Read(NamedTuple):
@@ -71,16 +74,18 @@ class Read(NamedTuple):
     name: str
     found: ComposeFile | None
     faults: list[Fault]
+    text: str = ""
 
 
 def read_file(root: Path, compose: Path) -> Read:
     """Read one compose file, turning every refusal into a fault on the file rather than a raise."""
     name = compose.relative_to(root).as_posix()
     try:
-        found = read_services(compose.read_text(encoding="utf-8"))
+        text = compose.read_text(encoding="utf-8")
+        found = read_services(text)
     except (OSError, UnicodeDecodeError, ComposeServiceError) as err:
         return Read(path=compose, name=name, found=None, faults=[Fault(name, 0, str(err))])
-    return Read(path=compose, name=name, found=found, faults=[])
+    return Read(path=compose, name=name, found=found, faults=[], text=text)
 
 
 def uncovered(name: str, service: Service, reference: str, declared: Iterable[str]) -> list[Fault]:
@@ -158,6 +163,9 @@ def check(root: Path, records: Mapping[str, Row] = IMAGE_VOLUMES) -> Scan:
         (read.path, read.found.project if read.found is not None else None) for read in reads
     )
     scans = [check_file(root, read, base, records) for read in reads]
+    kept = kernel_caches(
+        Source(read.name, read.text, read.found) for read in reads if read.found is not None
+    )
     named = {name for scan in scans for name in scan.names}
     faults = [fault for scan in scans for fault in scan.findings]
     faults.extend(
@@ -175,13 +183,15 @@ def check(root: Path, records: Mapping[str, Row] = IMAGE_VOLUMES) -> Scan:
         findings=faults,
         refused=tuple(fault for scan in scans for fault in scan.refused),
         unasked=tuple(fault for scan in scans for fault in scan.unasked),
+        carded=kept.carded,
+        uncached=tuple(Fault(*lost) for lost in kept.faults),
     )
 
 
 def main(argv: list[str] | None = None, inspect: Inspector = docker_volumes) -> int:
     """Run the check; print any faults and return the process exit code."""
     parser = argparse.ArgumentParser(
-        description="Fail when an image a compose file names declares a volume nothing covers.",
+        description="Fail when a path a compose service must cover has no mount over it.",
     )
     parser.add_argument(
         "--root",
@@ -227,6 +237,13 @@ def main(argv: list[str] | None = None, inspect: Inspector = docker_volumes) -> 
             "the tree by running `just image-volumes`.",
             file=sys.stderr,
         )
+    if scanned.uncached:
+        print(
+            f"\nvolumecheck: {len(scanned.uncached)} problem(s) with where a service given the "
+            f"card writes its compiled kernels. Set {CACHE_VARIABLE} for the service to a "
+            "directory under one of its mounts, with the path written out.",
+            file=sys.stderr,
+        )
     if scanned.faults:
         return 1
     print(
@@ -234,7 +251,8 @@ def main(argv: list[str] | None = None, inspect: Inspector = docker_volumes) -> 
         f"over {scanned.files} compose file(s), {scanned.definitions} service definition(s) and "
         f"{len(scanned.names)} image(s) counting the bases those builds stand on, and "
         f"{len(scanned.dockerfiles)} Dockerfile(s) here declare and inherit nothing their row "
-        "does not contain, triggers included"
+        f"does not contain, triggers included; {scanned.carded} service(s) given the card set "
+        f"{CACHE_VARIABLE} to a directory under a mount"
     )
     return 0
 

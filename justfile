@@ -82,8 +82,8 @@ check-defaultcheck:
     cd scripts && uv run python defaultcheck.py --root ..
 
 # Every volume an image declares is covered by a mount or a tmpfs in each service that runs it,
-# so `docker compose down` leaves no anonymous volume behind. The scan cannot run docker, so it
-# reads the record in scripts/imagevolumes.py; `just image-volumes` refreshes that record.
+# and a service given the card writes its compiled kernels under a mount. The scan cannot run
+# docker, so it reads scripts/imagevolumes.py; `just image-volumes` refreshes that record.
 check-volumecheck:
     cd scripts && uv sync --locked
     cd scripts && uv run python volumecheck.py --root ..

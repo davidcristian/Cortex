@@ -1,0 +1,185 @@
+import pytest
+
+from composeservices import read_services
+from kernelcache import CACHE_VARIABLE, Lost, Source, kernel_caches
+
+GPU = "docker/docker-compose.gpu.yml"
+
+CARD = (
+    "    deploy:\n"
+    "      resources:\n"
+    "        reservations:\n"
+    "          devices:\n"
+    "            - driver: nvidia\n"
+    "              count: 1\n"
+)
+
+
+def _mount(target: str = "/srv/keep") -> str:
+    return (
+        f"    volumes:\n      - type: volume\n        source: kernels\n        target: {target}\n"
+    )
+
+
+def _env(value: str = "/srv/keep/kernels") -> str:
+    return f"    environment:\n      {CACHE_VARIABLE}: {value}\n"
+
+
+def _service(*parts: str, name: str = "host") -> str:
+    return f"  {name}:\n    image: host:1\n" + "".join(parts)
+
+
+def _source(*services: str, name: str = GPU) -> Source:
+    text = "services:\n" + "".join(services)
+    return Source(name, text, read_services(text))
+
+
+def _judge(*parts: str) -> tuple[Lost, ...]:
+    return kernel_caches([_source(_service(*parts))]).faults
+
+
+def test_a_service_given_the_card_with_its_directory_under_a_mount_has_no_fault() -> None:
+    kept = kernel_caches([_source(_service(_env(), _mount(), CARD))])
+    assert kept.carded == 1
+    assert kept.faults == ()
+
+
+def test_a_service_given_the_card_that_sets_no_directory_is_reported() -> None:
+    (fault,) = _judge(_mount(), CARD)
+    assert (fault.path, fault.line) == (GPU, 2)
+    assert f"service 'host' is given the card and no compose file sets {CACHE_VARIABLE}" in (
+        fault.detail
+    )
+
+
+def test_a_directory_set_with_no_mount_at_all_is_reported() -> None:
+    (fault,) = _judge(_env(), CARD)
+    assert (fault.path, fault.line) == (GPU, 2)
+    assert f"service 'host' sets {CACHE_VARIABLE} to '/srv/keep/kernels' and no compose" in (
+        fault.detail
+    )
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["/home/cortex/x", "/srv/keeps/kernels", "/srv/keep/../lib/kernels", "/srv"],
+)
+def test_a_directory_outside_every_mount_is_reported(value: str) -> None:
+    (fault,) = _judge(_env(value), _mount(), CARD)
+    assert f"to {value!r} and no compose file mounts anything at that directory" in fault.detail
+
+
+@pytest.mark.parametrize("target", ["/srv/kee", "/srv/keep/kern", "/srv/keep/kernels/sub"])
+def test_a_mount_beside_or_below_the_directory_does_not_contain_it(target: str) -> None:
+    (fault,) = _judge(_env(), _mount(target), CARD)
+    assert "mounts anything at that directory or above it" in fault.detail
+
+
+@pytest.mark.parametrize("target", ["/srv/keep", "/srv/keep/kernels", "/srv/keep/", "/srv", "/"])
+def test_a_mount_at_the_directory_or_above_it_contains_it(target: str) -> None:
+    assert _judge(_env(), _mount(target), CARD) == ()
+
+
+@pytest.mark.parametrize(
+    ("written", "read"),
+    [
+        (
+            '"${CUDA_CACHE_PATH:-/srv/keep/kernels}"',
+            "${CUDA_CACHE_PATH:-/srv/keep/kernels}",
+        ),
+        ("/srv/keep/${NAME}", "/srv/keep/${NAME}"),
+        ("srv/keep/kernels", "srv/keep/kernels"),
+        ("", ""),
+    ],
+)
+def test_a_directory_not_written_out_as_an_absolute_path_is_reported(
+    written: str, read: str
+) -> None:
+    (fault,) = _judge(_env(written), _mount(), CARD)
+    assert f"to {read!r}, which is not an absolute container path written out" in fault.detail
+
+
+@pytest.mark.parametrize(
+    "reservation",
+    [
+        CARD,
+        CARD.replace("driver: nvidia", 'driver: "nvidia"'),
+        "    runtime: nvidia\n",
+        "    gpus: all\n",
+    ],
+)
+def test_each_compose_form_that_gives_a_service_the_card_is_read(reservation: str) -> None:
+    kept = kernel_caches([_source(_service(reservation))])
+    assert kept.carded == 1
+    assert [fault.line for fault in kept.faults] == [2]
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "    # - driver: nvidia\n",
+        "    deploy:\n      resources:\n        reservations:\n          devices:\n"
+        "            - driver: other\n",
+        "    environment:\n      CORTEX_DRIVER: nvidia\n",
+    ],
+)
+def test_a_service_not_given_the_card_needs_no_directory(body: str) -> None:
+    assert kernel_caches([_source(_service(body))]) == (0, ())
+
+
+def test_a_directory_set_without_the_card_still_needs_its_mount() -> None:
+    kept = kernel_caches([_source(_service(_env()))])
+    assert kept.carded == 0
+    assert [fault.line for fault in kept.faults] == [2]
+
+
+def test_a_reservation_belongs_to_the_service_it_is_written_under() -> None:
+    plain = _service(name="plain")
+    kept = kernel_caches([_source(plain, _service(_env(), _mount(), CARD))])
+    assert kept == (1, ())
+
+
+def test_another_services_directory_does_not_count_for_the_one_given_the_card() -> None:
+    carded = _service(CARD, name="first")
+    (fault,) = kernel_caches([_source(carded, _service(_env(), _mount()))]).faults
+    assert fault.line == 2
+    assert "service 'first' is given the card" in fault.detail
+
+
+def test_a_blank_line_or_a_comment_at_any_indent_does_not_end_a_service_body() -> None:
+    body = "\n# a note at the margin\n" + CARD
+    assert kernel_caches([_source(_service(_env(), _mount(), body))]) == (1, ())
+
+
+def test_a_top_level_key_ends_the_last_service_body() -> None:
+    text = "services:\n" + _service() + "volumes:\n  kernels:\n    driver: nvidia\n"
+    assert kernel_caches([Source(GPU, text, read_services(text))]) == (0, ())
+
+
+def test_the_files_are_judged_together_as_compose_merges_them() -> None:
+    base = _source(_service(_env()), name="docker/docker-compose.yml")
+    overlay = _source(_service(_mount(), CARD))
+    assert kernel_caches([base, overlay]) == (1, ())
+
+
+def test_a_mount_in_one_file_still_counts_when_a_later_file_names_the_service() -> None:
+    base = _source(_service(_mount()), name="docker/docker-compose.yml")
+    overlay = _source(_service(_env(), CARD))
+    assert kernel_caches([base, overlay]) == (1, ())
+
+
+def test_every_file_that_sets_the_directory_is_judged_on_its_own_value() -> None:
+    base = _source(_service(_env("/home/cortex/x")), name="docker/docker-compose.yml")
+    overlay = _source(_service(_env(), _mount(), CARD))
+    (fault,) = kernel_caches([base, overlay]).faults
+    assert (fault.path, fault.line) == ("docker/docker-compose.yml", 2)
+    assert "'/home/cortex/x'" in fault.detail
+
+
+def test_a_file_whose_environment_cannot_be_read_is_a_fault_and_gives_nothing() -> None:
+    listed = "    environment:\n      - A=b\n"
+    kept = kernel_caches([_source(_service(listed, _mount(), CARD))])
+    assert kept.carded == 0
+    assert kept.faults == (
+        Lost(GPU, 0, "line 5: an environment written as a list is not supported"),
+    )

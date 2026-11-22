@@ -92,7 +92,7 @@ because adding it afterwards is a rewrite.
    - `crosscheck.py`: a value written in more than one place still agrees everywhere.
    - `bindcheck.py`: no compose bind mount can create an untracked directory in the repo.
    - `defaultcheck.py`: a variable named in several compose files has one default.
-   - `volumecheck.py`: every volume an image declares is covered by a mount or a tmpfs.
+   - `volumecheck.py`: every volume an image declares is covered by a mount or a tmpfs, and a service given the card writes its compiled kernels under a mount.
    - `stubcheck.py`: the committed Rust stub contains every comment the proto has.
    - `samplecheck.py`: a log line a runbook shows matches the call that writes it.
    - `rostercheck.py`: a list of names a document keeps matches the set it describes.
