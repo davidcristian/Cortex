@@ -83,8 +83,7 @@ because adding it afterwards is a rewrite.
    can fail (`Result` plus `thiserror`), `unsafe` only with an ADR. Both: structured logging, no secrets in
    logs, **no secrets in the repo**, configuration from environment variables only.
 6. **`just check` is the single command.** It runs ruff, pyright, pytest with coverage, `cargo fmt --check`,
-   clippy, `cargo test`, `cargo llvm-cov`, the overlay's typecheck and Vitest coverage, and
-   **the cross-tree scans**, thirteen of them:
+   clippy, `cargo test`, `cargo llvm-cov`, the overlay's typecheck and Vitest coverage, and **the cross-tree scans**, fourteen of them:
 
    - `linecap.py`: the two line limits above.
    - `dashcheck.py`: no dash used as punctuation in any text file.
@@ -98,6 +97,7 @@ because adding it afterwards is a rewrite.
    - `rostercheck.py`: a list of names a document keeps matches the set it describes.
    - `flagcheck.py`: every subagent server has the flags its tier requires.
    - `settingscheck.py`: every setting a brain module reads is in its compose service's environment, with no empty default its class lacks.
+   - `homecheck.py`: no text file names a home directory other than a placeholder such as `/home/user`.
    - `backlogcheck.py`: each index matches its task files, every link resolves, and no task file name has a banned word.
 
    Each of them runs unconditionally, in CI too, and this list is itself compared against the recipes that run

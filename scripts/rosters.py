@@ -117,7 +117,7 @@ ROSTERS: tuple[Roster, ...] = (
     Roster(
         label="the cross-tree scans in their own document's headings",
         document=Path("docs/modules/repo-checks-scans.md"),
-        opens="**What they all share.**",
+        opens="the exit codes every scan shares are in",
         closes="a stale index is one problem, not a hundred",
         written=Headed(),
         subject="a cross-tree scan `just check` and CI both run",

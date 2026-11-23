@@ -2,7 +2,7 @@
 
 default: check
 
-# Every check: the thirteen repo-wide scans first, then the four per-tree checks in parallel,
+# Every check: the fourteen repo-wide scans first, then the four per-tree checks in parallel,
 # with each tree's output buffered and printed in a fixed order. Written for bash 3.2, which
 # is what macOS ships.
 check:
@@ -20,6 +20,7 @@ check:
     just check-rostercheck
     just check-flagcheck
     just check-settingscheck
+    just check-homecheck
     just check-backlog
     tmp=$(mktemp -d)
     trap 'rm -rf "$tmp"' EXIT
@@ -121,6 +122,12 @@ check-flagcheck:
 check-settingscheck:
     cd scripts && uv sync --locked
     cd scripts && uv run python settingscheck.py --root ..
+
+# No text file names a home directory other than a placeholder such as /home/user, in a path
+# or in the dashed form a scratch folder name takes, so the repo names no person.
+check-homecheck:
+    cd scripts && uv sync --locked
+    cd scripts && uv run python homecheck.py --root ..
 
 # Hand-run, needs docker and the network: pull every image this repo names, ask the daemon what
 # each declares, and fail when scripts/imagevolumes.py disagrees. Run it after changing an image

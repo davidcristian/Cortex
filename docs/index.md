@@ -142,16 +142,16 @@ public contract, its invariants and what it depends on. Every module has one:
 | [`body-app.md`](modules/body-app.md) | `body/app`, the React overlay tested to 100% and its host-native Tauri shell |
 | [`body-app-pictures.md`](modules/body-app-pictures.md) | The composer's attached pictures: paste, drop, the canvas reader and the refusal hand-back |
 | [`repo-checks.md`](modules/repo-checks.md) | `scripts/`, this repo's own checks: which modules exist, which have a command line, and the shared readers |
-| [`repo-checks-scans.md`](modules/repo-checks-scans.md) | The thirteen cross-tree scans, one by one |
+| [`repo-checks-scans.md`](modules/repo-checks-scans.md) | The fourteen cross-tree scans, one by one |
 | [`repo-checks-tools.md`](modules/repo-checks-tools.md) | The other command-line modules: three that check one thing, and five that report a measurement |
 
 [`repo-checks.md`](modules/repo-checks.md) covers `scripts/`, whose **cross-tree scans** are the
-thirteen that run on every change: `linecap.py`, `dashcheck.py`, `prosecheck.py`, `crosscheck.py`,
+fourteen that run on every change: `linecap.py`, `dashcheck.py`, `prosecheck.py`, `crosscheck.py`,
 `bindcheck.py`, `defaultcheck.py`, `volumecheck.py`, `stubcheck.py`, `samplecheck.py`,
-`rostercheck.py`, `flagcheck.py`, `settingscheck.py` and `backlogcheck.py`, described one by one in
-[`repo-checks-scans.md`](modules/repo-checks-scans.md). **Beside them** sit the coverage check, the
-CI path classifier, the commit-message check, and the five readers that print a measurement, all in
-[`repo-checks-tools.md`](modules/repo-checks-tools.md).
+`rostercheck.py`, `flagcheck.py`, `settingscheck.py`, `homecheck.py` and `backlogcheck.py`,
+described one by one in [`repo-checks-scans.md`](modules/repo-checks-scans.md). **Beside them** sit
+the coverage check, the CI path classifier, the commit-message check, and the five readers that
+print a measurement, all in [`repo-checks-tools.md`](modules/repo-checks-tools.md).
 
 ## Runbooks
 

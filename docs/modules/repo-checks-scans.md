@@ -1,14 +1,9 @@
-# The thirteen cross-tree scans
+# The fourteen cross-tree scans
 
 These are the checks `just check` runs before any per-toolchain work, and CI runs on every change
 whatever files it touched. Each reads several trees at once, so none can live in the brain's or the
-body's own suite. The module list and shared readers are in [repo-checks.md](repo-checks.md).
-
-**What they all share.** Exit 0 prints a summary line stating what the walk read after every
-exclusion, so a passing run cannot be equally true of a scan that read nothing. Exit 1 prints one
-problem per line, usually `path:line: detail`. Exit 2 means the scan could not run: `--root` is not
-a directory, an input could not be read or decoded, or the reader met a syntax it was not taught.
-Nothing is ever skipped quietly. Every scan takes `--root DIR`, defaulting to the current directory.
+body's own suite. The module list, the shared readers and the exit codes every scan shares are in
+[repo-checks.md](repo-checks.md).
 
 ## `linecap.py`
 
@@ -39,6 +34,11 @@ ASCII hyphen. It is deliberately silent on U+2212 MINUS SIGN and on ASCII `--`, 
 uses for an inline reason; commit messages are stricter and `commitlint.py` reports it there.
 Binary files are detected and skipped, and a line containing `dashcheck: allow` plus a reason is
 exempt. Exit 1 prints `path:line: kind: text`.
+
+## `homecheck.py`
+
+Over the files `dashcheck.py` reads, a home directory in a path (`/home/<name>`) or in a scratch
+folder name (`-home-<name>-`) fails unless the name is in `PLACEHOLDERS`, such as `user`.
 
 ## `prosecheck.py`
 

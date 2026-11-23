@@ -61,7 +61,7 @@ jobs:
 
   # The cross-tree scans are repo-wide and exempt from the path filter: linecap.py, dashcheck.py,
   # prosecheck.py, crosscheck.py, bindcheck.py, defaultcheck.py, volumecheck.py, stubcheck.py,
-  # samplecheck.py, rostercheck.py, flagcheck.py, settingscheck.py, backlogcheck.py.
+  # samplecheck.py, rostercheck.py, flagcheck.py, settingscheck.py, homecheck.py, backlogcheck.py.
   cross-tree:
     runs-on: ubuntu-latest
     steps:
@@ -85,6 +85,7 @@ jobs:
       - run: just check-rostercheck
       - run: just check-flagcheck
       - run: just check-settingscheck
+      - run: just check-homecheck
       - run: just check-backlog
 
   python:

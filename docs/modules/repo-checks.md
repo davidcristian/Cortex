@@ -1,6 +1,6 @@
 # scripts/ (`repo-checks`)
 
-**Purpose.** This repo's own checks, in a tree that neither shipped image contains. Thirteen of them
+**Purpose.** This repo's own checks, in a tree that neither shipped image contains. Fourteen of them
 read across every toolchain and run on every change. The rest check one toolchain, one file or one
 commit message, or print a measurement and decide nothing. What every module here has in common is
 being pure Python that belongs to neither the brain nor the body, tested and typed like both. It is
@@ -9,7 +9,7 @@ member of the brain's workspace (ADR-0002).
 
 The detail lives in two companion documents:
 
-- [repo-checks-scans.md](repo-checks-scans.md): what each of the thirteen cross-tree scans
+- [repo-checks-scans.md](repo-checks-scans.md): what each of the fourteen cross-tree scans
   compares, what fails it, and what it prints.
 - [repo-checks-tools.md](repo-checks-tools.md): the Rust coverage check, the CI path classifier,
   the commit-message check, the five modules that only report a measurement, the driver that draws
@@ -17,14 +17,14 @@ The detail lives in two companion documents:
 
 ## Public contract
 
-Twenty-four modules have a command line. `just` recipes run `linecap.py`, `dashcheck.py`,
+Twenty-five modules have a command line. `just` recipes run `linecap.py`, `dashcheck.py`,
 `prosecheck.py`, `crosscheck.py`, `bindcheck.py`, `defaultcheck.py`, `volumecheck.py`,
 `stubcheck.py`, `samplecheck.py`, `rostercheck.py`, `flagcheck.py`, `settingscheck.py`,
-`backlogcheck.py` and `rustcoverage.py`. The CI workflow runs `ci_paths.py`, and the `commit-msg`
-hook runs `commitlint.py`. Five measurement reporters have a recipe each: `contrast.py` under
-`just turn-cost`, `trailwidth.py` under `just recall-width`, `envelopefloor.py` under
-`just envelope-floor`, `envelopepairs.py` under `just envelope-pairs` and `switchtail.py` under
-`just switch-tail`. `switchlineup.py` under `just switch-lineup` draws the thinking-switch
+`homecheck.py`, `backlogcheck.py` and `rustcoverage.py`. The CI workflow runs `ci_paths.py`, and
+the `commit-msg` hook runs `commitlint.py`. Five measurement reporters have a recipe each:
+`contrast.py` under `just turn-cost`, `trailwidth.py` under `just recall-width`, `envelopefloor.py`
+under `just envelope-floor`, `envelopepairs.py` under `just envelope-pairs` and `switchtail.py`
+under `just switch-tail`. `switchlineup.py` under `just switch-lineup` draws the thinking-switch
 record's picks one server at a time and publishes them through `switchtail.py`. `memwatch.py`
 under `just mem-watch` removes a measurement container when the host runs short of memory.
 `replaysince.py` under `just replay` reads a bare date from that day's midnight. Every one of them
@@ -68,6 +68,7 @@ were split out of it to stay under the 300-line limit. Grouped by what reads the
   `artifactnames.py`, every model file this tree mentions and the variable it is written under.
 - `settingscheck.py` reads `settingsfields.py` for the variables one module's settings classes
   read and whether each defaults to the empty string. The stack side comes from the readers above.
+- `homecheck.py` reads `dashcheck.py` for the paths git ignores and the text of each file.
 - `backlogcheck.py` reads `backlog.py` for the task-file grammar, `backlogindex.py` for the index
   renderer, `backloganchors.py` for the anchors a document offers and the links aimed at them,
   `headingshapes.py` for which headings a slug can be computed from, and `bannedwords.py` for the
@@ -98,14 +99,21 @@ containing one.
 
 ## How the checks run
 
-`just check` is the single command. It runs the thirteen cross-tree scans first, in the order
+`just check` is the single command. It runs the fourteen cross-tree scans first, in the order
 `check-linecap`, `check-dashcheck`, `check-prosecheck`, `check-crosscheck`, `check-bindcheck`,
 `check-defaultcheck`, `check-volumecheck`, `check-stubcheck`, `check-samplecheck`,
-`check-rostercheck`, `check-flagcheck`, `check-settingscheck` and `check-backlog`. It then runs
-`check-brain`, `check-scripts`, `check-body` and `check-overlay` in parallel, buffering each tree's
-output and printing it under a `=== check-<tree>: OK|FAILED ===` marker.
+`check-rostercheck`, `check-flagcheck`, `check-settingscheck`, `check-homecheck` and
+`check-backlog`. It then runs `check-brain`, `check-scripts`, `check-body` and `check-overlay` in
+parallel, buffering each tree's output and printing it under a `=== check-<tree>: OK|FAILED ===`
+marker.
 
-The pre-commit hook runs the same recipes, and `.github/workflows/ci.yml` mirrors them. The thirteen
+**What they all share.** Exit 0 prints a summary line stating what the walk read after every
+exclusion, so a passing run cannot be equally true of a scan that read nothing. Exit 1 prints one
+problem per line, usually `path:line: detail`. Exit 2 means the scan could not run: `--root` is not
+a directory, an input could not be read or decoded, or the reader met a syntax it was not taught.
+Nothing is ever skipped quietly. Every scan takes `--root DIR`, defaulting to the current directory.
+
+The pre-commit hook runs the same recipes, and `.github/workflows/ci.yml` mirrors them. The fourteen
 scans run unconditionally in CI; the per-toolchain jobs are chosen by `ci_paths.py` from the
 changed files. One recipe is deliberately outside `just check`: `check-shell` runs clippy on the
 Tauri shell for the host target and for `x86_64-pc-windows-msvc`, and needs system libraries that
