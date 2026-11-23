@@ -228,7 +228,7 @@ before each launch.
 - **Beside the GPU subagent tier.** With `CORTEX_MODEL_FILE_SUBAGENT_GPU` naming
   `unsloth/gemma-4-E4B-it-qat-GGUF/gemma-4-E4B-it-qat-UD-Q4_K_XL.gguf` on compose defaults, two
   servers at 8192 drafting with the file's MTP drafter, `device_free_mib` read 16136 with the
-  cortex stopped, under the deep tier's own cost. With the second server stopped it read 19315,
+  cortex stopped, under the 16924 MiB the pick needs free. With the second server stopped it read 19315,
   and the deep tier added 15941 with the floor steady: whole. Each server took about 3179 MiB.
 
 Method: `~/.cache/cortex-run/2026-11-23/s4/` (`rung.py`, `ladder.sh`, `edge.sh`, `cores.sh`, the

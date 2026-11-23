@@ -100,9 +100,9 @@ is dropped. Replayed over every recorded deep reply:
 | all | 1306 | 52 | 52 | 0 |
 
 Every tag is on a line of its own, and every tagged reply has a whole reply before the line, read
-by hand over the 39 distinct ones; launch C's 13 are the same text as 13 of 2026-11-21. So the form
-shows one copy of each. No reply has thinking before the line and the answer after it, the form in
-which this check would withhold the answer.
+by hand over the 38 distinct ones; launch C's 13 are the same text as 13 of 2026-11-21, and one of
+launch B's as one more of that night. So the form shows one copy of each. No reply has thinking
+before the line and the answer after it, the form in which this check would withhold the answer.
 
 Method: `up.sh`, `chain.sh`, `row.py`, `summ.py`, `replay.py` and `final.py` in
 `~/.cache/cortex-run/2026-11-23/s3/`. `rows/<launch>/draws.jsonl` there has every reply,

@@ -29,8 +29,8 @@ restart ended and whether their note was shown, with a contract test and a fake.
 - 2026-11-18: filed when boot recovery began to store the record in the handoff's own chat.
 - 2026-11-23: declined. The record is already told outside its chat: its `at` is the boot's time
   and the Redis store scores the chat by it (`append` in `cortex_session/store.py`), so the
-  switcher lists that chat first, titled with the request and previewed with the record's first
-  96 characters (`summarize_ends` in `sessions.py`). A note in a new chat would ask the person to
-  hand over a request that chat does not hold, so no port for one is added. The English
-  `UNSURE_HANDOFF_NOTE` stays: its chat could not be read, so no request text gives a language.
-  How the overlay shows that chat is not yet seen: R-1315.
+  switcher lists that chat first after any chat the person hoisted (`merge_hoisted`), previewed
+  with the record's first 96 characters (`summarize_ends` in `sessions.py`). A note in a new
+  chat would ask the person to hand over a request that chat does not hold, so no port for one
+  is added. The English `UNSURE_HANDOFF_NOTE` stays: its chat could not be read, so no request
+  text gives a language. How the overlay shows that chat is not yet seen: R-1315.

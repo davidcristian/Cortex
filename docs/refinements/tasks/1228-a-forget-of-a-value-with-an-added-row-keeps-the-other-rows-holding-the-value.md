@@ -34,6 +34,6 @@ limit then an added row, 382 under an added row beside `stays`
   (`adds_to_value` in `forget_value_added.py`), so `Forget 4242, the card too.` deletes the card
   and the locker code with the text `4242`, and the locker code with `locker code`. The phone
   `0721 555 4242` stays kept as for `Forget 4242.`, and the two near misses list what they did.
-  Over both generators no row asked to keep was listed and 228 rows asked to delete were newly
+  Over both generators no row asked to keep was listed and 124 rows asked to delete were newly
   listed, with none the message does not ask for
   ([readings](../../readings/forget-value-added-row.md)).

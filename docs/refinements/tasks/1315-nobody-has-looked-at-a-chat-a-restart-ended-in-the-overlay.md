@@ -10,8 +10,8 @@ of `UNANSWERED_HANDOFF_NOTE` (`record_unanswered` in
 [stranded_handoff.py](../../../brain/packages/core/src/cortex_core/stranded_handoff.py)). By the
 code, three things follow in the overlay, and none has been seen:
 
-- The switcher lists that chat first, previewed with the record's first 96 characters, because
-  the record's time is the boot's.
+- The switcher lists that chat first after any hoisted chat, previewed with the record's first 96
+  characters, because the record's time is the boot's.
 - A restored chat shows the record as a reply of its own (`GetSessionMessages` returns it).
 - The next reply in that chat ends with the same text (`unanswered_handoff_note`), so the
   restored chat shows it twice, once as the record and once under that reply.

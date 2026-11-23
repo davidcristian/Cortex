@@ -69,7 +69,7 @@ alternate, gemma-4-31B, costs 19125 MiB at an 8192 context and spilled beside an
 to 19967 MiB free, so 20125 refuses every spill seen by at least 158 MiB; at 16384 it costs 664 to
 667 MiB more, and 20783 keeps 149 of those 158 MiB. The pick at 16384 and `q8_0` costs 15950 MiB without its drafter and 16991 with its draft layer ([readings](../readings/model-swap.md#a-handoff-on-the-deep-pick)); plain, with the desktop's share of the card steady, it was not shown whole beside an idle peer at up to 16764 MiB free and loaded whole at 16924 ([readings](../readings/co-residency.md#what-free-memory-the-deep-pick-needs-beside-a-peer)), so declare 16924, or 17965 with its draft layer, which adds the layer's 1041 MiB to a figure drawn without it.
 **So on a 24 GB card leave co-residency off**: beside the E4B tier's two default servers the card
-read 16136 MiB free, under the pick's own cost, so the check refuses every such handoff, each
+read 16136 MiB free, under the 16924 the pick needs, so the check refuses every such handoff, each
 costing a reload; beside one server it read 19315 and the pick loaded whole. The same figure guards
 the ordinary handoff, optionally, on a card too small for the deep tier at all.
 
