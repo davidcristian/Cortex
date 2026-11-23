@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** memory
 **Origin:** [ADR-0008](../../adr/ADR-0008-memory-v1.md)
-**Verified:** 2026-11-07
+**Verified:** 2026-11-23
 
 The brain records every exchange at turn end and offers no tool that stores one
 ([ADR-0008](../../adr/ADR-0008-memory-v1.md)), and nothing the cortex reads says so. The only memory
@@ -71,3 +71,8 @@ The same sentence at the end of the first system message searched in 14 of 15 dr
   with no request word, called `spawn_subagents` to store the fact, and each call ran; one French
   first turn asked for a subagent role that does not exist
   ([readings](../../readings/forget-what-was-just-said.md#the-draws-of-the-start-hash-and-the-candidate-2026-11-09)).
+- 2026-11-23: counted again on R01 to R15 with the cortex of today's compose defaults: a search in
+  15 of 15 draws, median trace 2,819 characters, no chat-only reply, every fact stored. 8 of 15
+  draws called `forget_memories`, and the typed refusal answered each call, which sends no event
+  ([readings](../../readings/single-draw-recounts.md#the-search-for-a-store-tool-counted-again)).
+  Step 1 is unchanged.
