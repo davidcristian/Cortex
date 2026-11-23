@@ -64,3 +64,10 @@ two letters is `que`, which every Spanish row holds, so `reads` compares a longe
 the words of a row's request that are no function word. Compared with every word of the row, the
 same rule kept 104 more generated rows asked to delete, as the card of `Olvida 4242 de la
 tarjeta, conserva el gimnasio, el gimnasio se queda.`.
+
+`forget_named` (`forget_keep_named.py`) reads a longer word of a part asking to forget the same
+way, so `Olvida el código del gimnasio que queda.` with the call text `tarjeta` deletes no card.
+Over the same replay that changed 4 calls and no generated message: `Oublie ce que je viens de
+dire.` and `Oublie ce que je viens de te dire.` beside German rows, whose request holds `dir`,
+list the card and the phone the call texts `card` and `phone` name, 8 rows, as each did before
+the longer word reading. The listing is `cmp_f3vf2.txt` in the same folder.

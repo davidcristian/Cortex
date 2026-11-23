@@ -112,3 +112,8 @@ async def test_a_keep_clause_naming_a_row_to_forget_beside_other_words_keeps_it(
     query: str, ids: tuple[str, ...], text: str
 ) -> None:
     assert await _left(query, ids, text) == sorted(ids)
+
+
+async def test_a_forget_word_one_or_two_letters_longer_than_a_function_word_names_no_row() -> None:
+    query = "Olvida el código del gimnasio que queda."
+    assert await _left(query, _SPANISH_SHARED, "tarjeta") == sorted(_SPANISH_SHARED)

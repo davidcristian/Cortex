@@ -45,5 +45,4 @@ messages writes no such form, so its count of rows listed against the message ha
   card` keep the card. Over the generator and tonight's forms the rows asked to keep that the
   card lists went from 36 to 0, with no row newly listed and 91 rows asked to delete newly kept,
   among them `Forget the card 4242, I don't need the card.` and `Forget my phone 4242 but keep
-  Anna's phone.` ([readings](../../readings/forget-keep-any-reading.md)). The forget side's longer word reading names a row through a function
-  word: [R-1306](1306-a-forget-word-one-or-two-letters-longer-than-a-function-word-names-every-row-holding-it.md).
+  Anna's phone.` ([readings](../../readings/forget-keep-any-reading.md)).

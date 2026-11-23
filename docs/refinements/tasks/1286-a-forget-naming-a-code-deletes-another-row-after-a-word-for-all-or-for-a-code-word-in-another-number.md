@@ -56,7 +56,6 @@ cards.` as the next form.
   row the message asks to keep is newly listed, the rows listed that the 400 new messages do not
   ask for fall from 160 to 24, and no generated or extra row asked to delete is newly kept. The
   24 left are Romanian plurals adding more than two letters
-  ([R-1304](1304-a-romanian-plural-row-word-in-a-forget-message-names-no-row.md)). Of 108 test
-  string rows newly kept, 8 are a cost: `Oublie ce que je viens de dire.` beside German rows,
-  whose request holds `dir`. The 17 newly listed are under result strings holding `remembered`,
-  no message.
+  ([R-1304](1304-a-romanian-plural-row-word-in-a-forget-message-names-no-row.md)). Of 100 test
+  string rows newly kept, none is a cost. The 17 newly listed are under result strings holding
+  `remembered`, no message.

@@ -5,11 +5,14 @@ from collections.abc import Sequence
 from cortex_core.forget_clauses import AND, EVERY, clauses, parts
 from cortex_core.forget_inside import content, request
 from cortex_core.forget_kinds import extends, names, read_kinds, shorter, verbed
+from cortex_core.forget_languages import FUNCTION
 from cortex_core.forget_unnamed import asks_to_keep, keep_words, row_names
 from cortex_core.memory import MemoryRecord
 from cortex_core.ports import MemoryStore
 from cortex_core.scope import MemoryScope
 from cortex_core.tools import ToolCall
+
+_FUNCTION = frozenset(word for words in FUNCTION.values() for word in words)
 
 
 async def keep_named(
@@ -54,5 +57,6 @@ async def forget_named(
     return [
         row
         for row in rows
-        if names(words, request(row)) or any(extends(word, request(row)) for word in unread)
+        if names(words, request(row))
+        or any(extends(word, request(row) - _FUNCTION) for word in unread)
     ]
