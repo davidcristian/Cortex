@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-15
+**Verified:** 2026-11-23
 
 Drawn on the stack brain over four stored rows
 ([readings](../../readings/forget-everything-unread-role.md#drawn-after-the-card-changes-2026-11-15)):
@@ -31,3 +31,10 @@ message, and for the Romanian one a call naming `card` lists the card, since `to
 ## History
 
 - 2026-11-15: filed from the audit draws of the day's card changes.
+- 2026-11-23: checked the code side through `ForgetChosenTool`. `Forget everything, my card
+  stays.` still keeps every row for the call texts `card` and `4242`, and `Uită tot în afară de
+  card.` still lists the card (R-1230). The form the note of step 2 names works as it says:
+  `Forget everything but my card.` keeps the card for the text `card` and deletes the locker code
+  for `locker` or `4242` and the phone for `phone`. No forget reader of `forget_reach.py`,
+  `forget_uncalled.py` or `forget_claim.py` changed since 2026-11-15. The live draw of step 1 was
+  not taken, since the slot did no card work. Left open.

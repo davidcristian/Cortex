@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-21
+**Verified:** 2026-11-23
 
 A forget of everything that names a stored row in a role no reader reads keeps every row
 (`message_rows` in `forget_permit.py`). It is read only from a word for all of the table of forms
@@ -51,3 +51,9 @@ or `4242` ([readings](../../readings/forget-everything-unread-role.md)):
   read, `my card stays` differs from `my card holds` only by a word no reader reads, so a rule
   that keeps a named row before such a word also keeps the card of `Forget everything my card
   holds.`, a near miss of step 1, and its cost over the generator was not counted. Left open.
+- 2026-11-23: checked again through `ForgetChosenTool` after the day's changes to the forget
+  readers. All seven still delete the card with the call text naming it and with `4242`, and the
+  near misses of step 1 list the card (`Forget everything my card holds.`, `Forget all my card
+  numbers.`) or nothing (`Vergeet 4242 tot morgen.`, `Forget my todo list.`). No generator
+  writes a forget of everything, so the cost of step 3 is still not counted; adding these forms
+  to it comes first. No rule was built. Left open.
