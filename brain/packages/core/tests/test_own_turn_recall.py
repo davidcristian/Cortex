@@ -1,11 +1,13 @@
 from collections.abc import Sequence
 from datetime import UTC, datetime
+from itertools import count
 
 import swap_harness as harness
 from swap_harness import ScriptedBrainBackend, TickingClock
 
 from cortex_core import (
     BrainPhase,
+    HashEmbedder,
     InMemoryMemoryStore,
     InMemorySessionStore,
     Message,
@@ -15,6 +17,7 @@ from cortex_core import (
     TaintLedger,
     TextDelta,
     TurnCapabilities,
+    TurnEngine,
 )
 from cortex_core.memory import MemoryRecord
 from cortex_core.recall import MemoryRecaller
@@ -154,3 +157,26 @@ async def test_the_deep_phase_recalls_the_earlier_row_and_not_the_one_its_turn_w
 
 async def test_a_deep_phase_whose_cortex_stored_no_row_recalls_both() -> None:
     assert sorted(await _deep_recall(())) == ["earlier", "own"]
+
+
+async def test_a_later_turn_and_another_chat_recall_the_row_a_turn_wrote() -> None:
+    minted = count(1)
+    sink = RecordingRecallSink()
+    recaller = MemoryRecaller(
+        InMemoryMemoryStore(),
+        HashEmbedder(),
+        SystemClock(),
+        audit=sink,
+        id_factory=lambda: f"m{next(minted)}",
+    )
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        ScriptedBrainBackend(),
+        TickingClock(),
+        capabilities=TurnCapabilities(memory=recaller),
+    )
+    for session_id, turn_id in ((harness.SESSION, "t-1"), (harness.SESSION, "t-2"), ("b", "t-3")):
+        events = engine.handle_turn(session_id, harness.USER_TEXT, turn_id=turn_id)
+        assert [event async for event in events]
+    recalled = {a.turn_id: sorted(s.record.id for s in a.ranking.memories) for a in sink.audits}
+    assert recalled == {"t-1": [], "t-2": ["m1"], "t-3": ["m1", "m2"]}
