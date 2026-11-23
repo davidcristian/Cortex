@@ -50,6 +50,7 @@ async def _forget(query: str, value: str) -> list[str]:
         ("Forget the card card, card stays.", "card"),
         ("Forget the card card, that card stays.", "card"),
         ("Forget the card card but card stays.", "card"),
+        ("Forget the card card, I don't need the card.", "card"),
         ("Forget card on card but the locker.", "card"),
     ],
 )
