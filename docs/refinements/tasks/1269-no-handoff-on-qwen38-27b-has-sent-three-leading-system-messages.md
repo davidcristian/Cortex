@@ -1,9 +1,8 @@
 # No handoff on Qwen3.8-27B has sent three leading system messages
 
-**Status:** open, actionable
+**Status:** done 2026-11-23
 **Area:** inference-model-manager
 **Origin:** [ADR-0071](../../adr/ADR-0071-leading-system-messages.md)
-**Verified:** 2026-11-21
 
 The deep phase opens its request with up to three system messages: the security preamble, the
 recalled memory when recall found something, and the recap once the history window has folded
@@ -39,3 +38,11 @@ one is a defect to file.
 
 - 2026-11-21: filed when the handoffs of R-1268 were found to have sent one leading system
   message each.
+- 2026-11-23: done. Two handoffs ran through the brain with memory on and a window folded at
+  `CORTEX_HISTORY_CHAR_BUDGET=600`. Each deep request opened with the preamble, a recalled memory
+  and the recap, and the brain logged `system message probe answered` for
+  `http://model-host:8081` with `system_messages=3` and `delivers=True`. In the run whose brief
+  named neither value and whose memory held no row with the room, the deep reply named both, the
+  room from the recap alone ([readings](../../readings/handoff-leading-system-messages.md)). The
+  deep phase also recalled the cortex's hand-over row of the same turn in both runs, so
+  [R-1301](1301-the-deep-phase-recalls-the-hand-over-row-its-own-turn-wrote.md) is filed.

@@ -102,6 +102,9 @@ test could fail on it.
   and the tainted memory row holds at an 8192-token cap, 2 of 66 against 18 of 66. At the test's
   4096-token cap it did not, 12 of 66 against 19 of 66, every joined count a void draw
   ([readings](../readings/joined-message-deep-fenced-memory.md)).
+- On the deep pick, Qwen3.8-27B on build b12375, a handoff through the brain whose turn had a
+  memory and a recap read `delivers=True` at three, and the deep reply used a value only the recap
+  held ([readings](../readings/handoff-leading-system-messages.md)).
 - On a turn that also recalls a memory, Qwen3.6-27B's prompt now includes the recap it used
   to drop, up to `RECAP_MAX` (2000 characters) plus the preface, inside the margin
   [ADR-0014](ADR-0014-history-windowing.md) decision 8 leaves the deep tier's context.

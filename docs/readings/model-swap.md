@@ -126,7 +126,8 @@ Both deep servers started as `llama-server --model
   tokens.
 - **The template.** Neither deep request had more than one leading system message, since the
   stack had no memory store and the chat no recap, so the brain's system message probe did not
-  run ([R-1269](../refinements/tasks/1269-no-handoff-on-qwen38-27b-has-sent-three-leading-system-messages.md)).
+  run. A handoff with three is in
+  [leading system messages on a handoff](handoff-leading-system-messages.md).
   One more launch of the model host alone rendered three bodies through `POST /apply-template` on
   the deep server. Three leading system messages render in order as one system block below the
   `xhigh` sentence. Each earlier reply, and the `escalate_to_brain` call, renders behind an empty
