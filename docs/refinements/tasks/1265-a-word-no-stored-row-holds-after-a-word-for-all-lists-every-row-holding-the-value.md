@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-20
+**Verified:** 2026-11-23
 
 Over the rows `Remember that my locker code is 4242.`, `Remember that my card is 4111 1111 1111
 4242.` and `Remember that my phone is 0721 555 4242.`, `Forget all cupboards 4242.` and `Forget
@@ -24,10 +24,13 @@ hold that. No reader tells `other` from `cupboards`: neither names a stored row,
 1. Write the near misses first: `every other 4242`, `every single 4242`, `all the 4242`, `all
    these 4242` and `all of 4242` must list every row holding the value, as today.
 2. Propose a row of the table of forms for the words that only modify a word for all, with its
-   cell for each language or the reason a cell is empty, and read every other word between a
-   word for all and the value, of three letters or more and no function word, as a row name no
-   stored row holds, which keeps every row. The words of that row are a pick for the user.
-3. Replay the generated messages with each word of the row and with words no pool row holds, in
+   cell for each language or the reason a cell is empty. The generator needs `other` and
+   `single` in the English cell. The words of that row are a pick for the user.
+3. Then read every word between a word for all and the value that `row_words` keeps, less the
+   function words and that row, as a row name: in `quantifies` (`forget_unnamed.py`), take
+   `named` from the query's own words as well as the rows'. Without the row this rule keeps 498
+   rows the generated messages ask to delete, all under `other` or `single`.
+4. Replay the generated messages with each word of the row and with words no pool row holds, in
    both places: after a word for all, and before a value a word for all follows. Rows newly
    listed must be zero.
 
@@ -36,3 +39,8 @@ hold that. No reader tells `other` from `cupboards`: neither names a stored row,
 - 2026-11-20: filed from the close of
   [R-1234](1234-a-word-for-all-before-a-row-word-in-a-form-no-stored-row-holds-lists-every-row.md),
   which reads a longer form of a stored row word and leaves a word no stored row word starts.
+- 2026-11-23: still open. Reading the query's own words as row names in `quantifies` keeps all
+  264 rows that the 180 generated calls of this form do not ask for and lists no row newly, over
+  the generator in `~/.cache/cortex-run/2026-11-23/f2/`. It also keeps 498 rows that
+  `every other 4242` and `every single 4242` ask to delete in five languages, and 13 forget
+  tests change, so it waits for the table row of step 2.
