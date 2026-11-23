@@ -92,7 +92,7 @@ async def test_the_only_row_a_message_names_after_the_value_in_unread_words_is_k
     ("query", "ids", "left"),
     [
         ("Forget the card 4242, the phone and the locker too.", _ENGLISH, []),
-        ("Forget 4242, and the phone.", _ENGLISH, ["card", "locker"]),
+        ("Forget 4242, and the phone.", _ENGLISH, ["card"]),
         ("Forget all 4242 on the card.", _ENGLISH, ["locker", "phone"]),
         ("Forget all 4242, the card too.", _ENGLISH, []),
         ("Forget every card ending 4242.", _ENGLISH, ["locker", "phone"]),

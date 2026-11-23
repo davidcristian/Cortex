@@ -6,6 +6,7 @@ from collections.abc import Iterable, Mapping
 from cortex_core.forget_clauses import AND, EVERY, EXCEPT, FORGET, KEEP, WHOSE, clauses, parts
 from cortex_core.forget_kinds import before_every, kinds, limited, names, read_kinds
 from cortex_core.forget_languages import FUNCTION, readings
+from cortex_core.forget_value_added import adds_to_value
 from cortex_core.memory import MemoryRecord
 from cortex_core.memory_values import code_stem, code_word, digit_runs, kind_word, whole_values
 from cortex_core.note_language import ENGLISH, in_language, message_language
@@ -275,7 +276,8 @@ def _unnamed(
     asked, values = _keys(query), _keys(text) - _keys(query) or _keys(text)
     named = compound or _named(rows, words, deleted)
     texts = [record.text for record in (*rows, *deleted)]
-    every = values <= asked and (not named or quantifies(query, texts))
+    adds = adds_to_value(query, text, frozenset(word for row in texts for word in row_words(row)))
+    every = values <= asked and (not named or adds or quantifies(query, texts))
     said = None if named else just_said(rows, session_id, deleted)
     return [
         record

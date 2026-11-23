@@ -1,9 +1,8 @@
 # A forget of a value with an added row keeps the other rows holding the value
 
-**Status:** open, actionable
+**Status:** done 2026-11-23
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-15
 
 `Forget 4242, the card too.` asks for the value and adds the card. On 2026-11-15 a unit call
 through `ForgetChosenTool` with the text `4242`, over a locker code `4242`, a card and a phone
@@ -29,3 +28,12 @@ limit then an added row, 382 under an added row beside `stays`
 ## History
 
 - 2026-11-15: filed from the replay of the rows a message permits.
+- 2026-11-23: done. `unnamed` (`forget_unnamed.py`) kept the locker code: the card names a row,
+  so each row holding the value that no word names was kept. A message that is a forget verb,
+  the value, then only words adding a stored row now asks for every row holding the value whole
+  (`adds_to_value` in `forget_value_added.py`), so `Forget 4242, the card too.` deletes the card
+  and the locker code with the text `4242`, and the locker code with `locker code`. The phone
+  `0721 555 4242` stays kept as for `Forget 4242.`, and the two near misses list what they did.
+  Over both generators no row asked to keep was listed and 228 rows asked to delete were newly
+  listed, with none the message does not ask for
+  ([readings](../../readings/forget-value-added-row.md)).
