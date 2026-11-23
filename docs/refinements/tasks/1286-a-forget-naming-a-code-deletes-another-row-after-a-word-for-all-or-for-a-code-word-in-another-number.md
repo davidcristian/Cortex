@@ -59,6 +59,4 @@ cards.` as the next form.
   ([R-1304](1304-a-romanian-plural-row-word-in-a-forget-message-names-no-row.md)). Of 108 test
   string rows newly kept, 8 are a cost: `Oublie ce que je viens de dire.` beside German rows,
   whose request holds `dir`. The 17 newly listed are under result strings holding `remembered`,
-  no message. A plural row word in a clause asking to keep was already listed after a word for
-  all, before and after this change
-  ([R-1303](1303-a-plural-row-word-a-forget-message-keeps-after-a-word-for-all-is-listed.md)).
+  no message.

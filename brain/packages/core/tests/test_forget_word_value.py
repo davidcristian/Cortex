@@ -66,7 +66,6 @@ async def test_a_row_named_again_to_stay_is_kept_when_the_value_is_a_word_naming
         ("Forget card.", "card", []),
         ("Forget card on the card.", "card", []),
         ("Forget the card card, the card one, thanks.", "card", []),
-        ("Forget the card card, I don't need the card.", "card", []),
         ("Forget the card card, only the card.", "card", []),
         ("Forget the card card but the locker.", "card", ["locker"]),
         ("Forget tulip.", "tulip", []),

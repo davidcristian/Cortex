@@ -1,9 +1,8 @@
 # A keep clause naming the row to forget and a second row its word names lists the first
 
-**Status:** open, actionable
+**Status:** done 2026-11-23
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-21
 
 Over the rows `Remember that my card is 4111 1111 1111 4242.`, `Remember that my new card is 5500
 0000 0000 4242.` and `Remember that my locker code is 4242.`, with the call text `4242`, `Forget
@@ -41,3 +40,9 @@ clause naming only the second row holds it once, and the clause naming both hold
 
 - 2026-11-21: filed after a replay of keep clauses naming the row to forget again
   ([R-1280](1280-a-word-naming-no-row-before-the-row-a-keep-clause-names-again-lists-it.md)).
+- 2026-11-23: done with the rule of
+  [R-1280](1280-a-word-naming-no-row-before-the-row-a-keep-clause-names-again-lists-it.md): a
+  row any reading of a keep clause names is kept, so both orders in English and the Spanish form
+  keep both cards. The cost is the other direction of this task's near misses: 36 rows in 33
+  messages forgetting one of two cards and keeping the other by a longer name now keep both, as
+  `Forget my old card 4242, keep the new card.` ([readings](../../readings/forget-keep-any-reading.md)).

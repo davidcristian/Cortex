@@ -178,28 +178,39 @@ async def test_a_forget_of_every_value_limited_to_a_row_keeps_the_other_rows(
         ("Forget all 4242, please, only the card.", _ENGLISH, ["locker", "phone"]),
         ("Oublie le code 4242 du casier, la carte reste.", _FRENCH, ["carte", "telephone"]),
         ("Forget the card 4242, my phone is new.", _ENGLISH, ["locker", "phone"]),
-        ("Forget the card 4242, I don't need the card.", _ENGLISH, ["locker", "phone"]),
         ("Forget the card 4242, the card one, thanks.", _ENGLISH, ["locker", "phone"]),
         ("Forget the card 4242 and the phone, keep the phone.", _ENGLISH, ["locker", "phone"]),
         ("Forget the card 4242, keep the statement.", _ENGLISH, ["locker", "phone"]),
         ("Forget the card 4242, keep the phone only on the phone.", _ENGLISH, ["locker", "phone"]),
-        ("Forget the card 4242, I don't want the card anymore.", _ENGLISH, ["locker", "phone"]),
         ("Forget the card 4242 only on the card.", _ENGLISH, ["locker", "phone"]),
         ("Forget the card 4242, keep the phone and the locker.", _ENGLISH, ["locker", "phone"]),
-        ("Forget my old card 4242, keep the new card.", ("old", "new"), ["new"]),
-        ("Forget my old card 4242, keep only the new card.", ("old", "new"), ["new"]),
-        ("Forget my old card 4242, keep the new card statement.", ("old", "new"), ["new"]),
         ("Forget all 4242 on the card but not the phone.", _ENGLISH, ["locker", "phone"]),
         ("Forget all 4242 and the card except the phone.", _ENGLISH, ["locker", "phone"]),
         ("Uită cardul 4242, păstrează dulapul.", _ROMANIAN, ["dulap", "telefonul"]),
-        ("Uită cardul 4242, nu vreau cardul.", _ROMANIAN, ["dulap", "telefonul"]),
-        ("Uită cardul 4242, păstrează consulul și cardul.", _ROMANIAN, ["dulap", "telefonul"]),
     ],
 )
 async def test_a_row_the_message_asks_for_in_words_a_reader_reads_is_still_deleted(
     query: str, ids: tuple[str, ...], left: list[str]
 ) -> None:
     assert (await _forget(query, *ids))[1] == left
+
+
+@pytest.mark.parametrize(
+    ("query", "ids"),
+    [
+        ("Forget the card 4242, I don't need the card.", _ENGLISH),
+        ("Forget the card 4242, I don't want the card anymore.", _ENGLISH),
+        ("Forget my old card 4242, keep the new card.", ("old", "new")),
+        ("Forget my old card 4242, keep only the new card.", ("old", "new")),
+        ("Forget my old card 4242, keep the new card statement.", ("old", "new")),
+        ("Uită cardul 4242, nu vreau cardul.", _ROMANIAN),
+        ("Uită cardul 4242, păstrează consulul și cardul.", _ROMANIAN),
+    ],
+)
+async def test_a_row_named_to_forget_and_in_a_keep_clause_is_kept_whatever_else_the_clause_holds(
+    query: str, ids: tuple[str, ...]
+) -> None:
+    assert (await _forget(query, *ids))[1] == sorted(ids)
 
 
 @pytest.mark.parametrize(

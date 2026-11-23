@@ -1,9 +1,8 @@
 # A word naming no row before the row a keep clause names again lists it
 
-**Status:** open, actionable
+**Status:** done 2026-11-23
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-21
 
 Over the rows `Remember that my locker code is 4242.`, `Remember that my card is 4111 1111 1111
 4242.` and `Remember that my phone is 0721 555 4242.`, with the call text `4242`, `Forget the card
@@ -41,3 +40,10 @@ messages writes no such form, so its count of rows listed against the message ha
   `cmp_v2.txt` in `/home/david/.cache/cortex-run/2026-11-21/f2/`. A keep clause naming a second
   row that the row word names too lists the first:
   [R-1283](1283-a-keep-clause-naming-the-row-to-forget-and-a-second-row-its-word-names-lists-the-first.md).
+- 2026-11-23: done. `may_keep` (`forget_inside.py`) now keeps a row any reading of a keep
+  clause names, whatever other words the clause holds, so `keep only the card` and `keep my old
+  card` keep the card. Over the generator and tonight's forms the rows asked to keep that the
+  card lists went from 36 to 0, with no row newly listed and 91 rows asked to delete newly kept,
+  among them `Forget the card 4242, I don't need the card.` and `Forget my phone 4242 but keep
+  Anna's phone.` ([readings](../../readings/forget-keep-any-reading.md)). The forget side's longer word reading names a row through a function
+  word: [R-1306](1306-a-forget-word-one-or-two-letters-longer-than-a-function-word-names-every-row-holding-it.md).

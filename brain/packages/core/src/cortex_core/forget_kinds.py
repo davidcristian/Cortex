@@ -57,9 +57,10 @@ def extends(word: str, row: set[str]) -> bool:
     return not row.isdisjoint(shorter(word))
 
 
-def bare(word: str) -> set[str]:
-    """``word`` and its form less the Romanian article ``ul``, as ``dulap`` of ``dulapul``."""
-    return {word, word.removesuffix("ul")}
+def reads(words: set[str], row: set[str], stems: set[str]) -> bool:
+    """Whether ``words`` name the row of words ``row``, or one ``extends`` a word of ``stems``, the
+    row's words that can name it, as ``lockers`` and ``dulapul`` name the row holding ``locker``."""
+    return names(words, row) or any(extends(word, stems) for word in words)
 
 
 def limited(words: list[str], named: set[str]) -> bool:

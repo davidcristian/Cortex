@@ -111,10 +111,11 @@ async def _spared(query: str) -> tuple[str, ...] | None:
 
 
 async def test_a_forget_reports_a_row_its_keep_clause_names_that_no_call_matched() -> None:
-    spared = await _spared(_KEEP_ANNA)
+    query = "Forget my phone number but keep Anna's."
+    spared = await _spared(query)
     assert spared == _ANNA_ROW
     reply = "OK. I've forgotten your phone number and kept Anna's."
-    assert not unkept_note_due(_KEEP_ANNA, reply, spared or (), forget_called=True)
+    assert not unkept_note_due(query, reply, spared or (), forget_called=True)
 
 
 async def test_a_forget_with_no_keep_clause_reports_no_unmatched_row() -> None:

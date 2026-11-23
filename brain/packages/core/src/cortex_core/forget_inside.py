@@ -19,7 +19,7 @@ from cortex_core.forget_clauses import (
     kept_again,
     parts,
 )
-from cortex_core.forget_kinds import MINUS, bare, names, read_kinds
+from cortex_core.forget_kinds import MINUS, extends, names, read_kinds, reads
 from cortex_core.forget_languages import FUNCTION, readings
 from cortex_core.forget_unnamed import just_said, quantifies, row_words, unnamed
 from cortex_core.memory import MemoryRecord
@@ -226,53 +226,36 @@ def request(row: MemoryRecord) -> set[str]:
     return row_words(row.text.split(_REPLY, 1)[0])
 
 
-def _restated(query: str, text: str, named: frozenset[str], rows: list[set[str]]) -> set[str]:
-    """The words of ``named`` that ``query`` names to forget and again to keep: in ``kept_again``,
-    or in a keep clause where no other word names a row they name or, before them, names none."""
-    forgot = content(query, " ".join(parts(query)[0]))
-    found = kept_again(query, text, named)
-    for clause in clauses(query):
-        kept = [word for word in parts(" ".join(clause))[1] if not KEEP.fullmatch(word)]
-        held = content(query, " ".join(kept)) - EXCEPT
-        again = held & forgot
-        lead = kept[: next((at for at, word in enumerate(kept) if word in again), 0)]
-        others = {word: [row for row in rows if names(bare(word), row)] for word in held - forgot}
-        unread = any(word in lead and not other for word, other in others.items())
-        clash = any(names(again, row) for other in others.values() for row in other)
-        found |= set() if unread or clash else again
-    return found & named
-
-
 def may_keep(
     rows: Sequence[MemoryRecord], within: Sequence[MemoryRecord], query: str, text: str
 ) -> list[MemoryRecord]:
-    """The ``rows`` ``query`` may ask to keep: each a word names after a word for minus in a
-    clause, in ``after_but`` or in ``after_value``, and each ``_by_role`` keeps for the role of a
-    row of ``rows`` or ``within`` named ``beside`` the value."""
+    """The ``rows`` ``query`` may ask to keep: each a word names in any reading (``reads``) in a
+    keep clause, after a word for minus, in ``after_but``, ``after_value`` or ``kept_again``, or
+    as an exception ``beside`` reads, and each kept for the role of a row named beside the value."""
     after = after_but(query)
     for clause in clauses(query):
         at = next((at for at, token in enumerate(clause) if token in MINUS), len(clause))
         after.extend(clause[at + 1 :])
-    words = content(query, " ".join(after))
     asked = {row.id: request(row) for row in rows}
     named = {word for word in content(query) if any(names({word}, row) for row in asked.values())}
     codes = {word for clause in clauses(query) for word in clause if code_word(word)}
-    kept = content(query, " ".join(after_value(query, text, frozenset(named | codes))))
+    after.extend(after_value(query, text, frozenset(named | codes)))
     inner = [request(row) for row in within]
     beyond = {word for word in content(query) if any(names({word}, row) for row in inner)}
     known = frozenset(named | beyond | codes)
-    roles = beside(query, text, known, MINUS)
-    again = _restated(query, text, known, [*asked.values(), *inner]) & named
-    kept |= roles[EXCEPTION]
+    stems = [row - _FUNCTION for row in (*asked.values(), *inner)]
+    wide = {word for word in content(query) if any(extends(word, row) for row in stems)}
+    roles, broad = beside(query, text, known, MINUS), beside(query, text, known | wide, MINUS)
+    held = content(query, " ".join(w for w in parts(query)[1] if not KEEP.fullmatch(w))) - EXCEPT
+    keeps = held | content(query, " ".join(after)) | roles[EXCEPTION]
+    keeps |= kept_again(query, text, known)
     limit, every = roles[LIMIT] & named, quantifies(query)
-    unread = bool(roles[UNREAD] & (named | beyond))
+    unread = bool(roles[UNREAD] & (named | beyond) or broad[UNREAD] & (named | beyond | wide))
     head = content(query, " ".join(before_value(query, text))) | roles[LIMIT] | roles[ADDITION]
     return [
         row
         for row in rows
-        if names(words, row_words(row.text))
-        or names(kept & named, asked[row.id])
-        or names(again, asked[row.id])
+        if reads(keeps, row_words(row.text), asked[row.id] - _FUNCTION)
         or (unread and not names(head & named, asked[row.id]))
         or (every and bool(limit) and not names(limit, asked[row.id]))
     ]

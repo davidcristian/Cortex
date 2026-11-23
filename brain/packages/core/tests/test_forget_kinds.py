@@ -10,7 +10,7 @@ from cortex_core import (
     MemoryRecord,
     ToolCall,
 )
-from cortex_core.forget_kinds import bare, kinds, names
+from cortex_core.forget_kinds import kinds, names, reads
 from cortex_core.forget_unnamed import unnamed
 from cortex_core.tools import TurnStamp
 
@@ -108,26 +108,30 @@ def test_a_kind_is_read_only_from_the_closed_table() -> None:
     assert (names({"telefon"}, {"phone"}), names({"telefon"}, {"card"})) == (True, False)
 
 
-@pytest.mark.parametrize(("word", "held"), [("dulapul", "dulap"), ("barul", "bar")])
-def test_a_word_read_bare_names_a_row_holding_it_less_the_romanian_article_ul(
+@pytest.mark.parametrize(
+    ("word", "held"), [("dulapul", "dulap"), ("barul", "bar"), ("lockers", "locker")]
+)
+def test_a_word_one_or_two_letters_longer_reads_a_row_holding_it_among_its_stems(
     word: str, held: str
 ) -> None:
-    assert (names(bare(word), {held, "code"}), names({word}, {held, "code"})) == (True, False)
+    row = {held, "code"}
+    assert (reads({word}, row, row), names({word}, row), reads({word}, row, {"code"})) == (
+        True,
+        False,
+        False,
+    )
 
 
 @pytest.mark.parametrize(
-    ("word", "held"),
-    [
-        ("dulapului", "dulap"),
-        ("dulapuri", "dulap"),
-        ("ioana", "ioan"),
-        ("numele", "nume"),
-        ("joshua", "josh"),
-        ("apple", "app"),
-    ],
+    ("word", "held"), [("dulapului", "dulap"), ("dulapuri", "dulap"), ("lockerses", "locker")]
 )
-def test_a_word_read_bare_names_no_row_holding_it_less_another_ending(word: str, held: str) -> None:
-    assert not names(bare(word), {held, "code"})
+def test_a_word_three_letters_longer_reads_no_row_holding_it(word: str, held: str) -> None:
+    assert not reads({word}, {held, "code"}, {held, "code"})
+
+
+def test_a_word_a_row_holds_or_a_kind_of_it_is_read_without_a_stem() -> None:
+    assert reads({"card"}, {"card"}, set())
+    assert reads({"tarjeta"}, {"card"}, set())
 
 
 @pytest.mark.parametrize(
