@@ -67,12 +67,33 @@ phase read. The pass rule of each run was written before its launch.
   recorded for this same turn: the user's request, the `escalate_to_brain` run and the cortex's
   sentence about the handoff. Its similarity to the query was the highest of the pool, 0.935 and
   0.917, and the judge kept it in last place. The deep context leaves out the cortex's reply to
-  this turn ([ADR-0030](../adr/ADR-0030-brain-handoff.md) step 4); this row puts it back
-  ([R-1301](../refinements/tasks/1301-the-deep-phase-recalls-the-hand-over-row-its-own-turn-wrote.md)).
+  this turn ([ADR-0030](../adr/ADR-0030-brain-handoff.md) step 4), and this row put it back, so
+  the deep phase's recall now leaves it out ([below](#the-hand-over-row-left-out)).
 - In run 2 the cortex called `forget_memories` on the first turn's message, and the typed refusal
   answered it; the reply was `OK` and the row was stored.
+
+## The hand-over row left out
+
+A third run on the same stack and chat as run 1, with a brain built from the tree whose deep
+phase leaves out of its recall the rows the ledger's `written_ids` names: the row the cortex
+stored for this turn before the swap. The pass rule, written before the launch: the cortex stored
+that row, the deep phase's `memory.recall` line names it in neither `hits` nor `dropped`, its
+`pool` is one less than its `available`, and the row is still stored after the chat.
+
+| reading | run 1 | run 3 |
+| --- | --- | --- |
+| the deep phase's recall: available, pool | 4, 4 | 4, 3 |
+| its hits | 3: the code word's row, the room's row, the hand-over row | 2: the code word's row, the room's row |
+| its dropped rows | 1, the tides row | 1, the tides row |
+| the hand-over row after the chat | stored | stored |
+| the deep reply | names both values | names both values |
+| highest reading above the floor | 15,957 MiB | 15,958 MiB |
+| warnings or errors in the brain's log | 0 | 0 |
+
+The rest of run 3's handoff read as in runs 1 and 2. The rule passed in full.
 
 Method: `bash ~/.cache/cortex-run/2026-11-23/s1/build.sh`, then `run.sh mem` and
 `run.sh split split`, compose project `cortexn28`, with `teardown.sh` after each run. A run's
 record is `logs/<label>/live.txt` there, beside `turns.jsonl`, `brain.log`, `host.log` and
-`smi.txt`; `notes.md` has the pass rules, written before each launch.
+`smi.txt`; `notes.md` has the pass rules, written before each launch. Run 3 is `run.sh mem` from
+`~/.cache/cortex-run/2026-11-23/c0/`, built and removed the same way, its rule in that `notes.md`.

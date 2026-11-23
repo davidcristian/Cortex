@@ -1,6 +1,6 @@
 """Remember and recall, over the Embedder and MemoryStore ports."""
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Collection, Sequence
 from uuid import uuid4
 
 from cortex_core.embed_input import embedding_input
@@ -85,12 +85,24 @@ class MemoryRecaller:
         return [hit.record for hit in await self._store.search(embedding, k=limit, scopes=scopes)]
 
     async def recall(
-        self, query: str, *, k: int, session_id: str, turn_id: str
+        self,
+        query: str,
+        *,
+        k: int,
+        session_id: str,
+        turn_id: str,
+        leave_out: Collection[str] = (),
     ) -> Sequence[ScoredMemory]:
-        """Return the ``k`` most relevant memories to ``query`` within the turn's read-scopes."""
+        """Return the ``k`` most relevant memories to ``query`` within the turn's read-scopes.
+
+        The rows ``leave_out`` names are dropped before ranking; the next nearest fill the pool.
+        """
         embedding = await self._embedder.embed(embedding_input(query))
         scopes = self._scope.read_scopes(session_id)
-        pool = await self._store.search(embedding, k=self._policy.candidate_k(k), scopes=scopes)
+        size = self._policy.candidate_k(k)
+        pool = await self._store.search(embedding, k=size + len(leave_out), scopes=scopes)
+        if leave_out:
+            pool = [hit for hit in pool if hit.record.id not in leave_out][:size]
         available = await self._count_candidates(scopes)
         now = self._clock.now()
         ranking = await self._policy.select(

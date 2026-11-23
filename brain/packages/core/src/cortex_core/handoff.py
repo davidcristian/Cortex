@@ -51,6 +51,7 @@ class HandoffRecord:
     failure: str | None = None
     recalled_only: bool = False
     recalled_ids: tuple[str, ...] = ()
+    written_ids: tuple[str, ...] = ()
     forget_asked: bool = False
     forget_calls: int = 0
     forget_unmatched: int = 0
@@ -90,6 +91,7 @@ class HandoffRecord:
             untrusted_urls=set(self.untrusted_urls),
             sources=self.sources,
             recalled_ids=self.recalled_ids,
+            written_ids=self.written_ids,
             forget_asked=self.forget_asked,
             forget_calls=self.forget_calls,
             forget_unmatched=self.forget_unmatched,
@@ -176,6 +178,7 @@ class EscalationSlot:
             loop_tail=tail,
             recalled_only=self.refs.taint.recalled_only,
             recalled_ids=self.refs.taint.recalled_ids,
+            written_ids=self.refs.taint.written_ids,
             forget_asked=self.refs.taint.forget_asked,
             forget_calls=self.refs.taint.forget_calls,
             forget_unmatched=self.refs.taint.forget_unmatched,

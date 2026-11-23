@@ -183,6 +183,8 @@ class TaintLedger:
     sources: tuple[Provenance, ...] = ()
     # The tainted memories this turn recalled: its record is stored only while they all exist.
     recalled_ids: tuple[str, ...] = ()
+    # The memory rows this turn stored, which its own recall leaves out after a handoff.
+    written_ids: tuple[str, ...] = ()
 
     def name_forget(self, calls: int) -> None:
         """Record ``calls`` more ``forget_memories`` calls the model wrote this turn."""

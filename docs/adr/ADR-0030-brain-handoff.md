@@ -51,8 +51,7 @@ bit (`OPAQUE_TURN_NOTE`). A pre-turn policy would be a producer of the existing 
 `HandoffRecord` (`cortex_core/handoff.py`) holds only what is not already in a store:
 `handoff_id` (the escalating turn's id, [ADR-0046](ADR-0046-work-identities-on-log-lines.md)
 decision 4), `session_id`, a timezone-aware `requested_at`, `state`, `brief`, the fence `nonce`,
-the whole ledger (`tainted`, `opaque`, `recalled_only`, `sources`, `untrusted_urls`, `recalled_ids`, `forget_asked`, `forget_calls`, `forget_unmatched`), `budget_remaining`
-and `budget_closed` (so a swap never refills the allowance; `DispatchBudget.resume` rebuilds the pool),
+every `TaintLedger` field (`taint_ledger()` rebuilds the ledger), `budget_remaining` and `budget_closed` (so a swap never refills the allowance; `DispatchBudget.resume` rebuilds the pool),
 `rounds_used`, the text-only `loop_tail`, and `failure` (decision 10). `opaque` is defence in depth:
 no record has it set today, but both its consumers (the URL guardrail's strict mode and the
 tainted-memory policy) relax on `False`, so a rebuilt ledger must never invent one.
@@ -102,8 +101,9 @@ Every exit path converges back to a serving cortex; the swap back is the recover
    audited dispatcher and the guardrail seeded with the stored URLs; the rounds allowance is fresh.
    The context ends with a message to the deep model, because one ending in the cortex's wrap-up
    made it restate the handoff ([readings](../readings/model-swap.md)): the escalation's result
-   becomes `HANDOFF_TAKEN_MSG` with the brief, and the cortex's reply to this turn is left out. The
-   deep model judges that recall and writes any recap, the one model its scope can lease.
+   becomes `HANDOFF_TAKEN_MSG` with the brief, and the cortex's reply to this turn is left out of
+   the history and of recall, which skips the row the ledger's `written_ids` names. The deep model
+   judges that recall and writes any recap, the one model its scope can lease.
 5. **Store** the deep reply as a second assistant message under the same `turn_id`, and memory
    under the engine's taint policy; a deep model that dies mid-answer has its partial text stored
    with its failure note.

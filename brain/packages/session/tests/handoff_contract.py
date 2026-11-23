@@ -77,6 +77,7 @@ def recalled_ledger() -> TaintLedger:
         recalled=True,
     )
     ledger.recalled_ids = ("mem-7", "mem-9")
+    ledger.written_ids = ("mem-11",)
     return ledger
 
 
@@ -208,6 +209,7 @@ async def check_the_recalled_only_bit_round_trips_both_ways(store: HandoffStore)
         assert loaded == record
         assert loaded.taint_ledger().recalled_only is recalled
         assert loaded.taint_ledger().recalled_ids == (("mem-7", "mem-9") if recalled else ())
+        assert loaded.taint_ledger().written_ids == (("mem-11",) if recalled else ())
         await store.delete(record.handoff_id)
 
 

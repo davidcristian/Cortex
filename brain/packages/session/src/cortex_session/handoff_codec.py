@@ -80,6 +80,7 @@ def encode_record(record: HandoffRecord) -> str:
             "opaque": record.opaque,
             "recalled_only": record.recalled_only,
             "recalled_ids": list(record.recalled_ids),
+            "written_ids": list(record.written_ids),
             "forget_asked": record.forget_asked,
             "forget_calls": record.forget_calls,
             "forget_unmatched": record.forget_unmatched,
@@ -142,6 +143,9 @@ def decode_record(raw: bytes | str, handoff_id: str) -> HandoffRecord:
             # Missing in a record written before the field existed, whose reply is then stored
             # without the check that its recalled memories still exist.
             recalled_ids=tuple(fields.get("recalled_ids", ())),
+            # Missing in a record written before the field existed, whose deep phase then recalls
+            # the cortex's row of the same turn as well.
+            written_ids=tuple(fields.get("written_ids", ())),
             # Missing in a record written before the field existed; True keeps that turn's
             # exchange out of memory, the stricter value.
             forget_asked=fields.get("forget_asked", True),

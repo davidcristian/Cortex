@@ -44,5 +44,5 @@ one is a defect to file.
   `http://model-host:8081` with `system_messages=3` and `delivers=True`. In the run whose brief
   named neither value and whose memory held no row with the room, the deep reply named both, the
   room from the recap alone ([readings](../../readings/handoff-leading-system-messages.md)). The
-  deep phase also recalled the cortex's hand-over row of the same turn in both runs, so
-  [R-1301](1301-the-deep-phase-recalls-the-hand-over-row-its-own-turn-wrote.md) is filed.
+  deep phase also recalled the cortex's hand-over row of the same turn in both runs, a row its
+  recall now leaves out.

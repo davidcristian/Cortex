@@ -137,7 +137,11 @@ async def _recalled_context(
         return None
     try:
         hits = await caps.memory.recall(
-            query, k=DEFAULT_RECALL_K, session_id=context.session_id, turn_id=context.turn_id
+            query,
+            k=DEFAULT_RECALL_K,
+            session_id=context.session_id,
+            turn_id=context.turn_id,
+            leave_out=context.taint.written_ids,
         )
         hits = await with_forget_reach(query, caps.memory, hits, session_id=context.session_id)
     except MemoryDataError:

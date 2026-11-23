@@ -274,6 +274,7 @@ async def record_exchange(  # noqa: PLR0913 -- a deep phase adds the runs the co
     if stored is None:
         _logger.info(FORGOTTEN_RECALL_LOG_MSG, extra=fields)
         return
+    taint.written_ids = (*taint.written_ids, stored.id)
     try:
         async with asyncio.timeout(caps.memory_write_timeout_s):
             # This row may have committed after the chat's delete read its rows; that delete marks

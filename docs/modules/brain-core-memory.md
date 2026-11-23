@@ -44,8 +44,8 @@ pool down to the hits one turn sees. The turn that calls it is in
   `discard`, keeps the row and logs `the memory row of a chat that may be deleted was not removed`
   at `error` with `session_id` and `memory_id`; the turn completes. `recalls_across_chats` is true
   when a memory one chat writes can be recalled in another: under the global scope, and not under
-  `SessionMemoryScope`.
-  `nearest(query, *, session_id, limit)` embeds the query and returns the `limit` records the store's search finds within the read scopes, with no policy, for `with_forget_reach` (`forget_reach.py`). `recall(query, *, k, session_id, turn_id)` embeds `embedding_input(query)`, fetches `policy.candidate_k(k)` hits within `policy.read_scopes(session_id)` and
+  `SessionMemoryScope`. `record_exchange` adds the id of the row `record` stored to the turn's `TaintLedger.written_ids`, and the turn's recall leaves those rows out; only a deep phase recalls after its turn stored one, the cortex's row of the same turn, which the handoff record keeps ([ADR-0030](../adr/ADR-0030-brain-handoff.md) step 4). The id goes through the record rather than a turn id on each row, which would change the `memories` table and every `MemoryStore` adapter for this one rule; a later turn and another chat still recall the row.
+  `nearest(query, *, session_id, limit)` embeds the query and returns the `limit` records the store's search finds within the read scopes, with no policy, for `with_forget_reach` (`forget_reach.py`). `recall(query, *, k, session_id, turn_id, leave_out=())` embeds `embedding_input(query)`, fetches `policy.candidate_k(k)` hits within `policy.read_scopes(session_id)`, after dropping the rows `leave_out` names from a search that many rows wider, and
   awaits `policy.select(...)`, returning that ranking's memories cut to `k`; an empty ranking is no
   hits and is never refilled from the pool. An optional `audit: RecallAuditSink` gets one
   `RecallAudit` per recall, built inside an `is not None` check so an unaudited recall issues no
