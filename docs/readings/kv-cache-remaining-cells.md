@@ -137,8 +137,15 @@ at `q8_0`, at the draft length named.
 - **For Qwen3.5-9B the drafter's cache at 16 bits takes less memory**, 150 MiB at 64K and 286
   MiB at 128K at load (148 and 272 MiB at the highest reading), at the same rate. The 128K pair
   was drawn again with the pass mark written first (246 to 326 MiB, a ratio inside 0.90 to
-  1.05): it held, at 292 MiB. The rows do not show why the 8-bit drafter cache is the larger
-  one.
+  1.05): it held, at 292 MiB.
+- **The engine gives the 8-bit drafter cache a larger compute buffer.** On 2026-11-23, build
+  `b12375`, the same 128K launch with the drafter cache set to `f16` and then to `q8_0` read 9141
+  and 9423 MiB above the floor. With `-lv 4` the draft context's KV buffer was 512 and 272 MiB and
+  its compute buffer 172.02 and 696.02 MiB, so the 8-bit type saves 240 MiB of cache and costs 524
+  of compute. The model's own buffers matched to the MiB (KV 2176, recurrent state 201, compute
+  704.02), and the exit breakdown, which counts only the model's context, put the difference in
+  `unaccounted`: 2076 and 2362 MiB. Method: `~/.cache/cortex-run/2026-11-23/s4/r1263.sh`, its
+  server logs in `logs/r1263-f16.server.log` and `logs/r1263-q8_0.server.log` beside it.
 - The ladders with the drafter's cache at 16 bits are fastest at draft length 3 at 64K for both
   models and at 4 at 128K.
 

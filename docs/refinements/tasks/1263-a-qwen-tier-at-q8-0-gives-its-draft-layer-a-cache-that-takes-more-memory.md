@@ -3,14 +3,16 @@
 **Status:** open, actionable
 **Area:** inference-model-manager
 **Origin:** [ADR-0077](../../adr/ADR-0077-model-card-settings.md)
-**Verified:** 2026-11-20
+**Verified:** 2026-11-23
 
 `cache_flags` in
 [tiers.py](../../../brain/packages/model_manager/src/cortex_model_manager/tiers.py) gives a
 tier's drafter the cache type of its model: a tier at `q8_0` that drafts also gets
 `--cache-type-k-draft q8_0 --cache-type-v-draft q8_0`. For Qwen3.5-9B, which drafts with a layer
 inside its own file, the server takes more memory that way than with the drafter's cache left at
-16 bits, at the same rate. An 8-bit cache is the smaller type, so the direction is not explained.
+16 bits, at the same rate. The engine gives the 8-bit drafter cache a compute buffer 524 MiB
+larger at 128K, which outweighs the 240 MiB the type saves in the cache itself
+([readings](../../readings/kv-cache-remaining-cells.md#the-chat-models-the-models-cache-and-the-drafters-cache)).
 
 ## Reproduction
 
@@ -51,3 +53,8 @@ its own for the files it helps or the reason recorded that it follows the model'
 - 2026-11-20: filed when the rows of
   [R-1243](1243-every-tier-holds-its-context-in-the-default-16-bit-cache.md) showed 286 and 292
   MiB less for Qwen3.5-9B at 128K with the drafter's cache at 16 bits.
+- 2026-11-23: step 1 done on build b12375: the same 128K launch read 9141 MiB above the floor with
+  the drafter cache at `f16` and 9423 at `q8_0`. The draft context's KV buffer was 512 and 272
+  MiB and its compute buffer 172.02 and 696.02 MiB; the model's own buffers matched, and the exit
+  breakdown, which counts only the model's context, showed the difference as `unaccounted`. Step
+  2 is open.
