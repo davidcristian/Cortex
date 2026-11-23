@@ -58,6 +58,7 @@ cards.` as the next form.
   24 left are Romanian plurals adding more than two letters
   ([R-1304](1304-a-romanian-plural-row-word-in-a-forget-message-names-no-row.md)). Of 100 test
   string rows newly kept, none is a cost. The 17 newly listed are under result strings holding
-  `remembered`, no message. A longer word that is no form of the row word, as `cart` of `car`,
-  lists that row beside a value another row holds
-  ([R-1309](1309-a-forget-word-one-or-two-letters-longer-than-another-rows-word-lists-that-row-beside-a-value.md)).
+  `remembered`, no message. Beside a value another row holds, `permitted` lists no row only
+  `extends` reads, so `Forget my cart 1234.` with the text `car` keeps a car row, at the cost of
+  the 65 rows in another number beside such a value
+  ([readings](../../readings/forget-longer-word-beside-a-value.md)).

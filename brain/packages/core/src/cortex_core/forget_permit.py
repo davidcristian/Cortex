@@ -18,7 +18,7 @@ from cortex_core.forget_clauses import (
     parts,
 )
 from cortex_core.forget_inside import bounded, content, may_keep, request
-from cortex_core.forget_keep_named import forget_named
+from cortex_core.forget_keep_named import forget_named, forget_words
 from cortex_core.forget_kinds import MINUS, extends, names, shorter, verbed
 from cortex_core.forget_results import ALREADY_DELETED, FORGET_CHOSEN_LIMIT, NONE_FOUND
 from cortex_core.forget_unnamed import TOPIC, just_said
@@ -121,8 +121,8 @@ async def permitted(
     call: ToolCall, told: Sequence[MemoryRecord], listing: Listing, *, apart: bool = False
 ) -> frozenset[str] | None:
     """The ids of the rows the call's message permits a call to list: each ``listing`` lists for a
-    value of the message, and each of ``told`` holding none that ``may_keep`` does not keep.
-    ``None`` when no stored row holds such a value, or the text holds a digit not ``apart``."""
+    value of the message, and each of ``told`` holding none that ``forget_words`` names and
+    ``may_keep`` does not keep. ``None`` when no row holds such a value or a digit is not apart."""
     query, values = call.stamp.query, whole_values(call.stamp.query).values()
     if _digit(call_text(call)) and not apart:
         return None
@@ -136,8 +136,10 @@ async def permitted(
         return None
     searches = [search for search in map(bounded, values) if search is not None]
     kept = {row.id for form in values for row in may_keep(told, (), query, form)}
+    words = forget_words(query)
     for row in told:
-        if row.id not in kept and not any(search.search(row.text) for search in searches):
+        held = any(search.search(row.text) for search in searches)
+        if row.id not in kept and names(words, request(row)) and not held:
             ids.add(row.id)
     return frozenset(ids)
 

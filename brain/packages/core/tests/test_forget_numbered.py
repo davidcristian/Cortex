@@ -24,6 +24,8 @@ _ROWS = {
     "handy": "User: Merke dir, mein Handy ist 0721 555 4242.\nAssistant: Notiert.",
     "gimnasio": "User: Recuerda que el código del gimnasio es 4242.\nAssistant: Anotado.",
     "telefono": "User: Recuerda que mi teléfono es 0721 555 4242.\nAssistant: Anotado.",
+    "car": "User: Remember that my car is parked in bay 4242.\nAssistant: Noted.",
+    "mobile": "User: Remember that my phone is 0721 555 1234.\nAssistant: Noted.",
 }
 _THREE = ("locker", "card", "phone")
 
@@ -98,6 +100,22 @@ async def test_a_row_word_in_another_number_names_the_row(
     query: str, text: str, gone: set[str]
 ) -> None:
     assert await _deleted(query, text) == gone
+
+
+@pytest.mark.parametrize(
+    ("query", "text", "gone"),
+    [
+        ("Forget my cart 1234.", "car", set[str]()),
+        ("Forget my cars 1234.", "car", set[str]()),
+        ("Oublie mon cart 1234.", "car", set[str]()),
+        ("Forget my car 1234.", "car", {"car"}),
+        ("Forget my cart 1234.", "1234", {"mobile"}),
+    ],
+)
+async def test_a_forget_word_longer_than_a_row_word_lists_no_row_beside_a_value(
+    query: str, text: str, gone: set[str]
+) -> None:
+    assert await _deleted(query, text, ("car", "locker", "mobile")) == gone
 
 
 @pytest.mark.parametrize(

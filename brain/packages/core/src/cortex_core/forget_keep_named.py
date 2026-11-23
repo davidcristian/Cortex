@@ -33,19 +33,24 @@ async def keep_named(
     return named, frozenset(read)
 
 
-async def forget_named(
-    store: MemoryStore, scope: MemoryScope, call: ToolCall, limit: int, gone: Sequence[MemoryRecord]
-) -> list[MemoryRecord]:
-    """The stored rows the chat can read, and those of ``gone``, the rows the turn deleted, whose
-    request a word of the part of the call's message asking to forget names: none when a word
+def forget_words(query: str) -> set[str]:
+    """The words of the part of ``query`` asking to forget that can name a row: none when a word
     for all ends a clause or is before a word for and, which asks for every row."""
-    query = call.stamp.query
     every = any(
         token in EVERY and clause[at + 1 : at + 2] in ([], *([word] for word in AND))
         for clause in clauses(query)
         for at, token in enumerate(clause)
     )
-    words = set[str]() if every else content(query, " ".join(parts(query)[0]))
+    return set[str]() if every else content(query, " ".join(parts(query)[0]))
+
+
+async def forget_named(
+    store: MemoryStore, scope: MemoryScope, call: ToolCall, limit: int, gone: Sequence[MemoryRecord]
+) -> list[MemoryRecord]:
+    """The stored rows the chat can read, and those of ``gone``, the rows the turn deleted, whose
+    request a word of ``forget_words`` names or, in a forget verb's clause, ``extends``."""
+    query = call.stamp.query
+    words = forget_words(query)
     scopes = scope.read_scopes(call.stamp.session_id)
     rows = list(gone)
     for word in sorted(words):
