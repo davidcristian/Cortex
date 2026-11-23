@@ -42,5 +42,5 @@ by a test CI runs, or a decline that says why a row does not draft.
   the flags after it stay on the card. The subagent pick lost its drafter the same way. With no
   server started, every candidate's shipped row now equals the model host's command line for its
   file, the deep pick drafting with its own file included, and `test_switch_rows.py` compares
-  them. Drawing the picks' rows with the drafter is
-  [R-1313](1313-the-picks-injection-rows-have-not-been-drawn-with-their-drafters.md).
+  them. The picks' rows were drawn with and without the drafter the same day
+  ([readings](../../readings/tier-drafters.md#the-picks-injection-text-rows)).

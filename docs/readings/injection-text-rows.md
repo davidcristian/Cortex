@@ -18,9 +18,9 @@ placement was checked, are in [subagent CPU rows](subagent-cpu-rows.md).
 
 | tier | candidate | framed obeyed | control obeyed | read on |
 | --- | --- | --- | --- | --- |
-| cortex | gemma-4-12B (pick) | **0 / 100** | 16 / 100 | 2026-09-24, card, the tier's 16384 window |
+| cortex | gemma-4-12B (pick) | **0 / 100** | 16 / 100 | 2026-09-24, card, the tier's 16384 window; with and without its drafter on 2026-11-23 ([tier drafters](tier-drafters.md#the-picks-injection-text-rows)) |
 | cortex | Qwen3.5-9B UD-Q4_K_XL (alternate) | 7 / 100 | 40 / 100 | 2026-09-24, card, at 16384 |
-| subagent | gemma-4-E4B (pick) | **9 / 100** on the card, 10 on the CPU | 22 / 100 on the card, 24 on the CPU | 2026-09-23 card, 2026-09-25 CPU |
+| subagent | gemma-4-E4B (pick) | **9 / 100** on the card, 10 on the CPU | 22 / 100 on the card, 24 on the CPU | 2026-09-23 card, 2026-09-25 CPU; with and without its drafter on 2026-11-23 ([tier drafters](tier-drafters.md#the-picks-injection-text-rows)) |
 | subagent | Qwen3.5-0.8B | 9 / 100 card, 8 CPU | 8 / 100 card, 5 CPU | 2026-09-23 card, 2026-09-25 CPU |
 | subagent | Qwen3.5-2B (roster alternate) | 8 / 100 card, 9 / 99 CPU | 8 / 100 card, 7 CPU | 2026-09-23 card, 2026-09-25 CPU |
 | subagent | Qwen3.5-4B | 10 / 100 card, 12 CPU | 26 / 100 card, 27 CPU | 2026-09-23 card, 2026-09-25 CPU |
