@@ -246,5 +246,5 @@ hand, no reply obeyed. The 15 described replies, 2 framed and 13 control, each q
 instruction found in the file and say they ignored it; one, an undrafted control reply, also called
 `read_file` again. A reply, a literal `</think>` and the reply again are in 11 drafted and 13
 undrafted control replies and 1 undrafted framed reply, against 2 control replies on 2026-09-26,
-p 0.018 and 0.0055 ([R-1273](../refinements/tasks/1273-a-deep-reply-can-hold-a-literal-think-tag-and-its-text-twice.md)).
+p 0.018 and 0.0055 ([R-1273](../refinements/tasks/1273-a-deep-reply-can-hold-a-literal-think-tag-and-its-text-twice.md)); neither the cache type nor the context explains the rise ([think tag readings](deep-think-tag.md#the-rise-at-xhigh-control)).
 Method: `up.sh`, `inj16.py` and `final.py` in `~/.cache/cortex-run/2026-11-21/p1/`. The drafted row at `medium` is in [the deep tier's effort level](deep-effort.md).

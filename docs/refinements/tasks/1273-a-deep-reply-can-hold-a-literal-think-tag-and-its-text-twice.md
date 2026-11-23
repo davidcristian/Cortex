@@ -1,9 +1,8 @@
 # A deep reply can hold a literal think tag and its text twice
 
-**Status:** open, actionable
+**Status:** done 2026-11-23
 **Area:** inference
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-11-21
 
 Qwen3.8-27B, the deep pick, sometimes closes its thought, writes its reply, writes `</think>` a
 second time and writes the reply again. The engine splits the reasoning from the reply at the
@@ -72,3 +71,13 @@ states the rate.
   counts at that level. None of its 36 stop draws has one, 24 at `medium` and 12 at `xhigh`, and
   the reply of its one handoff has none. Its injection rows at `xhigh`, where the Q4 file has
   the tag in 11 and 13 of 100 control replies, are not drawn.
+- 2026-11-23: closed on [the think tag readings](../../readings/deep-think-tag.md), each rule
+  written before its launch. Only an operator's `high` or empty `CORTEX_REASONING_EFFORT_BRAIN`
+  reaches `xhigh`. At the shipped argv, no drafter and `medium`, 0 of 200 more framed replies have
+  the tag, 0 of 300 with the row of 2026-11-21, so no check is built for the default. The control
+  at `xhigh` reads 14 of 100 at the 16-bit cache and 13 of 100 at 8192 against 13 at `q8_0` and
+  16384, so neither setting reads apart, and the 8192 launch reproduced the earlier row draw for
+  draw. What is left is the engine build or chance in the row of 2026-09-26; no CUDA engine image
+  on b10680 is present, so the build is not drawn. Keeping the text after the last marker
+  cannot run on a reply that has already streamed; the check for the operator's `high` is
+  [R-1305](1305-a-deep-reply-at-the-high-effort-can-hold-a-think-tag-and-its-text-twice.md).
