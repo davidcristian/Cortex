@@ -13,7 +13,7 @@ deep phase's rate only. Settings that fill the card, such as a larger `CORTEX_CT
 load every server with no log line about memory.
 
 Drawn on 2026-11-18 on the 24 GB card, the default stack with escalation on
-([readings](../../readings/store-and-process-restarts.md#a-server-that-keeps-exiting)). With
+([readings](../../readings/model-host-boot.md#a-server-that-keeps-exiting)). With
 `CORTEX_CTX_SIZE=49152` the card read 18,390 of 24,463 MiB. With 400000 it read 23,324 MiB (the
 engine's log gives the cortex's slot a context of 262144), all three servers answered `ready`,
 no server exited, and neither the model host nor the brain logged a warning. An overcommitted pair also loads and answers `ready` on this card
@@ -42,4 +42,6 @@ compares against.
   `BootFit` in `boot_fit.py` waits up to 600 s for every boot tier to answer ready, then logs one
   warning with the free and total MiB, the floor and each tier's `--ctx-size` when less is free.
   By the drawn figures the 400000 context leaves 1,139 MiB free and warns, 49152 leaves 6,073 and
-  does not. The warning has not been read on the card: R-1314.
+  does not. Read on the card the same day: the 400000 roster left 890 MiB free and logged the
+  warning once, the compose defaults logged the `INFO` line, and each free figure matched
+  `nvidia-smi` ([readings](../../readings/model-host-boot.md#the-boot-fit-line)).
