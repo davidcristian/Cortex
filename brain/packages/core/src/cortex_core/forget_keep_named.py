@@ -4,7 +4,7 @@ from collections.abc import Sequence
 
 from cortex_core.forget_clauses import AND, EVERY, clauses, parts
 from cortex_core.forget_inside import content, request
-from cortex_core.forget_kinds import names, read_kinds
+from cortex_core.forget_kinds import extends, names, read_kinds, shorter, verbed
 from cortex_core.forget_unnamed import asks_to_keep, keep_words, row_names
 from cortex_core.memory import MemoryRecord
 from cortex_core.ports import MemoryStore
@@ -47,4 +47,12 @@ async def forget_named(
     rows = list(gone)
     for word in sorted(words):
         rows += await store.find_text(word, limit=limit, scopes=scopes)
-    return [row for row in rows if names(words, request(row))]
+    told = words & verbed(query)
+    unread = {word for word in told if not any(names({word}, request(row)) for row in rows)}
+    for stem in sorted(stem for word in unread for stem in shorter(word)):
+        rows += await store.find_text(stem, limit=limit, scopes=scopes)
+    return [
+        row
+        for row in rows
+        if names(words, request(row)) or any(extends(word, request(row)) for word in unread)
+    ]

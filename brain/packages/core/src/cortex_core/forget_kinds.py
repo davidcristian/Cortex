@@ -13,6 +13,7 @@ _KINDS = (
 )
 _KIND = {word: kind for kind, words in enumerate(_KINDS) for word in words.split()}
 MINUS = frozenset({"minus", "less", "moins", "menos", "weniger", "puțin", "puţin"})
+_SHORTEST = 3
 
 
 def kinds(words: Iterable[str]) -> set[int]:
@@ -37,6 +38,23 @@ def names(words: set[str], row: set[str], *, kind: frozenset[str] | None = None)
     both name, read only from the words of ``kind`` when given."""
     listing = words if kind is None else words & kind
     return not words.isdisjoint(row) or not kinds(listing).isdisjoint(kinds(row))
+
+
+def verbed(query: str) -> set[str]:
+    """The words of each clause of ``query`` holding a forget verb."""
+    held = (clause for clause in clauses(query) if any(map(FORGET.fullmatch, clause)))
+    return {token for clause in held for token in clause}
+
+
+def shorter(word: str) -> list[str]:
+    """``word`` less its last one or two letters, each of ``_SHORTEST`` letters or more."""
+    return [word[:-cut] for cut in (1, 2) if len(word) - cut >= _SHORTEST]
+
+
+def extends(word: str, row: set[str]) -> bool:
+    """Whether ``word`` is a word of ``row`` with one or two letters added, as ``codes`` of
+    ``code`` or ``Spinde`` of ``spind``, the way a word in another number is formed."""
+    return not row.isdisjoint(shorter(word))
 
 
 def bare(word: str) -> set[str]:

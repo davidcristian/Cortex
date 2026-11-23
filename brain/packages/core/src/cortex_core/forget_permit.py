@@ -6,6 +6,7 @@ from dataclasses import replace
 
 from cortex_core import forget_forms as forms
 from cortex_core.forget_clauses import (
+    AND,
     EVERY,
     FORGET,
     LIMIT,
@@ -18,7 +19,7 @@ from cortex_core.forget_clauses import (
 )
 from cortex_core.forget_inside import bounded, content, may_keep, request
 from cortex_core.forget_keep_named import forget_named
-from cortex_core.forget_kinds import MINUS, names
+from cortex_core.forget_kinds import MINUS, extends, names, shorter, verbed
 from cortex_core.forget_results import ALREADY_DELETED, FORGET_CHOSEN_LIMIT, NONE_FOUND
 from cortex_core.forget_unnamed import TOPIC, just_said
 from cortex_core.memory import MemoryRecord
@@ -57,6 +58,21 @@ def _same_fact(
     return frozenset(shared | {row.id for row in told})
 
 
+def _asked(row: MemoryRecord) -> set[str]:
+    """The lowercase words of the request of ``row``."""
+    return set(_TOKEN.findall(row.text.split(_REPLY, 1)[0].lower()))
+
+
+def _every(query: str, forget: list[str]) -> bool:
+    """Whether a word for all of the words ``forget`` asks for every row: it ends a clause of
+    ``query`` or is before a word for and, so a word after it, as in ``every code``, is no limit."""
+    return any(
+        token in EVERY and token in forget and clause[at + 1 : at + 2] in ([], *([w] for w in AND))
+        for clause in clauses(query)
+        for at, token in enumerate(clause)
+    )
+
+
 async def _coded(
     store: MemoryStore,
     scope: MemoryScope,
@@ -66,20 +82,35 @@ async def _coded(
     *,
     apart: bool,
 ) -> frozenset[str] | None:
-    """The ids a message naming no row of ``told`` and no word for all permits a call: each row,
-    stored or of ``seen``, whose request holds a code word it asks to forget, and for a text holding
-    a digit the row ``just_said`` reads. ``None`` if none does or both hold one not ``apart``."""
+    """The ids a message naming no row of ``told`` nor ``_every`` row permits a call: each row,
+    stored or of ``seen``, whose request holds or ``extends`` a code word it asks to forget, and for
+    a text holding a digit the row ``just_said`` reads. ``None`` if none does or both hold one."""
     tokens = parts(call.stamp.query)[0]
     codes = {token for token in tokens if code_word(token)}
     valued = _digit(call_text(call))
-    if told or not EVERY.isdisjoint(tokens) or (valued and _digit(call.stamp.query) and not apart):
+    if (
+        told
+        or _every(call.stamp.query, tokens)
+        or (valued and _digit(call.stamp.query) and not apart)
+    ):
         return None
     scopes = scope.read_scopes(call.stamp.session_id)
     rows = list(seen)
     for word in sorted(codes):
         rows += await store.find_text(word, limit=FORGET_CHOSEN_LIMIT + 1, scopes=scopes)
-    asked = {row.id: _TOKEN.findall(row.text.split(_REPLY, 1)[0].lower()) for row in rows}
-    held = {row for row, words in asked.items() if not codes.isdisjoint(words)}
+    unread = {
+        code
+        for code in codes & verbed(call.stamp.query)
+        if all(code not in _asked(row) for row in rows)
+    }
+    for word in sorted(stem for code in unread for stem in shorter(code)):
+        rows += await store.find_text(word, limit=FORGET_CHOSEN_LIMIT + 1, scopes=scopes)
+    asked = {row.id: _asked(row) for row in rows}
+    held = {
+        row
+        for row, words in asked.items()
+        if not codes.isdisjoint(words) or any(extends(code, words) for code in unread)
+    }
     said = just_said(list(seen), call.stamp.session_id) if valued else None
     if not held:
         return None

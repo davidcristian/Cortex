@@ -202,7 +202,8 @@ class ForgetChosenTool:
             return (ALREADY_DELETED if about_deleted(_text(call), deleted) else NONE_FOUND), None
         left_out = len(found) + len(extra) > FORGET_CHOSEN_LIMIT
         rows = [*found, *(row for row, _, _ in extra)]
-        kept = kept_rows(rows, within, _text(call), call.stamp, gone, read, told)
+        told_ids = frozenset(row.id for row in told)
+        kept = kept_rows(rows, within, _text(call), call.stamp, gone, read, told_ids)
         kept += [row for row in rows if not (allowed is None or row.id in allowed or row in kept)]
         held = {record.id for record in kept}
         far = [row for row in longer(rows, _text(call), call.stamp.query) if row.id not in held]

@@ -1,9 +1,8 @@
 # A forget naming a code deletes another row after a word for all or for a code word in another number
 
-**Status:** open, actionable
+**Status:** done 2026-11-23
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-21
 
 Over a locker code, a card and a phone that all end in `4242`, two forms of a message naming a
 code still delete a row the message does not ask for, in unit calls through `ForgetChosenTool`:
@@ -50,3 +49,16 @@ cards.` as the next form.
   which leaves these forms. A message holding a value beside a call text holding another is
   filed apart:
   [R-1288](1288-a-forget-message-holding-a-value-deletes-another-row-for-a-call-text-holding-another-value.md).
+- 2026-11-23: done. `extends` (`forget_kinds.py`) reads a word of a clause holding a forget verb
+  that names no row as a request word less its last one or two letters, for `forget_named` and
+  `_coded` both, and `_coded` stops only at a word for all ending a clause or before a word for
+  and (`_every`). Over the generator, 1,809 new extras and 10,385 calls of the test strings: no
+  row the message asks to keep is newly listed, the rows listed that the 400 new messages do not
+  ask for fall from 160 to 24, and no generated or extra row asked to delete is newly kept. The
+  24 left are Romanian plurals adding more than two letters
+  ([R-1304](1304-a-romanian-plural-row-word-in-a-forget-message-names-no-row.md)). Of 108 test
+  string rows newly kept, 8 are a cost: `Oublie ce que je viens de dire.` beside German rows,
+  whose request holds `dir`. The 17 newly listed are under result strings holding `remembered`,
+  no message. A plural row word in a clause asking to keep was already listed after a word for
+  all, before and after this change
+  ([R-1303](1303-a-plural-row-word-a-forget-message-keeps-after-a-word-for-all-is-listed.md)).

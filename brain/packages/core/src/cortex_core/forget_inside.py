@@ -33,6 +33,7 @@ _KIND = re.compile(r"\b(?:cards?|accounts?|ibans?)\b", re.IGNORECASE)
 _WORD = re.compile(r"[^\W\d_]{3,}")
 _FUNCTION = frozenset(word for words in FUNCTION.values() for word in words)
 _REPLY = "\nAssistant: "
+_Ids = frozenset[str]
 
 INSIDE_LINE = "Kept, since they hold that text only inside a longer value:"
 INSIDE_ALL = (
@@ -200,7 +201,7 @@ def kept_rows(  # noqa: PLR0913 -- each reader of the kept rows reads its own pa
     stamp: TurnStamp,
     deleted: Sequence[MemoryRecord],
     read: frozenset[str] = frozenset(),
-    told: Sequence[MemoryRecord] = (),
+    told: _Ids = frozenset(),
 ) -> list[MemoryRecord]:
     """The ``rows`` ``unnamed`` keeps beside the kept rows ``within``, and each holding ``text``
     whole when one is kept and the message holds ``text`` beside words naming no row."""
@@ -215,7 +216,7 @@ def kept_rows(  # noqa: PLR0913 -- each reader of the kept rows reads its own pa
         and all(words.isdisjoint(row_words(row.text)) for row in (*rows, *within))
     )
     whole = [row for row in rows if unclear and row not in kept and _whole(row.text, text)]
-    every = [*kept, *whole, *_unnamed_groups(rows, within, text, stamp.query, len(told))]
+    every = [*kept, *whole, *_unnamed_groups(rows, within, text, stamp.query, told)]
     every.extend(may_keep(rows, within, stamp.query, text))
     return list({row.id: row for row in every}.values())
 
@@ -287,14 +288,13 @@ def _in_longer(record: str, text: str) -> bool:
 
 
 def _unnamed_groups(
-    rows: Sequence[MemoryRecord], within: Sequence[MemoryRecord], text: str, query: str, told: int
+    rows: Sequence[MemoryRecord], within: Sequence[MemoryRecord], text: str, query: str, told: _Ids
 ) -> list[MemoryRecord]:
-    """The ``rows`` holding ``text`` only inside a longer value, or matched by a ``text`` holding
-    no digit, that no word or kind of ``query`` names, when it names another of ``rows`` or
-    ``within``, or one of ``told`` more rows when ``query`` holds no digit."""
+    """The ``rows`` holding ``text`` only inside a longer value, or matched by a text holding no
+    digit, that ``query`` does not name, beside a row it names or the ids ``told`` it names."""
     words, word = content(query), not any(char.isdigit() for char in text)
-    named = {row.id for row in (*rows, *within) if names(words, row_words(row.text))}
-    apart = told > 0 and not any(char.isdigit() for char in query)
+    named = {r.id for r in (*rows, *within) if r.id in told or names(words, row_words(r.text))}
+    apart = bool(told) and not any(char.isdigit() for char in query)
     if quantifies(query, [row.text for row in (*rows, *within)]) or not (named or apart):
         return []
     return [row for row in rows if row.id not in named and (word or _in_longer(row.text, text))]
