@@ -21,15 +21,17 @@ also ran at half their tier's window, and for a while the text rows included no 
 
 1. **A row starts with its tier's own command line.** A `Model` names the tier it is measured as
    (`CORTEX_TIER`, `BRAIN_TIER`, `SUBAGENT_TIER`, the logical ids the model host and the brain
-   share). `tier_args` reads that tier's `TierArgs` off one `ModelHostConfig` with every artifact
-   named, and `server_argv` hands it to the model host's own `llama_server_argv` with four things
-   substituted: the artifact, the probe's port, the placement's layer count and the tail. A tier
-   that thinks keeps its own tail whole, so a deep row has the deep tier's cache type, and only
-   the subagent tier's tail comes from the row's switch. `test_switch_rows.py` compares every
-   candidate's row with its tier's command line, the deep candidates included, with no card. A
-   deep row names no drafter, as the tier's defaults name none
-   ([R-1285](../refinements/tasks/1285-an-injection-row-reads-its-tier-off-a-placeholder-file-and-loses-the-tiers-drafter.md)
-   covers a row whose tier has one). A retuned tier therefore moves every row that measures it.
+   share). `tier_args` reads that tier's `TierArgs` off a `ModelHostConfig` that names the row's
+   own file, because the model host picks a tier's drafter by that file, and `server_argv` hands it
+   to the model host's own `llama_server_argv` with three things substituted: the probe's port,
+   the placement's layer count and the tail. A tier that thinks keeps its own tail whole, so a
+   deep row has the deep tier's cache type. In the subagent tier's tail the row's switch takes the
+   place of the reasoning-off pair, and the flags after the pair are kept on the card. The cortex
+   pick and the subagent pick therefore draft with the drafter the mount holds beside each file,
+   and a deep row drafts only when `CORTEX_MODEL_FILE_BRAIN_DRAFT` names a drafter, as the deep
+   tier does. `test_switch_rows.py` compares every candidate's row with the model host's command
+   line for that candidate's file, with no card. A retuned tier therefore moves every row that
+   measures it.
    Whether a model thinks is read off the tier's name
    ([R-558](../refinements/tasks/558-thinking-follows-the-tiers-name-and-not-its-shipped-budget.md)
    covers the case of a thinking tier started at a zero budget).
@@ -46,7 +48,8 @@ also ran at half their tier's window, and for a while the text rows included no 
 3. **The layer count is a row for the one tier the stack places twice.** `PLACEMENTS` holds the card
    and the CPU, built on the core's `PlacementTarget`. The card row takes the tier's layer count off
    the model host; the CPU row takes `PlacementTarget.CPU.ngl`, runs the CPU image, is given no GPU
-   device, and exists only under the shipped switch and only for the subagent tier. The pick's
+   device, names no drafter, as the CPU subagent server names none, and exists only under the
+   shipped switch and only for the subagent tier. The pick's
    resistance had been measured only on the card, where a stock deployment does not run it.
 
 4. **The CPU row applies every cap the subagents override sets.** `Placement.reservation` returns
@@ -89,7 +92,7 @@ also ran at half their tier's window, and for a while the text rows included no 
 ## Consequences
 
 - A row's count describes the server the stack starts. `test_switch_rows.py` requires a shipped
-  text-only row to equal the model host's argv for the tier with only the artifact and port changed,
+  text-only row to equal the model host's argv for the row's own file with only the port changed,
   the CPU row's caps and thread count in order, and the switch rows to differ by the setting alone.
 - The cortex alternative's rows were drawn on `Qwen3.5-9B-UD-Q4_K_XL.gguf`; the harness names the
   `Q4_K_M` the models mount holds.

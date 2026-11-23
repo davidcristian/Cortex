@@ -86,9 +86,11 @@ BRAIN_TIER = _CONFIG.brain_model
 SUBAGENT_TIER = _CONFIG.subagent_gpu_model
 
 
-def tier_args(tier: str) -> TierArgs:
-    """The settings the model host starts one tier with, read off the sidecar's own config."""
-    declared = [candidate for candidate in _CONFIG.tiers() if candidate.model == tier]
+def tier_args(tier: str, gguf: str = _ANY_ARTIFACT) -> TierArgs:
+    """The settings the model host starts one tier with on ``gguf``, read off its own config, which
+    picks a tier's drafter by the tier's file."""
+    config = ModelHostConfig(cortex_file=gguf, brain_file=gguf, subagent_gpu_file=gguf)
+    declared = [candidate for candidate in config.tiers() if candidate.model == tier]
     if not declared:
         msg = f"the model host declares no tier {tier!r}, so this harness cannot take its argv"
         raise LookupError(msg)
@@ -787,9 +789,16 @@ def repeat_of(model: Model, switch: Switch, placement: Placement) -> str | None:
     return None
 
 
-def tier_tail(model: Model, tier: TierArgs) -> tuple[str, ...]:
-    """The tier's own tail, whole, for a row on a tier the switch rows do not cover."""
-    return tier.extra if model.thinking else ()
+def tier_tail(model: Model, tier: TierArgs, placement: Placement) -> tuple[str, ...]:
+    """What a row keeps of its tier's tail: all of it where the tier thinks, and otherwise the
+    flags after the reasoning-off pair the switch replaces, on the card only."""
+    if model.thinking:
+        return tier.extra
+    paired = len(SHIPPED_SUBAGENT_TAIL)
+    if tier.extra[:paired] != SHIPPED_SUBAGENT_TAIL:
+        msg = f"{model.label}: the tier's tail {tier.extra} does not open with the pair"
+        raise LookupError(msg)
+    return tier.extra[paired:] if placement.on_card else ()
 
 
 def server_argv(
@@ -799,19 +808,18 @@ def server_argv(
     placement: Placement = GPU_PLACEMENT,
 ) -> tuple[str, ...]:
     """Return the llama-server flags one row starts its container with."""
-    tier = tier_args(model.tier)
+    tier = tier_args(model.tier, model.gguf)
     projector = ("--mmproj", f"{_MOUNT}/{model.mmproj}") if model.mmproj else ()
     budgeted = budget.argv if model.mmproj else ()
     row = replace(
         tier,
-        model_path=f"{_MOUNT}/{model.gguf}",
         port=_PORT,
         ngl=placement.ngl(tier),
         extra=(
-            *tier_tail(model, tier),
+            *switch.argv,
+            *tier_tail(model, tier, placement),
             *projector,
             *budgeted,
-            *switch.argv,
             *placement.threads,
         ),
     )

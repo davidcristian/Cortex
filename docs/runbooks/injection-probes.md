@@ -82,11 +82,11 @@ cd brain && CORTEX_MODELS_DIR=<the host dir holding the GGUFs> \
   packages/inference/tests/test_injection_defense_live.py
 ```
 
-- **The flags are read, not typed.** `tier_args` reads the row's tier off `ModelHostConfig`, the
-  shipped row takes that tier's own `extra`, and the request key decodes the JSON that tier's flag
-  contains. The whole command line is the sidecar's own `llama_server_argv` over that tier, so a
-  cortex row runs at the cortex tier's 16384 window, a subagent row at that tier's two slots and a
-  deep row at the deep tier's cache type; a tier that drops a flag fails `test_switch_rows.py`.
+- **The flags are read, not typed.** `tier_args` reads the row's tier off a `ModelHostConfig`
+  naming the row's file, the shipped row takes that tier's own `extra`, and the request key decodes
+  the JSON that tier's flag contains. The whole command line is the sidecar's own
+  `llama_server_argv`, so a cortex row runs at its tier's 16384 window, each pick drafts as its tier
+  does and a deep row has its tier's cache type; a tier that drops a flag fails `test_switch_rows.py`.
 - **A thinking-on model runs once, under `shipped-argv`.** A tier that thinks on purpose uses
   neither switch, so its `request-key` copy is skipped. `-k shipped-argv` selects the shipped
   rows, `-k request-key` the replicates and `-k budget-alone` the half-pair rows.

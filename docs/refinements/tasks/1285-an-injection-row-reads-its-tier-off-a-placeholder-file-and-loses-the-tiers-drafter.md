@@ -1,9 +1,8 @@
 # An injection row reads its tier off a placeholder file and loses the tier's drafter
 
-**Status:** open, actionable
+**Status:** done 2026-11-23
 **Area:** untrusted-content
 **Origin:** [ADR-0060](../../adr/ADR-0060-injection-rows-follow-the-tier.md)
-**Verified:** 2026-11-21
 
 `tier_args` in `brain/packages/inference/tests/test_injection_defense_live.py` reads every tier
 off one `ModelHostConfig` whose three files are the placeholder `any/artifact.gguf` (`_CONFIG`),
@@ -38,3 +37,10 @@ by a test CI runs, or a decline that says why a row does not draft.
 ## History
 
 - 2026-11-21: filed when the deep row's tail was compared with its tier's.
+- 2026-11-23: Closed. `tier_args` builds the tier from a `ModelHostConfig` naming the row's own
+  file, and in the subagent tier's tail the switch takes the place of the reasoning-off pair while
+  the flags after it stay on the card. The subagent pick lost its drafter the same way. With no
+  server started, every candidate's shipped row now equals the model host's command line for its
+  file, the deep pick drafting with its own file included, and `test_switch_rows.py` compares
+  them. Drawing the picks' rows with the drafter is
+  [R-1313](1313-the-picks-injection-rows-have-not-been-drawn-with-their-drafters.md).

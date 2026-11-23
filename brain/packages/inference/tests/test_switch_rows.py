@@ -30,12 +30,13 @@ from test_injection_defense_live import (
     switch_for,
     template_kwargs,
     tier_args,
+    tier_tail,
 )
 
 from cortex_core import Message, PlacementTarget, Role, ToolSpec
 from cortex_core.inference import GenerationBounds
 from cortex_inference.request import build_payload
-from cortex_model_manager import llama_server_argv
+from cortex_model_manager import ModelHostConfig, llama_server_argv
 from cortex_orchestrator.config_subagents import DEFAULT_CPU_BUDGET, DEFAULT_MEM_BUDGET_GB
 
 # The two flags a subagent server is started with, named here because naming them is the whole of
@@ -56,6 +57,25 @@ _ANY_BINARY = "llama-server"
 
 _THINKING_OFF = [model for model in MODELS if not model.thinking]
 
+_JINJA = "--jinja"
+_DRAFT_FLAG = "--model-draft"
+_SPEC_TYPE_FLAG = "--spec-type"
+
+_CORTEX_PICK, _SUBAGENT_PICK, _DEEP_PICK = (
+    next(model for model in EVERY_CANDIDATE if model.label.startswith(prefix))
+    for prefix in ("gemma-4-12B", "gemma-4-E4B", "Qwen3.8-27B")
+)
+
+
+def _after_jinja(argv: tuple[str, ...], flags: tuple[str, ...]) -> tuple[str, ...]:
+    at = argv.index(_JINJA) + 1
+    return (*argv[:at], *flags, *argv[at:])
+
+
+def _opening(argv: tuple[str, ...], length: int) -> tuple[str, ...]:
+    at = argv.index(_JINJA) + 1
+    return argv[at : at + length]
+
 
 def test_the_sidecar_still_declares_both_halves_of_the_reasoning_off_pair() -> None:
     assert SHIPPED_SUBAGENT_TAIL[0] == _TEMPLATE_KWARGS_FLAG, SHIPPED_SUBAGENT_TAIL
@@ -72,7 +92,7 @@ def test_the_request_key_renders_what_the_tiers_own_flag_tells_its_template() ->
 def test_a_shipped_row_starts_its_server_with_the_tiers_reasoning_off_pair() -> None:
     for model in _THINKING_OFF:
         argv = server_argv(model, SHIPPED_BUDGET, SHIPPED_SWITCH)
-        assert argv[-len(SHIPPED_SUBAGENT_TAIL) :] == SHIPPED_SUBAGENT_TAIL, model.label
+        assert _opening(argv, len(SHIPPED_SUBAGENT_TAIL)) == SHIPPED_SUBAGENT_TAIL, model.label
 
 
 def test_a_request_key_row_starts_its_server_with_neither_flag() -> None:
@@ -87,8 +107,8 @@ def test_the_switch_rows_differ_by_the_setting_and_by_nothing_else() -> None:
         keyed = server_argv(model, SHIPPED_BUDGET, REQUEST_KEY)
         shipped = server_argv(model, SHIPPED_BUDGET, SHIPPED_SWITCH)
         budgeted = server_argv(model, SHIPPED_BUDGET, BUDGET_ALONE)
-        assert shipped == (*keyed, *SHIPPED_SUBAGENT_TAIL), model.label
-        assert budgeted == (*keyed, *BUDGET_ALONE.argv), model.label
+        assert shipped == _after_jinja(keyed, SHIPPED_SUBAGENT_TAIL), model.label
+        assert budgeted == _after_jinja(keyed, BUDGET_ALONE.argv), model.label
     bodies = {
         switch.label: completion_body(_MESSAGES, _TOOLS, switch=switch, max_tokens=_MAX_TOKENS)
         for switch in SWITCHES
@@ -108,7 +128,7 @@ def test_the_budget_alone_row_passes_the_budget_half_and_not_the_kwarg() -> None
     for model in _THINKING_OFF:
         argv = server_argv(model, SHIPPED_BUDGET, BUDGET_ALONE)
         assert _TEMPLATE_KWARGS_FLAG not in argv, model.label
-        assert argv[-2:] == BUDGET_ALONE.argv, model.label
+        assert _opening(argv, 2) == BUDGET_ALONE.argv, model.label
 
 
 def test_a_flag_and_its_value_are_read_by_the_flag_and_a_missing_one_raises() -> None:
@@ -183,13 +203,38 @@ def test_a_shipped_row_is_its_tiers_own_command_line() -> None:
     assert set(BRAIN_CANDIDATES) <= set(EVERY_CANDIDATE)
     assert set(MODELS) <= set(EVERY_CANDIDATE)
     for model in EVERY_CANDIDATE:
-        tier = tier_args(model.tier)
+        host = ModelHostConfig(
+            cortex_file=model.gguf, brain_file=model.gguf, subagent_gpu_file=model.gguf
+        )
+        (tier,) = (tier for tier in host.tiers() if tier.model == model.tier)
         started = server_argv(model, SHIPPED_BUDGET, switch_for(model, SHIPPED_SWITCH))
-        artifact = started[started.index("--model") + 1]
         port = int(started[started.index("--port") + 1])
-        own = llama_server_argv(_ANY_BINARY, replace(tier, model_path=artifact, port=port))
-        assert started == own[1:], model.label
-        assert artifact.endswith(model.gguf), model.label
+        assert started == llama_server_argv(_ANY_BINARY, replace(tier, port=port))[1:], model.label
+        assert started[started.index("--model") + 1].endswith(model.gguf), model.label
+
+
+def test_a_pick_with_a_drafter_beside_its_file_drafts_in_its_row_as_its_tier_does() -> None:
+    for model in EVERY_CANDIDATE:
+        started = server_argv(model, SHIPPED_BUDGET, switch_for(model, SHIPPED_SWITCH))
+        drafted = model in (_CORTEX_PICK, _SUBAGENT_PICK)
+        assert (_DRAFT_FLAG in started) == drafted, model.label
+        assert (_SPEC_TYPE_FLAG in started) == drafted, model.label
+
+
+def test_a_deep_row_drafting_with_its_own_file_names_no_second_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CORTEX_MODEL_FILE_BRAIN_DRAFT", _DEEP_PICK.gguf)
+    started = server_argv(_DEEP_PICK, SHIPPED_BUDGET, THINKING_ON)
+    assert _SPEC_TYPE_FLAG in started
+    assert _DRAFT_FLAG not in started
+    assert started.count(started[started.index("--model") + 1]) == 1
+
+
+def test_a_subagent_tail_that_does_not_open_with_the_pair_is_refused() -> None:
+    tier = replace(tier_args(SUBAGENT_TIER), extra=("--cache-ram", "0"))
+    with pytest.raises(LookupError, match="does not open with the pair"):
+        tier_tail(_SUBAGENT_PICK, tier, GPU_PLACEMENT)
 
 
 def test_a_deep_row_keeps_the_cache_type_its_tier_starts_with() -> None:
@@ -206,17 +251,20 @@ def test_a_deep_row_keeps_the_cache_type_its_tier_starts_with() -> None:
 def test_the_cpu_row_offloads_no_layer_sets_its_threads_and_changes_nothing_else() -> None:
     thread_flags = ("--threads", str(DEFAULT_CPU_BUDGET))
     for model in _THINKING_OFF:
-        tier = tier_args(model.tier)
+        tier = tier_args(model.tier, model.gguf)
         card = server_argv(model, SHIPPED_BUDGET, SHIPPED_SWITCH, GPU_PLACEMENT)
         cpu = server_argv(model, SHIPPED_BUDGET, SHIPPED_SWITCH, CPU_PLACEMENT)
+        drafter = tier_tail(model, tier, GPU_PLACEMENT)
+        undrafted = card[: len(card) - len(drafter)]
         at = card.index("-ngl") + 1
         assert card[at] == str(tier.ngl), model.label
         assert cpu[at] == str(PlacementTarget.CPU.ngl), model.label
         assert "--threads" not in card, model.label
         assert cpu[-len(thread_flags) :] == thread_flags, model.label
-        assert cpu[:at] + cpu[at + 1 : -len(thread_flags)] == card[:at] + card[at + 1 :], (
-            model.label
-        )
+        assert _DRAFT_FLAG not in cpu, model.label
+        assert (
+            cpu[:at] + cpu[at + 1 : -len(thread_flags)] == undrafted[:at] + undrafted[at + 1 :]
+        ), model.label
     assert GPU_PLACEMENT.threads == ()
     assert GPU_PLACEMENT.on_card
     assert not CPU_PLACEMENT.on_card
