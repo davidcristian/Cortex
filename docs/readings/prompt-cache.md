@@ -3,7 +3,8 @@
 What `llama-server`'s host-RAM prompt cache (`--cache-ram`) costs and buys on each tier, read for
 [ADR-0059](../adr/ADR-0059-prompt-cache-per-tier.md). "Anon" is the container's anonymous memory,
 "mapped" the model file mapped into it, both from the cgroup's `memory.stat`. Every variant pair ran
-at temperature 0 and a fixed seed on `ghcr.io/ggml-org/llama.cpp:server-cuda` at
+at temperature 0 and a fixed seed, and every pair but the deep pick's on
+`ghcr.io/ggml-org/llama.cpp:server-cuda` at
 `sha256:952424b09abc` (`b10680-d7bd3bfca`), whose default cache size is 8192 MiB. Method: the
 scratch drivers under `measurements/cache-ram-2026-09-13/` and
 `measurements/cache-ram-tiers-2026-09-13/`, which git ignores. The last section, read for
@@ -65,6 +66,25 @@ twelve cells, and the same prompt drew different traces between rounds inside ea
 A cached conversation cost 3526 MiB; no request in the default variant was restored. All twelve
 cells matched between the variants. Alongside the cortex's 8192 MiB cache limit the GPU subagent
 tier loads at 5440 MiB with no cache, a worst case of 20.8 GiB of the 24 GiB cap.
+
+## The deep pick
+
+**2026-11-23**, build `b12375`, the `llama-server` of the `cortex-model-host` image in a bare
+container with the model host's 24 GiB cap, running the argv the model host wrote for the deep
+tier on compose defaults: `Qwen3.8-27B-UD-Q4_K_M.gguf`, `-ngl 99`, a 16384-token context,
+`--parallel 1`, `--jinja`, `q8_0` for both cache halves, no drafter. Only `--cache-ram` differs.
+The workload is the one above, which this tokenizer reads as 6183 and 6184 prompt tokens.
+
+| variant | anon at load | anon after twelve requests | mapped model file | `memory.peak` | returns restored | prompt tokens evaluated on a return |
+| --- | --- | --- | --- | --- | --- | --- |
+| `--cache-ram 8192` | 291 MiB | 2921 MiB | 15977 MiB, never reclaimed | 19302 MiB | 9 of 9 | 20 |
+| `--cache-ram 0` | 290 MiB | 1019 MiB | 15977 MiB, never reclaimed | 17043 MiB | 0 of 9 | 6183 or 6184 |
+
+A cached conversation cost 951 and 959 MiB of anon, about a quarter of gemma-4-31B's 3526 MiB, so
+three fit under the 8192 MiB limit and every return was restored from it, its `timings.cache_n`
+6163 or 6164. The card held the same memory in both variants, 15941 to 15963 MiB above the floor.
+Method: `~/.cache/cortex-run/2026-11-23/s4/cram.py`, whose rows are in `logs/cram-on.out` and
+`logs/cram-off.out` beside it.
 
 ## The prompt cache and a repeated request
 

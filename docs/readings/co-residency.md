@@ -192,3 +192,44 @@ MiB across the gap and fell 1297 in four minutes. The fit check reads that level
 bounds that rise. Method: `measurements/deep-margin-2026-09-22/` (`draw.py`, `rung.sh`,
 `analyze.py`, each start's log, `-lv 4` server log and one-second `nvidia-smi` file, and
 `session.smi.csv`).
+
+## What free memory the deep pick needs beside a peer
+
+**2026-11-23**, same card: the `cortex-model-host` image (`b12375`) on compose defaults with
+`CORTEX_MODEL_FILE_BRAIN` naming `unsloth/Qwen3.8-27B-GGUF/Qwen3.8-27B-UD-Q4_K_M.gguf`, so the
+deep tier ran the argv the model host wrote, `-ngl 99 --ctx-size 16384 --parallel 1 --jinja
+--cache-ram 0 --cache-type-k q8_0 --cache-type-v q8_0`, with no drafter and no budget flag. With the
+cortex stopped, the deep tier was started over the control API beside an idle `Qwen3.5-2B-Q8_0`
+filler on `server-cuda` `b12169`, whose `--ctx-size` set how much of the card it held. No rate was
+read, so each start is classed by memory. Its share of the card is the used memory 5 s after ready
+less the filler and the floor, between the floor read before the start and after its removal.
+Whole: within 70 MiB of the solo start's 15941. Spill: 99 MiB or more short. The rules were written
+before each launch.
+
+| Free before the load, MiB | Floor before and after, MiB | Deep tier's share, MiB | Free at ready, MiB | Result |
+| --- | --- | --- | --- | --- |
+| 21545, no filler | 2593 and 2593 | 15941 | 5604 | the solo start |
+| 17340 | 2593 and 2458 | 15806 to 15941 | 1534 | whole, the floor 135 lower |
+| 16927 | 2458 and 2306 | 15782 to 15934 | 1145 | whole, the floor 152 lower |
+| 16628 | 2306 and 1752 | 15548 to 16102 | 1080 | whole, the floor 554 lower |
+| 16321 | 1752 and 1652 | 15322 to 15422 | 999 | spill |
+| 16924 | 1653 and 1662 | 15941 to 15950 | 974 | whole |
+| 16764 | 1669 and 1620 | 15828 to 15877 | 936 | not shown whole |
+| 16623 | 1662 and 1662 | 15685 | 938 | spill, 256 short |
+| 16313 | 1662 and 1644 | 15403 to 15421 | 910 | spill, 538 short |
+
+- **Other apps' memory left the card first.** In the first four filled starts the floor fell by
+  941 MiB in all and the deep tier stayed whole down to 16628 MiB free. Once the floor held, it
+  spilled at 16623 and 16313 and loaded whole at 16924.
+- **The driver kept about 900 to 1000 MiB free.** Every filled start read 910 to 1534 MiB free at
+  ready. With the floor steady, the whole start left 974 and the two spills 938 and 910.
+- **The fit check reads that figure.** The model host's `GET /health` returned the `device_free_mib`
+  `nvidia-smi` read as `memory.free` before every start, 8 MiB under it once.
+- **Beside the GPU subagent tier.** With `CORTEX_MODEL_FILE_SUBAGENT_GPU` naming
+  `unsloth/gemma-4-E4B-it-qat-GGUF/gemma-4-E4B-it-qat-UD-Q4_K_XL.gguf` on compose defaults, two
+  servers at 8192 drafting with the file's MTP drafter, `device_free_mib` read 16136 with the
+  cortex stopped, under the deep tier's own cost. With the second server stopped it read 19315,
+  and the deep tier added 15941 with the floor steady: whole. Each server took about 3179 MiB.
+
+Method: `~/.cache/cortex-run/2026-11-23/s4/` (`rung.py`, `ladder.sh`, `edge.sh`, `cores.sh`, the
+rules in `notes.md`, each start's row in `logs/rows.jsonl` and its one-second `nvidia-smi` file).

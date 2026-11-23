@@ -1,9 +1,8 @@
 # A Qwen3.8-27B deep tier has no measured fit figure or decode floor
 
-**Status:** open, actionable
+**Status:** done 2026-11-23
 **Area:** resource-governance
 **Origin:** [ADR-0055](../../adr/ADR-0055-co-residency-and-spill-watch.md)
-**Verified:** 2026-11-21
 
 A deployment declares the deep tier's cost in `CORTEX_SWAP_BRAIN_VRAM_MIB`, the figure the fit check
 compares free memory against, and its spill-watch minimum in `CORTEX_SWAP_BRAIN_DECODE_TPS`. The
@@ -58,3 +57,15 @@ of gemma-4-31B's row, the decode floor from `test_decode_cadence_live.py`, and t
   ([readings](../../readings/model-swap.md#a-handoff-on-the-deep-pick)), and the runbook now
   gives both. One reply each was decoded on a clear card, 878 tokens plain and 103 drafted at
   1.58 times the plain rate, which is no floor. None of the three draws named here was made.
+- 2026-11-23: done. At the deep tier's argv as the model host starts it (16384, `q8_0`, no
+  drafter, `--cache-ram 0`, build b12375) the pick added 15941 MiB alone. Beside an idle filler it
+  loaded whole at 16924 MiB free and, once the floor held, was not shown whole at 16764 and spilled
+  at 16623 and 16313 ([readings](../../readings/co-residency.md#what-free-memory-the-deep-pick-needs-beside-a-peer)),
+  so the runbook declares 16924, or 17965 with its draft layer. Beside the E4B tier's two default
+  servers the card read 16136 MiB free, so co-residency stays off; beside one it read 19315 and
+  the pick loaded whole. With the prompt cache on, a conversation cost about 955 MiB and every
+  return was restored ([readings](../../readings/prompt-cache.md#the-deep-pick)), so the cost
+  reason for `--cache-ram 0` fails for the pick: filed
+  [R-1308](1308-the-deep-picks-prompt-cache-restores-every-returning-conversation.md). The decode
+  floor is a rate and was not drawn: filed
+  [R-1307](1307-the-deep-pick-has-no-decode-floor-from-a-cold-load.md).

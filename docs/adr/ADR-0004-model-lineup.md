@@ -196,8 +196,8 @@ lineup](../readings/model-lineup.md), [deep candidates](../readings/deep-candida
   `docker-compose.subagents-roster.yml` and `docker-compose.memory.yml` as the defaults of their
   `CORTEX_MODEL_FILE_` variables, and in the model host's settings; changing a pick means changing
   those defaults and this record together.
-- gemma-4-31B, the GPU subagent tier and the drafter do not fit one 24 GB card, and the pick was
-  not drawn beside that tier, so co-residency stays off. Under the deployed handoff the pool is
+- gemma-4-31B, the GPU subagent tier and the drafter do not fit one 24 GB card, and beside that
+  tier's two default servers the pick does not fit either, so co-residency stays off. Under the deployed handoff the pool is
   drained and the evicted tier costs nothing in use. A deployment that names the drafter raises its
   declared cost by the drafter's, because the fit check compares the card against that figure alone
   and the brain cannot see a drafter through the `ModelHost` port

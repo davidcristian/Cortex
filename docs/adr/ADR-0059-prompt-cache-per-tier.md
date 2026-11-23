@@ -44,11 +44,15 @@ measurements are in [prompt cache](../readings/prompt-cache.md).
    which loads with no cache of its own, the pair's worst case stays under the model host's cap. It
    is `_CORTEX_PROMPT_CACHE` in `config.py`.
 
-4. **The deep tier runs `--cache-ram 0`.** A deep conversation costs about 3.5 GiB of cache, so the
-   default ceiling holds two, and the conversation coming back is the one dropped to make room: no
-   request in the measured run was restored. What turning the cache off bought instead was 7.1 GiB
-   of the cap and the reclamation of mapped weights, with the cgroup's peak at its cap exactly. Zero
-   costs nothing on this shape and makes each request about an eighth faster.
+4. **The deep tier runs `--cache-ram 0`.** On gemma-4-31B a deep conversation costs about 3.5 GiB
+   of cache, so the default ceiling holds two, and the conversation coming back is the one dropped
+   to make room: no request in the measured run was restored. What turning the cache off bought
+   instead was 7.1 GiB of the cap and the reclamation of mapped weights, with the cgroup's peak at
+   its cap exactly. Zero costs nothing on this shape and makes each request about an eighth faster.
+   On the pick, Qwen3.8-27B, a conversation costs about 955 MiB and every return was restored
+   ([prompt cache](../readings/prompt-cache.md#the-deep-pick)), so that reason holds only for the
+   alternate; [R-1308](../refinements/tasks/1308-the-deep-picks-prompt-cache-restores-every-returning-conversation.md)
+   asks whether deep traffic ever returns to a conversation whose slot was taken.
 
 5. **`scripts/flagcheck.py` is not extended to the cortex and the deep tier.** Its subject is what a
    subagent server must have in both of its placements; these two are per-tier values that one

@@ -15,8 +15,9 @@ together (about 4.6 GiB short), and the deep model and the shipped GPU subagent 
 card with no margin: beside that peer the deep model decoded at its solo rate on 2026-08-07 and at
 0.36 and 0.62 of it in two starts on 2026-09-22, with the same tier sizes. So on that card
 co-residency has no peer that fits. The cortex stays evicted in every configuration. The deep
-pick, Qwen3.8-27B, costs less and was not drawn beside a peer
-([R-741](../refinements/tasks/741-a-qwen38-27b-deep-tier-has-no-measured-fit-figure-or-decode-floor.md)).
+pick, Qwen3.8-27B, costs less: it needs 16924 MiB free, and beside the GPU subagent tier's two
+default servers the card reads 16136, while beside one it reads 19315 and the pick loads whole
+([co-residency](../readings/co-residency.md#what-free-memory-the-deep-pick-needs-beside-a-peer)).
 
 Measuring it is the hard part. Under WSL2 an overcommitted card does not refuse the allocation: the
 driver pages the excess out to system memory, both tiers report `ready`, and `nvidia-smi` afterwards
