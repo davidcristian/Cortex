@@ -47,9 +47,9 @@ read deadline, since a control call that hung would hang a swap step under no bo
 
 ## The control API, on the sidecar side
 
-`build_app(supervisor, *, boot_models, close=nothing_to_close, device=None)` returns the Starlette
-app and `model_host_lifespan(supervisor, boot_models, close)` is its lifespan. `device` is the
-`DeviceMemoryProbe` the health route reads the card through. Four routes and no more:
+`build_app(supervisor, *, boot_models, close=nothing_to_close, device=None, boot_fit=None)` returns
+the app and `model_host_lifespan(supervisor, boot_models, close, after_boot)` its lifespan. `device`
+is the `DeviceMemoryProbe` the health route and `boot_fit` read the card through. Four routes:
 
 | Route | Meaning |
 |---|---|
@@ -188,7 +188,7 @@ compares the two, so retune both or neither. `RosterError` is a boot-time miscon
 - **The daemon starts every tier but the deep one at boot, and again when one exits unasked.** `boot_models(config)` in `server.py` names them: the cortex, then each GPU subagent server of the roster. A failed boot start is
   logged, the next one is still started and the API still serves, since a crash loop under compose's restart policy would hide it.
   An unasked exit is started again after 2 s, three times in a row at most (`WARNING` per attempt);
-  600 s of running or an explicit `start` resets the count, and a fourth exit in a row leaves the tier stopped with one `ERROR` (`a model process keeps exiting, so it is left stopped`), names the reason in its status's `start_gap` and refuses a `start` with it until a `stop` or a new daemon (ADR-0054 decision 9).
+  600 s of running or an explicit `start` resets the count, and a fourth exit in a row leaves the tier stopped with one `ERROR` (`a model process keeps exiting, so it is left stopped`), names the reason in its status's `start_gap` and refuses a `start` with it until a `stop` or a new daemon (ADR-0054 decision 9). Beside serving, `BootFit` in `boot_fit.py` waits up to 600 s for every boot tier to answer ready, then reads the card once: under `BOOT_FREE_FLOOR_MIB` (1,536) free it logs one `WARNING` (`the tiers started at boot leave the card less free memory than its floor`) with the free and total MiB, the floor and each tier's `--ctx-size`, and otherwise one `INFO`; a tier not ready in time gives one `INFO` and no reading. It stops and changes nothing.
 
 ## Deployment
 

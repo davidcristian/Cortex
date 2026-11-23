@@ -2,6 +2,7 @@
 
 from cortex_model_manager.adapter import HttpModelHost
 from cortex_model_manager.api import build_app, model_host_lifespan, nothing_to_close
+from cortex_model_manager.boot_fit import BOOT_FREE_FLOOR_MIB, BootFit
 from cortex_model_manager.children import (
     AsyncioChild,
     AsyncioChildProcesses,
@@ -37,11 +38,13 @@ from cortex_model_manager.supervisor import (
 from cortex_model_manager.tiers import TierArgs, llama_server_argv, tier_spec
 
 __all__ = [
+    "BOOT_FREE_FLOOR_MIB",
     "DEFAULT_PROBE_TIMEOUT_S",
     "DEFAULT_REAP_TIMEOUT_S",
     "DEFAULT_STOP_GRACE_S",
     "AsyncioChild",
     "AsyncioChildProcesses",
+    "BootFit",
     "ChildProcess",
     "ChildProcesses",
     "DeviceMemoryProbe",

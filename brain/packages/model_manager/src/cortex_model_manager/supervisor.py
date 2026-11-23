@@ -5,6 +5,7 @@ import logging
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 from uuid import uuid4
 
 from cortex_core import ControlBounds, ModelHostState
@@ -86,6 +87,11 @@ class ModelSupervisor:
     def models(self) -> tuple[str, ...]:
         """The logical ids this daemon serves, in roster order."""
         return tuple(self._roster)
+
+    @property
+    def roster(self) -> Mapping[str, ModelSpec]:
+        """Each logical id's spec, as this daemon was wired with it."""
+        return MappingProxyType(self._roster)
 
     @property
     def control_bounds(self) -> ControlBounds:

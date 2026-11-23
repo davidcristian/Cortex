@@ -31,6 +31,13 @@ class ModelSpec:
             raise RosterError(msg)
 
     @property
+    def ctx_size(self) -> str:
+        """The ``--ctx-size`` value of this argv, or ``unset`` when the engine's default applies."""
+        if "--ctx-size" not in self.argv:
+            return "unset"
+        return self.argv[self.argv.index("--ctx-size") + 1]
+
+    @property
     def health_url(self) -> str:
         """Where this model's own server answers readiness: loopback, since it is a sibling."""
         return f"http://127.0.0.1:{self.port}/health"

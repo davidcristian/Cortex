@@ -1,9 +1,8 @@
 # Nothing checks that the tiers the model host starts at boot fit the card
 
-**Status:** open, actionable
+**Status:** done 2026-11-23
 **Area:** inference-model-manager
 **Origin:** [ADR-0053](../../adr/ADR-0053-model-host-supervisor.md)
-**Verified:** 2026-11-18
 
 At its boot the model host starts the cortex and every GPU subagent server in one pass
 (`model_host_lifespan` in
@@ -38,3 +37,9 @@ compares against.
 
 - 2026-11-18: filed from a reading of the host's boot pass beside the swap's fit check, and drawn
   the same day with a cortex context of 49152 and of 400000.
+- 2026-11-23: done. The premise held in the code. The figure is the 1,536 MiB every reading of the
+  card keeps free, a rule the budget already states, so no rate is needed to choose it:
+  `BootFit` in `boot_fit.py` waits up to 600 s for every boot tier to answer ready, then logs one
+  warning with the free and total MiB, the floor and each tier's `--ctx-size` when less is free.
+  By the drawn figures the 400000 context leaves 1,139 MiB free and warns, 49152 leaves 6,073 and
+  does not. The warning has not been read on the card: R-1314.

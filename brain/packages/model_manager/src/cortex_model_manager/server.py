@@ -11,6 +11,7 @@ from uvicorn.config import LOG_LEVELS
 
 from cortex_core import DEFAULT_LOG_FORMAT, configure_logging
 from cortex_model_manager.api import build_app
+from cortex_model_manager.boot_fit import BootFit
 from cortex_model_manager.children import AsyncioChildProcesses
 from cortex_model_manager.config import ModelHostConfig
 from cortex_model_manager.device_memory import NvidiaSmiMemory
@@ -73,6 +74,7 @@ def build_model_host(config: ModelHostConfig) -> Starlette:
         boot_models=boot_models(config),
         close=client.aclose,
         device=NvidiaSmiMemory(config.nvidia_smi, config.probe_timeout_s),
+        boot_fit=BootFit(),
     )
 
 

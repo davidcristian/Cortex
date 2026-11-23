@@ -172,7 +172,12 @@ without decision 8 `Health` would answer ready while the cortex or the store is 
    boot load: the daemon reads the card's free memory, but no setting declares what the cortex
    or a subagent server needs, a file's size is only a floor under it, and on a card that pages
    an overcommit to system memory the load does not fail at all
-   ([co-residency](../readings/co-residency.md)). The
+   ([co-residency](../readings/co-residency.md)). So the card is read after the load instead:
+   once every boot tier answers ready, within 600 s, one `WARNING` names the free and total MiB and
+   each tier's `--ctx-size` when less than 1,536 MiB is free, the figure every reading of the card
+   keeps free ([model baseline](../readings/model-baseline.md)). It only reports: with a cortex
+   context of 400000 the card read 23,324 of 24,463 MiB and every tier still answered ready
+   ([readings](../readings/store-and-process-restarts.md#a-server-that-keeps-exiting)). The
    per-model lock orders it against a swap: a `stop` removes the record and a `start` replaces it,
    and the restart runs only while the exited process is still the one on record, so a handoff's
    eviction is never undone. The brain was rejected as the place: with escalation off it has no

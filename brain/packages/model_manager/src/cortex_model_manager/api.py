@@ -1,8 +1,10 @@
 """The supervisor's HTTP control API: the wire behind the ``ModelHost`` port."""
 
+import asyncio
 import logging
 from collections.abc import AsyncGenerator, Awaitable, Callable, Sequence
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
+from functools import partial
 from http import HTTPStatus
 
 from starlette.applications import Starlette
@@ -10,6 +12,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
+from cortex_model_manager.boot_fit import BootFit
 from cortex_model_manager.device_memory import DeviceMemoryProbe, NoDeviceMemory
 from cortex_model_manager.supervisor import (
     ModelStatus,
@@ -33,9 +36,15 @@ def build_app(
     boot_models: Sequence[str],
     close: Callable[[], Awaitable[None]] = nothing_to_close,
     device: DeviceMemoryProbe | None = None,
+    boot_fit: BootFit | None = None,
 ) -> Starlette:
     """The ASGI app driving ``supervisor``, starting each of ``boot_models`` when it comes up."""
     card: DeviceMemoryProbe = NoDeviceMemory() if device is None else device
+    after_boot = (
+        nothing_to_close
+        if boot_fit is None
+        else partial(boot_fit.watch, supervisor, boot_models, card)
+    )
 
     async def health(request: Request) -> Response:
         del request
@@ -72,14 +81,17 @@ def build_app(
             Route("/models/{model}/start", start, methods=["POST"]),
             Route("/models/{model}/stop", stop, methods=["POST"]),
         ],
-        lifespan=model_host_lifespan(supervisor, boot_models, close),
+        lifespan=model_host_lifespan(supervisor, boot_models, close, after_boot),
     )
 
 
 def model_host_lifespan(
-    supervisor: ModelSupervisor, boot_models: Sequence[str], close: Callable[[], Awaitable[None]]
+    supervisor: ModelSupervisor,
+    boot_models: Sequence[str],
+    close: Callable[[], Awaitable[None]],
+    after_boot: Callable[[], Awaitable[None]] = nothing_to_close,
 ) -> Callable[[Starlette], AbstractAsyncContextManager[None]]:
-    """Start every model that serves from boot on the way up; stop every child on the way down."""
+    """Start every boot model, run ``after_boot`` beside serving, and stop every child at last."""
 
     @asynccontextmanager
     async def lifespan(app: Starlette) -> AsyncGenerator[None]:
@@ -94,9 +106,12 @@ def model_host_lifespan(
                     "the boot-default model could not be started; serving without it",
                     extra={"model": model},
                 )
+        watch = asyncio.ensure_future(after_boot())
         try:
             yield
         finally:
+            watch.cancel()
+            await asyncio.gather(watch, return_exceptions=True)
             # Children first: `close` shuts the probe client the supervisor was wired with.
             await supervisor.stop_all()
             await close()
