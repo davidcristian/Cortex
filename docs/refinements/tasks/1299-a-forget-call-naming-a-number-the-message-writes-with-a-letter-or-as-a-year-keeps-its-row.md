@@ -1,9 +1,8 @@
 # A forget call naming a number the message writes with a letter or as a year keeps its row
 
-**Status:** open, actionable
+**Status:** declined 2026-11-23
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-22
 
 `_apart` (`forget_permit.py`) compares the whole values of the call text with those of the
 message (`whole_values` in `memory_values.py`). Two messages write a number the call text names
@@ -35,3 +34,11 @@ brain's forget tests they are 7 rows in 2 strings
 - 2026-11-22: filed with the replay of a call text holding a digit beside a message holding
   another value
   ([R-1288](1288-a-forget-message-holding-a-value-deletes-another-row-for-a-call-text-holding-another-value.md)).
+- 2026-11-23: declined. The rule of the second step, replayed beside the forms of this task, a
+  year beside a code word and the generator at the value `1987`, lists 142 rows the message asks to
+  delete and 27 it does not ask for or asks to keep: the locker code `7731` for `Forget B7731X.`,
+  every `1987` row for `Forget what I did in 1987.` and the locker of `Uită 1987, dulapul rămâne.`.
+  `_apart` keeps all of them, so its cost on these forms is the 142 rows, and the word call texts
+  `card` and `phone` keep 4 more for `all 7319s` since
+  [R-1300](1300-a-forget-message-holding-a-value-no-row-holds-deletes-the-row-a-word-call-text-names.md)
+  ([readings](../../readings/forget-everything-but-call.md#a-call-naming-a-row-the-message-does-not-name-2026-11-15)).
