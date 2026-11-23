@@ -47,8 +47,8 @@ the counts of those four cells are from the replay after it
    message read as its language (`readings` in `forget_languages.py`), not a wider flat set.
    Filled, `doar` changes the Polish `Zapomnij 4242, doar card.`.
 5. The replay scripts are `gen.py`, `run.py`, `newly.py` and `oneclause2.py` in
-   `/home/david/.cache/cortex-run/2026-11-15/slot7/`, and `variant.py`, `variant.sh` and
-   `analyze.sh` in `/home/david/.cache/cortex-run/2026-11-15/slot13/`.
+   `~/.cache/cortex-run/2026-11-15/slot7/`, and `variant.py`, `variant.sh` and
+   `analyze.sh` in `~/.cache/cortex-run/2026-11-15/slot13/`.
 
 ## History
 

@@ -19,7 +19,7 @@ article against a row holding it without one.
 
 1. Write tests first: the two messages above keep the card, and a keep clause naming the card
    after a word of no row, as `Forget the card 4242, I don't need the card.`, still deletes it.
-2. Count, over the generator in `/home/david/.cache/cortex-run/2026-11-15/slot7/` and every
+2. Count, over the generator in `~/.cache/cortex-run/2026-11-15/slot7/` and every
    Romanian literal of the brain's forget tests, the rows each reader reads differently when a
    word of the message names a row holding the same word less a final `ul`, `le`, `a` or `ua`.
    Each row newly listed must be one the message asks to delete.

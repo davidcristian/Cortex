@@ -37,7 +37,7 @@ messages writes no such form, so its count of rows listed against the message ha
   `Forget the card 4242, I don't need the card.`, and 7 tests failed, among them the one in
   which a forget reports the stored row for Anna that no call matched. Left open: the fix
   needs the rows a keep clause names outside the matches, as step 2 says. The listing is
-  `cmp_v2.txt` in `/home/david/.cache/cortex-run/2026-11-21/f2/`. A keep clause naming a second
+  `cmp_v2.txt` in `~/.cache/cortex-run/2026-11-21/f2/`. A keep clause naming a second
   row that the row word names too lists the first:
   [R-1283](1283-a-keep-clause-naming-the-row-to-forget-and-a-second-row-its-word-names-lists-the-first.md).
 - 2026-11-23: done. `may_keep` (`forget_inside.py`) now keeps a row any reading of a keep

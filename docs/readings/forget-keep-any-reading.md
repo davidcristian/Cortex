@@ -24,7 +24,7 @@ forget tests, which have no such record. The extras include, for this change:
 - 6 calls with a plural row word after a word for all, and 4 of their near misses.
 
 The listings are `cmp_final.txt`, `costs_final.txt`, `full_before.json` and `full_final.json` in
-`/home/david/.cache/cortex-run/2026-11-23/f3/`; `replay.sh` takes them again.
+`~/.cache/cortex-run/2026-11-23/f3/`; `replay.sh` takes them again.
 
 | | before | after |
 | --- | --- | --- |
@@ -81,7 +81,7 @@ after it, and `after_value` reads only words naming a row by a word it holds or 
 The replay adds 76 calls to the generator: 19 messages in the five note languages, a plural or
 definite row word after a word for but with no forget verb before it or one after it in its
 clause, each with the call texts `4242` and the three row words. The listings are `x_after.json`
-and `x_broad.json` in `/home/david/.cache/cortex-run/2026-11-23/f4/` (`mkexc.py`, `xcount.py`,
+and `x_broad.json` in `~/.cache/cortex-run/2026-11-23/f4/` (`mkexc.py`, `xcount.py`,
 `exc.sh`).
 
 | | before | after |

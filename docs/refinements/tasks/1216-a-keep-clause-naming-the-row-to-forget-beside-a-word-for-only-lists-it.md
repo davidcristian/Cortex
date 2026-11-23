@@ -22,7 +22,7 @@ Romanian list none, since `nur`, `solo` and `doar` are function words of their l
    clause names no row and stands after the word naming the row to keep, and count the rows it
    newly keeps that the message asks to delete; `keep the card statement` is one of them, so
    decide on that count whether a row named beside a word naming no row is kept.
-3. Replay the generator in `/home/david/.cache/cortex-run/2026-11-15/slot7/` before and after: no
+3. Replay the generator in `~/.cache/cortex-run/2026-11-15/slot7/` before and after: no
    row may be newly listed.
 
 ## History

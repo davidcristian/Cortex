@@ -40,6 +40,6 @@ before `extends` too, lists the 12 and the 902 rows asked to keep. The 12 are in
 whose rows repeat an id, so that no row holds `1234`.
 
 The cases are written by `mk2.py` (4,104) and `mk.py` (12,768) and counted by `count.py`, in
-`/home/david/.cache/cortex-run/2026-11-23/f4/`, which also holds the generator in `f3gen/`;
+`~/.cache/cortex-run/2026-11-23/f4/`, which also holds the generator in `f3gen/`;
 `replay.sh after` takes the listings again, and the earlier trees' listings are in
-`/home/david/.cache/cortex-run/2026-11-23/a1/`.
+`~/.cache/cortex-run/2026-11-23/a1/`.

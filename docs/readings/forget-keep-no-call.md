@@ -228,4 +228,4 @@ The earlier reply to `Forget all 4242, only the card.` that asked whether to kee
 ended with the count note, which was due and is true. The next row, B with that card
 reading, passed this rule ([readings](forget-everything-but-call.md#the-rows-and-the-card-reading-together-2026-11-15)). Scripts `draws.sh`, `ident.sh` and `analyze.py`, logs
 `A-*.log` and `B-*.log`, and the B change as `reach.patch` with its 20 tests and 11 mutation rows,
-are in `/home/david/.cache/cortex-run/2026-11-15/slot8/`.
+are in `~/.cache/cortex-run/2026-11-15/slot8/`.

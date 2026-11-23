@@ -20,7 +20,7 @@ either way and 23 it does not ask for, as the card of `Uită 4242, și cardul, d
 tests, `Uită toate, cardul rămâne, dulapul rămâne.` with the call text `dulap` then lists the
 locker it asks to keep, and `Uită cardul 4242 mai puțin codul de la sală.` lists the card:
 `cardul` less its article is the row word `card`, which `names` then reads outside the words of
-`read_kinds`. The listing is `cmp_p1a.txt` in `/home/david/.cache/cortex-run/2026-11-21/f2/`.
+`read_kinds`. The listing is `cmp_p1a.txt` in `~/.cache/cortex-run/2026-11-21/f2/`.
 
 ## What to do
 

@@ -52,5 +52,5 @@ The card shows each row before anything is deleted.
   naming neither. One cost is outside the replay: with a code row stored, `Forget that code.`
   with the call text `card` keeps a card the chat just stored, and with the card's value as the
   call text still deletes it. The listing is `cmp_v2.txt` in
-  `/home/david/.cache/cortex-run/2026-11-21/f3/`. The forms left are filed:
+  `~/.cache/cortex-run/2026-11-21/f3/`. The forms left are filed:
   [R-1286](1286-a-forget-naming-a-code-deletes-another-row-after-a-word-for-all-or-for-a-code-word-in-another-number.md).

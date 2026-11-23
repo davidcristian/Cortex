@@ -21,7 +21,7 @@ Unit calls through `ForgetChosenTool`, each case over its own rows with the call
 the 57,916 and 57,096 calls of the two forget card generators (opening forms, then one or two
 clauses over 3 rows in the 5 note languages, extra forms and the strings of the forget tests)
 and 16,872 word pair cases. The listings are `f3_head.json`, `f3_after.json`, `f2_head.json`,
-`f2_after.json` and `diff.py` in `/home/david/.cache/cortex-run/2026-11-23/f5/`; `replay.sh`
+`f2_after.json` and `diff.py` in `~/.cache/cortex-run/2026-11-23/f5/`; `replay.sh`
 and `f2replay.sh` take them again.
 
 | | before | after |

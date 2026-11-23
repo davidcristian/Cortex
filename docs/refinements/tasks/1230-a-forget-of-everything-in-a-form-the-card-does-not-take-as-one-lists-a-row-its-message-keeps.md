@@ -33,7 +33,7 @@ or `4242` ([readings](../../readings/forget-everything-unread-role.md)):
    row and end in a word no reader reads, and count the limits that then keep a row asked to
    delete (`Forget all my card numbers please.`).
 4. Replay with `every.py`, `replay.sh` and `show.py` of the readings above, kept in
-   `/home/david/.cache/cortex-run/2026-11-15/slot13/`.
+   `~/.cache/cortex-run/2026-11-15/slot13/`.
 
 ## History
 

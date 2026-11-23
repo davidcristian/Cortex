@@ -108,7 +108,7 @@ reply's `Am reținut.` made due. So each of the four untrue sentences is followe
 that nothing was deleted. In a unit call the card keeps every row of the third message with any
 call text, and lists the card for the fifth with the text `card` or `4242`, since `tot` is not
 read. Both are filed. Logs `*.jsonl`, `*.log` and `*.left.txt` in
-`/home/david/.cache/cortex-run/2026-11-15/slot14/`; scripts `draws.sh` and `probe.py` in
+`~/.cache/cortex-run/2026-11-15/slot14/`; scripts `draws.sh` and `probe.py` in
 `/tmp/claude-1000/-home-david-Files-Git-Cortex/bd106a1a-a17f-4ca5-8841-82294e4917a8/scratchpad/slot14/`.
 
 ## The day's four card changes replayed together, 2026-11-15
