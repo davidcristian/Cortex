@@ -186,8 +186,8 @@ before the first draw. Against gemma-4-31B's 12 of 12 a cell reads apart only at
   10,458 without it, and after 9670 at `medium`. Each would have filled the first rows' 8192. No
   Q1 to Q3 draw generated more than 6799 tokens, as predicted.
 - **A handoff's room.** 5 of the 24 `xhigh` draws, 1 undrafted draw of the 24 at `medium` and 1 of
-  the 12 `low` draws generated more than the 5521 tokens a full history window leaves at 16384
-  ([R-1271](../refinements/tasks/1271-no-stop-row-is-drawn-beside-a-full-handoff-prompt.md)).
+  the 12 `low` draws generated more than the 5521 tokens a full history window leaves at 16384.
+  [Behind a full handoff prompt](deep-handoff-room.md) both drafted cells stopped on 11 of 12.
 - **The effort field.** `POST /apply-template` on the deep server renders the `xhigh` sentence
   when nothing, `high` or `xhigh` is sent, a `low` sentence at `low` and no effort sentence at
   `medium`: 322, 310 and 284 prompt tokens on Q3, which a completion's `usage.prompt_tokens`

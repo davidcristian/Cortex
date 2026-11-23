@@ -1,9 +1,8 @@
 # No stop row is drawn beside a full handoff prompt
 
-**Status:** open, actionable
+**Status:** done 2026-11-23
 **Area:** inference-model-manager
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-11-21
 
 Every stop row sends the plain security preamble and one question, a prompt of about 300 tokens,
 so a draw has nearly the whole context to reason in
@@ -38,3 +37,10 @@ effort at which no draw of the 16384 rows generates more than 5,521 tokens.
   generated at most 5,123 tokens and one undrafted draw generated 10,207
   ([readings](../../readings/deep-effort.md#the-drafted-medium-stop-cell)). The row is still to
   draw.
+- 2026-11-23: drawn behind a prompt of 10,800 tokens on engine build b12375, each entry started
+  by the model host with its file named, with the pass rule written before the first launch
+  ([readings](../../readings/deep-handoff-room.md)). The pick with its draft layer stopped with a
+  reply on 11 of 12 at `medium` and 11 at `xhigh`, and the alternate's `UD-Q4_K_XL` file on 9.
+  ADR-0004 decision 8 now gives those counts. The rule files nothing at 11, and filed
+  [R-1302](1302-a-full-handoff-prompt-leaves-the-alternate-deep-model-too-little-context-to-reply.md)
+  for the alternate's 9.
