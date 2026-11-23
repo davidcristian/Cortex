@@ -123,7 +123,12 @@ check`" into a category ([ADR-0011](ADR-0011-body-v1.md)).
     does not. The deepest mount that contains the directory is the one a write there reaches,
     and it must be a named volume or a bind: a short `source:target` entry, or a long entry of
     type `volume` or `bind` that names a source. A tmpfs, a volume with no source and every
-    other type fail, because a new container gets each of them empty. Any file mounting one
+    other type fail, because a new container gets each of them empty. A named volume must also
+    be declared in a top-level `volumes:` block (`composevolumes.py` reads it) with no key but
+    `name` or `labels` in every file that declares it: a `driver`, `driver_opts` such as
+    `type: tmpfs`, or `external` can keep it in memory, and an undeclared or unread form fails
+    the same way. A bind whose host directory is itself in memory cannot be read from a compose
+    file and stays outside the scan. Any file mounting one
     of those at that target fails the service, since the scan does not read which files run
     together; a tmpfs that an override replaces with a volume therefore fails, and no file
     here does that. Services are merged across the compose files, as compose merges them, because
@@ -164,7 +169,7 @@ check`" into a category ([ADR-0011](ADR-0011-body-v1.md)).
 
 - Code: `scripts/volumecheck.py`, `imagevolumes.py`, `imagedrift.py`, `dockerfilevolumes.py`,
   `dockerfilebases.py`, `composeservices.py`, `composetargets.py`, `kernelcache.py`,
-  `composestarts.py`; recipes `check-volumecheck` and
+  `composestarts.py`, `composevolumes.py`; recipes `check-volumecheck` and
   `image-volumes`.
 - [Readings: what images declare](../readings/image-volumes.md);
   [repo checks](../modules/repo-checks.md).

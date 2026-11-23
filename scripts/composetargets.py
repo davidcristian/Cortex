@@ -15,6 +15,8 @@ _ALIAS = re.compile(r"^\*(?P<anchor>[\w.-]+)$")
 _FIELDS = 2
 
 KEPT_TYPES = frozenset({"volume", "bind"})
+VOLUME_TYPE = "volume"
+HOST_PATHS = ("/", ".", "~")
 
 
 class ComposeServiceError(Exception):
@@ -28,10 +30,12 @@ def normalize(path: str) -> str:
 
 
 class Mounted(NamedTuple):
-    """One service's mount targets: all of them, and those a new container gets empty."""
+    """One service's mount targets: all of them, those a new container gets empty, and each one
+    a named volume holds, with that volume's name."""
 
     covered: list[str]
     temporary: list[str]
+    named: list[tuple[str, str]]
 
 
 class Targets:
@@ -68,13 +72,15 @@ class Targets:
         if target is None:
             msg = f"line {line}: mount entry declares no target"
             raise ComposeServiceError(msg)
-        path = self.resolve(line, target)
+        path, source = self.resolve(line, target), fields.get("source")
         sink.covered.append(path)
-        if fields.get("type") not in KEPT_TYPES or not fields.get("source"):
+        if fields.get("type") not in KEPT_TYPES or not source:
             sink.temporary.append(path)
+        elif fields.get("type") == VOLUME_TYPE:
+            sink.named.append((path, source))
 
-    def short(self, number: int, entry: str) -> str:
-        """The container path a short-syntax mount names, its second colon-separated field."""
+    def short(self, number: int, entry: str) -> tuple[str, str]:
+        """The source and the container path a short-syntax mount names, its first two fields."""
         text = strip_quotes(entry)
         if "$" in text:
             msg = f"line {number}: short mount {entry!r} contains an expansion; use the long form"
@@ -83,7 +89,7 @@ class Targets:
         if len(parts) < _FIELDS or not parts[0]:
             msg = f"line {number}: mount entry {entry!r} is not source:target"
             raise ComposeServiceError(msg)
-        return self.resolve(number, parts[1])
+        return parts[0], self.resolve(number, parts[1])
 
     def start(self, number: int, entry: str, sink: Mounted, *, whole: bool) -> None:
         """Begin one list entry: a whole path under `tmpfs:`, and a mount under `volumes:`."""
@@ -98,7 +104,10 @@ class Targets:
             return
         pair = KEY.match(entry) if entry else None
         if entry and pair is None:
-            sink.covered.append(self.short(number, entry))
+            source, path = self.short(number, entry)
+            sink.covered.append(path)
+            if not source.startswith(HOST_PATHS):
+                sink.named.append((path, source))
             return
         self.entry, self.line, self.sink = {}, number, sink
         if pair is not None:

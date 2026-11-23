@@ -37,6 +37,7 @@ class Service(NamedTuple):
     build: Build | None
     covered: tuple[str, ...]
     temporary: tuple[str, ...]
+    named: tuple[tuple[str, str], ...]
 
     @property
     def builds(self) -> bool:
@@ -67,7 +68,7 @@ class _Draft:
         self.build_line = 0
         self.context: str | None = None
         self.dockerfile = DEFAULT_DOCKERFILE
-        self.mounted = Mounted([], [])
+        self.mounted = Mounted([], [], [])
 
     def done(self) -> Service:
         """The finished service, with its covered paths frozen in the order they were written."""
@@ -78,7 +79,8 @@ class _Draft:
                 raise ComposeServiceError(msg)
             build = Build(self.context, self.dockerfile)
         covered, temporary = tuple(self.mounted.covered), tuple(self.mounted.temporary)
-        return Service(self.name, self.line, self.image, build, covered, temporary)
+        named = tuple(self.mounted.named)
+        return Service(self.name, self.line, self.image, build, covered, temporary, named)
 
 
 class _Reader:

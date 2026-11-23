@@ -29,8 +29,11 @@ def _service(*parts: str, name: str = "host") -> str:
     return f"  {name}:\n    image: host:1\n" + "".join(parts)
 
 
-def _source(*services: str, name: str = GPU) -> Source:
-    text = "services:\n" + "".join(services)
+PLAIN = "volumes:\n  kernels:\n"
+
+
+def _source(*services: str, name: str = GPU, declared: str = PLAIN) -> Source:
+    text = "services:\n" + "".join(services) + declared
     return Source(name, text, read_services(text))
 
 
@@ -253,3 +256,57 @@ def test_a_tmpfs_any_file_mounts_at_the_volumes_target_is_reported(order: tuple[
     (fault,) = kernel_caches([base, overlay]).faults
     assert fault.path == "docker/docker-compose.yml"
     assert "is not a named volume or a bind in every compose file" in fault.detail
+
+
+DRIVEN = "the named volume 'kernels' over it at '/srv/keep' is declared in no top-level volumes"
+
+
+@pytest.mark.parametrize(
+    "declared",
+    [
+        "",
+        "volumes:\n  other:\n",
+        PLAIN + "    driver: local\n    driver_opts:\n      type: tmpfs\n      device: tmpfs\n",
+        PLAIN + "    external: true\n",
+        "volumes:\n  kernels: {}\n",
+    ],
+)
+@pytest.mark.parametrize("mount", [_mount(), "    volumes:\n      - kernels:/srv/keep\n"])
+def test_a_named_volume_not_declared_plainly_does_not_keep_the_kernels(
+    declared: str, mount: str
+) -> None:
+    (fault,) = kernel_caches([_source(_service(_env(), mount, CARD), declared=declared)]).faults
+    assert (fault.path, fault.line) == (GPU, 2)
+    assert f"sets {CACHE_VARIABLE} to '/srv/keep/kernels' and {DRIVEN}" in fault.detail
+
+
+def test_a_named_volume_with_a_name_and_labels_keeps_the_kernels() -> None:
+    declared = PLAIN + "    name: cortex-kernels\n    labels:\n      driver: tmpfs\n"
+    assert kernel_caches([_source(_service(_env(), _mount(), CARD), declared=declared)]) == (1, ())
+
+
+@pytest.mark.parametrize("order", [(0, 1), (1, 0)])
+def test_a_driver_any_file_declares_for_the_volume_is_reported(order: tuple[int, int]) -> None:
+    declared = (PLAIN, PLAIN + "    driver: local\n")
+    base = _source(_service(_env()), name="docker/docker-compose.yml", declared=declared[order[0]])
+    overlay = _source(_service(_mount(), CARD), declared=declared[order[1]])
+    (fault,) = kernel_caches([base, overlay]).faults
+    assert DRIVEN in fault.detail
+
+
+def test_a_declaration_in_another_file_counts_for_the_volume() -> None:
+    base = _source(_service(_env()), name="docker/docker-compose.yml")
+    overlay = _source(_service(_mount(), CARD), declared="")
+    assert kernel_caches([base, overlay]) == (1, ())
+
+
+def test_only_the_named_volume_over_the_directory_is_judged() -> None:
+    other = "      - type: volume\n        source: other\n        target: /srv/elsewhere\n"
+    assert _judge(_env(), _mount() + other, CARD) == ()
+
+
+def test_a_bind_below_a_driven_volume_and_over_the_directory_keeps_the_kernels() -> None:
+    bind = _typed("bind", "/srv/keep/kernels", "./kernels")
+    driven = PLAIN + "    driver: local\n"
+    service = _service(_env(), _mount() + bind, CARD)
+    assert kernel_caches([_source(service, declared=driven)]) == (1, ())

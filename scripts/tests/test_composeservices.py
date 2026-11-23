@@ -307,3 +307,23 @@ def test_only_a_named_volume_or_a_bind_is_left_out_of_the_temporary_mounts(
 def test_a_short_mount_with_no_source_is_refused() -> None:
     with pytest.raises(ComposeServiceError, match="line 5: mount entry ':/a' is not source:target"):
         read_services("services:\n  r:\n    image: r\n    volumes:\n      - :/a\n")
+
+
+@pytest.mark.parametrize(
+    ("mounts", "named"),
+    [
+        ("    volumes:\n      - keep:/a\n", (("/a", "keep"),)),
+        ("    volumes:\n      - ./b:/a:ro\n      - ~/b:/c\n      - /b:/d\n", ()),
+        (
+            "    volumes:\n      - type: volume\n        source: keep\n        target: /a/\n",
+            (("/a", "keep"),),
+        ),
+        ("    volumes:\n      - type: bind\n        source: keep\n        target: /a\n", ()),
+        ("    volumes:\n      - type: volume\n        target: /a\n", ()),
+        ("    tmpfs:\n      - /a\n", ()),
+    ],
+)
+def test_each_mount_a_named_volume_holds_is_read_with_the_volumes_name(
+    mounts: str, named: tuple[tuple[str, str], ...]
+) -> None:
+    assert _one("services:\n  r:\n    image: r\n" + mounts).named == named

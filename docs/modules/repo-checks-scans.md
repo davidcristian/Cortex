@@ -153,8 +153,8 @@ image's row, and so must every path declared by the image its last stage is buil
 rather than all of what it declares. A build-only service's image name is computed as
 `{project}-{service}`, the project read from the file's own `name:` and otherwise from the single
 bare-stemmed base file. A last rule reads the merged stack (`kernelcache.py`, ADR-0067 decision 11):
-a service given the card must set `CUDA_CACHE_PATH`, written out, to a directory under a named
-volume or a bind, never a tmpfs. Otherwise every new container compiles the card's kernels again.
+a service given the card must set `CUDA_CACHE_PATH`, written out, to a directory under a bind or a
+named volume declared with no driver, so that a new container does not compile the kernels again.
 
 ## `stubcheck.py`
 

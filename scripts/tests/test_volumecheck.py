@@ -275,7 +275,8 @@ def test_a_service_given_the_card_with_its_kernels_under_a_volume_is_accounted_f
     tree: Path,
 ) -> None:
     kept = _DIRECTORY + "    volumes:\n      - kernels:/srv/keep\n"
-    _write(tree, "docker/docker-compose.gpu.yml", _service(_CARDED + kept, "cache"))
+    declared = "volumes:\n  kernels:\n"
+    _write(tree, "docker/docker-compose.gpu.yml", _service(_CARDED + kept, "cache") + declared)
     scanned = volumecheck.check(tree, RECORDS)
     assert (scanned.carded, scanned.uncached) == (1, ())
 
@@ -314,8 +315,8 @@ def test_main_counts_a_kernel_fault_apart_from_the_declarations(
     assert captured.out.startswith("docker/docker-compose.gpu.yml:2: service 'cache' is given")
     assert captured.err == (
         "\nvolumecheck: 1 problem(s) with where a service given the card writes its compiled "
-        "kernels. Set CUDA_CACHE_PATH for the service to a directory under a named volume or "
-        "a bind, with the path written out.\n"
+        "kernels. Set CUDA_CACHE_PATH for the service to a directory under a bind or a named "
+        "volume declared with no driver, with the path written out.\n"
     )
 
 

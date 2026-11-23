@@ -1,9 +1,8 @@
 # A named volume kept in memory passes the kernel rule
 
-**Status:** open, actionable
+**Status:** done 2026-11-23
 **Area:** repo-checks
 **Origin:** [ADR-0067](../../adr/ADR-0067-image-volume-record.md)
-**Verified:** 2026-11-22
 
 `scripts/kernelcache.py` accepts a mount over the `CUDA_CACHE_PATH` directory when the entry
 under the service is a named volume or a bind. It does not read the top-level `volumes:` block,
@@ -22,3 +21,8 @@ compose file and stays outside the scan.
 ## History
 
 - 2026-11-22: filed when the kernel rule began to refuse a tmpfs mount.
+- 2026-11-23: Closed. `scripts/composevolumes.py` reads each top-level `volumes:` block, and
+  `kernelcache.py` fails a named volume over the kernel directory unless every file declaring it
+  sets no key but `name` or `labels`; an undeclared volume, an inline value and an unread line
+  fail too. With the `compute-cache` declaration given `driver_opts` of `type: tmpfs`,
+  `volumecheck.py --root ..` exited 1 and named the volume; restored, it exited 0.
