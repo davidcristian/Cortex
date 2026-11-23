@@ -129,7 +129,7 @@ async def test_a_call_naming_a_row_the_message_permits_deletes_it(
         "Yes, forget it.",
         "Forget what I just told you.",
         "Forget my gym code.",
-        "Forget the 9999 one.",
+        "Forget the code.",
     ],
 )
 async def test_a_message_naming_no_stored_row_lists_what_the_call_names(query: str) -> None:

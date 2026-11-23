@@ -91,6 +91,11 @@ async def test_a_word_call_beside_a_code_word_naming_another_stored_row_deletes_
         ("Forget my gym code.", "phone", ("phone", "noted"), {"phone"}),
         ("Forget my gym code.", "phone", ("phone", "postcode"), {"phone"}),
         ("Forget everything and my code.", "phone", _THREE, {"phone"}),
+        ("Forget my gym password.", "phone", _THREE, {"phone"}),
+        ("Forget my card, I got it on 12 March.", "card", _THREE, {"card"}),
+        ("Forget what I told you on 12 March.", "phone", _THREE, {"phone"}),
+        ("Forget my phone 9999.", "phone", _THREE, {"phone"}),
+        ("Forget everything, 9999 too.", "phone", _THREE, {"phone"}),
     ],
 )
 async def test_a_word_call_beside_no_code_word_naming_a_stored_row_deletes_what_it_names(
@@ -208,6 +213,25 @@ async def test_a_call_holding_a_digit_beside_a_message_holding_another_value_del
     query: str, text: str
 ) -> None:
     assert (await _deleted(query, text))[0] == set()
+
+
+@pytest.mark.parametrize(
+    ("query", "text", "said"),
+    [
+        ("Forget 9999.", "phone", ""),
+        ("Forget 9999.", "card", ""),
+        ("Forget my gym password 9999.", "phone", ""),
+        ("Forget the 9999 one.", "phone", ""),
+        ("Forget the 9999 one.", "card", "card"),
+        ("Forget my phone 9999.", "card", ""),
+        ("Oublie 9999.", "carte", ""),
+    ],
+)
+async def test_a_word_call_beside_a_message_holding_a_value_no_row_holds_deletes_nothing(
+    query: str, text: str, said: str
+) -> None:
+    ids = ("locker", "card", "phone", "carte")
+    assert (await _deleted(query, text, ids, said))[0] == set()
 
 
 @pytest.mark.parametrize(

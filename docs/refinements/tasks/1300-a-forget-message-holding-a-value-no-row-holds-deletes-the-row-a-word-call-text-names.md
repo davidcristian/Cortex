@@ -1,9 +1,8 @@
 # A forget message holding a value no row holds deletes the row a word call text names
 
-**Status:** open, actionable
+**Status:** done 2026-11-23
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-22
 
 Over a locker code, a card and a phone, in unit calls through `ForgetChosenTool` on 2026-11-22:
 
@@ -38,3 +37,10 @@ The card shows each row before anything is deleted.
 - 2026-11-22: filed after a call text holding a digit beside a message holding another value
   was read
   ([R-1288](1288-a-forget-message-holding-a-value-deletes-another-row-for-a-call-text-holding-another-value.md)).
+- 2026-11-23: done. A call text holding no digit beside a message holding a whole value that no
+  stored row matches is read as `_apart` reads one holding a digit, and `_same_fact` reads the rows
+  such a message names. Over the generator and 10,295 calls of the test strings no row was newly
+  listed, the 51 rows listed for the 72 new messages are kept, no near-miss row is newly kept, and
+  of the 96 rows newly kept under a string holding a forget verb none is one it asks to delete and
+  4 are rows `Forget my bike lock code and all 7319s.` may ask for
+  ([readings](../../readings/forget-everything-but-call.md#a-call-naming-a-row-the-message-does-not-name-2026-11-15)).

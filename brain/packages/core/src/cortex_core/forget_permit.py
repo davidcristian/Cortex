@@ -47,9 +47,9 @@ def _digit(text: str) -> bool:
 def _same_fact(
     call: ToolCall, told: Sequence[MemoryRecord], seen: Sequence[MemoryRecord], *, apart: bool
 ) -> frozenset[str] | None:
-    """The ids a message permits a call text holding a digit to list: the rows ``told`` it names
-    and each of ``seen`` holding a whole value of one, as a recall of it does. ``None`` when it
-    names no row, or holds a digit and the call's values are not ``apart`` from its own."""
+    """The ids a message permits a call text holding a digit, or one ``apart`` from it, to list:
+    the rows ``told`` it names and each of ``seen`` holding a whole value of one, as a recall does.
+    ``None`` when it names no row, or holds a digit and the call's values are not ``apart``."""
     if not told or (_digit(call.stamp.query) and not apart):
         return None
     values = {key for row in told for key in whole_values(row.text)}
@@ -128,11 +128,13 @@ def everything(query: str) -> tuple[int, int] | None:
 
 
 def _apart(call: ToolCall) -> bool:
-    """Whether the call's text and its message each hold a digit and share no whole value, in a
-    message that is no forget of ``everything``: the message alone then says which rows."""
+    """Whether a message that is no forget of ``everything`` holds a digit and shares no whole
+    value with a call text holding one, or holds a whole value beside a text holding none."""
     text, query = call_text(call), call.stamp.query
-    if not (_digit(text) and _digit(query)) or everything(query) is not None:
+    if not _digit(query) or everything(query) is not None:
         return False
+    if not _digit(text):
+        return bool(whole_values(query))
     return whole_values(text).keys().isdisjoint(whole_values(query))
 
 
@@ -178,7 +180,7 @@ async def message_rows(
     told = await forget_named(store, scope, call, FORGET_CHOSEN_LIMIT + 1, seen)
     apart = _apart(call)
     allowed = await permitted(call, told, listing, apart=apart)
-    if allowed is None and _digit(call_text(call)):
+    if allowed is None and (apart or _digit(call_text(call))):
         allowed = _same_fact(call, told, seen, apart=apart)
     if allowed is None:
         allowed = await _coded(store, scope, call, told, seen, apart=apart)
