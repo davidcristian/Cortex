@@ -46,7 +46,7 @@ is a code row; no card row is listed. Each of the 890 rows the third pool newly 
 is one its message asks to delete: none is a row the message asks to keep, names in a role no
 reader reads, or does not ask for. Scripts `gen9.py`, `run_words.py`, `cmp_words.py`, `replay.py`,
 `run.py`, `poolcmp.py` and log `replay_all3.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/bd106a1a-a17f-4ca5-8841-82294e4917a8/scratchpad/slot9/`.
+the `slot9` scratch directory of the 2026-11-15 run.
 
 ## A call naming a row the message does not name, 2026-11-15
 
@@ -85,7 +85,7 @@ Of the 1,072 newly kept rows, 698 are rows the message does not ask for, 56 it a
 it names in a role no reader reads, and 298 it asks to delete. All 298 are in Romanian messages
 that start `Uită toate`, a word for all the card does not read. Scripts `replay_final.sh`,
 `dcases.py`, `dlang.py` and log `replay_final2.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/bd106a1a-a17f-4ca5-8841-82294e4917a8/scratchpad/slot10/`,
+the `slot10` scratch directory of the 2026-11-15 run,
 with slot 9's generator and runners.
 
 ## A removal named after calls that kept every row, 2026-11-15

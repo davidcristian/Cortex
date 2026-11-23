@@ -20,7 +20,7 @@ fail as unreadable.
 One request through the changed adapter to the `cortexn12` stack's cortex (gemma-4-12B at context
 16,384, llama-server build `b12004-3c809f443`) asked for 60 calls of a `set_volume` tool in one reply,
 with `max_tokens` 1,200. Script and log: `freeslot.py` and `freeslot.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/545ea45a-902e-44a3-86aa-5ec869e6c085/scratchpad/slot4/`.
+the `slot4` scratch directory of the 2026-10-31 run.
 
 - The first attempt wrote the run. 17 `ToolCall` events crossed the port, and no `DecodeStop`.
 - The server logged `srv stop: cancel task, id_task = 290334`, then `slot release: id 0 | task 290334

@@ -63,7 +63,7 @@ beside the German card.
 The audit's probe (`probe.py`, `cases1.json` to `cases4.json`) changed 9 of its cases, each now
 deleting only the row the case wants, and none lists more. The scripts `replay.py`, `strings.py`
 and the logs `old.jsonl`, `new.jsonl`, `diff.txt` and `probe_*.txt` are in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/b21ab427-7e2c-4723-9504-d59e434516ce/scratchpad/slot11/`.
+the `slot11` scratch directory of the 2026-11-13 run.
 
 ## A kind word beside a remark: replay through HEAD and the change
 
@@ -86,7 +86,7 @@ asking part names no row holding `4242` whole and `inside` reads the whole messa
 ([task 1189](../refinements/tasks/1189-a-remark-beside-no-whole-row-lists-the-row-it-names.md)).
 The scripts `replay2.sh` and `strings.json` and the logs `old2.jsonl`, `new2.jsonl` and
 `diff2.txt` are in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/b21ab427-7e2c-4723-9504-d59e434516ce/scratchpad/slot13/`,
+the `slot13` scratch directory of the 2026-11-13 run,
 with `replay.py` in `slot11/` beside it.
 
 ## Neighbouring flows on the live stack: rows and the rule
@@ -146,7 +146,7 @@ and the change differ in 28 rows, each kept by the change and deleted before it,
 deleted by the change and kept before it. The 28 come from 8 messages: 24 phone rows of six
 messages with a remark naming the phone, and 4 card rows of two stored replies about an old phone
 number. The script `replay.py` and the logs `replay-old.jsonl` and `replay-new.jsonl` are in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/11450320-079c-401d-9f26-43a763a369b6/scratchpad/slot1/`.
+the `slot1` scratch directory of the 2026-11-14 run.
 
 **Live rows and the rule**, set before any draw. Builds `cortexn22-brain-head` (the tree before the
 change) and `cortexn22-brain-s1fix` (the working tree with it), every tool listed, through the
@@ -213,7 +213,7 @@ my phone`, `plus my phone`, `My phone as well.` as a second sentence, `mon t√©l√
 aussi` and `die Karte auch`, and also the Visa card beside it in the set of all eight rows, which
 `Forget the locker code 4242, and the card one too.` deleted before the change too. The script
 `replay.py`, the message file `extra.txt` and the logs `replay-old.jsonl` and `replay-new.jsonl`
-are in `/tmp/claude-1000/-home-david-Files-Git-Cortex/11450320-079c-401d-9f26-43a763a369b6/scratchpad/slot3/`.
+are in the `slot3` scratch directory of the 2026-11-14 run.
 
 **Live rows and the rule**, set before any draw, with the setup of the rows above: builds
 `cortexn22-brain-s2fact` (the tree before the change) and `cortexn22-brain-s3add` (the change).

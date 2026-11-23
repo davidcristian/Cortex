@@ -35,7 +35,7 @@ row. The reader's tests decide the rest, as the last section says. Null result: 
 or Z1, or a P1 draw that loses the row.
 
 Run log `d971.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/545ea45a-902e-44a3-86aa-5ec869e6c085/scratchpad/slot8/`, the
+the `slot8` scratch directory of the 2026-10-31 run, the
 SM clock at 0.21 of its maximum at the end of the first run and 0.10 at the end of the second. No draw
 ended in an error.
 
@@ -100,7 +100,7 @@ flights.`, W4 `Remember that my son can swim.`, 3 draws each. A draw with a card
 defect. Null result: no card in the 12 draws.
 
 Run log `d1.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/545ea45a-902e-44a3-86aa-5ec869e6c085/scratchpad/slot9/`,
+the `slot9` scratch directory of the 2026-10-31 run,
 the SM clock at 0.21 of its maximum at the end. All 12 draws made no forget call, showed no card and
 kept the row, and each reply says the fact was noted. That is the null result on 12 draws, which cannot
 rule out a low rate
@@ -119,7 +119,7 @@ The readers' tests decide this, since no recorded draw has both the wording and 
 call. The replay of the 27,162 quoted strings in `docs/readings/`, the task files and the brain tests
 changes `claims_kept` on 4, all `I'll make sure to keep` or `save` in mind or memory, three of them the
 new tests. Replay script and log `replay.py` and `replay.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/7993c5bc-88df-4188-a4c9-74349733b88c/scratchpad/slot2/`.
+the `slot2` scratch directory of the 2026-11-05 run.
 
 Real turns on a brain built from the change, written before the draw as a check that it runs and not
 as a rule: V1 `Keep in mind that I am vegetarian.` and V2 `Please remember this: I am vegetarian, so
@@ -159,7 +159,7 @@ the test file as it was before the change: of the 408 read as requests to rememb
 refuses the forget tool on 103 and the new one on 105. The two added are `Please remember this: my
 bank's name is Askari.` and `Please remember this: my landlord is called Mr. Weber.`, and none is
 newly kept. Replay script and log `replay.py` and `replay.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/7993c5bc-88df-4188-a4c9-74349733b88c/scratchpad/slot3/`.
+the `slot3` scratch directory of the 2026-11-05 run.
 
 A negation, a question and a real second sentence still keep the tool. They are how a forget request
 reads (`Remember I don't need the locker code anymore.`), a refused forget costs a second message, and

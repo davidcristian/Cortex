@@ -44,7 +44,7 @@ for each draw, every card approved, `memories` empty at each draw's start. After
 ## Baseline, 2026-10-30
 
 Run log `base.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/def04344-43c5-4abe-b022-0038411a4a36/scratchpad/slot7/`,
+the `slot7` scratch directory of the 2026-10-30 run,
 the shipped build, the SM clock at 0.60 of its maximum at the start and 0.59 at the end.
 
 | Rows | Result | What the draws did |
@@ -101,7 +101,7 @@ against the baseline's 5 of 30. The rig is the one above, on the shipped candida
 ## The forget calls on a request to remember: replication, 2026-10-30
 
 Run log `rep.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/def04344-43c5-4abe-b022-0038411a4a36/scratchpad/slot8/`,
+the `slot8` scratch directory of the 2026-10-30 run,
 the shipped candidate build, the SM clock at 0.63 of its maximum at the start and 0.60 at the end.
 8 of the 30 draws called `forget_memories` (R03 and R08 twice, R01, R06, R09 and R15 once), every
 draw stored its fact, and none called a tool with a side effect. 8 of 30 is no result, so the
@@ -146,7 +146,7 @@ an error is not counted and is drawn again at the end of its pass.
 ## The forget calls on a request to remember: separated pair, the draws, 2026-10-31
 
 Run log `pair.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/545ea45a-902e-44a3-86aa-5ec869e6c085/scratchpad/slot2/`.
+the `slot2` scratch directory of the 2026-10-31 run.
 Each image's brain packages matched its archive file for file, and the two differ only in the
 change. The SM clock read 0.21 to 0.22 of its maximum just after each draw, on a card back near
 idle. No draw ended in an error and `memories` was empty at every draw's start.

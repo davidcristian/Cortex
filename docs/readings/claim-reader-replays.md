@@ -10,7 +10,7 @@ by hand.
 The corpus is every string in the run logs of the nights of 2026-10-30 and 2026-10-31 and in the
 `measurements/` logs, 155 files, with the messages the readings, the tests and the draw drivers name:
 13,458 distinct strings. A string is read when a sentence of it is. Scripts `corpus.py` and `replay.py`
-in `/tmp/claude-1000/-home-david-Files-Git-Cortex/545ea45a-902e-44a3-86aa-5ec869e6c085/scratchpad/slot5/`.
+in the `slot5` scratch directory of the 2026-10-31 run.
 A count of strings is over that corpus and not a rate, since a draw's reply can appear in several logs.
 
 ## A new value and the old one, 2026-10-31
@@ -139,7 +139,7 @@ and a forget call the model wrote as unreadable JSON.
 
 ## The note on every withheld request to remember: the draws, 2026-10-31
 
-Run log `keep.jsonl` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/545ea45a-902e-44a3-86aa-5ec869e6c085/scratchpad/slot6/`,
+Run log `keep.jsonl` in the `slot6` scratch directory of the 2026-10-31 run,
 the SM clock at 0.21 to 0.22 of its maximum at the start and the end. No draw ended in an error.
 
 | Row | Draws | Result |
@@ -181,7 +181,7 @@ yourself` or before a person and a gerund (`keep me waiting`), and any negated k
 `everything` or `it all` followed by "but", "just" or "only" and a keep verb. The corpus is the
 draw records of both nights' slot directories (135 strings), every string in the brain's test files
 (7,781) and every backticked text in `docs/` (5,663): 13,259 distinct strings. Script `replay.py` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot2/`.
+the `slot2` scratch directory of the 2026-11-08 run.
 
 | Reader | Old reads | New reads | False to true | True to false |
 | --- | --- | --- | --- | --- |
@@ -232,7 +232,7 @@ sentence, ends its clause at a comma, semicolon or colon not followed by `or`, `
 `send`, `spread`). `Don't keep this to yourself or anyone, it's my PIN 4412` is withheld; `Don't
 keep it to yourself, tell my sister.` is stored. The corpus is the draw records of both nights'
 slot directories (163 person messages) and every quoted string in `docs/` and the brain's test
-files (38,068 others). Script `replay1.py` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot10/`.
+files (38,068 others). Script `replay1.py` in the `slot10` scratch directory of the 2026-11-08 run.
 
 | Corpus | Strings | Read as not kept now | Changed |
 | --- | --- | --- | --- |
@@ -245,6 +245,6 @@ The 10 are this change's own near misses and the task's example; nothing became 
 
 `asks_not_kept` now reads a request not to keep after `I mean` or `I meant`, and a keep verb
 before `nowhere` (not `nowhere near`) at a clause start. Same corpus and method, script
-`replay2.py` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot14/`: of 175 recorded messages 27 read as not kept before and after, 0 changed;
+`replay2.py` in the `slot14` scratch directory of the 2026-11-08 run: of 175 recorded messages 27 read as not kept before and after, 0 changed;
 of 38,310 docs and tests strings 207 became 216, 9 false to true, all this change's own tests and
 the task's examples. Nothing became stored.

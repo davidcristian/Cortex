@@ -13,9 +13,9 @@ wording in its request is the recall block ("Relevant memories from earlier conv
 On 2026-11-07 the `cortexn15` stack (gemma-4-12B at context 16,384, llama-server build
 `b12169-3ed7284f2`, the SM clock at 0.57 of its maximum) drew five requests to remember over
 `Converse`, each in a new chat with every card approved. Run logs `turns.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/37073e3c-5ca6-42f6-aae1-df9e67b0e4db/scratchpad/stack/logs/`
+`stack/logs/` in the scratch directory of the 2026-11-07 run
 and `remember.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/37073e3c-5ca6-42f6-aae1-df9e67b0e4db/scratchpad/slot1/`.
+the `slot1` scratch directory of the 2026-11-07 run.
 
 | Message | Trace characters | Tool the trace looked for | Reply limits the fact to this chat |
 | --- | --- | --- | --- |

@@ -121,4 +121,4 @@ lists the card did not hold: in all 3 draws the unnamed reader kept the card, si
 `ending` are no words of the card row, and the note named it. That is the safe side the table
 declines to, and the person asks again naming the card. Scripts `live.sh`, `calls.py` and `summ.py`
 and log `draws.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/d2003893-7ebe-4ec3-ad1c-e92980017fd3/scratchpad/slot6/`.
+the `slot6` scratch directory of the 2026-11-12 run.

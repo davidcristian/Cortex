@@ -11,7 +11,7 @@ row, which holds `4242` as the last group of a longer value, though the message 
 value but the card. The kept note names the phone row, so the person sees it, and keeping is the
 card's safe direction. The start build `cec7c748f` and HEAD `c0e02329e` do the same. The probe is
 `probe.py` with `cases2.json` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/b21ab427-7e2c-4723-9504-d59e434516ce/scratchpad/slot10/`.
+the `slot10` scratch directory of the 2026-11-13 run.
 
 ## What to do
 

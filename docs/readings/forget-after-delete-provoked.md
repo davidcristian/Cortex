@@ -37,7 +37,7 @@ exchange a real turn of `Remember that my phone number is 0612345678.` stored on
 ## The draws, 2026-11-07
 
 Run logs `rows.jsonl`, `spans.txt`, `analysis.txt`, `mem.txt` and `rows.clock` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/37073e3c-5ca6-42f6-aae1-df9e67b0e4db/scratchpad/slot2/`,
+the `slot2` scratch directory of the 2026-11-07 run,
 the proxy's `req.log` in `stack/logs/` beside it, on the candidate `cortexn15-brain-r969` beside the
 stack brain of the commit that adds a task for the store tool search on a request to remember. The
 SM clock read 0.57 to 0.65 of its maximum before the draws. No draw ended in an error; the 15 draws
@@ -101,7 +101,7 @@ draw, **every card denied** (`turn.py --approve none`), and the seed row copied 
 
 Run logs `turn-D01-*.log`, `turn-D02-*.log`, `rows.jsonl`, `spans.txt`, `analysis.txt`, `replay.txt`
 and `rows.clock` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/37073e3c-5ca6-42f6-aae1-df9e67b0e4db/scratchpad/slot6/`.
+the `slot6` scratch directory of the 2026-11-07 run.
 All 30 draws ended `turn_complete`. The SM clock read 0.57 of its maximum at the start and 0.64 at
 the end. The `memories` ids after the draws matched those before.
 

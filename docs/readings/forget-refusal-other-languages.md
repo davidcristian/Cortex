@@ -72,7 +72,7 @@ Finnish, Norwegian and Polish it gives the start build's result: 42 keep the too
 `a-z` ([task 1168](../refinements/tasks/1168-a-request-to-forget-in-another-language-written-in-a-z-refuses-the-forget-tool.md)).
 On the 20 draw messages above it gives the result `s12lang` gave, so the draws hold for it.
 Scripts: `diff3.py` and `drawdiff.py` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/d2003893-7ebe-4ec3-ad1c-e92980017fd3/scratchpad/slot14/`.
+the `slot14` scratch directory of the 2026-11-12 run.
 
 The Romanian verbs `uita` and `scoate` take `ț` in the second person (`să uiți`, `să scoți`),
 which the lists' `uit` and `scoa[st]` did not read, so `Amintește-ți să uiți codul meu de la sală.`
@@ -99,7 +99,7 @@ object, a fact after a colon or a comma with no `dass`, a fact beside a second c
 sentence, a remember verb after the fact, and stored row texts opening with `User:`. Of the 22
 strings refused that the start build kept, 21 state one fact or are part of such a request, and `Recuerda que remuevas mi
 código.` asks for an action with `que` and a subjunctive ([task 1171](../refinements/tasks/1171-a-request-to-remember-an-action-stated-after-que-dass-or-ca-refuses-the-forget-tool.md)). Scripts: `kept_other.py` and
-`headdiff.py` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/d2003893-7ebe-4ec3-ad1c-e92980017fd3/scratchpad/slot17/`,
+`headdiff.py` in the `slot17` scratch directory of the 2026-11-12 run,
 with `diff3.py` of slot 14.
 
 A fact clause that asks the assistant for an action with a verb in no list still had the tool
@@ -116,7 +116,7 @@ and 3 turns (`k1`, `k2`, `k4`) refused that the start build kept, each states on
 fragment of such a request (`reține că`), except `Recuerda que remuevas mi código.`, whose second
 person subjunctive no closed word marks. Scripts: `replay.py` of slot 12, `diff3.py` of slot 14
 and `headdiff.py` of slot 17, with the logs in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/d2003893-7ebe-4ec3-ad1c-e92980017fd3/scratchpad/slot20/`.
+the `slot20` scratch directory of the 2026-11-12 run.
 
 On `s12lang`, SM clock 0.57 of `clocks.max.sm`, proxy lines 1060 to 1143:
 
@@ -131,7 +131,7 @@ forget request reached the tool, and each card deleted the fact's row. Each repl
 person's language and said the fact was kept or forgotten. The image was built before `error`
 left the list, a word none of the 20 messages holds. Scripts: `draw.sh`, `summ.py`,
 `collect.py`, `replay.py`, `replay_ua.py` and `diff.py` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/d2003893-7ebe-4ec3-ad1c-e92980017fd3/scratchpad/slot12/`.
+the `slot12` scratch directory of the 2026-11-12 run.
 
 ## Refusing a named request or question only, 2026-11-13
 
@@ -177,7 +177,7 @@ tool; a call the model makes there unasked still meets the card. A plain English
 `My locker code is 7319.` is refused by its own shape
 ([the statement](forget-refusal-english-statement.md)). `unasked_tools` and `unasked_forget` share no changed code. Scripts `collect.py`, `run.py`,
 `diff.py` and `classify.py`, logs `diff1.txt` and `kept_*.txt`, in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/b21ab427-7e2c-4723-9504-d59e434516ce/scratchpad/slot3/`.
+the `slot3` scratch directory of the 2026-11-13 run.
 
 ## An action asked after que, dass or că: rows and rule, written 2026-11-13 before any draw
 

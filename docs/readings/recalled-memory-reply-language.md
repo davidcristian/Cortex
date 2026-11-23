@@ -86,7 +86,7 @@ answered in the fact's language.
 **Method.** `setup.sh` stores the eight facts, `ask.sh` (with `PORT`, `BUILD` and `DRAWS`) asks
 the questions and deletes each question's own rows, `compare.py` compares the first requests and
 counts the pass rule through `lang.py`, the language check, in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/d2003893-7ebe-4ec3-ad1c-e92980017fd3/scratchpad/slot10/`.
+the `slot10` scratch directory of the 2026-11-12 run.
 `lang.py` keeps about 40 common words per language; a word in exactly one list votes for it, and
 the reply's language is the one holding more than half of the votes.
 

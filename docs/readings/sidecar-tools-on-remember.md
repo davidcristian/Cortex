@@ -50,7 +50,7 @@ file tool they call. They show how the refusal reads to the model.
 ## The draws, 2026-10-31
 
 Run log `draw950.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/545ea45a-902e-44a3-86aa-5ec869e6c085/scratchpad/slot2/`,
+the `slot2` scratch directory of the 2026-10-31 run,
 the SM clock at 0.42 of its maximum after the first draw and 0.21 after the last. No draw ended in
 an error and `memories` was empty at every draw's start.
 
@@ -123,7 +123,7 @@ stays open.
 ## A value named by where it is written: the draws, 2026-10-31
 
 Run log `draw962.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/545ea45a-902e-44a3-86aa-5ec869e6c085/scratchpad/slot3/`,
+the `slot3` scratch directory of the 2026-10-31 run,
 the SM clock at 0.21 of its maximum at the start and at the end. No draw ended in an error. All 548
 messages recorded in this machine's run logs and driver tables were replayed first: of the 155 read
 as requests to remember, the reading of exactly two changed, M01 and M02.

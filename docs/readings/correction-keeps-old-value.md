@@ -58,7 +58,7 @@ sure to remember that your sister's name is Hannah, not Anna.` got no unkept not
 `claims_kept` did not read `I'll make sure to remember`; it reads it now. In c1 draw 4 the question
 `What is my bike lock code?` in a new chat called `forget_memories`, which matched nothing (task
 1112). Driver `draw.sh`, records `rows.jsonl` and logs `draw-c1.log`, `draw-c2.log`, `draw-c3.log`
-in `/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot4/`.
+in the `slot4` scratch directory of the 2026-11-10 run.
 
 ## The unkept note after a correction whose forget ran, rows and rule written 2026-11-10
 
@@ -98,7 +98,7 @@ is lost, which a `keep_memory` card would fix
 u2 2 searched files until the round cap and replied nothing
 ([R-1116](../refinements/tasks/1116-an-update-of-a-stored-value-can-search-files-until-the-round-cap.md)).
 Every `s7-*` row is deleted. Driver `draw.sh`, records `rows.jsonl`, logs `draw-u1.log` and
-`draw-u2.log` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot7/`.
+`draw-u2.log` in the `slot7` scratch directory of the 2026-11-10 run.
 
 ## The old value note, rule written 2026-11-11 before it was built
 
@@ -133,7 +133,7 @@ note, SM clock 0.57 to 0.68 of `clocks.max.sm`. Per correction turn:
 The rule holds: u3 3, the one turn that kept the seed row and claimed an update, ends with the
 note naming 4826, and u3 1 and u3 2, whose forget deleted the seed row, end without it. The c1
 turns claim no update and are null results. Driver `draw.sh`, records `rows.jsonl` and log
-`draw.log` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot10/`.
+`draw.log` in the `slot10` scratch directory of the 2026-11-11 run.
 
 ## A kept claim on a correction, rule written 2026-11-11 before it was built
 
@@ -155,7 +155,7 @@ tree with the widened condition, SM clock 0.57 of `clocks.max.sm`. In c1 1 the m
 noted that your bike lock code is 4862, not 4826.` ended without the note. In c1 2 no forget ran,
 both rows stayed, and the same reply ended with the note naming 4826, the form itself. Driver
 `smoke.sh`, log `smoke.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot11/`.
+the `slot11` scratch directory of the 2026-11-11 run.
 
 ## The old value reader by its shape, 2026-11-11
 
@@ -170,7 +170,7 @@ proxy log, 10 change, the question `So my plant reminder now goes off at 9:30 in
 right?` and nine ranking prompts quoting it, each losing `9:00`; old reader 19 texts naming a
 value, new 9. Of 2,338 backticked texts in `docs/readings/`, 1 changes, `Retiens-le, pas
 l'autre.` losing `l'autre`; old 15, new 14. No text gains a value. Script in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot14/`.
+the `slot14` scratch directory of the 2026-11-11 run.
 
 **Smoke turns.** Two of flow c1, 05:09 to 05:11 on `cortexn19-brain-s14` built from the commit
 with the reshaped reader, SM clock 0.58 to 0.68 of `clocks.max.sm`, rule written first: a reply
@@ -199,4 +199,4 @@ The call did not repeat in 18. The same call on a message with no forget word di
 ([readings](question-asking-to-note.md#the-draws-2026-11-11)). Driver `draw1112.sh` and
 `draw1112c.sh`, logs `draw1112.log`, `draw1112c.log`, `rows1112.jsonl`, proxy chats
 `n19s15-q-*` and `n19s15-c-*`, in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot15/`.
+the `slot15` scratch directory of the 2026-11-11 run.

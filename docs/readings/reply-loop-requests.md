@@ -111,4 +111,4 @@ watch, none of the 26,811 backticked or quoted strings of `docs/readings/`, the 
 brain tests changes its copies except the messages this rule added and one test string that uses
 `over and over` about a tool call. SM clock read between rows: 0.12 of `clocks.max.sm`, the card
 idle. Method: `turn.py`, `draw.sh`, `score.py` and `replay.py` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/7993c5bc-88df-4188-a4c9-74349733b88c/scratchpad/slot1/`.
+the `slot1` scratch directory of the 2026-11-05 run.

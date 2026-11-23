@@ -49,7 +49,7 @@ candidate that fails any part is not committed and the task stays open.
 ## The baseline draws, 2026-11-05
 
 Run log `rows.jsonl` and the brain's `tool.invocation` lines (`invocations.log`) in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/7993c5bc-88df-4188-a4c9-74349733b88c/scratchpad/slot5/`,
+the `slot5` scratch directory of the 2026-11-05 run,
 on the stack brain built from the commit that refuses `spawn_subagents` beside the file tools. The SM
 clock read 0.51 to 0.52 of its maximum before every draw. No draw ended in an error, every draw had
 1 to 5 file calls refused as `UNASKED` and none ran, and every draw stored its exchange.
@@ -114,7 +114,7 @@ reads: the widening then does not ship and the task stays open.
 ## The widened check, 2026-11-05
 
 Run logs `rows978.jsonl`, `inv978.log` and `replay978.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/7993c5bc-88df-4188-a4c9-74349733b88c/scratchpad/slot6/`,
+the `slot6` scratch directory of the 2026-11-05 run,
 the SM clock at 0.51 to 0.52 of its maximum before every draw. No draw ended in an error, 12 file
 calls were refused as `UNASKED` across the six draws, and none ran.
 

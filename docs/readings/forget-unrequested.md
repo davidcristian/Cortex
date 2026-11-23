@@ -27,7 +27,7 @@ refused strings that read as sentences found none asking to forget once the nega
 other four languages were added: before them it refused `Merk es dir nicht.`, `Ne le retiens
 pas.` and the corrections `X, nicht Y`, `X, pas Y` and `X, nu Y`. Script `replay.py`, logs
 `replay_all.log` and `replay2.log`, in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot16/`.
+the `slot16` scratch directory of the 2026-11-11 run.
 
 ## The draws, 2026-11-11
 
@@ -45,7 +45,7 @@ The rule passes: the one call was refused with the new result text, its draw sto
 no note. The call is rarer than slot 15's 6 of 12, a separate figure the rule does not count.
 Every question draw read the notes file and said the code is not in it. Driver `draw.sh`, log
 `draw.log`, rows `rows.jsonl`, proxy chats `n19s16-p-*` and `n19s16-q-*`, in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot16/`.
+the `slot16` scratch directory of the 2026-11-11 run.
 
 ## Audit, 2026-11-11
 
@@ -58,11 +58,11 @@ those two phrases, and on a last reply or the message it answered that names for
 phrase for it. The replay above, run again on the new reader with no last reply, refuses 20 of
 the 94 recorded user messages as before, and the same 7 of the 15 that called
 `forget_memories`, none asking to forget. Log `replay.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot18/`.
+the `slot18` scratch directory of the 2026-11-11 run.
 
 Read with every retracting word, the last reply kept the tool on `What is my bike lock code?`
 after `I don't have your bike lock code in my memory.`, so it reads no bare negation or change
 word. Over the 126 distinct recorded message, last reply and earlier message triples, the
 narrower read refuses 4 more, all questions about a reminder, none of the 20 that called
 `forget_memories`, and keeps none the wider read refused. Log `replay.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot20/`.
+the `slot20` scratch directory of the 2026-11-11 run.

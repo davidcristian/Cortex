@@ -222,4 +222,4 @@ changes on one turn, `s14-e2`: every other reply read anew followed a successful
 not name the deleted reminder, filed as
 [R-1131](../refinements/tasks/1131-a-change-answered-by-a-cancel-alone-does-not-name-the-deleted-reminder.md).
 The replays `replay1127.py` and `notes1127.py` are in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot18/`.
+the `slot18` scratch directory of the 2026-11-10 run.

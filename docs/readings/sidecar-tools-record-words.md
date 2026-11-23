@@ -81,7 +81,7 @@ recorded and the remaining draws are the next step.
 ## The draws, 2026-11-06
 
 Run log `rows.jsonl`, the stored rows in `records.jsonl` and the scoring in `score.py`, in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/a64866e3-d614-4e2e-a757-12775f4290c0/scratchpad/slot9/`.
+the `slot9` scratch directory of the 2026-11-06 run.
 The candidate `cortexn14-brain-r972` was built from the working tree; 18 draws ran from 04:34:53 to
 04:40:05 UTC, the SM clock at 0.57 of its maximum on every row's reading. No draw ended in an error.
 
@@ -160,7 +160,7 @@ photos from the trip are in the blue album.`. No request shape changed.
 ### The draws
 
 Run log `rows.jsonl`, the stored rows in `records.jsonl` and the scoring in `score.py`, in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/a64866e3-d614-4e2e-a757-12775f4290c0/scratchpad/slot15/`.
+the `slot15` scratch directory of the 2026-11-06 run.
 The candidate `cortexn14-brain-p992` was built from the working tree; 10 draws ran from 05:57:42 to
 06:00:07 UTC, the SM clock at 0.57 of its maximum on every row's reading. No draw ended in an error.
 

@@ -74,7 +74,7 @@ builds list a mobile phone `0721 555 4242` beside the card for `Forget the card 
 with call text `4242`, since neither row holds `4242` whole; the reader that keeps the phone is in
 [forget-group-holder-unnamed.md](forget-group-holder-unnamed.md). Scripts
 `replay.py` and `diff.py`, the logs `old.jsonl` and `new.jsonl` and the per case list `diff.txt`
-are in `/tmp/claude-1000/-home-david-Files-Git-Cortex/b21ab427-7e2c-4723-9504-d59e434516ce/scratchpad/slot4/`.
+are in the `slot4` scratch directory of the 2026-11-13 run.
 
 ## Neighbouring flows on the live stack: rows and the rule
 

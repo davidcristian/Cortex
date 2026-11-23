@@ -34,7 +34,7 @@ forgetting (`UNFORGOTTEN_CLAIM_NOTE`, `HANDED_CLAIM_NOTE`, `UNCALLED_FORGET_NOTE
 and this tree refuses it, 61,110 pairs in all. After the other 109 forms no result changes, and no
 string is kept by this tree that HEAD refused. `unasked_forget` reads the full last reply as
 before, since it keeps the tool only on a question and no note asks one. Scripts `replay.py` and
-`replay.json` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/b21ab427-7e2c-4723-9504-d59e434516ce/scratchpad/slot9/`.
+`replay.json` in the `slot9` scratch directory of the 2026-11-13 run.
 
 ## The note after a refused forget: rows and rule, written 2026-11-13 before any draw
 

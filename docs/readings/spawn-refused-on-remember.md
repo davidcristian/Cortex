@@ -70,7 +70,7 @@ and is declined if none did.
 36 draws from 05:25 to 05:42 local time, SM clock 0.57 to 0.71 of `clocks.max.sm`, and 32
 continuation replays beside them. Run logs `rows-base.jsonl`, `rows-a.jsonl`, `rows-b.jsonl`,
 `replay-built.jsonl`, `replay-rem.jsonl` and the counts `count.txt` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot13/`.
+the `slot13` scratch directory of the 2026-11-10 run.
 No draw ended in an error. Each brain was checked before the draws: only A holds
 `SPAWN_UNASKED_MSG`, and only B leaves the spawn out of the list.
 

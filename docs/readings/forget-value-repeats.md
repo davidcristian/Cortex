@@ -131,7 +131,7 @@ swimming pool locker code is 7731.`, which holds neither `casier` nor `piscine`,
 text; the reader of the commit that lists repeats, run on the same three rows and text, lists
 the same two. So fr3 is not a change of this build but a value left with no word of the text,
 and its turn d reply said the code was forgotten. The run records are
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/37073e3c-5ca6-42f6-aae1-df9e67b0e4db/scratchpad/slot13/draws-c.jsonl`
+`draws-c.jsonl` in the `slot13` scratch directory of the 2026-11-07 run
 and `draws-r.jsonl` beside it.
 
 ## A result that counts the numbers left: flows and rule, 2026-11-07
@@ -201,7 +201,7 @@ against none of two on the start hash, whose plain no-match result told the mode
 was stored; so neither later result ships, and pph2 shows the start hash's own form, a deleted
 fact said not to be found. Neither result alone is in the tree; the count ships with the note
 below. The patch of both is
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/37073e3c-5ca6-42f6-aae1-df9e67b0e4db/scratchpad/slot17/both-parts.patch`,
+`both-parts.patch` in the `slot17` scratch directory of the 2026-11-07 run,
 and the run record `draws.jsonl` beside it.
 
 Replayed at unit level through the start hash and build 1, the 20 recorded forget draws above
@@ -239,7 +239,7 @@ which deleted the last row, so its claim was true and its last result had no cou
 went on until a fourth draw left a row. Every draw that left a row ends with the note and no other
 draw has it, so the note ships with the count. A French reply ends with the note in English, as
 the brain's other notes do. The run record is
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/37073e3c-5ca6-42f6-aae1-df9e67b0e4db/scratchpad/slot18/draws.jsonl`.
+`draws.jsonl` in the `slot18` scratch directory of the 2026-11-07 run.
 
 Replayed through the readers, the 121 distinct recorded replies of tonight's turns that ran
 `forget_memories`: `claims_forgotten` reads 55 and `says_forgotten` 93, and `names_still_held`

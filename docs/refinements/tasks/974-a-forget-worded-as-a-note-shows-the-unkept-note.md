@@ -9,7 +9,7 @@
 reach the card and delete the row, and each reply ends with `Nothing in this message was kept in memory.
 Send anything you want remembered again in a message of its own.` That is true and the person asked to
 keep nothing. Run log `d971.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/545ea45a-902e-44a3-86aa-5ec869e6c085/scratchpad/slot8/`.
+the `slot8` scratch directory of the 2026-10-31 run.
 
 ## What to do
 

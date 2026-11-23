@@ -70,7 +70,7 @@ The SM clock read 0.57 of its maximum between draws.
 Every item of the rule holds, and a forget call ran in all 16 draws. The form the change is for, the
 text `4242` with a gym code row matched, occurred in 5 of the 12 g1, v1 and j1 draws, and each kept
 the card. Scripts `live.sh` and `summ.py` and logs `draws.log` and `draws2.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/d2003893-7ebe-4ec3-ad1c-e92980017fd3/scratchpad/slot4/`.
+the `slot4` scratch directory of the 2026-11-12 run.
 
 ## A last group with no row holding the code whole
 
@@ -166,4 +166,4 @@ Every item of the rule holds, and a forget call ran in all 12 draws. The form th
 call text of `4242` for `Forget my gym code.`, occurred in none of the 4 a1 draws, so the note item
 was not reached and the unit rows are its evidence. In e1 the call text `4242` listed the card in
 3 draws, since the message names a card. Scripts `live.sh` and `calls.py` and log `draws.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/d2003893-7ebe-4ec3-ad1c-e92980017fd3/scratchpad/slot5/`.
+the `slot5` scratch directory of the 2026-11-12 run.

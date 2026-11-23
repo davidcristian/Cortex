@@ -51,7 +51,7 @@ that passes item 1 and fails any other item is reverted too, and the task names 
 ## The draws, 2026-10-31
 
 Run log `draw961.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/545ea45a-902e-44a3-86aa-5ec869e6c085/scratchpad/slot3/`,
+the `slot3` scratch directory of the 2026-10-31 run,
 the SM clock at 0.09 to 0.22 of its maximum. No draw ended in an error, every S draw started with one
 `memories` row, and every other draw with none. The S rows' exchanges came from real turns on the
 baseline. Each brain was checked before the draws: the stack's leaves both tools out and the
@@ -94,7 +94,7 @@ Four things the draws show:
 ## The first requests of both builds, 2026-11-05
 
 Run logs `req-a65.log` and `req-l61.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/7993c5bc-88df-4188-a4c9-74349733b88c/scratchpad/slot7/`,
+the `slot7` scratch directory of the 2026-11-05 run,
 written by a recording proxy between each brain and the `cortexn13` stack's cortex server. One build
 is a `git archive` build of `6b9956582`, the pair's "before" build. The other is one of `6e9462fe6`,
 this record's baseline, with the one line that leaves both tools out removed, which is the

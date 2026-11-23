@@ -39,7 +39,7 @@ list it: its whole value filter drops a longer value. The row a value search fou
 stored, which is correct.
 
 Driver `draw.sh <flow> <draw>`, records `rows.jsonl` and logs `draw-v1.log` to `draw-k2.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot5/`.
+the `slot5` scratch directory of the 2026-11-10 run.
 
 ## A text match inside a longer value, 2026-11-10
 
@@ -167,9 +167,9 @@ Record `slot12/smoke.log` under the scratchpad below.
 
 Driver `draw.sh <flow> <draw>`, candidate driver `cand-o.sh`, records `rows.jsonl` and `cand.jsonl`,
 proxy log lines 47 to 63 of `stack/logs/proxy-req.jsonl`, under
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/` (`slot6/` and `stack/`).
+the scratch directory of the 2026-11-10 run (`slot6/` and `stack/`).
 The slot 11 and slot 12 records are under
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/`.
+the scratch directory of the 2026-11-11 run.
 
 ## A value no row writes as named, 2026-11-11
 
@@ -205,7 +205,7 @@ change, SM clock 0.57 to 0.67 of `clocks.max.sm`. Pass rules were written first.
 The form the change is for, a call text no row writes, occurred once, in v, whose card listed the
 person's row under "Listed because they also hold 0151-2345-6789". Driver `draw.sh`, rules
 `rules.md`, records `rows.jsonl` and log `draws.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot14/`.
+the `slot14` scratch directory of the 2026-11-11 run.
 
 ## A code held as one group of a longer value, 2026-11-11
 
@@ -231,4 +231,4 @@ The form the change is for occurred in g, whose first call returned `INSIDE_ALL`
 card listed the door code row and showed the IBAN row under `INSIDE_LINE`. In g the unnamed reader
 also kept the row for the IBAN call, so the reply named it once, in `kept_note`. Driver `draw.sh`,
 rules `rules.md`, records `rows.jsonl` and log `draws.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot19/`.
+the `slot19` scratch directory of the 2026-11-11 run.

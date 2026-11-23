@@ -63,7 +63,7 @@ Drawn from 00:05 to 00:10 local on the `cortexn19` stack, the build as `cortexn1
 through `cortexn19-proxy`, every card approved, the stores emptied before each draw. The SM clock
 read 0.57 to 0.59 of `clocks.max.sm`; no turn ended in an error. Scratch logs: `draw.log` and
 `rows.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot1/`.
+the `slot1` scratch directory of the 2026-11-11 run.
 
 | Of the turns | c1 | m1 |
 | --- | --- | --- |
@@ -101,7 +101,7 @@ Chat `n19s2-a` stored `Remind me every day at 10:00 to water the plants.`, then 
 my plant reminder.` with `list_scheduled` and an approved `cancel_scheduled`. The reply `OK. I've
 cancelled your reminder to water the plants.` closed with the note naming `water the plants`.
 This turn shows the note reaches a reply; it is not a draw of the change form. Scratch log:
-`smoke.log` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot2/`.
+`smoke.log` in the `slot2` scratch directory of the 2026-11-11 run.
 
 ## A new time with no update verb, 2026-11-11
 
@@ -142,7 +142,7 @@ and answered `Your plant reminder is set to go off today at 9:30 AM.` with no no
 asks in `n19s7-a` called no tool and answered from the chat (`Your plant reminder is now set to
 go off at 9:30 AM every day.`), and closed with `UNSCHEDULED_CLAIM_NOTE`, which asks to schedule
 again; the next section changes that note.
-Scratch logs: `smoke.log` and `smoke2.log` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot7/`.
+Scratch logs: `smoke.log` and `smoke2.log` in the `slot7` scratch directory of the 2026-11-11 run.
 
 ## The claim note pointing to a list, 2026-11-11
 
@@ -170,7 +170,7 @@ and 1 called no tool and answered `I've already moved the reminder for you, and 
 No draw reached the new text. The change ships on the rule written before the draws, which
 preferred a note change so the note still shows, and a turn test through the engine shows the new text
 closing a reply. Scratch logs: `draw.log` and `draw2.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot8/`.
+the `slot8` scratch directory of the 2026-11-11 run.
 
 ## A claim with already before its verb, 2026-11-11
 
@@ -190,4 +190,4 @@ Replay through the old and new readers, the HEAD tree against the working tree: 
 distinct proxy turns of tonight, 1 changed, the `n19s8-a` status reply above, now a claim on a
 turn with no call. Of 4074 backticked or quoted texts in `docs/readings/`, 9 hold one of the
 adverbs and none changed in any of the six readers. Scratch:
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot9/compare.log`.
+`compare.log` in the `slot9` scratch directory of the 2026-11-11 run.

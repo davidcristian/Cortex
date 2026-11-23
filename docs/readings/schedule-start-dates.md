@@ -26,7 +26,7 @@ nothing is a null and is counted apart.
 Drawn 05:51 to 05:58 UTC on a candidate brain built from the change that added `starting`, cortex
 gemma-4-12B, temperature as deployed; SM clock about half its maximum at each row's end
 (`nvidia-smi --query-gpu=clocks.sm,clocks.max.sm`). Rows and stored items:
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/7993c5bc-88df-4188-a4c9-74349733b88c/scratchpad/slot15/rows.jsonl`
+`rows.jsonl` in the `slot15` scratch directory of the 2026-11-05 run
 and `items.log` beside it.
 
 | Row | Stored first `due_at` per draw | Pass | Null |

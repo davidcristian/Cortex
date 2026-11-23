@@ -17,7 +17,7 @@ approved, each chat named `s16-<flow>`, every turn of a flow in the same chat un
 another. After every turn the driver read the chat's `cortex:schedule:*` records and the chat's
 `memories` rows; after each flow it cancelled the flow's items and deleted its rows. Run logs and
 records: `flows1.log`, `flows2.log`, `pass1.jsonl`, `pass2.jsonl` and the `*-items.tsv` files in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot16/`.
+the `slot16` scratch directory of the 2026-11-08 run.
 
 ## 1. The follow-ups the closing notes invite
 
@@ -201,7 +201,7 @@ ship. Any fixed draw that breaks one of these leaves the behaviour unshipped and
 global, so `list_scheduled` showed the earlier flows' items and the model edited them. The counted
 passes deleted each flow's items and memory rows after its last turn, in chats named
 `s19b-<build>-<flow>-<draw>` (driver `flows.sh`, records `rows-base.jsonl` and `rows-fix.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot2/`).
+the `slot2` scratch directory of the 2026-11-09 run).
 The SM clock read 0.57 of its maximum throughout.
 
 | Flow | Base | Fixed | Refused on the fixed build, then |
@@ -239,7 +239,7 @@ rule holds and the change ships: it moves the zone's offset from the model to th
 
 ## Audit probes of the move and the refusal, 2026-11-09
 
-`parse_move` unit calls (`probe3.py` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot8/`): an `at` with an offset or `Z` beside `in_zone`
+`parse_move` unit calls (`probe3.py` in the `slot8` scratch directory of the 2026-11-09 run): an `at` with an offset or `Z` beside `in_zone`
 returns `AT_OFFSET_AND_ZONE`; an unknown zone, `utc` or an empty one returns the zone correction;
 `10:00` in Asia/Tokyo when it is 21:00 there returns the past correction in that zone; New York
 `09:00` across the March change reads as 13:00 UTC. An edit with `at_time`, a day selector and

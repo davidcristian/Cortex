@@ -89,7 +89,7 @@ of each closed with the daily note. Unit level, the old reader refused 85 of 85 
 naming one weekday with no moving word for a date the day before, and the new one refuses none;
 both refuse all 85 the day after when it is not today. Logs `draws.log`, `draws2.log`,
 `items.tsv`, `items2.tsv`, `replay2.log` and `replay3.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot10/`; every row and item of the draws was deleted.
+the `slot10` scratch directory of the 2026-11-08 run; every row and item of the draws was deleted.
 
 ## Audit, 2026-11-08
 
@@ -104,7 +104,7 @@ the same form as the bins row above. On the safe side, `named_weekday` reads no 
 neither refusal runs, for one-time requests holding `forever`, `always`, `move` or `change`
 (4 of 6 probes), and `in advance` in `Remind me Friday at 9 to pay in advance.` keeps any date
 (2 of 2). Probes in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot13/`.
+the `slot13` scratch directory of the 2026-11-08 run.
 
 The same audit found the reader took the hour and weekday of an `at` with an offset as written,
 while the schedule tool and `today` count the date in `CORTEX_SCHEDULE_TZ`. With the zone
@@ -145,7 +145,7 @@ day after, other) and what each shape does with it.
 
 **Results of the replay.** 80 stored one-time items, one per chat and date, and the four probes.
 Script `replay4.py` and log `replay4.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot14/`.
+the `slot14` scratch directory of the 2026-11-08 run.
 
 | Date against the named weekday | Items | Refused by (a) as it stands | Note by (b) |
 | --- | --- | --- | --- |

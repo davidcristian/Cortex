@@ -38,7 +38,7 @@ empty at each draw's start, and every row a draw wrote deleted after it.
 ## Baseline, 2026-10-30
 
 Run log `base942.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/def04344-43c5-4abe-b022-0038411a4a36/scratchpad/slot6/`,
+the `slot6` scratch directory of the 2026-10-30 run,
 the SM clock between 0.57 and 0.67 of its maximum at each batch's start and end. W04 was drawn
 30 times, since W04 and T01 repeated in fewer than 3 of their first 25 draws.
 
@@ -179,7 +179,7 @@ Two more rows, written after the first batch ended and before any draw of their 
 ## The form of the call message: result, 2026-10-31
 
 Run log `batch1.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/545ea45a-902e-44a3-86aa-5ec869e6c085/scratchpad/slot1/`.
+the `slot1` scratch directory of the 2026-10-31 run.
 The SM clock read between 0.22 and 0.66 of its maximum at the batch's readings.
 
 `/apply-template` on this build renders K's end as `<tool_response|>The capital of Australia is

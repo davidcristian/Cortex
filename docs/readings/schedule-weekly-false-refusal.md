@@ -28,7 +28,7 @@ keeps the rule, and a missed repeat word costs one round.
 ## Results
 
 SM clock 0.57 of `clocks.max.sm` before, 0.60 after. Log `replayf.log` and records
-`replayf.jsonl` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot10/`.
+`replayf.jsonl` in the `slot10` scratch directory of the 2026-11-08 run.
 
 | Row | Next call, four draws |
 | --- | --- |
@@ -80,7 +80,7 @@ Stack brain image `6b8be04027e3`, built from the working tree at 06:20, draws fr
 **Result.** The rule passes. The form came in 3 of 12 draws (s11-f1d, s11-f2b, s11-f2d), and
 each reply ended with the note; none of the five weekly retries and none of the four W draws
 showed it. Log `draws.log`, records `draws.jsonl`, items `items.tsv` and calls `calls.py` over
-`brain-draws.log` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot11/`;
+`brain-draws.log` in the `slot11` scratch directory of the 2026-11-08 run;
 every item and row of the draws was deleted.
 
 ## The follow-up the note asks for, written before the first draw

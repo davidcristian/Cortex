@@ -56,7 +56,7 @@ brain (`cortexn15-brain-r969n`) through the proxy, beside the `cortexn15` stack 
 seed row (`User: Remember that my phone number is 0612345678.`) copied in before each N01 and N02
 draw and no phone row before each V01 draw. Every card was approved. The SM clock read 0.57 to
 0.69 of its maximum; no draw ended in an error. Scratch logs:
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/37073e3c-5ca6-42f6-aae1-df9e67b0e4db/scratchpad/slot4/`.
+the `slot4` scratch directory of the 2026-11-07 run.
 
 | Of the draws | N01 | N02 | V01 |
 | --- | --- | --- | --- |

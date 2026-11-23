@@ -24,7 +24,7 @@ also state a fact, and the chat's last reply must not be a question about forget
 Each recorded message was read by the two readers: the backticked and quoted strings of
 `docs/readings/` and the task files, the two test files, and every draw driver and run log under the
 scratchpads still on disk. Script `replay.py` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/545ea45a-902e-44a3-86aa-5ec869e6c085/scratchpad/slot4/`.
+the `slot4` scratch directory of the 2026-10-31 run.
 
 | Messages (875 in all) | Count | Before this change, refused | `asks_kept` and not `asks_not_kept` alone would refuse | The reader refuses |
 | --- | --- | --- | --- | --- |
@@ -164,7 +164,7 @@ A closing check of the reader, on the question whether a real forget request can
 the stack above at `12a7534a5`: one stored exchange holding `8426` at each draw's start, cards approved,
 the SM clock at 0.21 of its maximum. Refused calls are counted from the `tool.invocation` lines. Run
 logs `t1.jsonl`, `t2.jsonl` and `t3.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/545ea45a-902e-44a3-86aa-5ec869e6c085/scratchpad/slot7/`.
+the `slot7` scratch directory of the 2026-10-31 run.
 
 | Message | Draws | Refused | Row left | Reply |
 | --- | --- | --- | --- | --- |
@@ -223,7 +223,7 @@ The forget calls of each build are counted beside the rule. Draws stop at 20 min
 ## Withholding the refused tool: the draws, 2026-11-13
 
 Run log `draw63.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/b21ab427-7e2c-4723-9504-d59e434516ce/scratchpad/slot2/`,
+the `slot2` scratch directory of the 2026-11-13 run,
 proxy lines 110 to 166, the SM clock at 0.58 of its maximum at the start and the end. No draw
 ended in an error or showed a card.
 

@@ -51,7 +51,7 @@ orders, those two beside the shed padlock code `4242`, and the card beside both.
   no word names.
 
 The scripts `replay.py`, `summ2.py` and the logs `old.jsonl`, `new.jsonl` and `diff.txt` are in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/b21ab427-7e2c-4723-9504-d59e434516ce/scratchpad/slot7/`.
+the `slot7` scratch directory of the 2026-11-13 run.
 
 ## Neighbouring flows on the live stack: rows and the rule
 

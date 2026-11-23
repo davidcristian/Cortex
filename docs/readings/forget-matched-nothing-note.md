@@ -58,7 +58,7 @@ Drawn from 02:20 to 02:22 on the `cortexn18` stack, the candidate as `cortexn18-
 through `cortexn18-proxy`, every card approved, the rows checked clean before each draw. The SM
 clock read 0.57 to 0.75 of `clocks.max.sm`; no turn ended in an error and no draw left a schedule
 key. Scratch logs: `draw.log` and `rows.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot3/`,
+the `slot3` scratch directory of the 2026-11-10 run,
 the calls in the stack's proxy log, lines 2 to 46.
 
 | Of the turns | m1 | v1 | x7 first | x7 second | d1 first | d1 second |
@@ -130,7 +130,7 @@ row was stored; no B reply said so. In B m1 one reply said `OK. I've removed tha
 and ended with both notes. With no instruction about what to tell the user, the model searched
 further in one turn and claimed a removal in another. Script `live2.sh`, `word.sh` and
 `nomatch.py`, log `word.log`, in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/d2003893-7ebe-4ec3-ad1c-e92980017fd3/scratchpad/slot2/`.
+the `slot2` scratch directory of the 2026-11-12 run.
 
 ## The no-match result told to report the exact text: rows and the rule, 2026-11-12
 
@@ -204,5 +204,5 @@ request of a forget turn was the same in both builds; they differ only after the
 claim in either build), and item T holds under either reading of the "not found" form, with 8 B
 turns reaching the condition, so **the new text ships**. Scripts `draw.py` and `analyze.py`, logs
 `draw.log`, `rows.jsonl` and `analyze.txt`, in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/b21ab427-7e2c-4723-9504-d59e434516ce/scratchpad/slot1/`,
+the `slot1` scratch directory of the 2026-11-13 run,
 and the proxy log `stack/logs/req.log` beside it.

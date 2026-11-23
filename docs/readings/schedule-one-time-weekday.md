@@ -96,7 +96,7 @@ fixed.
 The replay of 9,099 distinct recorded draw messages, readings quotes and test strings through
 `names_one_weekday` found 52 that name one weekday and no repeat word; none asks for a weekly
 repeat. Run logs `base.log`, `build.log`, `build2.log`, `rep.log` and `replay2.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot4/`.
+the `slot4` scratch directory of the 2026-11-08 run.
 Every `memories` row and schedule item of the draws was deleted afterwards.
 
 ## A one-time date on another weekday
@@ -168,7 +168,7 @@ flight on Friday, then please ring me at 6" may mean today; no build draw's call
 day off. The replay of 9,134 recorded strings found 55 that name one weekday and no repeat word,
 46 of them with no word that moves the day. Logs `draws.log`, `draws-build.log`, `replay.log`
 and `replay_msgs.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot5/`; every row and item of the draws was deleted.
+the `slot5` scratch directory of the 2026-11-08 run; every row and item of the draws was deleted.
 
 **Rows for a weekly refusal that names the date, written after the B results and before any draw
 under them.** B3 and B4 are B1 and B2 with one sentence added to the refusal: "The next Thursday
@@ -205,14 +205,14 @@ form in sixteen draws the rule is met by no draw, and the replay rows B3 and B4 
 was refused once and its retry stored a one-shot at 2026-11-12 07:00 and 2026-11-10 08:00, with no
 weekly item. All sixteen draws stored a one-shot on the wanted date and hour. SM clock 0.53 to 0.57
 of `clocks.max.sm`. Logs `draws.log`, `items.tsv` and `calls-live.txt` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot6/`;
+the `slot6` scratch directory of the 2026-11-08 run;
 every row and item of the draws was deleted.
 
 ## Audit draws on the refusal, 2026-11-08
 
 On the stack brain built from `d82ce5a12`, at 05:32 on a Sunday, one draw per message in a new
 chat, every card approved, SM clock 0.57 of `clocks.max.sm`. The rows were written first in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot9/expect.txt`;
+`expect.txt` in the `slot9` scratch directory of the 2026-11-08 run;
 calls are read from the brain's `tool.invocation` log lines.
 
 | Message | Calls | Stored | Row |
@@ -228,7 +228,7 @@ weekly refusal the reader should not have made.
 
 ## Audit probes of the held item, 2026-11-09
 
-`weekday_off_after` unit calls (`probe2.py` and `probe_more.py` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot8/`), with the note held for
+`weekday_off_after` unit calls (`probe2.py` and `probe_more.py` in the `slot8` scratch directory of the 2026-11-09 run), with the note held for
 item `a1`: a text edit, an edit of another item and a snooze of another item keep it; a text edit
 with `repeat: false` dropped it, although `repeat` alone never changes a due time. The fix adds
 `repeat` to the arguments an edit keeps the note across, with both forms as tests. Two stores a

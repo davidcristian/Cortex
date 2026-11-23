@@ -37,7 +37,7 @@ tools withheld on a request to remember.
 ## Baseline, 2026-10-30
 
 Run log `base948.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/def04344-43c5-4abe-b022-0038411a4a36/scratchpad/slot8/`,
+the `slot8` scratch directory of the 2026-10-30 run,
 the SM clock at 0.59 of its maximum at the start and 0.63 at the end. Every seed was stored on its
 first try.
 

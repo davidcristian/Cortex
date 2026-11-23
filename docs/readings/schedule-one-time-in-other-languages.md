@@ -18,7 +18,7 @@ change, the candidate from the tree with it. Every draw is a new chat with every
 each draw the `memories` rows naming that row's subject are deleted, so no draw recalls an earlier
 one. After each draw a script reads the chat's `cortex:schedule:*` records, then deletes them, so
 the schedule never fills and no repeat is read as already stored. Scripts and run logs:
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/37073e3c-5ca6-42f6-aae1-df9e67b0e4db/scratchpad/slot10/`.
+the `slot10` scratch directory of the 2026-11-07 run.
 
 ## Rows and the rule, written before the first draw
 

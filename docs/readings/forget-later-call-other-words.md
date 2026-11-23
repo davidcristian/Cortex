@@ -56,7 +56,7 @@ The form occurred in 2 of 10 draws, and 1 of those 2 failed, so the premise hold
 lk3 says the locker combination was never saved after its code was deleted. In 6 draws the model's
 later text was the stored row's own words, a substring, which already gets the result naming the
 earlier delete. Every row was deleted in all ten. The run record is
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot7/draws.jsonl`,
+`draws.jsonl` in the `slot7` scratch directory of the 2026-11-08 run,
 with the calls in `draws1.log` and `draws2.log` beside it.
 
 ## The recorded replies, 2026-11-08
@@ -89,7 +89,7 @@ Twenty draws from 04:58:33 to 04:59:06, 33 seconds of model time, every one a re
 `stop`), on the stack's model host. The SM clock read 0.57 of its maximum before, 0.61 at 38% use
 during and 0.62 after. All twenty show the form. Each reply is read by hand for the rule, and the
 build's note is computed by `unfound_claim` with the request's runs and one call that matched
-nothing (`/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot8/replay_readers.py`, output `readers.log` beside it). No bk3 reply says anything was
+nothing (`replay_readers.py` in the `slot8` scratch directory of the 2026-11-08 run, output `readers.log` beside it). No bk3 reply says anything was
 not found; each names the removal, so none fails and none gets the note. The lk3 replies:
 
 | Draw | Turn d reply, after the removal it names | Says not found | Note on the build |
@@ -125,7 +125,7 @@ say the locker combination was not found and end with the note (lk2, lk3, lk6, l
 "there were no other records of that found to remove", which says no other record was found,
 which is true. The build that drew it did not read the plural; the reader now does (below). The
 other three name only the removal and get no note. The run record is
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot8/live.jsonl`.
+`live.jsonl` in the `slot8` scratch directory of the 2026-11-08 run.
 
 ## The plural and `other` forms, 2026-11-09
 
@@ -139,12 +139,12 @@ record of it is left in my memory". The last was read before the change.
 Replay over the 28,039 distinct strings of `docs/readings/` (every line, table cell, quoted and
 backticked text): 4 change, all from not read to read. One is lk7's reply above; the other three
 are prose lines of this file quoting it or the form. No recorded reply moves from read to not
-read. The script is `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot7/replay.py`.
+read. The script is `replay.py` in the `slot7` scratch directory of the 2026-11-09 run.
 
 ## Audit replay of the plural reader, 2026-11-09
 
 `says_not_stored` before and after the plural change, over written near misses (`probe6.py` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot8/`):
+the `slot8` scratch directory of the 2026-11-09 run):
 
 | Reply | Before | After |
 | --- | --- | --- |
@@ -163,7 +163,7 @@ these three.
 ## Second audit probes of the never told reader, 2026-11-09
 
 Unit calls (`probe4.py`, log `probe4.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot13/`).
+the `slot13` scratch directory of the 2026-11-09 run).
 `says_not_stored` reads `No record of it remains, since you never told me.`, and the forms where a
 later clause says another fact was never told (`and you never told me the shed one`, `; you never
 gave me another code`), which name a fact not stored, so the note is right there. It does not read

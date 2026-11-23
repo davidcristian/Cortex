@@ -28,7 +28,7 @@ my card.` reads as before, since its asking part names no row.
 ## History
 
 - 2026-11-13: filed by the second audit of the night; the probe is `probe.py` with `cases.json` in
-  `/tmp/claude-1000/-home-david-Files-Git-Cortex/b21ab427-7e2c-4723-9504-d59e434516ce/scratchpad/slot12/`.
+  the `slot12` scratch directory of the 2026-11-13 run.
 - 2026-11-14: declined. Its clauses with no verb, `the card one as well` and `also my phone`, are
   read by the adding clause of task 1192, which lists the row. The unread verbs (`wipe`, `drop`,
   `clear`, `supprime`, `entferne`) have no fix but a verb list in several languages, and the

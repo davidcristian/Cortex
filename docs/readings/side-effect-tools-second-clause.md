@@ -35,7 +35,7 @@ daily item, and its reply had the daily note appended
 ([one-time and daily times](schedule-one-time-and-daily.md)). Every `memories` row and schedule
 item of the `s14-*` chats was deleted afterwards. Run logs: `flows.log` to `flows4.log`,
 `replay.log` and `mut2.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/37073e3c-5ca6-42f6-aae1-df9e67b0e4db/scratchpad/slot14/`.
+the `slot14` scratch directory of the 2026-11-07 run.
 
 ## A second clause in English, and a plain fact in the other four, 2026-11-08
 
@@ -80,7 +80,7 @@ The barber call stored a reminder for every Tuesday, which the message did not a
 ([one-time weekday readings](schedule-one-time-weekday.md)).
 Every `memories` row and schedule item of the draws was deleted afterwards. Run logs `draws.log`,
 `replay.log` and `mut.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot3/`.
+the `slot3` scratch directory of the 2026-11-08 run.
 
 ## A verb and a time, 2026-11-09
 
@@ -97,12 +97,12 @@ Replay over the 28,058 distinct strings of `docs/readings/` (every line, table c
 backticked text), of which `asks_kept_alone` reads 355: `unasked_tools` changes for none of them.
 `actions_asked` reads one more clause in 61 strings, all prose outside a request to remember, and
 one fewer in none. No turn was drawn. Scripts `replay.py` and `replay1037.py` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot7/`.
+the `slot7` scratch directory of the 2026-11-09 run.
 
 ## Audit replay of the time clause, 2026-11-09
 
 `actions_asked` before and after the time branch, and `unasked_tools` after it (`probe6.py` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot8/`). `and buzz at 9`, `and ping in 10 minutes` and `and weekdays at 9 ping me` are now read
+the `slot8` scratch directory of the 2026-11-09 run). `and buzz at 9`, `and ping in 10 minutes` and `and weekdays at 9 ping me` are now read
 and keep the reminder tool. `Remember that the shop opens at 9, and closes at 5.` is read as an
 action too and refuses nothing, which is the tool reader's safe direction. `Remember I arrive at
 9 on Mondays.` and `then leave in 2026` still refuse both tools. `Remember my code is 5521 and at
@@ -115,7 +115,7 @@ I leave` and `by 2019 paid it off` still refuse both. A replay of every string i
 ## Second audit probes of a time before the verb, 2026-11-09
 
 Unit calls (`probe4.py`, log `probe4.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot13/`).
+the `slot13` scratch directory of the 2026-11-09 run).
 `actions_asked` reads no action in `and at 10 the cinema opens`, `and at 9 work starts`, `and by 8
 traffic gets bad` or `on Fridays at 9 meetings run long`, and reads `and tomorrow at 6 open the
 windows` and `and every morning at 7 wake me up`. It reads `and tomorrow at 8 coffee with us at
@@ -139,7 +139,7 @@ and each a request to remember beside a clause asking to forget, with no time an
 sound word, such as `Remember the code 7319 and wipe the PIN.` and `Note that my phone number is
 out of date, delete it.` No string lost a tool it asks for. Script `replay.py`, logs
 `rec-old.json` and `rec-new.json`, in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/d2003893-7ebe-4ec3-ad1c-e92980017fd3/scratchpad/slot9/`.
+the `slot9` scratch directory of the 2026-11-12 run.
 
 The same proxy log holds 135 first requests of a turn whose message `unasked_forget` refuses the
 forget tool on: 133 `Remember that my ... is ...` store turns of the forget draws and 2 of `Don't

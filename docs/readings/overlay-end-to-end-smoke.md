@@ -64,7 +64,7 @@ Every row the flow stored was deleted afterwards.
 
 The same rig on the `cortexn12` stack, with the brain built from `12a7534a5`, a new chat for each step
 but the forget, the SM clock at 0.21 of `clocks.max.sm` after the flow. Frames are in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/545ea45a-902e-44a3-86aa-5ec869e6c085/scratchpad/slot7/`.
+the `slot7` scratch directory of the 2026-10-31 run.
 
 - **Remember.** `Please remember this: my locker code is 7319.` showed no card. The audit holds one
   refused `forget_memories` call, the reply said noted, and the row was stored.

@@ -16,7 +16,7 @@ before each draw, put a fresh copy of both rows back under new ids. Each draw is
 chat, `Forget my gym locker number.`, with every card approved. After it the driver read which of
 the two rows remain and the cards the turn showed. Driver and records: `draw.sh`, `base.log`,
 `fixed.log`, `*.jsonl` and `req-*.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot17/`.
+the `slot17` scratch directory of the 2026-11-08 run.
 
 ## Rows and rule
 
@@ -62,7 +62,7 @@ The rig above on the `cortexn17` stack. The two seed turns ran once on the stack
 `c4e83dea1`, whose replies were `I've noted that your gym locker number is 5521.` and `I've noted
 that the shed padlock code is 5521.`. Driver and records: `draw.sh`, `base.log`, `fixed.log` and
 `*.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot3/`.
+the `slot3` scratch directory of the 2026-11-09 run.
 
 Written before the first draw.
 
@@ -142,7 +142,7 @@ The `n1v` rig above, with the two seed rows stored again from new seed turns on 
 built from `e19b9df09`, and put back under new ids before each draw. The draws above are the base:
 6 of 8 deleted the padlock row. Driver and records: `draw.sh`, `seed.log`, `fixed.log` and
 `fixed.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot4/`.
+the `slot4` scratch directory of the 2026-11-09 run.
 
 Written before the draws.
 
@@ -221,7 +221,7 @@ One live draw on the stack brain, with the two rows stored by two chats and the 
 `Forget my bike lock code 7319, keep everything else.` drew a `forget_memories` call with the
 text `bike lock`, so the value path was not reached, the card listed only the bike row and both
 rows stayed. The SM clock read 0.58 of `clocks.max.sm`. Scripts `live1077.sh` and
-`probe45.py` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot8/`.
+`probe45.py` in the `slot8` scratch directory of the 2026-11-09 run.
 
 ## The keep reader reshaped, 2026-11-09
 
@@ -242,5 +242,5 @@ messages are the audit probes above (each now keeps the rows it does not name, a
 id 7319.` lists the user id row), the probes `Forget that.` and `Forget it, please.`, bare verbs,
 and prose that holds `user`. No message keeps fewer rows except through `user` naming a row.
 Script `replay.py` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot9/`.
+the `slot9` scratch directory of the 2026-11-09 run.
 A word in a clause asking to keep is read in [forget-keep-clause.md](forget-keep-clause.md).

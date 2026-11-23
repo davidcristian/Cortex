@@ -25,7 +25,7 @@ Replay: 541 distinct forget strings (the user messages of the night's recording 
 backticked forget string in `docs/readings/` and the task files) over seven rows holding the
 string's last number, with that number and `code` as call texts. 4 cases from 2 strings changed,
 both the messages above, and none keeps fewer rows. Script `replay.py` and log `replay.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot21/`.
+the `slot21` scratch directory of the 2026-11-11 run.
 
 ## But after a word for all, 2026-11-12
 
@@ -47,7 +47,7 @@ number, with that number and `code` as call texts, with and without the calling 
 4,975 cases; 15 changed from 3 strings, `Forget everything but my card.`, `Forget all but my card.`
 and `Forget them all but my card.`, and none keeps fewer rows. Scripts `strings.py`,
 `replay_one.py`, `diff.py` and log `replay.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/d2003893-7ebe-4ec3-ad1c-e92980017fd3/scratchpad/slot1/`.
+the `slot1` scratch directory of the 2026-11-12 run.
 
 ### Neighbouring flows on the live stack: rows and the rule
 
@@ -118,7 +118,7 @@ Replay: the strings, pools and cases of [forget-added-list.md](forget-added-list
 card with that change and with this one added. 20 cases from 10 strings changed, each a message
 with a word for all beside a keep clause of kind words. 60 rows are newly deleted and none newly
 kept: each is a card or phone row, in one of the five languages, of the kind the keep clause does
-not name. The listing is `cmp2.txt` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/bd106a1a-a17f-4ca5-8841-82294e4917a8/scratchpad/slot2/`.
+not name. The listing is `cmp2.txt` in the `slot2` scratch directory of the 2026-11-15 run.
 
 ## A word for but after the forget verb, 2026-11-15
 
@@ -159,7 +159,7 @@ after the word for but name. Of 38 further probes, 18 changed, each keeping such
 `Olvida 4242, voy a dar la tarjeta a mi hermano.`, where `dar` is a Spanish verb and the card row
 is kept. Dutch `maar`, Italian `ma` and Polish `ale` are not read, as before. The listings are
 `cmp.txt` and `cases5.after3.txt` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/bd106a1a-a17f-4ca5-8841-82294e4917a8/scratchpad/slot3/`.
+the `slot3` scratch directory of the 2026-11-15 run.
 
 ## Words after the value that no reader reads, 2026-11-15
 

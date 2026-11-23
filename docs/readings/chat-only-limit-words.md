@@ -35,7 +35,7 @@ Memory stored one row in each draw.
 
 The form occurs in 0 of 8, so under the rule above the reader is left unchanged. In 4 of the 8
 the cortex called `spawn_subagents` and the call ran, because `asks_kept` did not read `keep it
-in mind` as a request to remember, so the brain refused nothing. The record is `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot7/rows1063.jsonl`;
+in mind` as a request to remember, so the brain refused nothing. The record is `rows1063.jsonl` in the `slot7` scratch directory of the 2026-11-09 run;
 every row of the draws was deleted.
 
 `asks_kept` now reads `keep it`, `keep this`, `keep that` and `keep these` before `in mind`, but not
@@ -48,12 +48,12 @@ On the stack brain rebuilt from that change, from 05:19:13 to 05:19:52, four dra
 (chats `s11k-1` to `s11k-4`, each capped at 120 s, cards approved, SM clock 0.57 of
 `clocks.max.sm`) called no tool and stored one row each, every one deleted after. This shows the
 change runs; it is no rule row. The record is
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot11/live.jsonl`.
+`live.jsonl` in the `slot11` scratch directory of the 2026-11-09 run.
 
 ## Second audit probes of keep it in mind, 2026-11-09
 
 Unit calls (`probe3.py`, log `probe3.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot13/`).
+the `slot13` scratch directory of the 2026-11-09 run).
 `asks_not_kept` reads every request not to keep beside `keep it in mind`: `for now but don't save
 it`, `no need to remember it`, `for this chat only, don't store it`, `but do not keep it in memory`,
 `Don't write it down anywhere`, `but forget it after this chat` and `don't remember it in other
@@ -77,7 +77,7 @@ something else (`je te dirai plus tard quoi faire`, `ich sage dir später, ob ic
 strings (every distinct string of `docs/readings/` and every quoted string of the brain's tests)
 through the reader before and after moved only the eight new test messages. Script
 `replay1100.py` and log `replay1100b.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot17/`.
+the `slot17` scratch directory of the 2026-11-09 run.
 
 ## Third audit probes, 2026-11-09
 
@@ -88,7 +88,7 @@ the gym code is not stored either. Replies that claim a keep (`Noted.`, `I'll ke
 get `UNKEPT_CLAIM_NOTE`; `Got it.`, `Okay, let me know about the address.` and German `Notiert.`
 got none before the change below (task 1049 for a claim in another language). Script
 `probe5.py` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot18/`.
+the `slot18` scratch directory of the 2026-11-09 run.
 
 ## A request to remember beside a request not to keep, 2026-11-09
 
@@ -102,7 +102,7 @@ written two ways each: two forget requests beside a request to remember in anoth
 number, neither stored) and `retiens-le. Non, ne le retiens pas.`, where the note is true and
 unasked. A request to remember in the same sentence as a forget or a put off decision still gets
 none (task 1107). Script `replay1105.py` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot21/`.
+the `slot21` scratch directory of the 2026-11-09 run.
 
 ## A request to remember in a clause beside a request not to keep, 2026-11-10
 
@@ -119,4 +119,4 @@ messages of task 1107 (the card number, the move to Utrecht, the whiteboard phot
 erst mal`) written several ways, plus prose lines joining two quoted messages. The other 29 are
 prose lines in which a quoted request opens after a comma and a quote mark. `Remember it and don't
 save it.` now gets the note, which is true and unasked. Script `replay1107.py` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot2/`.
+the `slot2` scratch directory of the 2026-11-10 run.

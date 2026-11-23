@@ -50,7 +50,7 @@ Each added note names a row stating the same fact: `4826` for `My alarm code is 
 `My bike lock code is 4862.`, `0721 555 018` for four test strings `My number is 1063.` and the
 like, and `4111 1111 1111 4242` for `my card is 4242 4242`. The scripts `replay2.py` and
 `diff2.py` and the logs `old2.jsonl` and `new2.jsonl` are in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/b21ab427-7e2c-4723-9504-d59e434516ce/scratchpad/slot11/`.
+the `slot11` scratch directory of the 2026-11-13 run.
 
 ## The store turn on the live stack: rows and the rule
 
@@ -128,7 +128,7 @@ phone` beside `phone`, so it names neither. On the four fixed row sets the 32 lo
 11 of the strings above, and `My new number`, `My current number`, `My alarm code is now 5528.` and
 `My bike lock code is 4862.` name the same rows as before. The scripts `replay.py`, `classify.py`
 and `classes.py`, and the logs `replay.log` and `replay.jsonl`, are in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/11450320-079c-401d-9f26-43a763a369b6/scratchpad/slot2/`.
+the `slot2` scratch directory of the 2026-11-14 run.
 
 ### Turns on the live stack
 
@@ -197,4 +197,4 @@ bare statement `My pet is Rex. Room 12.` also does at HEAD. No French, German, S
 string gains a note: a bare statement in those languages gets none either, since the fact and the
 stored row are both read in English only. The scripts `replay.py`, `diff.py`, `verify.py` and
 `mutate.py`, and the lists `before.json`, `after.json` and `replay-diff.txt`, are in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/bd106a1a-a17f-4ca5-8841-82294e4917a8/scratchpad/slot16/`.
+the `slot16` scratch directory of the 2026-11-15 run.

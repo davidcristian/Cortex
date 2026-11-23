@@ -20,7 +20,7 @@ all failed (no request to forget needed, any word before the value, nine or two 
 or `to` or `previous` not read, the `I` or `we` habit read, `can you` not read, any tool rewritten,
 a non-string text read, the result never rewritten, the no-match sentence kept). The night's copies
 of all four files are under
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/37073e3c-5ca6-42f6-aae1-df9e67b0e4db/scratchpad/slot4/final/`.
+`final/` in the `slot4` scratch directory of the 2026-11-07 run.
 When it ships, ADR-0075 and the module doc `brain-core-memory.md` name the new result beside
 `_NONE_FOUND`.
 

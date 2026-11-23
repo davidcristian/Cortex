@@ -63,7 +63,7 @@ The rule, written before any draw:
 ## Thirteen more wordings: the draws, 2026-10-30
 
 Run logs `rows.jsonl` (three draws a row) and `rep.jsonl` (three more of W03, W04, P01 and P02) in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/def04344-43c5-4abe-b022-0038411a4a36/scratchpad/slot3/`,
+the `slot3` scratch directory of the 2026-10-30 run,
 the SM clock between 0.58 and 0.73 of its maximum at each row's start and end. A cell counts the
 draws whose last message made no `forget_memories` call.
 
@@ -152,7 +152,7 @@ The candidate gives `memory_withheld` the turn's message. `asks_not_kept` (`memo
 reads it as a request not to keep, to forget or to remove something, and the turn then stores
 nothing whether or not the model calls the tool. It reads none of R01 to R15. Run log
 `cand.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/def04344-43c5-4abe-b022-0038411a4a36/scratchpad/slot4/`,
+the `slot4` scratch directory of the 2026-10-30 run,
 the SM clock at 0.55 of its maximum at the start and 0.70 after R15. A cell counts the draws
 passing by the rule above.
 
@@ -208,7 +208,7 @@ included, is deleted.
 ## A removal claimed with no forget call: baseline, 2026-10-30
 
 Run log `seedbase.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/def04344-43c5-4abe-b022-0038411a4a36/scratchpad/slot5/`,
+the `slot5` scratch directory of the 2026-10-30 run,
 the SM clock at 0.60 of its maximum at the start and 0.59 at the end. Every seed was stored on its
 first try.
 
@@ -227,7 +227,7 @@ draw that deleted the row wrote its answer twice
 The candidate appends `UNFORGOTTEN_CLAIM_NOTE` when `claims_forgotten` (`forget_claim.py`) reads
 a statement that something was forgotten or removed from memory and no `forget_memories` run of
 the turn deleted a row. Run log `cand945.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/def04344-43c5-4abe-b022-0038411a4a36/scratchpad/slot6/`,
+the `slot6` scratch directory of the 2026-10-30 run,
 the SM clock at 0.60 of its maximum at the start and 0.59 at the end. Every seed was stored on
 its first try.
 

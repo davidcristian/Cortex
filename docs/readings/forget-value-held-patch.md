@@ -21,7 +21,7 @@ after a later unmatched call naming no value. Eight mutation rows over those thr
 all failed: the search never true, any found row counted, the failure not caught, the mark set on
 every result without a card, the note after a delete, a later call overwriting the mark, and the
 handoff and the codec dropping it. The night's copies are under
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot5/final/`.
+`final/` in the `slot5` scratch directory of the 2026-11-09 run.
 When it ships, ADR-0075 and the module doc `brain-core-memory.md` name the note.
 
 ```diff

@@ -20,7 +20,7 @@ driver with every card approved, each chat named `l8-<flow>`, and one flow ran o
 clock at the flows: 0.69 of `clocks.max.sm`. After each batch one script read every
 `cortex:schedule:*` record and the `memories` table. Run logs: `flows1.log` to `flows3.log` and
 `turns1.jsonl` to `turns3.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/37073e3c-5ca6-42f6-aae1-df9e67b0e4db/scratchpad/slot8/`.
+the `slot8` scratch directory of the 2026-11-07 run.
 
 ## 1. The tools in four languages
 
@@ -229,7 +229,7 @@ The section 4 message and its English form with `Lucia` ran three times each in 
 draw called `forget_memories`, and no reply said the fact was not saved. The draws' 18 `memories`
 rows and their two schedule items were deleted afterwards. Run logs: `flows1.log` to `flows3.log`,
 `replay2.log`, `replay_time.log`, `mut2.log` and `mut_time.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/37073e3c-5ca6-42f6-aae1-df9e67b0e4db/scratchpad/slot11/`.
+the `slot11` scratch directory of the 2026-11-07 run.
 
 ## 9. Idioms with a keep verb
 

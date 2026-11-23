@@ -36,7 +36,7 @@ in every draw, while with the default recall the first request of slot 1's draws
 row and no draw made a call. That is filed as task 1151. Each call kept both rows, since the forget
 part names no row, and each reply said the gym code was cleared and ended with the note that nothing
 was forgotten and the note naming the kept rows. Script `live.sh` (rows `r1`) and log `raw.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/d2003893-7ebe-4ec3-ad1c-e92980017fd3/scratchpad/slot2/`.
+the `slot2` scratch directory of the 2026-11-12 run.
 
 ## The note: rows and the rule
 
@@ -101,7 +101,7 @@ The recorded requests the new trigger does not read are `Alors oublie-la.`, whos
 clause for the other-language reader, and any delete verb with no request to remember beside it
 (`Delete my gym code.`), left out because `Delete my 9am reminder.` asks nothing of memory. Script
 `replay.py` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/d2003893-7ebe-4ec3-ad1c-e92980017fd3/scratchpad/slot3/`.
+the `slot3` scratch directory of the 2026-11-12 run.
 
 ## A forget with no keep clause: rows and the rule
 

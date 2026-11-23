@@ -109,8 +109,8 @@ NEAR_MISSES = [
 ]
 
 TYPED = [
-    ("Which files are in /home/david/notes?", "I can read /home/david/notes."),
-    ("Show me /home/david/notes.txt", "I can see /home/david/notes.txt, which holds no text."),
+    ("Which files are in /home/user/notes?", "I can read /home/user/notes."),
+    ("Show me /home/user/notes.txt", "I can see /home/user/notes.txt, which holds no text."),
     ("What is in /srv/data?", "I can read the following folder:\n- `/srv/data`"),
     ("What is in my documents folder?", "I can read the following folder:\n- Documents"),
     ("What is in notes.txt?", "I can read the file you named: notes.txt"),

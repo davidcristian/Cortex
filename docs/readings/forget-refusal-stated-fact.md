@@ -81,7 +81,7 @@ first two e draws per build, when a turn with every tool took about half a minut
 
 Drawn from 01:07 to 01:17 on 2026-11-14, proxy log lines 358 to 454, SM clock 0.58 to 0.60 of
 `clocks.max.sm`. Log `draw.log`, `draw2.log` and the rows in `draws.jsonl`, in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/11450320-079c-401d-9f26-43a763a369b6/scratchpad/slot5/`.
+the `slot5` scratch directory of the 2026-11-14 run.
 
 | Row | Build | Draws | Draws with a forget call | Result |
 | --- | --- | --- | --- | --- |

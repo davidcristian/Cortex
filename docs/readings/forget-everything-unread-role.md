@@ -109,7 +109,7 @@ that nothing was deleted. In a unit call the card keeps every row of the third m
 call text, and lists the card for the fifth with the text `card` or `4242`, since `tot` is not
 read. Both are filed. Logs `*.jsonl`, `*.log` and `*.left.txt` in
 `~/.cache/cortex-run/2026-11-15/slot14/`; scripts `draws.sh` and `probe.py` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/bd106a1a-a17f-4ca5-8841-82294e4917a8/scratchpad/slot14/`.
+the `slot14` scratch directory of the 2026-11-15 run.
 
 ## The day's four card changes replayed together, 2026-11-15
 
@@ -145,7 +145,7 @@ dulapul de asemenea.`. Two forms still list a row the message does not ask for, 
 filed. A row word in a form no stored row holds is not read: 600 rows of the Romanian `dulapul`,
 and `Forget all lockers 4242.`. A call text holding a digit the message lacks lists the row it
 names: 1,440 rows, the same before and after. Scripts `kindgen.py`, `kindsum.py` and `replay.sh`
-in `/tmp/claude-1000/-home-david-Files-Git-Cortex/bd106a1a-a17f-4ca5-8841-82294e4917a8/scratchpad/slot15/`.
+in the `slot15` scratch directory of the 2026-11-15 run.
 
 ## A word for all after a named row and its value, 2026-11-20
 

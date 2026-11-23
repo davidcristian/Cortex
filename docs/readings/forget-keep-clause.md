@@ -47,13 +47,13 @@ least one more row. In two of them, with the calling chat's row, that row is now
 naming the shed row are in a keep clause, so no word names a fact to forget and the newest row the
 chat stored is read as just said, as `Forget it, but keep the shed padlock code.` asks. Script
 `replay.py` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot9/`,
+the `slot9` scratch directory of the 2026-11-09 run,
 log `replay.log` in the `slot12/` directory beside it. No turn was drawn.
 
 ## Second audit probes, 2026-11-09
 
 Unit calls (`probe1.py`, log `probe1.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot13/`)
+the `slot13` scratch directory of the 2026-11-09 run)
 over a bike row and a second row sharing 7319. A keep verb read in all five languages
 (`garde`, `behalte`, `mantén`, `păstrează`), and `don't keep the shed one either` names the
 shed row to forget. Two forms read a fact's own name as a request to keep, so the asked row was
@@ -65,7 +65,7 @@ the name (`Forget my do not disturb PIN 7319.`) and a noun the keep verb list ma
 
 Three forms keep a row the person asked to forget, each declined 2026-11-09 (unit calls in
 `probe2.py`, log beside it in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot14/`). `Forget 7319, no need to keep
+the `slot14` scratch directory of the 2026-11-09 run). `Forget 7319, no need to keep
 the shed one.` keeps the shed row, since a negation that opens a clause asks to keep unless a keep
 verb follows it at once. `Vergiss 7319 und behalte den vom Schuppen auch nicht.`, with German
 `nicht` after the keep verb, keeps the shed row. `Forget 7319 and do not keep the shed one.` keeps
@@ -100,7 +100,7 @@ row by another word and now ask for every row holding the value, as the same mes
 does; before, `meu` or `den` named the one row of that language. The second names its fact only by
 the code word `Fahrradcode`, as `Forget the doorcode 7319, keep everything else.` did in English.
 No case deletes a row outside those two rules. Script `replay2.py` and log `replay2.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot14/`.
+the `slot14` scratch directory of the 2026-11-09 run.
 
 The part of a compound code word before its code word (`door` of `doorcode`, `fahrrad` of
 `Fahrradcode`, from `code_stem`) now names each row word it starts, so both messages keep every
@@ -108,7 +108,7 @@ row they do not name, while `Forget 7319.`, `Forget the code 7319.`, `Forget my 
 and `Forget my pincode 7319.` still ask for every row. A replay of the 1,854 recorded forget
 strings through the reader before and after that change moved 9 cases, each holding one of those
 two messages and each toward keeping rows. Script `replay2.py` and log `replay-compound.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot16/`.
+the `slot16` scratch directory of the 2026-11-09 run.
 
 One live draw on the stack brain rebuilt with this reader, after two chats stored
 `Merke dir bitte: Mein Fahrradschloss hat den Code 7319.` and `Merke dir bitte: Der Schuppen hat
@@ -128,7 +128,7 @@ Replay: the 1,858 recorded forget strings went through the reader before and aft
 twelve rows above, with the texts `7319`, `code`, `lock code` and `number`, with and without the
 calling chat's row. 174 cases from 29 strings changed, none with the value as the text, and each
 keeps more rows. Script `replay1098.py` and log `replay1098.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot17/`.
+the `slot17` scratch directory of the 2026-11-09 run.
 
 ## The third audit's probes, 2026-11-09
 
@@ -148,7 +148,7 @@ nothing, each read by the shape below. A message in capitals with one German lis
 English, and its forget verb now adds a German reading (the last section). No moved forget result text
 changed in the split into `forget_results.py`, and no exemption names either module. Scripts `probe2.py`,
 `probe4.py`, `probe6.py` and log `replay.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot18/`.
+the `slot18` scratch directory of the 2026-11-09 run.
 
 One live turn on the stack brain rebuilt with this reader (`Vergiss meinen Türcode, aber behalte
 die Postleitzahl.`, after two chats stored a Postleitzahl row and a Türcode row, both 7319) drew a
@@ -185,7 +185,7 @@ lists the bike rows alone. The other 8 are `Forget my passcode 7319.` and `Bitte
 Passnummer X4821937.`, which listed the passport row by its start and now keep every row. No draw
 message of the n1, n1v, x6, x7 or f1 flows changed, and neither did `Forget 7319.`. Script
 `replay.py` and log `replay.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot19/`.
+the `slot19` scratch directory of the 2026-11-09 run.
 
 One live turn on the stack brain rebuilt with this reader, after two chats stored `Remember that
 my card PIN is 7319.` and `Remember that my door code is also 7319.`: `Forget my PIN 7319, keep
@@ -216,7 +216,7 @@ and `asks_to_keep` changed for no row. 31 of the 40 have no lowercase letter, ea
 French or German message in capitals such as `OUBLIE LE CODE DE MON CASIER À LA PISCINE.`; the
 other 9 are readings sentences quoting a French or German forget beside English prose.
 Script `replay.py` and log `replay.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot4/`.
+the `slot4` scratch directory of the 2026-11-10 run.
 
 ## A keep verb after the words it keeps, 2026-11-14
 
@@ -240,7 +240,7 @@ with a keep verb after the phone's words, such as those above, the card too besi
 with no joining word, and the card of the reply text `... only your card number (4111 1111 1111
 4242) is kept in my memory ...`, which says to keep it, and of its quote here. Script
 `replay.py`, logs `replay2-old.jsonl`, `replay2-new.jsonl` and `compare2.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/11450320-079c-401d-9f26-43a763a369b6/scratchpad/slot4/`.
+the `slot4` scratch directory of the 2026-11-14 run.
 
 Draws on a brain of the fix (cortex tier, `draw.log` in the folder above): in two draws each of the
 German and English forms above the model called with the whole card number or made no call, so the

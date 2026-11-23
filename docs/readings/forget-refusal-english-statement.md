@@ -43,7 +43,7 @@ held the note that nothing in the message was kept. The calls sent the store tur
 whole message, `locker code at the pool is 7319`, `7319` and `locker code` at HEAD, and
 `locker code at the pool is 7319` and `7319` at the start build. Draw logs `draw-sep.log` and
 `draws-sep.jsonl`, scripts `draw.sh`, `summ.py` and `firstreq.py`, in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/b21ab427-7e2c-4723-9504-d59e434516ce/scratchpad/slot6/`.
+the `slot6` scratch directory of the 2026-11-13 run.
 
 ## The fix on the live stack: rows and the rule
 
@@ -116,7 +116,7 @@ The 28 strings that change are the English statements of a fact the reader refus
 `My phone is 0721 555 019.`, `My sister is vegan.` and `my dog is Rex`, kept after the question.
 No string or turn changes from kept to refused. Scripts `replay.py` and `cmp.py`, logs
 `head.json`, `new.json` and `diff_head_new.txt`, in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/b21ab427-7e2c-4723-9504-d59e434516ce/scratchpad/slot10/`.
+the `slot10` scratch directory of the 2026-11-13 run.
 
 ## A statement after a courtesy question: rows and the rule
 
@@ -141,7 +141,7 @@ today?`, which that build's statement reader read as a question the statement ma
 withheld the exchange, as in the draws above without the refusal. No brain note holds a `?` (179
 note forms), so only the model's own text counts. The script `draw.sh`, the logs `draw.log` and
 `draws.jsonl` and `summ.py` are in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/b21ab427-7e2c-4723-9504-d59e434516ce/scratchpad/slot12/`.
+the `slot12` scratch directory of the 2026-11-13 run.
 
 ## The open forget check: replay
 
@@ -166,7 +166,7 @@ the courtesy chains drawn above (their six draws hold two distinct replies) and
 `Is there anything else you'd like me to help you with?`. No string or turn changes from refused
 to kept. Scripts `collect.py` and `replay.py`, logs `head.json`, `work.json` and
 `diff_head_work.txt`, in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/b21ab427-7e2c-4723-9504-d59e434516ce/scratchpad/slot13/`.
+the `slot13` scratch directory of the 2026-11-13 run.
 
 ## The open forget check on the live stack: rows and the rule
 

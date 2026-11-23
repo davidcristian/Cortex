@@ -65,7 +65,7 @@ for first, and `NUMBERS_LEFT_NOTE`, the third, after them.
 ## A note the model restates
 
 Five draws of 2026-11-08
-(`/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot10/draws-cand.jsonl`,
+(`draws-cand.jsonl` in the `slot10` scratch directory of the 2026-11-08 run,
 chats `s10-cand-*`) wrote the
 `DAILY_NOTE` a scheduling result ends with into the reply in the reply's language. All five
 changed "Ask to make it one time" into a promise ("dímelo y lo ajustaré", "je ferai le
@@ -105,7 +105,7 @@ than its reply's, so the pick **passes**.
 ## Live turns on the shared stack, 2026-11-08
 
 The `cortexn16` stack brain rebuilt from the commit that adds the pick, one new chat per message,
-cards approved (`/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot12/draws.jsonl`).
+cards approved (`draws.jsonl` in the `slot12` scratch directory of the 2026-11-08 run).
 Each turn made one successful `schedule_task` call stored at 09:00; the SM clock read 0.56 to
 0.57 of its maximum.
 
@@ -134,7 +134,7 @@ replay applies unchanged. Over the same 749 messages, with each reply read by th
 One pick changed: `No guardes rencor, mi jefe se llama Luis.` moved from English to Spanish under
 a Spanish reply. The five English rows are the same five read by eye above, so the pick
 **passes**. Replay `replay3.py` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot15/`.
+the `slot15` scratch directory of the 2026-11-08 run.
 
 ## Live rows on the pick without letters, written before the draws, 2026-11-08
 
@@ -165,7 +165,7 @@ capitals and a capitalized word beside another one inside a sentence, and the En
 `they`, `don`, `set`, `reminder`, `alarm` and `meeting`. Replayed through the old and new picker,
 223 distinct turn log messages changed once (`EU meeting Thursday 15:00, set reminder.`, Romanian
 to English) and 1,810 backticked strings of `docs/readings/` changed none. Script
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot19/replay3.py`.
+`replay3.py` in the `slot19` scratch directory of the 2026-11-08 run.
 
 German capitalizes every noun, so that skip also dropped `Uhr`, `Morgen` and the polite `Sie`
 beside a noun: `Termin Montag 9 Uhr` and `Rufen Sie Herrn Weber an` got the English note. Those
@@ -173,7 +173,7 @@ three words now count beside a capitalized word, while a German article inside a
 (`Watch Die Hard Friday`) stays skipped. Replayed against the picker before this change, 223 turn
 log messages and 1,814 readings strings changed none, and four German probes moved from English to
 German. Script
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot20/replay.py`.
+`replay.py` in the `slot20` scratch directory of the 2026-11-08 run.
 
 ## Messages in capitals, 2026-11-10
 
@@ -192,7 +192,7 @@ words (`VERGISS BITTE DEN TÜRCODE 7319, ALLES ANDERE BLEIBT.`) now reads as Ger
 no longer names the den row; with one (`VERGISS DEN TÜRCODE 7319, ...`) it still reads as English,
 and the forget reader adds a German reading by its forget verb
 ([forget-keep-clause.md](forget-keep-clause.md)). Scripts `replay1071.py`, `probe2.py` and log `replay1071.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot1/`.
+the `slot1` scratch directory of the 2026-11-10 run.
 
 ## A keep claim in four other languages, 2026-11-10
 
@@ -214,7 +214,7 @@ conversation`, `C'est noté, je retiens [...]`, `Notiert.`, `Entendido, lo recor
 several lines, and one prose fragment. No English string was added. The note stays English under
 such a reply: `UNKEPT_CLAIM_NOTE` has no translations, and a wording in another language is a pick.
 Script `replay1049.py` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot2/`.
+the `slot2` scratch directory of the 2026-11-10 run.
 
 ## A keep claim naming a row still stored, 2026-11-10
 
@@ -237,4 +237,4 @@ with six spared sets (none, Anna's row, the shed, gym rows in English, Spanish a
 with and without a forget call. Two results changed, both a readings line quoting the Anna reply
 with more words after it, and both now show the note. No recorded reply in another language keeps
 a stored row (`names_spared_other` holds on 0 strings). Script `replay.py` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot10/`.
+the `slot10` scratch directory of the 2026-11-10 run.

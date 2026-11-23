@@ -4,7 +4,7 @@ Whether the cortex answers a request about the file sidecar's folders with no fi
 whether memory stores that answer so a later chat repeats it. Taken on 2026-10-30 on the shared
 stack (cortex gemma-4-12B at context 16,384, memory pgvector, the file sidecar's one folder
 `/projects`), over `Converse` with `slot14/draw.py <label> <row> <draws>` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/def04344-43c5-4abe-b022-0038411a4a36/scratchpad/`.
+the scratch directory of the 2026-10-30 run.
 Every draw starts a new chat with `memories` empty and deletes every row it wrote at its end.
 
 ## Rows
@@ -104,7 +104,7 @@ Paired with their messages, the runs above give 28 no-call draws of F01 to F04 t
 reads all 28. It reads none of the 6 C01 replies.
 
 **The draws.** Run log `files.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/545ea45a-902e-44a3-86aa-5ec869e6c085/scratchpad/slot6/`, the
+the `slot6` scratch directory of the 2026-10-31 run, the
 SM clock between 0.08 and 0.22 of its maximum, and no draw ended in an error.
 
 | Row | Draws | Called a file tool | Of those, with the note | No call, invented | Of those, with the note |

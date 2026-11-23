@@ -24,7 +24,7 @@ call was `list_scheduled`, `C'est fait, j'ai programmé un rappel [...]`, `Am pr
 întunecire [...]`, `le minuteur est réglé pour 2h`), prose lines quoting them, and three lines
 holding the question `Ce am programat?` with a quote mark after its question mark. The note stays
 English. Script `replay2.py` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot10/`.
+the `slot10` scratch directory of the 2026-11-10 run.
 
 ## A forget claim in four other languages, 2026-11-10
 
@@ -40,7 +40,7 @@ replayed through the old reader and the new pair: 143 claims became 171 and none
 added are the recorded replies `C'est fait, j'ai oublié le code [...]`, `Ich habe das vergessen.`
 and `Am uitat codul.`, and readings lines quoting them. The note stays English. Script
 `replay3.py` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot10/`.
+the `slot10` scratch directory of the 2026-11-10 run.
 
 The French present counts too: `j'oublie`, `je l'oublie` and, beside memory, `je supprime` or
 `j'efface`, outside a question, a condition and a negation, and never after `que` or in a sentence
@@ -70,7 +70,7 @@ stack's proxy log were replayed through the old reader and the new one (either r
 claims became 130, none was lost, and the proxy replies changed none. The two added are a
 recorded German reply (`nicht dauerhaft gespeichert`, on a turn that deleted nothing, so no note
 was due) and a prose line where an English `had no` and a Spanish `guardado` share a clause. Script
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot4/replay1049.py`,
+`replay1049.py` in the `slot4` scratch directory of the 2026-11-11 run,
 log `replay1049.log` beside it.
 
 ## A yearly claim in four other languages, 2026-11-11
@@ -108,7 +108,7 @@ for the folder reader: folder claims stayed at 1, no-access and not-found claims
 77, all four added being phrases of this file's own prose, and file questions stayed at 317 after
 a first replay read 8 English lines (`folder listing`) through a Romanian `folder` and a `list`
 stem, which were narrowed. None was lost and the proxy replies changed none. Script
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot5/replay_files.py`,
+`replay_files.py` in the `slot5` scratch directory of the 2026-11-11 run,
 log `replay_files.log` beside it.
 
 ## The stored time reader in four other languages, 2026-11-11
@@ -131,4 +131,4 @@ proxy replies changed none. On a brain built from the tree after the change (SM 
 `clocks.max.sm`), three live reminder turns in French, Romanian and Spanish replied `demain à
 9h`, `la ora 14:00` and `a las 10:00`, and none ended with the note; none used a new form.
 Script `replay_time.py` and log `replay_time.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot5/`.
+the `slot5` scratch directory of the 2026-11-11 run.

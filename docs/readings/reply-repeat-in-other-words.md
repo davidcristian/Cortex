@@ -67,7 +67,7 @@ over A5 and A6 together.
 
 Run logs `a5.jsonl` and `a6.jsonl`, the recorded request `second.json`, and the scripts `draw.py`,
 `replay.py` and `compare.py` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/37073e3c-5ca6-42f6-aae1-df9e67b0e4db/scratchpad/slot3/`.
+the `slot3` scratch directory of the 2026-11-07 run.
 The SM clock read 0.57 of its maximum before each row and 0.67 after it.
 
 | Row | Draws | `opens` | `restates` | `kept` | `empty` | `recall` |

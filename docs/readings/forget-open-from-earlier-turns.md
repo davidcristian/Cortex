@@ -51,7 +51,7 @@ specific you'd like me to ignore or stop using?`, which ran no call and names fo
 `forget_open` does not read. That form is filed as
 [R-1193](../refinements/tasks/1193-a-forget-in-words-no-reader-reads-is-refused-on-the-answer.md). Scripts `replay.py` and `diff.py`,
 logs `head.json`, `new.json` and `diff_head_new.txt`, in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/b21ab427-7e2c-4723-9504-d59e434516ce/scratchpad/slot15/`.
+the `slot15` scratch directory of the 2026-11-13 run.
 
 ## The deed reader on the live stack: rows and the rule
 
@@ -115,7 +115,7 @@ requests with an earlier exchange) hold no reply closed by the claim note, so no
 The recorded `a1` chain of [the notes](forget-unrequested-notes.md#the-draws-2026-11-13), whose
 `Recuerda que mi color favorito es el verde.` had its forget call run, is now refused. Scripts
 `replay.py` and `replay_sessions.py` are in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/11450320-079c-401d-9f26-43a763a369b6/scratchpad/slot6/`.
+the `slot6` scratch directory of the 2026-11-14 run.
 
 **Rule**, written at 01:28 before any draw. Brain `cortexn22-brain-s6claim` (port 23067, the
 working tree), a new chat per draw, `memories` emptied first, every card approved. Chain A stores

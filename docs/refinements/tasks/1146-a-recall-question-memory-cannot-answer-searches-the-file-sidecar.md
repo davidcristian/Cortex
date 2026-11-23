@@ -11,7 +11,7 @@ turns whose first request held no recalled row naming the bike lock (chats `n19s
 and `n19s16-q-1` to `6`). None of the 12 turns whose first request held that row (`n19s15-q-r1`
 to `r6`, `n19s15-c-q1` to `q6`) called any tool. File tools were offered in the first request of
 all 24. The counts come from the proxy log of that
-night (`/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/stack/logs/proxy/all.jsonl`). A turn that reads a file is tainted, so memory does not keep it, and an update such as
+night (`stack/logs/proxy/all.jsonl` in the scratch directory of the 2026-11-11 run). A turn that reads a file is tainted, so memory does not keep it, and an update such as
 `Update my gym locker number: it is 5512, not 5521.` searched files until the round cap
 ([R-1116](1116-an-update-of-a-stored-value-can-search-files-until-the-round-cap.md)).
 

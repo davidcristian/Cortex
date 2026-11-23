@@ -43,7 +43,7 @@ while a record that recalled the deleted row waits; after the commit the record 
 
 The brain was rebuilt from the commit that added `forget_memories`. One draw per row with the
 shipped sampling, the SM clock at 0.60 of its maximum before the run. Run log
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/f332a2e9-c75e-426f-b2e8-271f62130918/scratchpad/slot8/rows1.log`;
+`rows1.log` in the `slot8` scratch directory of the 2026-10-28 run;
 its driver approves every card.
 
 | Row | Tool run and card | Reply | Rows holding `4242 4242` after | Result |
@@ -71,7 +71,7 @@ and no F5 reply asks for the value. Otherwise the description stays as it is.
 
 With the shipped description (the value "as remembered, not a description of it"), the SM clock at
 0.59 of its maximum before and after. Run log
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/f332a2e9-c75e-426f-b2e8-271f62130918/scratchpad/slot10/base.log`.
+`base.log` in the `slot10` scratch directory of the 2026-10-28 run.
 
 | Row | Draws passing | What the draws did |
 | --- | --- | --- |
@@ -149,7 +149,7 @@ The pass rule, written before the baseline was drawn:
 ## A forget and a new fact: the draws, 2026-10-29
 
 Run logs `base.jsonl`, `cand.jsonl` and `forbid.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/cd62d808-da29-4853-bdb9-5fbf25caf21a/scratchpad/slot1/`,
+the `slot1` scratch directory of the 2026-10-29 run,
 the SM clock between 0.54 and 0.70 of its maximum at every row's start and end. In every draw the
 second message called `forget_memories` with the bare number, and no draw left a row holding
 `4242 4242` or the new fact.
@@ -210,7 +210,7 @@ The pass rule, written before the baseline was drawn:
 ## A forget that did not run: the draws, 2026-10-29
 
 Run logs `base.jsonl` and `candA.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/cd62d808-da29-4853-bdb9-5fbf25caf21a/scratchpad/slot2/`,
+the `slot2` scratch directory of the 2026-10-29 run,
 the SM clock between 0.59 and 0.72 of its maximum at each run's start and end. Every second
 message called `forget_memories` and its card was denied, so no draw was replaced.
 

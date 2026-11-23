@@ -39,7 +39,7 @@ stores fewer draws than the baseline did.
 Drawn 02:01 to 02:08 UTC on the stack brain (tree at `43c4011b1`), cortex gemma-4-12B, temperature
 as deployed, no candidate; SM clock between 0.54 and 0.57 of its maximum at each draw's end
 (`nvidia-smi --query-gpu=clocks.sm,clocks.max.sm`). Rows, stored records and the clock readings:
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/a64866e3-d614-4e2e-a757-12775f4290c0/scratchpad/slot2/rows.jsonl`,
+`rows.jsonl` in the `slot2` scratch directory of the 2026-11-06 run,
 `records.jsonl` and `rows.clock` beside it; the calls are in the stack brain's `tool.invocation` log
 lines from 02:01:30 UTC.
 
@@ -74,7 +74,7 @@ three calls: `schedule_task`, `list_scheduled`, `edit_scheduled`. Every `edit_sc
 09:00, where the first call of draw 2 had chosen 12:00). One call per edit, against two in every
 baseline draw. No reply named the time (0 of 3), so the row still fails the pass rule on the
 unnamed time alone. Rows, records and clock readings:
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/a64866e3-d614-4e2e-a757-12775f4290c0/scratchpad/slot3/rows.jsonl`,
+`rows.jsonl` in the `slot3` scratch directory of the 2026-11-06 run,
 `records.jsonl` and `rows.clock` beside it.
 
 ## Result of the 00:00 refusal, 2026-11-06
@@ -85,7 +85,7 @@ day is 00:00, when the message names no midnight form (`midnight`, `0:00`, `00:0
 `12:00 am`, `12 a.m.`), is refused once per turn with a result that names the 09:00 default and
 asks for the time the person meant, and a second such call runs. SM clock at 0.57 of its maximum
 at each draw's end. Rows, records, clock readings and the candidate's patch and test file:
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/a64866e3-d614-4e2e-a757-12775f4290c0/scratchpad/slot4/`.
+the `slot4` scratch directory of the 2026-11-06 run.
 
 | Row | Stored time of day per draw | Reply names the time | At 00:00 |
 | --- | --- | --- | --- |
@@ -159,7 +159,7 @@ in this turn is at HH:MM. Ask to change it if you meant another time of day.") w
 names no clock figure, am or pm, noon or midnight (`names_time_of_day` in `schedule_claim.py`).
 The field crosses a handoff with the ledger. SM clock at 0.57 of its maximum at each draw's end.
 Rows, records and clock readings:
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/a64866e3-d614-4e2e-a757-12775f4290c0/scratchpad/slot5/rows.jsonl`,
+`rows.jsonl` in the `slot5` scratch directory of the 2026-11-06 run,
 `records.jsonl` and `rows.clock` beside it.
 
 | Row | Stored time of day per draw | Reply names the time | At 00:00 |
@@ -223,7 +223,7 @@ replayed through the old and new reader, 0 of 16,186 distinct texts changed (eve
 in the 2026-11-07 run's scratch directory and under `measurements/`, appended notes removed, and
 every quoted string in `docs/readings/`). One recorded reply writes a `pour` word,
 `prévu pour demain à 17h30`, read through `à`; none writes one directly before an h hour.
-Replay script: `/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot1/replay.py`.
+Replay script: `replay.py` in the `slot1` scratch directory of the 2026-11-08 run.
 
 Eight French requests for a reminder were then drawn on the stack brain rebuilt with the
 change, at 00:50 and 00:55 UTC (SM clock 0.57 of `clocks.max.sm`): six after a duration

@@ -33,7 +33,7 @@ still withholds the turn, and so does a message in another language, which neith
 ## Baseline, 2026-10-30
 
 Drawn in the run of the no-call check's candidate (`cand.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/def04344-43c5-4abe-b022-0038411a4a36/scratchpad/slot4/`),
+the `slot4` scratch directory of the 2026-10-30 run),
 the SM clock at 0.55 to 0.70 of its maximum. That build ships, so it is this rule's baseline too.
 
 | Row | Draws passing | Draws calling `forget_memories` |
@@ -54,7 +54,7 @@ reports a no-match run on its own.
 counts the calls the model named and the runs that matched nothing, and `memory_withheld` records
 the turn when the two counts and the turn's forget runs agree and `asks_kept`
 (`memory_request.py`) reads the message as a request to remember. Run log `cand.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/def04344-43c5-4abe-b022-0038411a4a36/scratchpad/slot5/`,
+the `slot5` scratch directory of the 2026-10-30 run,
 the SM clock at 0.59 of its maximum at the start, 0.60 after R14 and 0.70 at the end.
 
 | Row | Baseline | Candidate | What the candidate's draws did |
@@ -80,7 +80,7 @@ every request to the model host to a file. The audit keeps the call's text as `<
 next request, which repeats the call, is where the text is read. Written before the draws: the run
 records the text of each `forget_memories` call and whether it matched; a run with no unmatched call
 leaves the texts of the 2026-10-31 unmatched calls unknown. Run logs `rows.jsonl`, `req.log` and
-`mem.txt` in `/tmp/claude-1000/-home-david-Files-Git-Cortex/7993c5bc-88df-4188-a4c9-74349733b88c/scratchpad/slot4/`,
+`mem.txt` in the `slot4` scratch directory of the 2026-11-05 run,
 the SM clock at 0.09 to 0.51 of its maximum, no draw ending in an error.
 
 | Of 10 draws | Count |
@@ -102,7 +102,7 @@ and read `notes.txt`. A subagent's tool result taints the turn as the cortex's o
 2026-11-05 `unasked_sidecar_tools` was changed to refuse `spawn_subagents` beside the sidecar tools
 whenever subagents have tools ([ADR-0013](../adr/ADR-0013-untrusted-content.md)). The reader replay,
 `replay.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/7993c5bc-88df-4188-a4c9-74349733b88c/scratchpad/slot5/`,
+the `slot5` scratch directory of the 2026-11-05 run,
 read 431 recorded strings as requests to remember: the 350 that refuse the file tools are the 350
 that refuse `spawn_subagents`, and the one string whose file reading changed is the new near miss
 that names subagents. The request the brain sends the model is unchanged, since the flag is not sent.
@@ -131,7 +131,7 @@ with the proxy, cards approved.
 ## A repeated forget: the draws, 2026-11-05
 
 Run logs `rows.jsonl`, `req.log`, `mem.txt` and `rows.clock` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/7993c5bc-88df-4188-a4c9-74349733b88c/scratchpad/slot6/`,
+the `slot6` scratch directory of the 2026-11-05 run,
 on a candidate built from the working tree with the result above, run through the proxy beside the
 stack brain of the commit that notes no file was searched. The SM clock read 0.08 to 0.52 of its
 maximum before the draws. No draw ended in an error.
@@ -181,7 +181,7 @@ approved, and the `seed4` row written again in tonight's stack by a real turn.
 ## A forget after a delete: the draws, 2026-11-06
 
 Run logs `rows.jsonl`, `req.log`, `mem.txt` and `rows.clock` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/a64866e3-d614-4e2e-a757-12775f4290c0/scratchpad/slot8/`,
+the `slot8` scratch directory of the 2026-11-06 run,
 on a candidate built from the working tree with the result above (its diff and seven tests are
 `r969-candidate.diff` and `r969-test_forget_after_delete.py` beside them; seven mutation rows over
 the tests all failed), run through the proxy beside the stack brain of the commit that refuses a
@@ -212,7 +212,7 @@ in 4 of 45.
 ## A forget after a delete: the second 15 draws, 2026-11-06
 
 Run logs `rows.jsonl`, `req.log`, `mem.txt`, `rows.clock` and `run.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/a64866e3-d614-4e2e-a757-12775f4290c0/scratchpad/slot10/`,
+the `slot10` scratch directory of the 2026-11-06 run,
 on the same candidate (the result that [ships](forget-after-delete-provoked.md); the seven
 mutation rows over its tests all failed again), through the proxy beside the stack brain of the
 commit that keeps the file tools on a value named by a record, the `seed4` row copied in before each

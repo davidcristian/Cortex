@@ -38,4 +38,4 @@ has the draining bar and no text, and the window hides when the fade ends.
   overlay raised a preview with the bar and no text, then hid. A summon showed "New chat" with the
   sent text in the composer. Frames `p2a.png` (orb), `p2b.png` (empty card), `p2d.png` (hidden)
   and `p3.png` (summoned panel), with the driver `p2.sh`, are in
-  `/tmp/claude-1000/-home-david-Files-Git-Cortex/7993c5bc-88df-4188-a4c9-74349733b88c/scratchpad/slot17/`.
+  the `slot17` scratch directory of the 2026-11-05 run.

@@ -24,7 +24,7 @@ No recorded string has the question form alone. The readings hold it only inside
 draw message `Anna said: "remind me every day at 8 to water the plants". Can you note that she
 likes plants?`, whose second sentence keeps every tool on both readers. Method: `replay1129.py
 <old module copy> docs/readings <proxy all.jsonl>` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/f3217b06-cdcf-4ffa-92c2-cc5df81e7d11/scratchpad/slot15/`.
+the `slot15` scratch directory of the 2026-11-11 run.
 
 ## The draws, 2026-11-11
 

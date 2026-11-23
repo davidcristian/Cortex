@@ -42,7 +42,7 @@ The pass rule:
 ## The draws, 2026-10-29
 
 Run log `nocard.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/cd62d808-da29-4853-bdb9-5fbf25caf21a/scratchpad/slot7/`,
+the `slot7` scratch directory of the 2026-10-29 run,
 on a brain built with the change, the SM clock at 0.59 to 0.60 of its maximum at the run's start
 and end. No F3 draw was replaced.
 
@@ -120,7 +120,7 @@ The rule:
 ## F5 and the forget note: the draws, 2026-10-29
 
 Run logs `A.jsonl`, `B.jsonl`, `C.jsonl`, `D.jsonl`, `DRC.jsonl`, `DRall.jsonl` and `clocks.log`
-in `/tmp/claude-1000/-home-david-Files-Git-Cortex/cd62d808-da29-4853-bdb9-5fbf25caf21a/scratchpad/slot8/`,
+in the `slot8` scratch directory of the 2026-10-29 run,
 the SM clock at 0.53 to 0.73 of its maximum at each run's start and end. Every F5 draw called
 `forget_memories` and read the no-match result; C showed its no-match card in each, which the
 driver approved. A, B and C were judged together, shuffled, and D on its own.

@@ -28,7 +28,7 @@ ADR-0076, and no recorded draw message is written in capitals
   picks, so a forget in capitals keeps German `DEN` as a fact word. A unit call of `unnamed` on
   `VERGISS DEN TÜRCODE 7319, ALLES ANDERE BLEIBT.` lists the row `the den alarm code is 7319`
   beside the door row, a row the person asked to keep (`probe2.py` in
-  `/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot18/`).
+  the `slot18` scratch directory of the 2026-11-09 run).
 - 2026-11-10: done. The remedy above moved abbreviations off English (`CALL BOB MON 9 EST` read as
   French), so a message with no lowercase letter now counts only its words of four letters or
   more, when two are in one language's list. The four messages read as their own language, nine

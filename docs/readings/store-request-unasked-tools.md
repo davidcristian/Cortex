@@ -82,7 +82,7 @@ draw would count only draw noise.
 Drawn from 03:46 to 03:57 on 2026-11-15, the start build's 12 draws first (proxy log lines 51 to
 82) and then the fix's 12 (lines 84 to 119), SM clock 0.58 to 0.59 of `clocks.max.sm`. Logs
 `draw-start.log` and `draw-fix.log`, rows `draws-start.jsonl` and `draws-fix.jsonl`, in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/bd106a1a-a17f-4ca5-8841-82294e4917a8/scratchpad/slot1/`.
+the `slot1` scratch directory of the 2026-11-15 run.
 The start build's first request lists 19 tools and the fix's 17, without `set_volume` and
 `schedule_task`.
 

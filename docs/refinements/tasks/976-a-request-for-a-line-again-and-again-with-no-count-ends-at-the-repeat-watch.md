@@ -10,7 +10,7 @@ one closing line.` names neither, so in 2 of 2 real turns the reply stopped at t
 `REPEATED_LINE_NOTE` and no closing line. Fed directly to the class, a one-line chorus three times in a
 row and a table with three equal rows end the same way. A chorus with other lines between its copies,
 a numbered list and a line the message holds do not. Run log `song.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/545ea45a-902e-44a3-86aa-5ec869e6c085/scratchpad/slot9/`.
+the `slot9` scratch directory of the 2026-10-31 run.
 The note is accurate, so the cost is an unfinished answer and one more message.
 
 ## What to do

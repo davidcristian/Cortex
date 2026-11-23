@@ -121,9 +121,9 @@ sentence as a choice. `s18-m5-3` called `list_allowed_directories`, `list_direct
 [R-1129](../refinements/tasks/1129-a-question-asking-to-note-a-fact-is-not-read-as-a-request-to-remember.md)
 counts. Driver rows `rows.jsonl`, the replays `replay.py` and `rows.py` and the mutation rows
 `mut.py` are in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot18/`.
+the `slot18` scratch directory of the 2026-11-10 run.
 
 Driver rows `rows1.jsonl` to `rows3.jsonl`, frames `f02.png` and `f03.png`, the replay `replay.py`
 and the probes in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot17/`.
+the `slot17` scratch directory of the 2026-11-10 run.
 After the flows every `s17-*` row, both shell rows and every schedule item were deleted.

@@ -52,7 +52,7 @@ schedule keys checked clean before and after every draw. The SM clock read 0.52 
 `clocks.max.sm`; no turn ended in an error and no draw left a schedule key. The candidate is
 [recorded as a patch](forget-value-held-patch.md). Scratch logs and records: `base.log`,
 `fix.log`, `base-b.jsonl` and `fix-b.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot5/`,
+the `slot5` scratch directory of the 2026-11-09 run,
 the calls in the stack's proxy log, lines 249 to 312 for the base and 313 to 378 for the fix.
 
 | Of the draws (4 per row and build) | x6 base | x6 fix | x7 base | x7 fix | f1 base | f1 fix |
@@ -122,7 +122,7 @@ candidate as `cortexn17-brain-s6fix`, each through `cortexn17-proxy`, with the r
 schedule keys checked clean before and after every draw. The SM clock read 0.57 to 0.70 of
 `clocks.max.sm`; no turn ended in an error and no draw left a schedule key. Scratch logs and
 records: `base.log`, `fix.log`, `base-b.jsonl`, `fix-b.jsonl` and `replay.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot6/`,
+the `slot6` scratch directory of the 2026-11-09 run,
 the calls in the stack's proxy log, lines 380 to 442 for the base and 443 to 508 for the candidate.
 
 | Of the draws (6 per row and build) | x6 base | x6 candidate | f1 base | f1 candidate |
@@ -174,12 +174,12 @@ backticked text): `asks_kept` and `asks_kept_alone` change for 4, every one the 
 code de mon cadenas de vélo est 5937, retiens-le.` alone or in a table row; `asks_not_kept`
 changes for none. The rule written before the change asked for no draw, since the path from the
 reader to `_unmatched_keep` is typed code its tests cover. Script `replay.py` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot7/`.
+the `slot7` scratch directory of the 2026-11-09 run.
 
 ## Audit probes, 2026-11-09
 
 Unit calls of the readers after the pronoun change, no turn drawn (`probe45.py` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot8/`):
+the `slot8` scratch directory of the 2026-11-09 run):
 
 | Message | `asks_kept` | `asks_not_kept` |
 | --- | --- | --- |

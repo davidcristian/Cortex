@@ -64,7 +64,7 @@ measure only draw noise between base and B, so B is judged on its note alone.
 
 Run log `rows.jsonl`, with `spans.txt` naming each draw's lines of the proxy's `req.log` and
 `analysis.txt` reading them, in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/37073e3c-5ca6-42f6-aae1-df9e67b0e4db/scratchpad/slot5/`.
+the `slot5` scratch directory of the 2026-11-07 run.
 Base was built from `84bff1ba2`. All 45 draws ended `turn_complete`, and the SM clock read 0.57 of
 its maximum at the start and at the end.
 
@@ -152,4 +152,4 @@ also reads `until the end of`, `while`, `as long as`, `jusqu'à`, `tant que dure
 `mientras dure` and `până la sfârșitul` before a chat noun, and `pour le chat` no longer counts;
 `pendant le chat` still does. Replayed over the same 749 replies, the old and new reader each flag
 the same 4 and change none (`replay4.py` and `replay4.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/5e7bbbe2-0692-4951-9718-a5c1c4b48de9/scratchpad/slot15/`).
+the `slot15` scratch directory of the 2026-11-08 run).

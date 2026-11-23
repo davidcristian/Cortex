@@ -84,7 +84,7 @@ claimed a reminder with no call and `UNSCHEDULED_CLAIM_NOTE` showed.
 61; each string holding `morgen` or `mañana` that it read as tomorrow names tomorrow, and the two
 it read as none are `jeden Morgen` and `por la mañana`. Rows `rows.jsonl`, `rows2.jsonl`, the
 brain log `brain2.log`, `count.py`, `replay.py` and `mut.py` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot12/`;
+the `slot12` scratch directory of the 2026-11-10 run;
 every `s12-*` row and schedule item was deleted.
 
 ## A one-time `at` for today, 2026-11-10
@@ -105,7 +105,7 @@ the brain's `tool.invocation` lines:
 **Result.** 0 of 10 here and 0 of 14 on the second build wrote `at` for today, and r1-9 reached
 one time today by the edit path r1-1 showed, which `FIRST_FIRE_NOTE` names. The widening is
 declined. Rows `rows1.jsonl` and the brain log `brain1.log` are in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot15/`;
+the `slot15` scratch directory of the 2026-11-10 run;
 every `s15-*` item was deleted.
 
 ## A rule on chosen days for one time tomorrow, 2026-11-10

@@ -111,7 +111,7 @@ the row, as the turn stores what it showed.
 **Method.** `first.sh` (the brain turns), `replay.py <proxy.jsonl> <condition> <draws> <line>...`
 (the direct draws; `URL` names another server, `EDIT` the spec for C), `cmp.py` (the H and S
 requests) and `srccheck.py` (the request text against a source tree), in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/d2003893-7ebe-4ec3-ad1c-e92980017fd3/scratchpad/slot11/`.
+the `slot11` scratch directory of the 2026-11-12 run.
 
 ## The body and the sidecar, rows and rule written 2026-11-12 before any draw
 
@@ -172,4 +172,4 @@ stack listed the sidecar's tools is not in the tree. So a stack with a body and 
 about the rate of H, and one with the sidecar sees 14 of 40 against 35 of 40 without it. A direct
 draw runs no tool and stores no row. Script
 `replay.py` and run logs `draws.jsonl` and `draws2.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/b21ab427-7e2c-4723-9504-d59e434516ce/scratchpad/slot2/`.
+the `slot2` scratch directory of the 2026-11-13 run.

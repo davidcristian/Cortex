@@ -38,4 +38,4 @@ digit value of the string in turn, or `4242` when it has none, and the call text
 3,252 cases. 17 cases from 11 strings changed, each a message with a list this change reads. 101
 rows are newly deleted and none newly kept, and each newly deleted row is one an item of the list
 names by its word or its kind. The scripts `replay.py` and `compare.py` and the listing `cmp1.txt`
-are in `/tmp/claude-1000/-home-david-Files-Git-Cortex/bd106a1a-a17f-4ca5-8841-82294e4917a8/scratchpad/slot2/`.
+are in the `slot2` scratch directory of the 2026-11-15 run.

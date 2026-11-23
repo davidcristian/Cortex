@@ -63,7 +63,7 @@ a phone message such as `Forget my phone ending in 4242.`, `Lösch meine Telefon
 mobile phone for `Remember that I deleted my account.` and two `Remember:` messages, whose word
 `remember` names the English row. `Forget 4242.` and `Forget every 4242` change no case. Scripts
 `replay.py`, `group.py` and the logs `old.jsonl`, `new.jsonl` and `diff.txt` are in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/b21ab427-7e2c-4723-9504-d59e434516ce/scratchpad/slot5/`.
+the `slot5` scratch directory of the 2026-11-13 run.
 
 ## Neighbouring flows on the live stack: rows and the rule
 

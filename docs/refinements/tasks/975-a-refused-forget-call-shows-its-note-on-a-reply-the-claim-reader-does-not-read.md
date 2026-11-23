@@ -10,7 +10,7 @@
 `Got it, your locker code is 8426.`, so a person who only asked to remember a fact would read about
 forgetting. The first wording is in 3 of the 259 recorded replies to R and P rows with no forget card
 (`slot2/pair.jsonl`, `slot4/draw961b.jsonl`, in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/545ea45a-902e-44a3-86aa-5ec869e6c085/scratchpad/`), all
+the scratch directory of the 2026-10-31 run), all
 on R13, a row that has also drawn a refused call. No recorded draw has both yet. The note is true, so
 the cost is a confusing line.
 

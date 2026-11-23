@@ -51,7 +51,7 @@ other backticked docs text. `Merke dir das nicht, vergiss meine Nummer.`, `Recue
 `Merke dir, meine Nummer ist 0721, danke.` and
 `Souviens-toi, mon code est 4242 et jette 1111.` keep the tool. Scripts `replay.sh` and `sep.py`,
 logs `start.json`, `head.json`, `new.json` and `diff_head_new.txt`, in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/b21ab427-7e2c-4723-9504-d59e434516ce/scratchpad/slot8/`,
+the `slot8` scratch directory of the 2026-11-13 run,
 with the collect, run and diff scripts of `slot3/` beside it.
 
 ## The store turn and a forget per language: rows and the rule

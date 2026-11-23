@@ -42,7 +42,7 @@ did not ask for.
 
 Drawn at 04:38 to 04:45 (chats `s10m-1` to `s10m-6` and `s10n-1` to `s10n-6`, records
 `rows.jsonl`, `rows2.jsonl`, `calls.txt` and `calls2.txt` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot10/`).
+the `slot10` scratch directory of the 2026-11-09 run).
 The SM clock read 0.57 of `clocks.max.sm` throughout.
 
 | Row | Passed | Calls with `repeat` | Reached the refusal | Retried with `repeat` |
@@ -73,7 +73,7 @@ repeat?` and `It will not repeat.` still read as no repeat. A replay of every st
 ## Second audit probes, 2026-11-09
 
 Unit calls (`probe4.py`, log `probe4.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot13/`).
+the `slot13` scratch directory of the 2026-11-09 run).
 `made_repeating_after` drops its item on a cancel, a daily `at_time` edit and an interval, and keeps it on a
 snooze or a text edit, so no note names a rule the store no longer holds. It added any edit with
 `repeat`, `at_time` and a day selector, whether or not the item repeated before, so an edit of a

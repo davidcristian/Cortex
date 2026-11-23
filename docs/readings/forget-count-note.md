@@ -16,7 +16,7 @@ no removal in 9, three of which name it in Romanian, German and French (`Am uita
 habe das vergessen.`, `j'ai oublié`); `says_forgotten` reads those three. The unit tests
 `test_forget_count_note.py` show the note on `updated`, `changed`, `saved`, a question, a negation
 and `OK.`, and on no reply naming the removal in any note language. Script `replies.py` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot12/`.
+the `slot12` scratch directory of the 2026-11-09 run.
 
 ## Rows and rule
 
@@ -62,7 +62,7 @@ and `tally.py` in the slot directory above.
 
 Unit calls through `ForgetChosenTool` and `limit_notes` (`probe2.py` and `probe3.py`, logs beside
 them in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot13/`).
+the `slot13` scratch directory of the 2026-11-09 run).
 A delete whose rows outlast it, because rows written since the card still hold the text or more
 than the card's limit hold the value, deleted its listed row and reported a count of 0, so a reply
 saying nothing was forgotten got no note. Those results now count their rows (tests in
@@ -92,7 +92,7 @@ row stored by two seed turns, `Forget my bike lock code 7319, keep the shed one.
 approved: the card listed the bike row and kept the shed row, the bike row was deleted, and the
 reply `I've forgotten your bike lock code.` ended with no note (`live.jsonl`). Script
 `replay1091.py` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot15/`.
+the `slot15` scratch directory of the 2026-11-09 run.
 
 ## A reply that kept the row the forget kept, 2026-11-09
 
@@ -130,7 +130,7 @@ tests) through the reader before and after: `says_forgotten` moved 68, each from
 removal, so each now gets the note, among them the recorded replies `I can remove it from my memory
 if you like.` and `If you previously provided it and would like me to ensure it's removed, please
 let me know`. `names_still_held` moved none. Script `replay1099.py` and log `replay1099.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot17/`.
+the `slot17` scratch directory of the 2026-11-09 run.
 
 ## A removal promised for later, 2026-11-09
 
@@ -143,7 +143,7 @@ I deleted it.` and `Es wurde gelöscht.` still name the removal (tests in
 `test_numbers_left_note.py`). Replay of 40,383 strings, built as in the section above, through the
 reader before and after: `says_forgotten` moved 9, all of them the new test strings, and
 `names_still_held` moved none. Log `replay1101.log` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot20/`.
+the `slot20` scratch directory of the 2026-11-09 run.
 
 ## Third audit probe of the handoff record, 2026-11-09
 
@@ -153,4 +153,4 @@ Every field of `TaintLedger` but `forgotten` is a field of `HandoffRecord`, writ
 kept. `forgotten` stays off the record because a recall-tainted turn cannot escalate (ADR-0019
 decision 9). The edit result's `was_once` is read in the same round into `made_repeating`, which
 the record keeps. Script `probe1.py` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/504fd3d2-8740-44f5-b388-49c61671fb23/scratchpad/slot18/`.
+the `slot18` scratch directory of the 2026-11-09 run.

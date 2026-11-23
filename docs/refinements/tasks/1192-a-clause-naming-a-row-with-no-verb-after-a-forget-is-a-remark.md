@@ -25,7 +25,7 @@ kept note shows it, so the person can ask again.
 ## History
 
 - 2026-11-13: filed by the third audit of the night, with `slot14/c2.json` over `slot12/probe.py` as
-  the reproduction, both in `/tmp/claude-1000/-home-david-Files-Git-Cortex/b21ab427-7e2c-4723-9504-d59e434516ce/scratchpad/`.
+  the reproduction, both in the scratch directory of the 2026-11-13 run.
 - 2026-11-14: the remark reader now also reads the asking part beside a row holding the value only
   as a group, so beside a card and a phone ending `4242` the messages `Forget the card 4242, my
   phone as well.`, `Forget the card 4242, the phone one too.` and `Forget the card 4242. My phone

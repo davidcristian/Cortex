@@ -131,7 +131,7 @@ Written before the baseline was drawn: R14 with the shipped description, after t
 says whether the sentence raised the calls on R14 or the shipped description already makes them.
 
 Run logs `candB.jsonl` and `baseR.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/cd62d808-da29-4853-bdb9-5fbf25caf21a/scratchpad/slot2/`,
+the `slot2` scratch directory of the 2026-10-29 run,
 the SM clock at 0.59 to 0.60 of its maximum at each run's start and end. A cell counts the draws
 that called `forget_memories`.
 
@@ -161,7 +161,7 @@ the same rows with the shipped note.
 ## The note that names the call: the draws, 2026-10-29
 
 Run logs `base.jsonl` and `cand.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/cd62d808-da29-4853-bdb9-5fbf25caf21a/scratchpad/slot3/`,
+the `slot3` scratch directory of the 2026-10-29 run,
 the SM clock at 0.59 of its maximum at each run's start and end. A cell counts the draws whose
 reply says the fact was noted, saved or remembered, over the draws that called `forget_memories`.
 

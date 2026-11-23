@@ -79,7 +79,7 @@ condition, a future form. Every distinct readings string and this night's replie
 were replayed through the old and the new reader: 27 claims became 29 and none was lost; the two
 added are c6's reply and c6c's `J'ai également programmé un rappel [...]`, a true claim after a
 call, which shows no note. Scripts `rp.py` and `mut.py` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot11/`,
+the `slot11` scratch directory of the 2026-11-10 run,
 driver rows `rows1.jsonl` to `rows4.jsonl` beside them.
 
 After the flows every `s11-*` row, both shell rows and every schedule item were deleted.
@@ -120,4 +120,4 @@ claim reader shows by design). t3 is the form counted in
 subagent tool), filed as [R-1062](../refinements/tasks/1062-a-correction-of-a-stored-value-says-updated-and-keeps-the-old-row.md)
 and [R-1116](../refinements/tasks/1116-an-update-of-a-stored-value-can-search-files-until-the-round-cap.md).
 No new defect. Driver rows `rows.jsonl` and `rows2.jsonl` in
-`/tmp/claude-1000/-home-david-Files-Git-Cortex/58410d85-0aa8-4ebe-9853-99c9c16a6905/scratchpad/slot22/`.
+the `slot22` scratch directory of the 2026-11-10 run.
