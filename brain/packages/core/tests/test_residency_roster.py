@@ -11,7 +11,10 @@ from cortex_core import (
     converge_residency,
     record_fields,
 )
-from cortex_core.residency_roster import warn_of_unlisted_models
+from cortex_core.residency_roster import (
+    warn_of_an_unstartable_deep_model,
+    warn_of_unlisted_models,
+)
 
 _LOGGER = "cortex_core.residency_roster"
 _ROSTER = ("cortex", "brain", "subagent-gpu", "subagent-gpu-2")
@@ -92,3 +95,69 @@ async def test_boot_recovery_names_the_server_the_evict_list_leaves_out(
     assert settled is True
     assert [record_fields(record)["model"] for record in caplog.records] == ["subagent-gpu-2"]
     assert host.running == {"cortex", "subagent-gpu", "subagent-gpu-2"}
+
+
+async def test_a_deep_model_the_host_cannot_start_is_one_warning_with_the_hosts_reason(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    reason = "CORTEX_MODEL_FILE_BRAIN names /srv/models/deep.gguf, which is not there"
+    host = ScriptedModelHost(roster=_ROSTER, start_gaps={"brain": reason})
+    with caplog.at_level(logging.WARNING, logger=_LOGGER):
+        assert await warn_of_an_unstartable_deep_model(host, _plan()) == reason
+    (record,) = caplog.records
+    assert record.getMessage() == (
+        "the model host cannot start the deep model, so every handoff fails until it can"
+    )
+    assert record_fields(record) == {"model": "brain", "reason": reason}
+    assert host.calls == [("start_gap", "brain")]
+
+
+async def test_a_deep_model_the_host_can_start_logs_nothing(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    host = ScriptedModelHost(roster=_ROSTER, start_gaps={"subagent-gpu": "absent"})
+    with caplog.at_level(logging.WARNING, logger=_LOGGER):
+        assert await warn_of_an_unstartable_deep_model(host, _plan(coresident=True)) is None
+    assert caplog.records == []
+
+
+async def test_a_host_that_cannot_be_asked_about_the_deep_model_says_the_question_went_unasked(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    host = ScriptedModelHost(fail={("start_gap", "brain"): "connection refused"})
+    with caplog.at_level(logging.WARNING, logger=_LOGGER):
+        assert await warn_of_an_unstartable_deep_model(host, _plan()) is None
+    (record,) = caplog.records
+    assert record.getMessage() == (
+        "the model host could not be asked whether it can start the deep model"
+    )
+    assert record_fields(record) == {"model": "brain", "error": "connection refused"}
+
+
+async def test_a_deep_model_the_host_does_not_serve_adds_no_second_line(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    host = ScriptedModelHost(unhosted=["brain"])
+    with caplog.at_level(logging.WARNING, logger=_LOGGER):
+        assert await warn_of_an_unstartable_deep_model(host, _plan()) is None
+    assert caplog.records == []
+
+
+async def test_boot_recovery_names_the_reason_the_deep_model_cannot_start(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    reason = "CORTEX_MODEL_FILE_BRAIN_DRAFT names /srv/models/draft.gguf, which is not there"
+    host = ScriptedModelHost(
+        running=["cortex", "subagent-gpu"], roster=_ROSTER[:3], start_gaps={"brain": reason}
+    )
+    with caplog.at_level(logging.WARNING, logger=_LOGGER):
+        settled = await converge_residency(
+            host,
+            _plan("subagent-gpu"),
+            BaselineTiers(None),
+            clock=_FixedClock(),
+            sleeper=RecordingSleeper(),
+        )
+    assert settled is True
+    assert [record_fields(record).get("reason") for record in caplog.records] == [reason]
+    assert host.running == {"cortex", "subagent-gpu"}

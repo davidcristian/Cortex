@@ -1,9 +1,8 @@
 # Boot recovery does not ask whether the deep tier can be started
 
-**Status:** open, actionable
+**Status:** done 2026-11-23
 **Area:** inference-model-manager
 **Origin:** [ADR-0054](../../adr/ADR-0054-baseline-residency.md)
-**Verified:** 2026-11-18
 
 A swap asks the model host for the deep tier's `start_gap` before its first stop
 (`_refuse_a_start_the_host_would_refuse` in
@@ -22,3 +21,6 @@ be asked logs that the question went unasked. A test fails when the warning is a
 
 - 2026-11-18: filed from a reading of boot recovery beside the swap's question about the deep
   tier.
+- 2026-11-23: done as written; the premise held. `converge_residency` now ends with
+  `warn_of_an_unstartable_deep_model`, which asks the deep tier's `start_gap` and logs the host's
+  reason, or that it could not be asked. A deep tier the host does not serve adds no second line.

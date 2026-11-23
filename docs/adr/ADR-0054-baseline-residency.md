@@ -60,6 +60,7 @@ without decision 8 `Health` would answer ready while the cortex or the store is 
    | the cortex would not become ready, or is not in the roster | false | the same line |
    | the deep tier is resident and its stop failed | false | the same line |
    | the roster has no deep tier | true | one `ERROR` naming `CORTEX_MODEL_FILE_BRAIN` and `CORTEX_ESCALATION` |
+   | the host names a reason it cannot start the deep tier (a file its settings name is absent) | true | one `WARNING` (`the model host cannot start the deep model, so every handoff fails until it can`) with the host's reason, or `the model host could not be asked whether it can start the deep model` when the host does not answer |
    | the cortex serves and a peer will not run | true | the model host is not running that peer |
 
    The deep tier is not a peer: a deep model that cannot be cleared is a reason to distrust the

@@ -152,7 +152,7 @@ need `CORTEX_NGL_BRAIN` and `CORTEX_CTX_SIZE_BRAIN` to fit it, and [deep
 candidates](../readings/deep-candidates.md) has each one's cost) and set `CORTEX_ESCALATION=1` and
 `CORTEX_MODELHOST_BACKEND=supervisor`. The GPU override already points `CORTEX_BRAIN_ENDPOINT` at
 `http://model-host:8081`. A tier with no artifact is not in the roster, so a stock stack answers
-404 for the deep model, and `GET /health` lists exactly the tiers it can run.
+404 for the deep model, and `GET /health` lists exactly the tiers it can run. A path the mount does not hold for the deep tier or its drafter is named at the brain's boot: `the model host cannot start the deep model, so every handoff fails until it can`, with the setting and the path.
 
 **Name the deep model's drafter beside it, and four settings move with it.** The pick has its
 draft layer inside its own file: give `CORTEX_MODEL_FILE_BRAIN_DRAFT` the same path as

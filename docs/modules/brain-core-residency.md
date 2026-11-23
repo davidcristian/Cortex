@@ -184,7 +184,7 @@ swapping `acquire`, because the deep model's tool loop re-acquires once per roun
 split along the boundary the manager already draws, it owning when and who may, they owning what the
 host is asked to do: `residency_claim.py` (`HandoffClaim`, the non-blocking claim over the whole
 sequence); `residency_moves.py` (the two host-facing moves: `swap_in` asks the host for the `status` of every `plan.evict_models` id before it stops anything, then for the deep tier's `start_gap`, and an id the host does not have, a reason the host names for refusing the deep tier's start (a file its settings name is absent) or an answer it cannot give raises `SwapFailedError` with every model still running; the fit check is between the last
-`stop` and the `start`, the only instant at which free memory means anything); `residency_roster.py` (`warn_of_unlisted_models`, which `converge_residency` ends with: one warning per hosted id that is not the cortex, the deep tier or in the evict list);
+`stop` and the `start`, the only instant at which free memory means anything); `residency_roster.py` (`warn_of_unlisted_models` and `warn_of_an_unstartable_deep_model`, which `converge_residency` ends with: one warning per hosted id that is not the cortex, the deep tier or in the evict list, and one with the reason the host names in the deep tier's `start_gap`, or that it could not be asked, and nothing for a deep tier the host does not serve, which `_clear_deep` has already logged);
 `residency_restore.py` (the swap back's retry policy and its uninterruptible wait, where every
 cancellation waits for the shielded restore, not merely the first); `residency_board.py`
 (`ResidencyBoard`, holding which model the GPU serves, what a user is told, whether a scope owns the
