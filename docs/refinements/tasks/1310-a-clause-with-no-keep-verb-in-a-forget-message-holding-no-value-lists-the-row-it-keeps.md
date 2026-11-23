@@ -9,7 +9,10 @@ Over a car row, a phone and a locker that all end in `4242`, in unit calls throu
 `ForgetChosenTool`, `Forget my cart, the phone stays.` with the call text `4242` lists the phone.
 No stored request holds `cart`, the message holds no value, and the clause naming the phone holds
 no keep verb. The same message with the value, `Forget my cart 4242, the phone stays.`,
-keeps the phone.
+keeps the phone. A value no stored row holds reads as no value: `Forget my cart 1234, the phone
+stays.` with the call text `4242`, and `Forget my car 1234, the phone stays.` with the call text
+`phone`, list the phone. That form is each of the 12 rows asked to keep that the 4,104 cases of
+[the longer forget word readings](../../readings/forget-longer-word-beside-a-value.md) list.
 
 Over 12,768 replayed cases in `~/.cache/cortex-run/2026-11-23/a1/` (`mk.py`, `p_start.json`,
 `p_head.json`), the card lists 902 rows the message asks to keep, each in a message holding no
