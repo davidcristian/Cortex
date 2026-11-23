@@ -247,7 +247,7 @@ def may_keep(
     wide = {word for word in content(query) if any(extends(word, row) for row in stems)}
     roles, broad = beside(query, text, known, MINUS), beside(query, text, known | wide, MINUS)
     held = content(query, " ".join(w for w in parts(query)[1] if not KEEP.fullmatch(w))) - EXCEPT
-    keeps = held | content(query, " ".join(after)) | roles[EXCEPTION]
+    keeps = held | content(query, " ".join(after)) | broad[EXCEPTION]
     keeps |= kept_again(query, text, known)
     limit, every = roles[LIMIT] & named, quantifies(query)
     unread = bool(roles[UNREAD] & (named | beyond) or broad[UNREAD] & (named | beyond | wide))

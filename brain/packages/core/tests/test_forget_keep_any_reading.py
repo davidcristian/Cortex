@@ -25,6 +25,7 @@ _ROWS = {
     "tarjeta": "User: Recuerda que mi tarjeta es 4111 1111 1111 4242.\nAssistant: Anotado.",
     "nueva": "User: Recuerda que mi tarjeta nueva es 5500 0000 0000 4242.\nAssistant: Anotado.",
     "telefono": "User: Recuerda que mi teléfono es 0721 555 4242.\nAssistant: Anotado.",
+    "shared": "User: Remember the lockers share the key 1111 4242 9999.\nAssistant: Noted.",
 }
 _ENGLISH = ("locker", "card", "phone")
 _SHARED = ("card", "new", "locker")
@@ -117,3 +118,24 @@ async def test_a_keep_clause_naming_a_row_to_forget_beside_other_words_keeps_it(
 async def test_a_forget_word_one_or_two_letters_longer_than_a_function_word_names_no_row() -> None:
     query = "Olvida el código del gimnasio que queda."
     assert await _left(query, _SPANISH_SHARED, "tarjeta") == sorted(_SPANISH_SHARED)
+
+
+@pytest.mark.parametrize(
+    ("query", "ids", "left"),
+    [
+        ("All 4242 but my lockers, forget them.", _ENGLISH, ["locker"]),
+        ("All 4242 yet the lockers, delete them.", _ENGLISH, ["locker"]),
+        ("Forget all 4242 but the lockers and forget the phone.", _ENGLISH, ["locker"]),
+        ("Tous les 4242 mais mes casiers, oublie-les.", _FRENCH, ["casier"]),
+        (
+            "All 4242 but my lockers, forget them.",
+            ("locker", "phone", "shared"),
+            ["locker", "shared"],
+        ),
+        ("All 4242 but my locker, forget them.", _ENGLISH, ["locker"]),
+    ],
+)
+async def test_an_exception_that_follows_no_forget_verb_keeps_the_row_a_longer_word_names(
+    query: str, ids: tuple[str, ...], left: list[str]
+) -> None:
+    assert await _left(query, ids) == left

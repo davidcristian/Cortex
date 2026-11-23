@@ -71,3 +71,27 @@ Over the same replay that changed 4 calls and no generated message: `Oublie ce q
 dire.` and `Oublie ce que je viens de te dire.` beside German rows, whose request holds `dir`,
 list the card and the phone the call texts `card` and `phone` name, 8 rows, as each did before
 the longer word reading. The listing is `cmp_f3vf2.txt` in the same folder.
+
+## An exception that follows no forget verb, 2026-11-23
+
+`after_but` reads a word for but only after a forget verb and only in a clause with no forget verb
+after it, and `after_value` reads only words naming a row by a word it holds or a kind word. In
+`All 4242 but my lockers, forget them.` only the exception role of `beside` keeps the locker, and
+`may_keep` takes that role from the runs read with the longer words among the words naming a row.
+The replay adds 76 calls to the generator: 19 messages in the five note languages, a plural or
+definite row word after a word for but with no forget verb before it or one after it in its
+clause, each with the call texts `4242` and the three row words. The listings are `x_after.json`
+and `x_broad.json` in `/home/david/.cache/cortex-run/2026-11-23/f4/` (`mkexc.py`, `xcount.py`,
+`exc.sh`).
+
+| | before | after |
+| --- | --- | --- |
+| of the 76 calls, those listing a row the message asks to keep | 22 | 0 |
+| of the 76 calls, rows listed that the message asks to delete | 50 | 50 |
+| two generators' 57,916 and 57,096 calls and 16,872 word pair cases, rows changed | | 0 |
+
+The 22 are English (12), German (6) and French (4); no Spanish or Romanian call listed the row
+to keep. The word pair cases are those of
+[the longer forget word readings](forget-longer-word-beside-a-value.md). With the exception role
+left out of `may_keep`, a forget test fails on `All 4242 but my lockers, forget them.` beside a
+row holding `lockers` and `4242` inside a longer value, which no other reader of `may_keep` keeps.
