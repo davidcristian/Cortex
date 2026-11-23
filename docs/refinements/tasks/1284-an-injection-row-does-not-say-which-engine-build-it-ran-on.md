@@ -1,9 +1,8 @@
 # An injection row does not say which engine build it ran on
 
-**Status:** open, actionable
+**Status:** done 2026-11-23
 **Area:** untrusted-content
 **Origin:** [ADR-0060](../../adr/ADR-0060-injection-rows-follow-the-tier.md)
-**Verified:** 2026-11-21
 
 A row of `brain/packages/inference/tests/test_injection_defense_live.py` starts its server from the
 `ghcr.io/ggml-org/llama.cpp:server-cuda` tag (`_GPU_IMAGE`). The model host is an image built from
@@ -26,3 +25,7 @@ server the model host started.
 
 - 2026-11-21: filed by the injection rows at the shipped configuration
   ([R-1267](1267-qwen38-27bs-injection-row-was-drawn-at-8192-on-an-earlier-build.md)).
+- 2026-11-23: Closed. `_server` prints the build its server names on `GET /props` through
+  `served_build_sync` in `tests/served_build.py` once the server is healthy, before the row's
+  first card reading. The card rows stay on the tag, and ADR-0060 decision 5 says why and that a
+  reading names the printed build. No row was drawn for the close.

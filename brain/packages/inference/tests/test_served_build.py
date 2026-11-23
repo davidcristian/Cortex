@@ -2,7 +2,7 @@ import re
 
 import httpx
 import pytest
-from served_build import served_build
+from served_build import served_build, served_build_sync
 
 _ENDPOINT = "http://llama:8081/"
 
@@ -48,3 +48,32 @@ async def test_a_props_error_fails_the_run_rather_than_printing_no_build() -> No
     async with _client(handler) as client:
         with pytest.raises(httpx.HTTPStatusError):
             await served_build(client, _ENDPOINT, "embedder")
+
+
+def test_the_blocking_reading_returns_and_prints_the_same_build(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    asked: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        asked.append(str(request.url))
+        return httpx.Response(200, json={"build_info": "b12169-5e0b2cbd8"})
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        assert served_build_sync(client, _ENDPOINT, "row") == "b12169-5e0b2cbd8"
+    assert asked == ["http://llama:8081/props"]
+    assert capsys.readouterr().out == f"\nrow  b12169-5e0b2cbd8 at {_ENDPOINT}\n"
+
+
+@pytest.mark.parametrize(
+    ("status", "body", "raised"),
+    [(404, None, httpx.HTTPStatusError), (200, {}, AssertionError)],
+)
+def test_the_blocking_reading_fails_on_an_error_or_a_missing_build(
+    status: int, body: dict[str, object] | None, raised: type[Exception]
+) -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(status, json=body)
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client, pytest.raises(raised):
+        served_build_sync(client, _ENDPOINT, "row")

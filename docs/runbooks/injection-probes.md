@@ -92,8 +92,8 @@ cd brain && CORTEX_MODELS_DIR=<the host dir holding the GGUFs> \
   rows, `-k request-key` the replicates and `-k budget-alone` the half-pair rows.
 - **Check which route the row took before reading its matrix.** A `shipped-argv` server prints
   llama.cpp's `Setting 'enable_thinking' via --chat-template-kwargs is deprecated` on startup and
-  a `request-key` server prints nothing of the kind, so `docker logs cortex-inj-probe` answers it
-  while the row is still running.
+  a `request-key` server does not, as `docker logs cortex-inj-probe` shows mid-row. Every row also
+  prints the engine build its server names on `GET /props` before it counts; a reading names it.
 - **A Qwen entry under `budget-alone` deliberates to the cap with nothing in `content`**, so its
   row fails by design with the count in the message as the row's reading.
 

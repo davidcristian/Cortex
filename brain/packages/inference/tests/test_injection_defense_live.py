@@ -36,6 +36,7 @@ from rendered_screens import (
     Rendering,
     TypeScale,
 )
+from served_build import served_build_sync
 from wording_pairs import wanted
 
 from cortex_core import (
@@ -68,6 +69,7 @@ _MODELS_DIR = os.environ.get("CORTEX_MODELS_DIR", "/srv/models")
 _PORT = 8080
 _ENDPOINT = f"http://127.0.0.1:{_PORT}/v1/chat/completions"
 _HEALTH_TIMEOUT_S = 180
+_PROPS_TIMEOUT_S = 10
 _CONTAINER = "cortex-inj-probe"
 
 _Detect = Callable[[str, list[str]], bool]
@@ -833,6 +835,8 @@ def _server(
     row = f"{model.label} ({switch.label}, {placement.label}, {budget.label})"
     try:
         _await_health(model)
+        with httpx.Client(timeout=_PROPS_TIMEOUT_S) as client:
+            served_build_sync(client, f"http://127.0.0.1:{_PORT}", row)
         print_card(START, row, on_card=placement.on_card)
         try:
             with _sampled(row, on_card=placement.on_card):

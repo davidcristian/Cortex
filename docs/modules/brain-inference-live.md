@@ -50,7 +50,9 @@ All are `integration`-marked, excluded from CI and coverage, and run per
 - `tests/test_rerank_judge_live.py`, `tests/test_rerank_judge_wide_live.py` and
   `tests/test_recall_floor_live.py` measure recall ranking through the memory override's embedder
   (method and numbers in [ranked recall](../readings/ranked-recall.md)). Each prints the embedder's
-  engine build first, read off its `GET /props` by `served_build` in `tests/served_build.py`.
+  engine build first, read off its `GET /props` by `served_build` in `tests/served_build.py`. Each
+  row of `tests/test_injection_defense_live.py` prints its server's build the same way, through
+  `served_build_sync`, once the server is healthy.
 - **`tests/test_system_join_live.py` checks the join of leading system messages** (ADR-0071)
   against the server at `CORTEX_SYSTEM_JOIN_ENDPOINT`. It asks the probe's question for two and
   three messages, checked against `CORTEX_SYSTEM_JOIN_EXPECT` (`2=yes,3=no`) when set. It sends

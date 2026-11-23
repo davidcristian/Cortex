@@ -67,7 +67,12 @@ also ran at half their tier's window, and for a while the text rows included no 
    stage name or the line break, since a hyphen satisfies the scan's word-edge rule and a bare
    search text would pass a retag to `server-cuda-b10680`. An integration-marked test runs only when
    somebody measures, so nothing else would report it starting containers from a tag the stack had
-   left.
+   left. A card row starts from the tag and not from the model host's image, which the stack builds
+   from that tag at some earlier pull, so one machine can hold the two on different engine builds.
+   Each row therefore prints the build its server names on `GET /props` (`served_build_sync` in
+   `tests/served_build.py`) before it counts, and a reading names that build; a row meant to match
+   the stack compares it with the build the model host's `/props` names. Starting the row from the
+   model host's image instead would need that image built first and its entrypoint replaced.
 
 6. **A server that exits reports itself.** `_await_health` reads the container's state between polls
    and fails with the last twelve lines of its log, so a missing artifact fails in seconds naming
