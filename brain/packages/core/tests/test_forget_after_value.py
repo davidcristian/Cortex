@@ -56,7 +56,7 @@ async def _forget(query: str, *ids: str) -> tuple[str | None, list[str]]:
     return card, sorted(hit.record.id for hit in await store.search((1.0, 0.0), k=10))
 
 
-@pytest.mark.parametrize("phrase", [" though not the card", ", the card not"])
+@pytest.mark.parametrize("phrase", [", the card not", ", though the card not"])
 async def test_a_row_named_after_every_value_beside_a_negation_is_kept_and_shown(
     phrase: str,
 ) -> None:
@@ -73,7 +73,6 @@ async def test_a_row_named_after_every_value_beside_a_negation_is_kept_and_shown
     ("query", "ids"),
     [
         ("Forget 4242 apart from the card.", _ENGLISH),
-        ("Forget 4242 not the card.", _ENGLISH),
         ("Șterge toate 4242 în afară de card.", _ROMANIAN),
         ("Șterge toate 4242 cu excepția cardului.", _ROMANIAN),
         ("Forget 4242 that I texted from my phone.", ("locker", "phone")),

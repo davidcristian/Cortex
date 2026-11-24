@@ -151,3 +151,64 @@ misses changed in no row. The scripts `f3gen/mixforms.py`, `replay.sh`, `cmp7.py
 `costform.py` are in `~/.cache/cortex-run/2026-11-24/f7/`, and `again.py`, `again2.py`,
 `replay.sh`, `recount.py` and the listings `f3_after.json`, `again_before.json` and
 `again_after.json` in `~/.cache/cortex-run/2026-11-24/a2/`.
+
+## A negation inside a clause with a forget verb, 2026-11-24
+
+`opens_keep` (`forget_clauses.py`) read a negation as opening a keep clause only when it opened
+its clause or followed a leading word such as `but`, `do`, `mais` or `aber`. French and German
+write it after the forget verb, and German also at the end of the clause, so `Oublie 4242,
+n'efface pas la carte.`, `Oublie 4242. N'oublie pas la carte.`, `Vergiss 4242, lösch nicht die
+Karte.`, `Vergiss 4242, vergiss die Karte nicht.` and `Vergiss 4242. Lösche die Karte nicht.`
+listed the card. A negation now opens a keep clause anywhere in a clause holding a forget verb,
+unless a word for the or my is one of the two words before it. One just before or after a forget
+verb, or ending its clause (`_negates`), also keeps the words before it back to that forget verb,
+the verb included, or to a joining word, as a keep verb does. No word was added to a list. So the
+five messages keep the card, and so do `Vergiss 4242 und die Karte nicht.`, `Vergiss 4242, die
+Karte nicht löschen.` and `Je ne veux pas oublier la carte, oublie 4242.`. The tests are
+`test_forget_negated_verb.py`.
+
+How each near miss is read:
+
+- `N'oublie pas d'effacer la carte.` asks to delete the card. Its one clause negates a forget verb
+  and names the card, so the card is kept, a cost. `Vergiss nicht, die Karte zu löschen.` has its
+  forget verb in a clause of its own, and the card is kept before and after, as in a message
+  lacking the value.
+- `Vergiss nicht nur 4242, sondern auch die Karte.` asks to delete every row holding `4242`. Its
+  first clause negates `vergiss` and the second joins it, so every row is kept, as before.
+- `Forget 4242 on the card I no longer use.` and `Forget 4242 on the card I do not use.` ask to
+  delete the card. The negation opens its keep clause where it stands, with no row word after it,
+  so the card is deleted; the first kept it before, through `after_value`.
+- `Oublie 4242 sur la carte que je n'utilise jamais.` and `Lösche 4242 von der Karte die ich nicht
+  mehr brauche.` ask to delete the card, and it is kept before and after.
+- `Forget the not so new shed padlock code 7319.` names a fact: `not` follows `the`.
+- `Forget all 4242 though not the card.` keeps the card as before, and `though` is now a run of
+  its own that no reader reads, so the phone and the locker are kept too.
+- `Forget 4242 not the card.` keeps the card and now deletes the locker, which it asks to delete;
+  before, no reader read the words after the value and every row was kept.
+
+The replay runs the audit's 8,376 messages with a negated forget verb (the generator's four heads,
+the negated tails of the five languages and an adding tail, singly and in pairs, with `4242`, `42
+42` or `4 2 4 2`), 21 calls over the forms and near misses above, the generator's 71,332 calls,
+the forget of everything family's 3,864, the 6,156 mixed cases, and the 12,768 word pair and 4,104
+valued cases of the 2026-11-23 audit.
+
+| | before | after |
+| --- | --- | --- |
+| of the audit's negated messages, rows asked to keep that the card lists | 3,264 | 0 |
+| of the 21 forms and near misses, rows asked to keep that the card lists | 9 | 0 |
+| of the generator's calls, rows listed that the message asks to keep | 0 | 0 |
+| of the other four sets, rows newly listed or newly kept | | 0 |
+| over the strings of the forget tests, rows newly listed | | 10 |
+| rows asked to delete that are newly kept | | 249 |
+
+The 10 are the code rows of `Forget 4242 not the card.` and its lowercase form, which the message
+asks to delete; none is a card. The 51 rows newly kept over the test strings are those of `I have
+not removed anything from my memory.`, which asks for nothing. Of the 249, one is the card of
+`N'oublie pas d'effacer la carte.`, 212 are a forget of every value (`Vergiss alle 4242, lösch
+nicht die Karte.`; German 180, French 32), which now keeps every row as `Oublie tous les 4242, ne
+supprime pas le casier.` and `Forget all 4242, don't delete the locker.` already did
+([R-1336](../refinements/tasks/1336-a-forget-of-every-value-beside-a-negated-forget-verb-keeps-every-row.md)),
+and 36 are a German message naming the card both to forget and to keep. The change also deletes
+175 rows asked to delete that were kept, as the locker of `Oublie 4242, n'efface pas la carte.`.
+The scripts `mknear.py`, `replay.sh` and `cmp.py` and the listings are in
+`~/.cache/cortex-run/2026-11-24/f10/`, the audit's `mkneg.py` in `a3/`.

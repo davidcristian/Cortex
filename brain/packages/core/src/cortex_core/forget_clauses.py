@@ -44,22 +44,33 @@ def clauses(query: str) -> list[list[str]]:
 
 
 def opens_keep(clause: list[str], at: int) -> bool:
-    """Whether ``clause`` asks to keep from ``at``: a keep verb, except, all but, or a negation."""
+    """Whether ``clause`` asks to keep from ``at``: a keep verb, except, all but, or a negation
+    first, after a leading word, or anywhere in a clause holding a forget verb."""
     token = clause[at]
     if KEEP.fullmatch(token):
         return NOT.isdisjoint(clause[max(0, at - 2) : at])
-    if token not in NOT or (at and clause[at - 1] not in _LEAD):
+    led = not at or clause[at - 1] in _LEAD
+    if token not in NOT or not (led or any(FORGET.fullmatch(word) for word in clause)):
         return token in EXCEPT or (token in _BUT and at > 0 and clause[at - 1] in EVERY)
-    # "my do not disturb code" names a fact rather than asking to keep one.
-    if at > 1 and clause[at - 2] in _NAMING:
+    # "my do not disturb code" or "the not so new shed" names a fact rather than asking to keep one.
+    if not _NAMING.isdisjoint(clause[max(0, at - 2) : at]):
         return False
     return at + 1 == len(clause) or not KEEP.fullmatch(clause[at + 1])
 
 
+def _negates(clause: list[str], at: int) -> bool:
+    """Whether a negation at ``at``, after no leading word, stands beside a forget verb or ends
+    ``clause``, as in ``lösch nicht``, ``nicht löschen`` or ``vergiss die Karte nicht``."""
+    if clause[at] not in NOT or not at or clause[at - 1] in _LEAD:
+        return False
+    after = clause[at + 1] if at + 1 < len(clause) else ""
+    return at + 1 == len(clause) or any(FORGET.fullmatch(word) for word in (clause[at - 1], after))
+
+
 def keeping(clause: list[str]) -> list[bool]:
-    """Whether each token of ``clause`` is inside a clause asking to keep. A keep verb also keeps
-    the words before it back to a forget verb, a word for but, or a word for and after a forget
-    verb or just before it, as in ``mein Handy bleibt`` or ``the phone and the locker I keep``."""
+    """Whether each token of ``clause`` is inside a clause asking to keep. A keep verb, or a
+    ``_negates`` negation with its forget verb, also keeps the words before it back to a forget
+    verb, a word for but, or a word for and after a forget verb or just before it."""
     flags: list[bool] = []
     start, forgot = 0, False
     for at, token in enumerate(clause):
@@ -70,8 +81,10 @@ def keeping(clause: list[str]) -> list[bool]:
         joins = token in _CONTRAST or (forgot and token in _LIST)
         start = at if joins else start
         opens = not (flags and flags[-1]) and opens_keep(clause, at)
-        if opens and KEEP.fullmatch(token):
+        negates = _negates(clause, at)
+        if opens and (negates or KEEP.fullmatch(token)):
             begin = at - 1 if at and clause[at - 1] in _LIST else start
+            begin -= negates and begin > 0 and FORGET.fullmatch(clause[begin - 1]) is not None
             flags[begin:] = [True] * (at - begin)
         flags.append(opens or bool(flags and flags[-1]))
     return flags
