@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-21
+**Verified:** 2026-11-24
 
 Over the rows `Ține minte că codul de la dulap este 4242.`, `Ține minte că cardul meu este 4111
 1111 1111 4242.` and `Ține minte că telefonul meu este 0721 555 4242.`, with the call text `4242`,
@@ -35,3 +35,6 @@ locker it asks to keep, and `Uită cardul 4242 mai puțin codul de la sală.` li
 - 2026-11-21: filed with the change that reads the article in a keep clause naming the row to
   forget again
   ([R-1217](1217-a-romanian-row-named-with-its-article-in-a-keep-clause-names-no-row.md)).
+- 2026-11-24: still open. In unit calls at the tree that reads a later clause in a message
+  lacking the value, `Uită dulapul 4242.` and `Uită 4242, păstrează dulapul.` with the call text
+  `4242` keep all three rows, and `Uită dulapul.` with the call text `dulap` deletes the locker.

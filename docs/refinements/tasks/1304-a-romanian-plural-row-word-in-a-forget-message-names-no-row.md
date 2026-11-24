@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-23
+**Verified:** 2026-11-24
 
 Over the Romanian rows `Ține minte că codul de la dulap este 4242.`, `Ține minte că cardul meu
 este 4111 1111 1111 4242.` and `Ține minte că telefonul meu este 0721 555 4242.`, in unit calls
