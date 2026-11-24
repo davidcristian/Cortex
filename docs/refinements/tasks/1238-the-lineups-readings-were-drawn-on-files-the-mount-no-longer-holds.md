@@ -42,3 +42,8 @@ A row that reads the same closes its line here, and one that differs changes the
 - 2026-11-20: ADR-0004 decision 8 now names `Qwen3.8-27B-UD-Q4_K_M` as the deep pick, the one
   lineup file whose rows were drawn on the file the mount holds. The deep tier's cost and the
   drafter's cost and rate above are gemma-4-31B's, the alternate's, and come after the picks.
+- 2026-11-24: the injection text rows of the four Qwen3.5 entries and the reply envelope of the
+  2B were drawn on the files the mount holds, at the engine's sampler on build b12375, as the
+  engine's cells of [card samplers](../../readings/card-samplers.md). The 2B read 14 framed obeyed
+  of 100 and the 9B 2, where the [injection text rows](../../readings/injection-text-rows.md) table
+  has 8 and 7 on the earlier files and build; that table is not changed yet.

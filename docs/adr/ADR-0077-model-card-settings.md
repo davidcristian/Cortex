@@ -48,14 +48,9 @@ The cards were read on 2026-11-16, when the models mount moved to the files
    | Qwen3.5-0.8B, Qwen3.5-2B | thinking off, text: 1.0, 1.0, 20, `min_p` 0, penalty 2.0. Thinking on, text: 1.0, 0.95, 20, `min_p` 0, penalty 1.5 | nothing | the engine's defaults |
 
    The engine's defaults are 0.8, 0.95 and 40, `min_p` 0.05 and no presence penalty, on both engine
-   builds the stack runs (`llama-server --help`). On the files measured before the mount moved,
-   `/props` read 1.0, 0.95, 64 and `min_p` 0.05 on the gemma pick, 1.0, 0.95, 20 and 0.05 on every
-   Qwen deep candidate, and the engine's defaults on the cortex alternate
-   ([deep candidates](../readings/deep-candidates.md),
-   [pick sampler](../readings/injection-over-pixels-pick-sampler.md),
-   [cortex alternate](../readings/injection-over-pixels-alt.md)). On the files the mount holds now
-   the header is read and `/props` is not
-   ([R-1238](../refinements/tasks/1238-the-lineups-readings-were-drawn-on-files-the-mount-no-longer-holds.md)).
+   builds the stack runs (`llama-server --help`). On build b12375 `/props` on the files the mount
+   holds reads what the last column states, with `min_p` 0.05 and no presence penalty on every
+   file; Qwen3.8-Flash-Next did not load for the read ([card samplers](../readings/card-samplers.md)).
    The Qwen3.5-4B, Qwen3.5-9B and Qwen3.6 cards give a third set, for reasoning with thinking off,
    in two places with different values; it is left out.
 
@@ -76,10 +71,10 @@ The cards were read on 2026-11-16, when the models mount moved to the files
 
    | Difference | The card | The stack | Kept or open |
    |---|---|---|---|
-   | Sampler of the Qwen3.5 entries, the cortex alternate and the roster alternate among them | the values of decision 4 | the engine's defaults | open, [R-1240](../refinements/tasks/1240-some-tiers-run-settings-their-model-cards-do-not-recommend.md) |
-   | `min_p` on every Qwen entry | 0 | 0.05, the engine's default | open, R-1240 |
-   | Presence penalty on Qwen3.5 and Qwen3.6 | 1.5 with thinking on, 1.5 to 2.0 with it off | none | open, R-1240 |
-   | Flash attention | on, and off for gemma-4-E4B | unset, the engine's `auto` | open, R-1240 |
+   | Sampler, `min_p` and presence penalty of the Qwen3.5 entries, the cortex alternate and the roster alternate among them | the values of decision 4 | the engine's defaults | kept: at the card's values no entry read better on the injection row or over the 2B's four reply envelope shapes, by a rule written before the rows ([readings](../readings/card-samplers.md)); on the every-detail shape alone the 2B delivered more and copied the report less at the card's values, in a row and its replication, [R-1329](../refinements/tasks/1329-the-roster-alternate-hands-back-the-report-less-often-at-its-cards-sampler.md) |
+   | `min_p` on Qwen3.8 and Qwen3.6 | 0 | 0.05, the engine's default | open, [R-1240](../refinements/tasks/1240-some-tiers-run-settings-their-model-cards-do-not-recommend.md) |
+   | Presence penalty on Qwen3.6 | 1.5 with thinking on | none | open, R-1240 |
+   | Flash attention | on, and off for gemma-4-E4B | unset, the engine's `auto`, which turned it on for every entry read | open, R-1240: it changes the rate more than the reply, and needs rate rows |
    | Draft length of the gemma entries | 4 | 3 on every tier | kept: decision 7 |
    | Drafter file of the gemma entries | the `Q4_0` file | the `Q8_0` file | kept: the mount holds the `Q8_0` file and every row was drawn with it |
    | Drafter inside a Qwen file | `--spec-type draft-mtp` with no drafter file | the same once a tier's drafter setting names the tier's own file; no Qwen file drafts unless named | kept: decision 7 |
@@ -219,7 +214,7 @@ The cards were read on 2026-11-16, when the models mount moved to the files
 ## Alternatives rejected
 
 - **Setting each card's sampler as a server flag now**: for the picks it would change only `min_p`,
-  which the gemma cards do not name, and for the Qwen3.5 entries no row exists at the card's values.
+  which the gemma cards do not name, and the Qwen3.5 entries read no better at the card's values.
 - **Keeping the card values only in backlog tasks**: a task closes and is no longer read, and the
   values are the reference for every later pick.
 - **A compose default for a drafter file**: `${VAR:-default}` cannot be turned off by an empty
@@ -241,7 +236,8 @@ The cards were read on 2026-11-16, when the models mount moved to the files
   [ADR-0041](ADR-0041-injection-image-variant.md),
   [ADR-0049](ADR-0049-thinking-switch-and-trace-budget.md),
   [ADR-0060](ADR-0060-injection-rows-follow-the-tier.md).
-- Readings: [deep candidates](../readings/deep-candidates.md),
+- Readings: [card samplers](../readings/card-samplers.md),
+  [deep candidates](../readings/deep-candidates.md),
   [pick sampler](../readings/injection-over-pixels-pick-sampler.md),
   [cortex alternate](../readings/injection-over-pixels-alt.md),
   [thinking switch](../readings/thinking-switch.md), [tier drafters](../readings/tier-drafters.md),

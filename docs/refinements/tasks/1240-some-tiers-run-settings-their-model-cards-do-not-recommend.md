@@ -3,26 +3,29 @@
 **Status:** open, actionable
 **Area:** inference
 **Origin:** [ADR-0077](../../adr/ADR-0077-model-card-settings.md)
-**Verified:** 2026-11-16
+**Verified:** 2026-11-24
 
 A tier's sampler is the one its model file sets, with the engine's default for the rest
-([ADR-0077](../../adr/ADR-0077-model-card-settings.md) decision 1). The gemma files set their
-card's temperature, `top_p` and `top_k`, so the three picks already run them. Four differences are
-left, read from the file headers and the cards on 2026-11-16 and listed in decision 6 of that
-record:
+([ADR-0077](../../adr/ADR-0077-model-card-settings.md) decision 1). The Qwen3.5 entries were drawn
+at their cards' values beside the engine's sampler and read no better on the injection row or
+over the 2B's four reply envelope shapes, by the rule written before the rows, while the 2B's
+every-detail summary alone read better at the card's values
+([card samplers](../../readings/card-samplers.md)); decision 6 of that record keeps their sampler
+and says why. Three differences are left, listed in decision 6:
 
-- **The Qwen3.5 files set no sampler.** The 0.8B, 2B, 4B and 9B headers have no `general.sampling`
-  key, so those entries run the engine's temperature 0.8 and `top_k` 40 where their cards name 1.0
-  and 20. The cortex alternate and the roster alternate are among them.
-- **`min_p` on every Qwen entry** is the engine's 0.05 where the cards name 0.
-- **No presence penalty is set** where the Qwen3.5 and Qwen3.6 cards name 1.5 to 2.0.
+- **`min_p` on the Qwen3.8 and Qwen3.6 entries** is the engine's 0.05 where the cards name 0.
+  `/props` read 0.05 on the deep pick's file and on Qwen3.6-35B-A3B's on build b12375.
+- **No presence penalty on Qwen3.6-35B-A3B**, whose card names 1.5 with thinking on.
 - **Flash attention is left at the engine's `auto`** where the cards start every entry with it on
-  and gemma-4-E4B with it off.
+  and gemma-4-E4B with it off. `auto` turned it on for every entry read: gemma-4-E4B and
+  Qwen3.8-27B on build b12375, and the four Qwen3.5 entries at their tiers' argv. It changes the
+  rate more than the reply, so its decision needs rate rows.
 
-What would close it: `/props` read on each entry's file to confirm what the server runs, then the
-injection rows and the reply envelope of the Qwen3.5 entries drawn at their cards' values beside
-the engine's. A tier that reads better gets the setting as a flag on its server, and one that does
-not gets the reason written into decision 6.
+What would close it: the deep pick's injection and stop rows at `min_p` 0 beside 0.05, drawn as the
+model host starts the deep tier, with the rule written here first. Qwen3.6-35B-A3B is no tier's
+file and needs its rows only if it becomes one. For flash attention, rate rows of each tier with it
+set on against `auto`, and off for gemma-4-E4B at the engine's 16-bit cache, since a setting built
+here refuses `off` beside a `q8_0` cache.
 
 ## History
 
@@ -36,3 +39,11 @@ not gets the reason written into decision 6.
 - 2026-11-18: each tier now has a KV cache type setting (ADR-0077 decision 8), and the engine
   exits on a `q8_0` V cache with flash attention off. A flash attention setting built here refuses
   `off` beside `q8_0` when the settings are read.
+- 2026-11-24: `/props` on every lineup file read what decision 4 states. The four Qwen3.5 entries
+  were drawn at their cards' sampler beside the engine's, the injection row on each and the reply
+  envelope on the 2B, under a rule written before the rows. None read better or worse, so no flag
+  shipped and decision 6 keeps their sampler with the reason. The 2B's every-detail summary hands
+  the body back less often at the card's values on two placements, filed as
+  [R-1329](1329-the-roster-alternate-hands-back-the-report-less-often-at-its-cards-sampler.md).
+  `auto` turned flash attention on for the four Qwen3.5 entries; with no rate rows drawn that night
+  its decision stays open.
