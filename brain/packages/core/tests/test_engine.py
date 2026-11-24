@@ -1972,6 +1972,47 @@ async def test_an_approved_escalation_snapshots_to_a_ready_record_in_the_store()
     assert record.tainted is False
 
 
+@pytest.mark.parametrize(
+    ("message", "listed"),
+    [
+        (
+            "Solve this properly.",
+            f"{ESCALATE_TOOL_NAME} (handoff started, answer not recorded here)",
+        ),
+        (
+            "Je voudrais que tu règles ce problème pour moi, s'il te plaît.",
+            f"{ESCALATE_TOOL_NAME} (transfert lancé",
+        ),
+        ("Löse das bitte gründlich.", f"{ESCALATE_TOOL_NAME} (Übergabe gestartet"),
+    ],
+)
+async def test_a_turn_that_runs_out_of_rounds_after_a_handoff_names_it_as_started(
+    *, message: str, listed: str
+) -> None:
+    reads = InMemoryToolRegistry({"read": (_read_tool(), _read_handler)})
+    dispatcher = ToolDispatcher(
+        CompositeToolRegistry([EscalateToBrainTool()], reads),
+        RecordingAuditSink(),
+        TickingClock(),
+        confirmer=RecordingConfirmer(answer=True),
+    )
+    rounds: list[list[InferenceEvent]] = [
+        [ToolCall(id=f"c{n}", name="read", arguments={"path": f"/n{n}"})]
+        for n in range(MAX_TOOL_STEPS - 1)
+    ]
+    handoff = ToolCall(id="h", name=ESCALATE_TOOL_NAME, arguments={"brief": "audit it deeply"})
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        ScriptedToolBackend([[handoff], *rounds]),
+        TickingClock(),
+        capabilities=TurnCapabilities(tools=dispatcher, escalation=EscalationSlot()),
+    )
+    events = await _collect(engine.handle_turn("s", message, turn_id="t-1"))
+    completed = events[-1]
+    assert isinstance(completed, TurnCompleted)
+    assert listed in completed.full_text
+
+
 class _CapturingRegistry:
     """A one-tool registry in place of the capture built-in: untrusted, with an image."""
 

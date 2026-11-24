@@ -1,9 +1,8 @@
 # The translated rounds note names a started handoff as a success
 
-**Status:** open, actionable
+**Status:** done 2026-11-24
 **Area:** tools-mcp
 **Origin:** [ADR-0074](../../adr/ADR-0074-replayed-tool-runs.md)
-**Verified:** 2026-11-18
 
 `runs_line` in [tool_replay.py](../../../brain/packages/core/src/cortex_core/tool_replay.py) writes
 a successful `escalate_to_brain` run as `handoff started, answer not recorded here`. `runs_said` in
@@ -21,3 +20,8 @@ What would close it: either that test showing the run cannot be listed, or a fif
 ## History
 
 - 2026-11-18: filed when `runs_line` stopped writing a started handoff as a success.
+- 2026-11-24: done. A test over the engine shows a turn that runs out of rounds after an approved
+  handoff lists the `escalate_to_brain` run, since the call does not end the tool loop, and the
+  translated note wrote it as succeeded. Each `_RUNS` tuple now has a fifth entry for a started
+  handoff, which `runs_said` writes. What the note says on such a turn is
+  [R-1318](1318-the-rounds-note-asks-to-ask-again-on-a-turn-a-handoff-then-answers.md).

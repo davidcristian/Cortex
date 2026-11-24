@@ -3,6 +3,7 @@
 from collections.abc import Sequence
 
 from cortex_core.conversation import ToolRun
+from cortex_core.escalate import ESCALATE_TOOL_NAME
 
 ROUNDS_SPENT_NOTES = {
     "fr": "\n\n(Cette réponse s'est arrêtée après {rounds} tours d'appels d'outils, le maximum "
@@ -18,24 +19,50 @@ ROUNDS_SPENT_NOTES = {
     "un răspuns, fără să răspundă la ce au returnat ultimele apeluri. {runs} Cere din nou pentru "
     "a continua.)",
 }
-# The label, the words for a run that succeeded and one that failed, and the sentence for no run.
+# The label, the words for a run that succeeded and one that failed, the sentence for no run, and
+# the words for a handoff that started.
 _RUNS = {
-    "fr": ("Outils lancés :", "réussi", "échoué", "Aucun outil n'a été lancé."),
+    "fr": (
+        "Outils lancés :",
+        "réussi",
+        "échoué",
+        "Aucun outil n'a été lancé.",
+        "transfert lancé, réponse non enregistrée ici",
+    ),
     "de": (
         "Ausgeführte Werkzeuge:",
         "erfolgreich",
         "fehlgeschlagen",
         "Kein Werkzeug wurde ausgeführt.",
+        "Übergabe gestartet, Antwort hier nicht festgehalten",
     ),
-    "es": ("Herramientas ejecutadas:", "con éxito", "falló", "No se ejecutó ninguna herramienta."),
-    "ro": ("Unelte rulate:", "reușit", "eșuat", "Nu a rulat nicio unealtă."),
+    "es": (
+        "Herramientas ejecutadas:",
+        "con éxito",
+        "falló",
+        "No se ejecutó ninguna herramienta.",
+        "traspaso iniciado, respuesta no registrada aquí",
+    ),
+    "ro": (
+        "Unelte rulate:",
+        "reușit",
+        "eșuat",
+        "Nu a rulat nicio unealtă.",
+        "predare pornită, răspuns neînregistrat aici",
+    ),
 }
 
 
 def runs_said(runs: Sequence[ToolRun], language: str) -> str:
     """The sentence naming each tool of ``runs`` and whether it succeeded, in ``language``."""
-    label, succeeded, failed, none = _RUNS[language]
+    label, succeeded, failed, none, started = _RUNS[language]
     if not runs:
         return none
-    listed = ", ".join(f"{run.name} ({succeeded if run.ok else failed})" for run in runs)
+
+    def said(run: ToolRun) -> str:
+        if not run.ok:
+            return failed
+        return started if run.name == ESCALATE_TOOL_NAME else succeeded
+
+    listed = ", ".join(f"{run.name} ({said(run)})" for run in runs)
     return f"{label} {listed}."

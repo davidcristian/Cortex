@@ -1,6 +1,7 @@
 import pytest
 
 from cortex_core import (
+    ESCALATE_TOOL_NAME,
     SCHEDULE_TOOL_NAME,
     TaintLedger,
     ToolRun,
@@ -15,6 +16,7 @@ from cortex_core.tool_loop import MAX_TOOL_STEPS
 
 _STORED = ToolRun(name=SCHEDULE_TOOL_NAME, ok=True)
 _FAILED = ToolRun(name="list_scheduled", ok=False)
+_STARTED = ToolRun(name=ESCALATE_TOOL_NAME, ok=True)
 _ENGLISH_WORDS = ("reminder", "daily", "Monday", "Wednesday", " and ", "Tools run", "succeeded")
 
 
@@ -30,6 +32,18 @@ _ENGLISH_WORDS = ("reminder", "daily", "Monday", "Wednesday", " and ", "Tools ru
         ("es", (_FAILED,), "Herramientas ejecutadas: list_scheduled (falló)."),
         ("ro", (), "Nu a rulat nicio unealtă."),
         ("fr", (), "Aucun outil n'a été lancé."),
+        (
+            "es",
+            (_STARTED,),
+            f"Herramientas ejecutadas: {ESCALATE_TOOL_NAME} "
+            "(traspaso iniciado, respuesta no registrada aquí).",
+        ),
+        (
+            "ro",
+            (_STORED, _STARTED),
+            f"Unelte rulate: schedule_task (reușit), {ESCALATE_TOOL_NAME} "
+            "(predare pornită, răspuns neînregistrat aici).",
+        ),
     ],
 )
 def test_the_runs_sentence_is_written_in_the_language(

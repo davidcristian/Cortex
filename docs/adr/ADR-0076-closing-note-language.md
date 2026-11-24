@@ -49,7 +49,8 @@ Three ways to write the note in the right language were compared.
    decide whether a note is due are unchanged.
 4. **Every note `limit_notes` appends has a mapping**, and a note that fills words into its text
    writes them in the same language: `ROUNDS_SPENT_NOTE` its runs sentence (`runs_said`), with
-   tool names as the tools name themselves, `QUOTED_STORED_NOTE` the repeat and the time, and
+   tool names as the tools name themselves and an approved handoff written as started, as
+   `runs_line` writes it, `QUOTED_STORED_NOTE` the repeat and the time, and
    `WEEKLY_STORED_NOTE` the weekday names joined by the language's word for "and".
 5. **A translated note states the same fact and the same next step as the English one**, in the
    form of address the model used in the recorded replies: `vous` in French, `Sie` in German, `tú`
