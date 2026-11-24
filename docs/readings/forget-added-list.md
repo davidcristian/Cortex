@@ -1,6 +1,6 @@
 # Readings: a clause adding a list of rows to a forget
 
-How `asking` (`forget_clauses.py`) reads a clause after a forget that adds two or more rows, such
+How `asking` (`forget_remarks.py`) reads a clause after a forget that adds two or more rows, such
 as `the phone and the locker too`. The form adding one row is in
 [forget-remark-about-the-value.md](forget-remark-about-the-value.md). The decision is
 [ADR-0075](../adr/ADR-0075-forget-chosen-memories.md)'s.

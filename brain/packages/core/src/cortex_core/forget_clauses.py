@@ -43,7 +43,7 @@ def clauses(query: str) -> list[list[str]]:
     return [clause for clause in found if clause]
 
 
-def _opens_keep(clause: list[str], at: int) -> bool:
+def opens_keep(clause: list[str], at: int) -> bool:
     """Whether ``clause`` asks to keep from ``at``: a keep verb, except, all but, or a negation."""
     token = clause[at]
     if KEEP.fullmatch(token):
@@ -69,7 +69,7 @@ def keeping(clause: list[str]) -> list[bool]:
             continue
         joins = token in _CONTRAST or (forgot and token in _LIST)
         start = at if joins else start
-        opens = not (flags and flags[-1]) and _opens_keep(clause, at)
+        opens = not (flags and flags[-1]) and opens_keep(clause, at)
         if opens and KEEP.fullmatch(token):
             begin = at - 1 if at and clause[at - 1] in _LIST else start
             flags[begin:] = [True] * (at - begin)
@@ -112,37 +112,11 @@ def after_but(query: str) -> list[str]:
     return found
 
 
-# A relative word after the value opens a remark about it, as in "4242 that I texted".
-_RELATIVE = forms.words(forms.RELATIVE)
-
-
 # A word adding a row to a forget, as in "also my phone" or "my phone as well".
 _ADD = forms.words(forms.ALSO)
 _OWNER = forms.words(forms.OWNER)
 # Only the words for and: a word for or between two rows asks for one of them, not both.
-_JOIN = _LIST & _LEAD
-
-
-def _item(words: list[str], named: frozenset[str]) -> bool:
-    """Whether ``words`` name one row: a word for the or my, words of ``named``, a last ``one``."""
-    words = words[:-1] if words[-1:] in (["one"], ["ones"]) else words
-    return len(words) > 1 and words[0] in _OWNER and named.issuperset(words[1:])
-
-
-def _adds(clause: list[str], named: frozenset[str]) -> bool:
-    """Whether ``clause`` only adds rows: an adding word at one end, then one ``_item`` or a list
-    of them joined by a word for and, as in ``the phone and the locker too``."""
-    head = clause[0] in _ADD
-    tail = 2 if clause[-2:] == ["as", "well"] else int(clause[-1] in _ADD)
-    if not head and not tail:
-        return False
-    items: list[list[str]] = [[]]
-    for word in clause[1:] if head else clause[:-tail]:
-        if word in _JOIN:
-            items.append([])
-        else:
-            items[-1].append(word)
-    return all(_item(item, named) for item in items)
+JOIN = _LIST & _LEAD
 
 
 # A word placing a value in a row or naming whose row it is, as in "4242 on my card".
@@ -163,7 +137,7 @@ def _runs(query: str, value: str) -> Iterator[tuple[list[str], bool | None]]:
     wanted = [token for token in _TOKEN.findall(value.lower()) if token not in _MARKS]
     seen = False
     for clause in clauses(query):
-        start = 0 if seen else _after(clause, wanted)
+        start = 0 if seen else value_end(clause, wanted)
         if start is None:
             continue
         seen = True
@@ -263,36 +237,8 @@ def before_value(query: str, value: str) -> list[str]:
     return found
 
 
-def _asks(clause: list[str]) -> bool:
-    """Whether ``clause`` holds a forget verb or a clause asking to keep."""
-    return any(FORGET.fullmatch(word) or _opens_keep(clause, at) for at, word in enumerate(clause))
-
-
-def _after(clause: list[str], value: list[str]) -> int | None:
+def value_end(clause: list[str], value: list[str]) -> int | None:
     """The index just after the first place ``clause`` holds the tokens ``value``, if it does."""
     size = len(value)
     ends = (at + size for at in range(len(clause) - size + 1) if clause[at : at + size] == value)
     return next(ends, None)
-
-
-def _cut(clause: list[str], value: list[str]) -> list[list[str]]:
-    """``clause`` split before the first relative word after ``value``, when it holds both."""
-    at = _after(clause, value) or len(clause)
-    cut = next((i for i in range(at, len(clause)) if clause[i] in _RELATIVE), None)
-    return [clause] if cut is None else [clause[:cut], clause[cut:]]
-
-
-def asking(query: str, value: str, named: frozenset[str] = frozenset()) -> str:
-    """The words of ``query`` less each remark: a clause, or its words from a relative word after
-    ``value``, holding no forget verb, keep clause or ``value``, unless it opens with ``and`` or
-    only adds a row of words ``named`` to a clause that does not end asking to keep."""
-    wanted = [token for token in _TOKEN.findall(value.lower()) if token not in _MARKS]
-    found: list[str] = []
-    asked, keeps = True, False
-    for piece in (piece for clause in clauses(query) for piece in _cut(clause, wanted)):
-        joins = asked and piece[0] in AND
-        adds = _adds(piece, named)
-        asked = joins or _asks(piece) or _after(piece, wanted) is not None or (adds and not keeps)
-        keeps = keeps if adds else keeping(piece)[-1]
-        found.extend(piece if asked else [])
-    return " ".join(found)

@@ -12,7 +12,6 @@ from cortex_core.forget_clauses import (
     UNREAD,
     after_but,
     after_value,
-    asking,
     before_value,
     beside,
     clauses,
@@ -21,6 +20,7 @@ from cortex_core.forget_clauses import (
 )
 from cortex_core.forget_kinds import MINUS, extends, names, read_kinds, reads
 from cortex_core.forget_languages import FUNCTION, readings
+from cortex_core.forget_remarks import asking
 from cortex_core.forget_unnamed import just_said, quantifies, row_words, unnamed
 from cortex_core.memory import MemoryRecord
 from cortex_core.memory_values import code_word, joined, value_spans

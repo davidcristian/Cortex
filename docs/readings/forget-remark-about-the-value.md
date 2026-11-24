@@ -13,7 +13,7 @@ card listed and deleted both rows, since `phone` named the phone row wherever it
 held for `Oublie le code 4242 du casier, il est noté sur la carte du parc.` and `Forget my gym
 code 4242, the one written on the birthday card.` beside a card ending in `4242`.
 
-`asking` (`forget_clauses.py`) returns the message less each remark. A remark is a clause, or the
+`asking` (`forget_remarks.py`) returns the message less each remark. A remark is a clause, or the
 words of a clause from a relative word after the value (`_RELATIVE`: `that`, `which`, `where`,
 `que`, `qu`, `qui`, `dont`, `où`, `donde`, `care`), that holds no forget verb, no clause asking to
 keep and not the value. A clause opening with a word of `_AND` (`and`, `or`, `et`, `ou`, `und`,
