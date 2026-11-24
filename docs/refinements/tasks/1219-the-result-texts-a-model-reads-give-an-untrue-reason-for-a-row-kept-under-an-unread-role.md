@@ -50,5 +50,4 @@ drawn, so the power limit does not matter.
   call text `4242`: the first message keeps all three rows and returns `KEPT_ALL`, the second
   deletes the locker and returns the value text of `forgot`, each with the reason above. The rule
   and the candidate texts are written above; no draw was made, since this was a slot with no card
-  work. The clause of `forgot` offering a forget of a number is
-  [R-1319](1319-the-result-of-a-delete-that-leaves-its-number-held-suggests-forgetting-the-number.md).
+  work.

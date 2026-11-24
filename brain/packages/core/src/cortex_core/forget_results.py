@@ -103,7 +103,7 @@ def forgot(removed: int, holding: int, kept: int, inner: int = 0, text: str | No
     return (
         f"forgot {removed} remembered exchanges that contain that text, but {holding} other "
         "remembered exchanges still hold a number a deleted one held, so that number is still "
-        "remembered; a forget of the number itself would remove them"
+        "remembered"
     )
 
 

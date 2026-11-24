@@ -22,7 +22,7 @@ def _held(removed: int, holding: int) -> str:
     return (
         f"forgot {removed} remembered exchanges that contain that text, but {holding} other "
         "remembered exchanges still hold a number a deleted one held, so that number is still "
-        "remembered; a forget of the number itself would remove them."
+        "remembered."
     )
 
 

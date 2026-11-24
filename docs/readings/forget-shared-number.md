@@ -16,7 +16,8 @@ before each draw, put a fresh copy of both rows back under new ids. Each draw is
 chat, `Forget my gym locker number.`, with every card approved. After it the driver read which of
 the two rows remain and the cards the turn showed. Driver and records: `draw.sh`, `base.log`,
 `fixed.log`, `*.jsonl` and `req-*.log` in
-the `slot17` scratch directory of the 2026-11-08 run.
+the `slot17` scratch directory of the 2026-11-08 run. That clause of the result is gone since
+2026-11-24 ([readings](forget-result-texts.md#the-clause-offering-a-forget-of-the-number-2026-11-24)).
 
 ## Rows and rule
 

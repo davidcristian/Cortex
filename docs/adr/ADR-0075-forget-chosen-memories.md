@@ -81,8 +81,8 @@ that removes exactly those rows and holds against a turn in flight. This record 
    digits a row deleted in the turn held, compared by digits so separators do not matter, a year
    or a date only from a row that names a code or a number, since unrelated facts share years,
    and never a row a clause of the person's message asking to keep names, or any row when that
-   clause keeps everything or the rest, since the count's note asks to forget the number, and the result says how many and that a forget of the number itself would remove
-   them, without naming it. The card's listing is not widened for this, since a reader of values
+   clause keeps everything or the rest, since the count's note asks to forget the number, and the result says how many and that the number is still
+   remembered, without naming it, and suggests no forget of the number, since the cortex offered one made that call unasked ([readings](../readings/forget-result-texts.md#the-clause-offering-a-forget-of-the-number-2026-11-24)). The card's listing is not widened for this, since a reader of values
    errs both ways. A reply that still says the fact was forgotten while the turn's last delete had a
    count ends with a note the brain appends after a typed check of the reply, because the model read the
    count and still made that claim in half the draws that left a row
