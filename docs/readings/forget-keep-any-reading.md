@@ -95,3 +95,59 @@ to keep. The word pair cases are those of
 [the longer forget word readings](forget-longer-word-beside-a-value.md). With the exception role
 left out of `may_keep`, a forget test fails on `All 4242 but my lockers, forget them.` beside a
 row holding `lockers` and `4242` inside a longer value, which no other reader of `may_keep` keeps.
+
+## An item after a keep clause, 2026-11-24
+
+`parts` reads a clause with no forget verb after a keep clause as part of it only when it reads
+that keep clause itself, which needs a keep verb, a word for except or a negation; `bleibt` is a
+keep verb. After a clause only another reader keeps (`kept_again` for `the phone stays`, `le
+téléphone reste` and `dulapul rămâne`, `after_but` for `the card but the phone`), an item such as
+`the locker too` was read as adding a row, and the card deleted it. `after_kept`
+(`forget_clauses.py`) returns the words of each clause with no forget verb after a clause holding,
+past its last forget verb, a word a reading of `may_keep` keeps (or `kept_again` with the longer
+words), and `may_keep` keeps the rows they name. So `Forget 4242, the card, the phone stays, the
+locker too.`, `Forget 4242, the card but the phone, the locker too.`, `Oublie 4242, la carte, le
+téléphone reste, le casier aussi.` and `Uită 4242, cardul, dulapul rămâne, și telefonul.` keep the
+locker, and so does each with a later clause keeping the phone again, as `Forget the card 4242 but
+the phone, the locker too, keep the phone.`. The tests are `test_forget_after_keep.py`.
+
+How each near miss is read:
+
+- `Forget the card 4242, the phone stays, forget the locker 4242 too.`, the same with a full stop,
+  and `Keep the phone, forget the card, the locker too.` ask to delete the locker, since its clause
+  has a forget verb. The card deletes it.
+- `Forget the card 4242, the phone too, keep the card.` asks to delete the phone. The later clause
+  keeps the card word of the first clause, so the phone is kept too, a cost. Starting nothing at a
+  clause whose kept word a later clause holds deletes this phone and keeps 383 fewer rows asked to
+  delete, but deletes the item of 1,314 of the 22,758 messages keeping a word again below, as the
+  locker of `Forget the card 4242 but the phone, the locker too, keep the phone.`.
+- `Forget the card 4242, the phone, I think, the gym too.` asks to delete the gym. The phone's own
+  run has a role read; a role a later clause leaves unread starts nothing. Taking those roles too
+  kept 628 rows asked to delete against 616, and failed this test.
+- `Forget the card but not the phone, and the locker too.` can add the locker to the forget or to
+  the negation, so it is read both ways and the locker is kept, as `parts` already did.
+
+The replay adds the audit's 6,156 mixed cases (`x-mix`) and 1,104 near misses with a forget verb
+before the item after each keep clause to the generator, 71,332 calls with 10,865 over the strings
+of the forget tests, and runs the 12,768 word pair and 4,104 valued cases of the 2026-11-23 audit
+and 22,758 messages naming the kept word again in a later clause that keeps it, built from the
+rows' own words in the five note languages (`again.py`).
+
+| | before | after |
+| --- | --- | --- |
+| of the mixed cases, rows asked to keep that the card deletes | 190 | 0 |
+| of the messages keeping a word again, rows asked to keep that the card deletes | 1,584 | 0 |
+| of the generator's other calls, rows listed that the message asks to keep | 0 | 0 |
+| rows newly listed, every case | | 0 |
+| rows asked to delete that are newly kept | | 616 |
+
+Of the 616, 233 are an item after a word for only the readers leave unread (`seulement`,
+`juste`, `nur`, `doar`; French 120, German 80, Romanian 20), as `Oublie 4242, seulement la carte,
+le téléphone aussi.`, and 13 after Romanian `de asemenea`, which `_ADD` lacks. `kept_again` keeps
+the row of that clause, so the rule keeps the item after it. The other 383 are an item between a
+head naming a row and a later clause keeping that row (English 204, French 88, German 80,
+Romanian 11), as the phone of `Forget the card 4242, the phone too, except the card.`. The near
+misses changed in no row. The scripts `f3gen/mixforms.py`, `replay.sh`, `cmp7.py` and
+`costform.py` are in `~/.cache/cortex-run/2026-11-24/f7/`, and `again.py`, `again2.py`,
+`replay.sh`, `recount.py` and the listings `f3_after.json`, `again_before.json` and
+`again_after.json` in `~/.cache/cortex-run/2026-11-24/a2/`.

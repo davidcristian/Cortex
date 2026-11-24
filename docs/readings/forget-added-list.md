@@ -52,7 +52,9 @@ carte aussi.` and `Vergiss den Code 4242 vom Spind, mein Handy, die Karte auch.`
 An item stays a remark, which keeps its row, before a keep clause (`my phone, keep the locker and
 the gym too`), before a clause that adds no row (`the phone, I think, the gym too`), at the end of
 the message (`my phone too, my gym`), and before a list joined by a word for or. After a clause
-ending in a keep clause the items are kept, as the list is above.
+ending in a keep clause the items are kept, as the list is above, and after a clause any reading
+of a keep clause keeps, such as `but the phone` or `the phone stays`, the next item is kept too
+([readings](forget-keep-any-reading.md#an-item-after-a-keep-clause-2026-11-24)).
 
 Replay: the forget card generator of the 2026-11-23 run with this form added, 63,877 cases of
 which 10,670 are the string literals of the brain's forget tests, and the 12,768 word pair cases

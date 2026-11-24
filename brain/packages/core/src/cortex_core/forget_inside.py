@@ -11,6 +11,7 @@ from cortex_core.forget_clauses import (
     LIMIT,
     UNREAD,
     after_but,
+    after_kept,
     after_value,
     before_value,
     beside,
@@ -230,8 +231,8 @@ def may_keep(
     rows: Sequence[MemoryRecord], within: Sequence[MemoryRecord], query: str, text: str
 ) -> list[MemoryRecord]:
     """The ``rows`` ``query`` may ask to keep: each a word names in any reading (``reads``) in a
-    keep clause, after a word for minus, in ``after_but``, ``after_value`` or ``kept_again``, or
-    as an exception ``beside`` reads, and each kept for the role of a row named beside the value."""
+    keep clause, after minus, in ``after_but``, ``after_value``, ``kept_again`` or ``after_kept``,
+    or an exception ``beside`` reads, and each kept for the role of a row named beside the value."""
     after = after_but(query)
     for clause in clauses(query):
         at = next((at for at, token in enumerate(clause) if token in MINUS), len(clause))
@@ -249,6 +250,8 @@ def may_keep(
     held = content(query, " ".join(w for w in parts(query)[1] if not KEEP.fullmatch(w))) - EXCEPT
     keeps = held | content(query, " ".join(after)) | broad[EXCEPTION]
     keeps |= kept_again(query, text, known)
+    kept = frozenset(keeps | kept_again(query, text, frozenset(known | wide)))
+    keeps |= content(query, " ".join(after_kept(query, kept)))
     limit, every = roles[LIMIT] & named, quantifies(query)
     unread = bool(roles[UNREAD] & (named | beyond) or broad[UNREAD] & (named | beyond | wide))
     head = content(query, " ".join(before_value(query, text))) | roles[LIMIT] | roles[ADDITION]

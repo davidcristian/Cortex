@@ -93,6 +93,20 @@ def parts(query: str) -> tuple[list[str], list[str]]:
     return forget, keep
 
 
+def after_kept(query: str, kept: frozenset[str]) -> list[str]:
+    """The words of each clause of ``query`` with no forget verb after one holding a word of
+    ``kept`` past its last forget verb, which may ask to keep them too."""
+    found: list[str] = []
+    joins = False
+    for clause in clauses(query):
+        verbs = [place for place, token in enumerate(clause) if FORGET.fullmatch(token)]
+        if joins and not verbs:
+            found.extend(clause)
+            continue
+        joins = not kept.isdisjoint(clause[max(verbs, default=-1) + 1 :])
+    return found
+
+
 def after_but(query: str) -> list[str]:
     """The words of ``query`` after a word for but that follows a forget verb, to the end of its
     clause, which may ask to keep the rows they name: none of a clause that then holds a forget
