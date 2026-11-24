@@ -35,10 +35,10 @@ the third, which `asks_not_kept` already stops there.
 
 - 2026-11-15: filed from the replay of the request reader (task 1198), which reads a bare
   statement as before.
-- 2026-11-24: done. The three messages still named an old value. `_replaced` now reads the first
-  sentence, gives no note when `asks_not_kept` reads the message, and reads each value less `now`
+- 2026-11-24: done. The three messages still named an old value, and reading the first
+  sentence alone opens `My alarm code is 5528. Wait, that is wrong.`, so step 1's `5528. Thanks!`
+  now names nothing. `_replaced` reads a message of one sentence only, and each value less `now`
   or `actually` at either end only when it opens with a digit or a capital letter and its other
-  words that are neither match the old value's, so every unread value form names nothing rather
-  than a longer word list. The replay and its cost, 6 messages that lose a true note (`on 12 May`,
-  `at 8`), are in the
+  words that are neither match the old value's, rather than a longer word list. The replay and its
+  cost, 9 messages that lose a true note (`on 12 May`, `at 8`, `Thanks!`), are in the
   [readings](../../readings/forget-refused-statement-old-row.md#a-second-value-or-a-second-sentence-2026-11-24).

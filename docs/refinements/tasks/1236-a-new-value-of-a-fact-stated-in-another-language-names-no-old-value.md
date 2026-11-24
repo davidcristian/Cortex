@@ -47,7 +47,7 @@ words.
 ## History
 
 - 2026-11-15: filed when the English requests to store or remember got the note (task 1198).
-- 2026-11-24: checked again after the old value reader began to read only a statement's first
-  sentence: the five messages above still name nothing. The steps now name what exists to reuse
+- 2026-11-24: checked again after the old value reader began to read a statement of one
+  sentence only: the five messages above still name nothing. The steps now name what exists to reuse
   and what the German and Romanian orders need. Left open, since a note not shown is the safe
   direction.

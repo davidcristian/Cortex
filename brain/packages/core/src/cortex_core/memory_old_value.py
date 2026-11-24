@@ -10,7 +10,6 @@ from cortex_core.forget_languages import FUNCTION
 from cortex_core.memory_claim import claims_kept
 from cortex_core.memory_claim_other import claims_kept_other, stated
 from cortex_core.memory_claim_update import claims_updated
-from cortex_core.memory_request import asks_not_kept
 from cortex_core.memory_values import joined
 from cortex_core.note_language import in_language
 from cortex_core.recall import MemoryRecaller
@@ -138,17 +137,18 @@ def _bare(value: str) -> list[str]:
 
 
 async def _replaced(memory: MemoryRecaller, query: str, session_id: str) -> str:
-    """The value with a digit a stored row states for the fact the first sentence of ``query``
-    states, alone or after a request to keep it, with the same possessive, fact words and words
-    that are no digit or name, when no word of ``query`` negates it or asks not to keep it."""
+    """The value with a digit a stored row states for the fact ``query`` states in one sentence,
+    alone or after a request to keep it, with the same possessive, fact words and words
+    that are no digit or name, when no word of ``query`` negates it."""
     asked = fact_asked(query)
     text = (query if asked is None else asked).strip()
-    first = _SENTENCE_END.split(text, maxsplit=1)[0]
-    stated = _STATED.fullmatch(first)
+    # A later sentence can take the value back, as in "Wait, that is wrong."
+    sentence = "" if _SENTENCE_END.search(text) else text
+    stated = _STATED.fullmatch(sentence)
     if stated is None and asked is not None:
-        stated = _POSSESSED.fullmatch(first)
+        stated = _POSSESSED.fullmatch(sentence)
     negated = not NOT.isdisjoint(re.findall(r"\w+", text.lower()))
-    if stated is None or negated or asks_not_kept(query):
+    if stated is None or negated:
         return ""
     # "My sister is vegan." beside "my sister is Ana" gives her another detail, not a new value.
     value, owner = _bare(stated.group("value")), stated.group("owner").lower()

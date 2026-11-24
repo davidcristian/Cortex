@@ -127,17 +127,14 @@ _DOOR = "User: Remember that my door code is 1987."
 @pytest.mark.parametrize(
     ("query", "row", "value"),
     [
-        ("My alarm code is 5528. Thanks!", _ALARM, "4826"),
         ("My alarm code is 5528 now.", _ALARM, "4826"),
-        ("My alarm code is 5528. My alarm code is 5528.", _ALARM, "4826"),
-        ("My alarm code is 5528. My door code is 1234.", _ALARM, "4826"),
         ("My alarm code is 5528.", "User: My alarm code is now 4826. Thanks!", "4826"),
         ("My son is 6 years old.", "User: Remember that my son is 5 years old.", "5 years old"),
         ("My flight is LH 1234.", "User: Remember that my flight is LH 1200.", "LH 1200"),
         ("My kids are 6 and 8.", "User: Remember that my kids are 5 and 7.", "5 and 7"),
     ],
 )
-async def test_a_statement_ending_at_its_sentence_names_the_old_value(
+async def test_a_statement_of_one_sentence_names_the_old_value(
     query: str, row: str, value: str
 ) -> None:
     assert await _held(query, row) == value
@@ -157,6 +154,12 @@ async def test_a_statement_ending_at_its_sentence_names_the_old_value(
         ("My alarm code is 5528 or 5529.", _ALARM),
         ("My alarm code is 5528 and my door code is 1234.", _ALARM),
         ("My alarm code is 5528. My wife's alarm code is 4826.", _ALARM),
+        ("My alarm code is 5528. Thanks!", _ALARM),
+        ("My alarm code is 5528. Wait, that is wrong.", _ALARM),
+        ("My alarm code is 5528. Just kidding.", _ALARM),
+        ("My alarm code is 5528. My alarm code is 5528.", _ALARM),
+        ("My alarm code is 5528. My door code is 1234.", _ALARM),
+        ("Remember that my alarm code is 5528.\nNo, wait.", _ALARM),
         ("My alarm code is 4826.", "User: My alarm code is 4826. Thanks!"),
         ("My alarm code is ...", _ALARM),
         ("My alarm code is now.", _ALARM),
@@ -193,6 +196,27 @@ async def test_a_statement_turn_beside_the_old_row_ends_with_the_note() -> None:
 @pytest.mark.parametrize(
     "query",
     [
+        "My alarm code is 5528 OFF THE RECORD.",
+        "Save this: my alarm code is 5528 Off The Record.",
+        "Remember my alarm code is 5528 Then Forget It.",
+    ],
+)
+async def test_a_turn_asking_not_to_keep_a_new_value_records_nothing_and_names_the_old(
+    query: str,
+) -> None:
+    _, caps = await _rig(_ALARM)
+    assert caps.memory is not None
+    backend = ScriptedInferenceBackend([[TextChunk("Understood.")]])
+    engine = TurnEngine(InMemorySessionStore(), backend, SystemClock(), capabilities=caps)
+    events = engine.handle_turn("s", query, turn_id="t")
+    reply = "".join([event.text async for event in events if isinstance(event, TextDelta)])
+    assert reply == "Understood." + old_value_note("4826", "en")
+    assert await caps.memory.find_value("5528", session_id="s", limit=8) == ()
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
         "Save this: my alarm code is 5528.",
         "Store my alarm code 5528.",
         "Record that my alarm code is 5528.",
@@ -206,7 +230,6 @@ async def test_a_statement_turn_beside_the_old_row_ends_with_the_note() -> None:
         "Don't forget my alarm code is 5528.",
         "Write down my alarm code 5528.",
         "Save my new alarm code 5528.",
-        "Remember that my alarm code is 5528. Thanks for the help.",
     ],
 )
 async def test_a_request_to_store_a_stored_fact_with_another_value_names_the_old_value(
@@ -234,6 +257,7 @@ async def test_a_request_to_store_a_stored_fact_with_another_value_names_the_old
         "Remember that her alarm code is 5528.",
         "Remember that my alarm code is 5528?",
         "Remember to change my alarm code to 5528.",
+        "Remember that my alarm code is 5528. Thanks for the help.",
         "Store my alarm code 5528 and my door code 1234.",
         "I always store my alarm code 5528 on paper.",
         "We record that my alarm code is 5528.",
