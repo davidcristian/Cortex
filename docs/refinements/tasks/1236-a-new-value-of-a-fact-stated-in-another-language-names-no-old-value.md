@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-15
+**Verified:** 2026-11-24
 
 `_replaced` (`memory_old_value.py`) reads the stated fact and the stored row with `FACT_VALUE`
 (`fact_statement.py`), which is English only: `my`, `our`, `his`, `her` or `their`, the fact
@@ -29,13 +29,25 @@ words.
 
 1. Write a pattern for each language with the same three groups as `FACT_VALUE` (possessive, fact
    words, value), and tests first: each message above names `4826`; a negated statement, another
-   fact, another possessive and a repeated value name nothing.
-2. Read the stored row in the language of the message, and read the fact after the request from
-   `asks_kept_fact_other` rather than a new word list.
-3. Replay every string literal of the brain's tests and every backticked string of
-   `docs/readings/` through both builds, and Italian, Portuguese, Dutch and Polish statements,
-   which must name nothing. A note only shows, so show none when unsure.
+   fact, another possessive and a repeated value name nothing. German needs both orders, and after
+   `dass` only a value opening with a digit separates the fact words from the value. In Romanian
+   the fact words are the noun before the possessive and the words after it, so the row search
+   takes a run of them that the row holds whole (`alarmă`), since `find_value` matches one text.
+2. Read the stored row in the language of the message. `asks_kept_fact_other` returns only a
+   bool: split it so one function returns the fact text after the request and the bool tests it.
+3. Reuse what is there: `NOT` already holds `pas`, `nicht`, `no`, `nu`, `nunca` and `jamais`,
+   `asks_not_kept` reads the four languages, and the value rule (first word with a digit or a
+   capital, the same other words in both values) applies as it is. `now`, `actually` and `new`
+   are read in English only, so `maintenant 5528` and `nouveau code` name nothing until a reading
+   of each is written.
+4. Replay with the scripts in `~/.cache/cortex-run/2026-11-24/f2/`, adding synthetic rows built in
+   each language, and Italian, Portuguese, Dutch and Polish statements, which must name nothing. A
+   note only shows, so show none when unsure.
 
 ## History
 
 - 2026-11-15: filed when the English requests to store or remember got the note (task 1198).
+- 2026-11-24: checked again after the old value reader began to read only a statement's first
+  sentence: the five messages above still name nothing. The steps now name what exists to reuse
+  and what the German and Romanian orders need. Left open, since a note not shown is the safe
+  direction.
