@@ -86,6 +86,26 @@ three fit under the 8192 MiB limit and every return was restored from it, its `t
 Method: `~/.cache/cortex-run/2026-11-23/s4/cram.py`, whose rows are in `logs/cram-on.out` and
 `logs/cram-off.out` beside it.
 
+## Deep requests in recorded handoffs
+
+**2026-11-24**, counted off the model host logs of nine handoffs to the deep pick that a brain
+drove, on build `b12375` at the deep tier's argv with `--cache-ram 0` (runs of 2026-11-21 and
+2026-11-23). A handoff stops the deep server when it swaps back, and `--cache-ram` is host RAM of
+that process, so the cache can restore a request only from an earlier request of the same server
+that another request pushed out of its one slot: a third or later request the slot does not match.
+
+| class | what it is | requests |
+| --- | --- | --- |
+| first | the first request of its server, the slot empty | 9 |
+| held | the slot matched its prefix (`selected slot by LCP similarity`) | 0 |
+| new | the second request of its server, the slot holding the first | 3 |
+| possible return | a third or later request, the slot holding another prompt | 0 |
+
+Six handoffs sent the deep tier one request each and the three with memory recall two each. No
+deep turn among them called a tool, and none took the stop or resume path. Method: `python3 -I
+r1308/count.py <host logs>` in `~/.cache/cortex-run/2026-11-24/s2/`, whose `notes.md` lists the
+logs counted.
+
 ## The prompt cache and a repeated request
 
 Until 2026-09-22 every row posted with llama-server's `cache_prompt` request field at its default,

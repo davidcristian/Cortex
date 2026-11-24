@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** inference-model-manager
 **Origin:** [ADR-0059](../../adr/ADR-0059-prompt-cache-per-tier.md)
-**Verified:** 2026-11-23
+**Verified:** 2026-11-24
 
 The deep tier runs `--cache-ram 0` (`_NO_PROMPT_CACHE` in
 `brain/packages/model_manager/src/cortex_model_manager/config.py`) because on gemma-4-31B a cached
@@ -31,3 +31,9 @@ returning requests save.
 - 2026-11-23: filed by the prompt cache row of
   [R-741](741-a-qwen38-27b-deep-tier-has-no-measured-fit-figure-or-decode-floor.md), drawn on
   build b12375. `--cache-ram 0` is unchanged.
+- 2026-11-24: counted off the model host logs of nine recorded handoffs to the pick on build
+  b12375: twelve deep requests, nine the first of their server, three the second with the slot
+  holding the first, none a possible return
+  ([counts](../../readings/prompt-cache.md#deep-requests-in-recorded-handoffs)). No deep turn in
+  them called a tool and none took the stop or resume path, so by the rule written before the
+  count the task stays open until a live handoff draws those two.
