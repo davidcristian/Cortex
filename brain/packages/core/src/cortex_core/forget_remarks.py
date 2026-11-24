@@ -43,16 +43,25 @@ def _cut(clause: list[str], value: list[str]) -> list[list[str]]:
     return [clause] if cut is None else [clause[:cut], clause[cut:]]
 
 
+def _listing(pieces: list[list[str]], named: frozenset[str]) -> list[bool]:
+    """Whether each of ``pieces`` only adds rows: it ``_adds``, or it is one ``_item`` and the
+    next piece only adds rows, as ``the phone`` of ``the phone, the locker too``."""
+    found = [False] * (len(pieces) + 1)
+    for at in range(len(pieces) - 1, -1, -1):
+        found[at] = _adds(pieces[at], named) or (_item(pieces[at], named) and found[at + 1])
+    return found[:-1]
+
+
 def asking(query: str, value: str, named: frozenset[str] = frozenset()) -> str:
     """The words of ``query`` less each remark: a clause, or its words from a relative word after
     ``value``, holding no forget verb, keep clause or ``value``, unless it opens with ``and`` or
-    only adds a row of words ``named`` to a clause that does not end asking to keep."""
+    only adds rows of words ``named`` (``_listing``) to a clause not ending asking to keep."""
     wanted = [token for clause in clauses(value) for token in clause]
     found: list[str] = []
     asked, keeps = True, False
-    for piece in (piece for clause in clauses(query) for piece in _cut(clause, wanted)):
+    pieces = [piece for clause in clauses(query) for piece in _cut(clause, wanted)]
+    for piece, adds in zip(pieces, _listing(pieces, named), strict=True):
         joins = asked and piece[0] in AND
-        adds = _adds(piece, named)
         asked = (
             joins or _asks(piece) or value_end(piece, wanted) is not None or (adds and not keeps)
         )

@@ -25,9 +25,8 @@ word for or joins no list (`the phone or the card too`), since it asks for one o
 clause ending in a keep clause the list is kept: `Forget the card 4242, keep the locker, my phone
 and my gym too.` keeps the locker, the phone and the gym. `_ADD` has no Spanish or Romanian word,
 so `mi teléfono y la tarjeta también` and `telefonul și cardul de asemenea` stay remarks. A first
-item before a comma (`the phone, the locker and the gym too`) is a clause of its own and stays a
-remark ([task 1205](../refinements/tasks/1205-a-first-item-before-a-comma-in-a-list-adding-rows-is-a-remark.md)).
-The tests are `test_forget_added_list.py`.
+item before a comma (`the phone, the locker and the gym too`) is read in the next section. The
+tests are `test_forget_added_list.py`.
 
 Replay: every string literal of the brain's forget tests and every backticked string of
 [forget-remark-about-the-value.md](forget-remark-about-the-value.md), 1,553 strings, through the
@@ -39,3 +38,27 @@ digit value of the string in turn, or `4242` when it has none, and the call text
 rows are newly deleted and none newly kept, and each newly deleted row is one an item of the list
 names by its word or its kind. The scripts `replay.py` and `compare.py` and the listing `cmp1.txt`
 are in the `slot2` scratch directory of the 2026-11-15 run.
+
+## A first item before a comma, 2026-11-24
+
+Over the same three rows and `Remember that my gym code is 4242.`, with the call text `4242`.
+Before, `asking` read each clause between commas alone, so `Forget the card 4242, the phone, the
+locker and the gym too.` read `the phone` as a remark and kept the phone row. `_listing`
+(`forget_remarks.py`) now reads the clauses from the last one back, and reads a clause that is one
+item as adding rows when the clause after it only adds rows, by `_adds` or by this same rule. That
+message now deletes all four rows, and so do `Oublie le code 4242 du casier, mon téléphone, la
+carte aussi.` and `Vergiss den Code 4242 vom Spind, mein Handy, die Karte auch.`.
+
+An item stays a remark, which keeps its row, before a keep clause (`my phone, keep the locker and
+the gym too`), before a clause that adds no row (`the phone, I think, the gym too`), at the end of
+the message (`my phone too, my gym`), and before a list joined by a word for or. After a clause
+ending in a keep clause the items are kept, as the list is above.
+
+Replay: the forget card generator of the 2026-11-23 run with this form added, 63,877 cases of
+which 10,670 are the string literals of the brain's forget tests, and the 12,768 word pair cases
+and 4,104 valued cases of the 2026-11-23 audit, through the card on the commit before the change
+and on the change. No row the message asks to keep is listed on either. The rows the message asks
+to delete that the card keeps fell from 30,918 to 30,889: 29 cases of the first item form each
+deleted one more row it asks to delete, 13 English, 8 French and 8 German. No other case changed.
+The scripts `replay.sh`, `cmpall.py` and `f3gen/count3.py` and the counts `c3_head.txt` and
+`c3_x.txt` are in `~/.cache/cortex-run/2026-11-24/f1b/`.

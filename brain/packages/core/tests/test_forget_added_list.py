@@ -190,3 +190,64 @@ def test_asking_reads_a_list_only_when_every_item_names_a_row(
     query: str, named: set[str], asked: str
 ) -> None:
     assert asking(query, "4242", frozenset(named)) == asked
+
+
+@pytest.mark.parametrize(
+    ("query", "ids", "left"),
+    [
+        ("Forget the card 4242, the phone, the locker and the gym too.", (*_ENGLISH, "gym"), []),
+        ("Forget the locker code 4242, my phone, the card too.", _ENGLISH, []),
+        ("Oublie le code 4242 du casier, mon téléphone, la carte aussi.", _FRENCH, []),
+        ("Vergiss den Code 4242 vom Spind, mein Handy, die Karte auch.", _GERMAN, []),
+        (
+            "Forget the card 4242, my phone, keep the locker and the gym too.",
+            (*_ENGLISH, "gym"),
+            ["gym", "locker", "phone"],
+        ),
+        (
+            "Forget the card 4242, the phone, I think, the gym too.",
+            (*_ENGLISH, "gym"),
+            ["locker", "phone"],
+        ),
+        (
+            "Forget the card 4242, keep the locker, my phone, my gym too.",
+            (*_ENGLISH, "gym"),
+            ["gym", "locker", "phone"],
+        ),
+    ],
+)
+async def test_an_item_before_a_comma_adds_its_row_only_before_a_clause_adding_rows(
+    query: str, ids: tuple[str, ...], left: list[str]
+) -> None:
+    assert await _left(query, *ids) == left
+
+
+@pytest.mark.parametrize(
+    ("query", "named", "asked"),
+    [
+        (
+            "Forget 4242, my phone, my gym, my locker too.",
+            {"phone", "gym", "locker"},
+            "forget 4242 my phone my gym my locker too",
+        ),
+        (
+            "Forget 4242, my phone, my gym and my locker too.",
+            {"phone", "gym", "locker"},
+            "forget 4242 my phone my gym and my locker too",
+        ),
+        ("Forget 4242, my phone, my gym.", {"phone", "gym"}, "forget 4242"),
+        ("Forget 4242, my phone, my passport too.", {"phone"}, "forget 4242"),
+        ("Forget 4242, my phone, I think, my gym too.", {"phone", "gym"}, "forget 4242 my gym too"),
+        (
+            "Forget 4242, my phone, my gym or my locker too.",
+            {"phone", "gym", "locker"},
+            "forget 4242",
+        ),
+        ("Forget 4242, my old phone, my gym too.", {"phone", "gym"}, "forget 4242 my gym too"),
+        ("Forget 4242, my phone too, my gym.", {"phone", "gym"}, "forget 4242 my phone too"),
+    ],
+)
+def test_asking_reads_an_item_before_a_comma_only_when_every_clause_after_it_adds_rows(
+    query: str, named: set[str], asked: str
+) -> None:
+    assert asking(query, "4242", frozenset(named)) == asked
