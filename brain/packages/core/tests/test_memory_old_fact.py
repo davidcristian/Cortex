@@ -121,6 +121,58 @@ async def test_a_statement_of_another_or_a_past_fact_names_no_row(query: str, ro
     assert await _held(query, row) == ""
 
 
+_DOOR = "User: Remember that my door code is 1987."
+
+
+@pytest.mark.parametrize(
+    ("query", "row", "value"),
+    [
+        ("My alarm code is 5528. Thanks!", _ALARM, "4826"),
+        ("My alarm code is 5528 now.", _ALARM, "4826"),
+        ("My alarm code is 5528. My alarm code is 5528.", _ALARM, "4826"),
+        ("My alarm code is 5528. My door code is 1234.", _ALARM, "4826"),
+        ("My alarm code is 5528.", "User: My alarm code is now 4826. Thanks!", "4826"),
+        ("My son is 6 years old.", "User: Remember that my son is 5 years old.", "5 years old"),
+        ("My flight is LH 1234.", "User: Remember that my flight is LH 1200.", "LH 1200"),
+        ("My kids are 6 and 8.", "User: Remember that my kids are 5 and 7.", "5 and 7"),
+    ],
+)
+async def test_a_statement_ending_at_its_sentence_names_the_old_value(
+    query: str, row: str, value: str
+) -> None:
+    assert await _held(query, row) == value
+
+
+@pytest.mark.parametrize(
+    ("query", "row"),
+    [
+        ("My door code is also 7319.", _DOOR),
+        ("Remember that my door code is also 7319.", _DOOR),
+        ("My door code is 7319 too.", _DOOR),
+        ("My door code is 7319 as well.", _DOOR),
+        ("My door code is 7319 for the garage.", _DOOR),
+        ("My pet is Rex. Room 12.", "User: My pet is 2 years old."),
+        ("My PIN is 4242 off the record.", "User: Remember that my PIN is 1987."),
+        ("My PIN is 4242. Off the record.", "User: Remember that my PIN is 1987."),
+        ("My alarm code is 5528 or 5529.", _ALARM),
+        ("My alarm code is 5528 and my door code is 1234.", _ALARM),
+        ("My alarm code is 5528. My wife's alarm code is 4826.", _ALARM),
+        ("My alarm code is 4826.", "User: My alarm code is 4826. Thanks!"),
+        ("My alarm code is ...", _ALARM),
+        ("My alarm code is now.", _ALARM),
+        ("My door code is 7319.", "User: Remember that my door code is also 1987."),
+        ("My door code is also 7319.", "User: Remember that my door code is also 1987."),
+        ("My birthday is on 12 May.", "User: Remember that my birthday is on 3 June."),
+        ("Mon code de porte est aussi 7319.", "User: Retiens que mon code de porte est 1987."),
+        ("Mein Türcode ist auch 7319.", "User: Merk dir, mein Türcode ist 1987."),
+        ("Mi código de puerta es también 7319.", "User: Recuerda que mi código es 1987."),
+        ("Codul meu de la ușă este și 7319.", "User: Reține că codul meu este 1987."),
+    ],
+)
+async def test_a_second_value_or_sentence_names_no_old_value(query: str, row: str) -> None:
+    assert await _held(query, row) == ""
+
+
 async def test_an_unreadable_store_names_no_replaced_value() -> None:
     store, caps = await _rig(_ALARM)
     store.fail_with(MemoryStoreError("store down"))
@@ -154,6 +206,7 @@ async def test_a_statement_turn_beside_the_old_row_ends_with_the_note() -> None:
         "Don't forget my alarm code is 5528.",
         "Write down my alarm code 5528.",
         "Save my new alarm code 5528.",
+        "Remember that my alarm code is 5528. Thanks for the help.",
     ],
 )
 async def test_a_request_to_store_a_stored_fact_with_another_value_names_the_old_value(
@@ -181,7 +234,6 @@ async def test_a_request_to_store_a_stored_fact_with_another_value_names_the_old
         "Remember that her alarm code is 5528.",
         "Remember that my alarm code is 5528?",
         "Remember to change my alarm code to 5528.",
-        "Remember that my alarm code is 5528. Thanks for the help.",
         "Store my alarm code 5528 and my door code 1234.",
         "I always store my alarm code 5528 on paper.",
         "We record that my alarm code is 5528.",

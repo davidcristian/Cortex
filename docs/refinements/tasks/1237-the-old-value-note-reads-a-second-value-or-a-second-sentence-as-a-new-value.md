@@ -1,9 +1,8 @@
 # The old value note reads a second value or a second sentence as a new value
 
-**Status:** open, actionable
+**Status:** done 2026-11-24
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-15
 
 `_replaced` (`memory_old_value.py`) takes the value of `FACT_VALUE` (`fact_statement.py`): at most
 four words that hold no comma, colon or question mark. A full stop is allowed inside a word, so
@@ -36,3 +35,10 @@ the third, which `asks_not_kept` already stops there.
 
 - 2026-11-15: filed from the replay of the request reader (task 1198), which reads a bare
   statement as before.
+- 2026-11-24: done. The three messages still named an old value. `_replaced` now reads the first
+  sentence, gives no note when `asks_not_kept` reads the message, and reads each value less `now`
+  or `actually` at either end only when it opens with a digit or a capital letter and its other
+  words that are neither match the old value's, so every unread value form names nothing rather
+  than a longer word list. The replay and its cost, 6 messages that lose a true note (`on 12 May`,
+  `at 8`), are in the
+  [readings](../../readings/forget-refused-statement-old-row.md#a-second-value-or-a-second-sentence-2026-11-24).

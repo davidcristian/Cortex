@@ -198,3 +198,39 @@ string gains a note: a bare statement in those languages gets none either, since
 stored row are both read in English only. The scripts `replay.py`, `diff.py`, `verify.py` and
 `mutate.py`, and the lists `before.json`, `after.json` and `replay-diff.txt`, are in
 the `slot16` scratch directory of the 2026-11-15 run.
+
+## A second value or a second sentence, 2026-11-24
+
+At HEAD the value ran past a sentence end and could open or close with any word, so `My door
+code is also 7319.`, `My pet is Rex. Room 12.` and `My PIN is 4242 off the record.` named a stored
+value as the one the message corrects. The note only shows, and a wrong old value named to the
+person is the worse error, so the reader now fails safe on every value form it does not read: the
+statement is the message's first sentence, the message holds no sentence `asks_not_kept` reads,
+and each value, less `now` or `actually` at either end, opens with a word holding a digit or a
+capital letter, with its other words that are neither the same in both values. A stored row is
+read sentence by sentence the same way.
+
+### Replay through HEAD and the change
+
+The messages are the 2,824 strings holding a possessive and a digit among 74,860: every string
+literal of the brain's tests, every backticked string of `docs/readings/`, and every string of the
+forget generator's case files in `~/.cache/cortex-run/2026-11-23/f5/`. Each was read beside one
+row at a time, first the synthetic rows of the replay above, then each of the 528 strings stating
+a possessed fact with `is` or `are` and a digit that shares a word with it.
+
+| Rows | Pairs | Notes at HEAD | Notes after | Same | Shown newly | Dropped | Changed |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Synthetic | 12,700 | 192 | 165 | 148 | 17 | 44 | 0 |
+| Stored strings | 280,364 | 2,378 | 1,602 | 1,181 | 326 | 1,102 | 95 |
+
+Every note shown newly names a value its row states for the fact the message's first sentence
+gives another value; the message or the row has a later sentence (`Thanks for the help.`, `Let the
+last one go.`). Every changed note loses `now` or a sentence tail: `now 4826` becomes `4826`,
+`7319. Thanks` becomes `7319`. Of the 40 messages dropped beside a synthetic row, 10 are the forms
+above, 19 also ask to delete or name another value (`5555 and zap 8426`, `5555 instead of 8426`),
+and 5 hold a word such as `years old` that keeps the note beside a row with the same words. The
+cost is 6 messages that lose the note beside any row: `on 12 May` (2), `at 8`, `from 12.03 to
+15.03`, `from 2019` and `4242 and list files`. Beside the stored strings, 269 dropped pairs come
+from a row value such as `4862 not 4826` or `no longer 7319`. The scripts `corpus.py`, `synth.py`,
+`replay.py`, `diff.py` and `classify.py`, and both diffs, are in
+`~/.cache/cortex-run/2026-11-24/f2/`.

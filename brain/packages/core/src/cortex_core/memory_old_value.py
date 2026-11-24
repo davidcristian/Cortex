@@ -71,6 +71,8 @@ _STORED = re.compile(FACT_VALUE, re.IGNORECASE | re.MULTILINE)
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
 # The words a statement can add before a stored fact's words to say it gives the fact a new value.
 _CHANGE_WORDS = frozenset(("new", "current", "actual"))
+# The words a statement can add before or after a new value to say it replaces the old one.
+_NOW = frozenset(("now", "actually"))
 _FR = r"(?:mis\s+[àa]\s+jour|modifi[ée]e?s?|corrig[ée]e?s?|remplac[ée]e?s?|chang[ée]e?s?)"
 _DE = r"(?:aktualisiert|ge[äa]ndert|korrigiert|ersetzt)"
 _ES = r"(?:actualizad|cambiad|corregid|reemplazad|sustituid)[oa]s?"
@@ -120,29 +122,51 @@ def _digit(text: str) -> bool:
     return any(char.isdigit() for char in text)
 
 
+def _plain(words: list[str]) -> list[str]:
+    return [word.lower() for word in words if not (_digit(word) or word[0].isupper())]
+
+
+def _bare(value: str) -> list[str]:
+    """The words of ``value`` without ``now`` or ``actually`` at either end, or none when its
+    first word holds neither a digit nor a capital letter, as in ``also 7319``."""
+    words = value.rstrip(".!").split()
+    if words and words[0].lower() in _NOW:
+        words = words[1:]
+    if words and words[-1].lower() in _NOW:
+        words = words[:-1]
+    return words if words and not _plain(words[:1]) else []
+
+
 async def _replaced(memory: MemoryRecaller, query: str, session_id: str) -> str:
-    """The value with a digit a stored row states for the fact ``query`` states, alone or after a
-    request to store or remember it, with no negation, the same possessive and another value with
-    a digit, in the row's fact words and words of change only."""
-    asked = None if asks_not_kept(query) else fact_asked(query)
+    """The value with a digit a stored row states for the fact the first sentence of ``query``
+    states, alone or after a request to keep it, with the same possessive, fact words and words
+    that are no digit or name, when no word of ``query`` negates it or asks not to keep it."""
+    asked = fact_asked(query)
     text = (query if asked is None else asked).strip()
-    stated = _STATED.fullmatch(text)
+    first = _SENTENCE_END.split(text, maxsplit=1)[0]
+    stated = _STATED.fullmatch(first)
     if stated is None and asked is not None:
-        stated = _POSSESSED.fullmatch(text)
-    if stated is None or not NOT.isdisjoint(re.findall(r"\w+", text.lower())):
+        stated = _POSSESSED.fullmatch(first)
+    negated = not NOT.isdisjoint(re.findall(r"\w+", text.lower()))
+    if stated is None or negated or asks_not_kept(query):
         return ""
     # "My sister is vegan." beside "my sister is Ana" gives her another detail, not a new value.
-    value, owner = stated.group("value").rstrip(".!"), stated.group("owner").lower()
-    words, new = stated.group("fact").lower().split(), joined(value)
-    for at in range(len(words) if _digit(value) else 0):
+    value, owner = _bare(stated.group("value")), stated.group("owner").lower()
+    words, new = stated.group("fact").lower().split(), joined(" ".join(value))
+    for at in range(len(words) if _digit(new) else 0):
         found = await memory.find_value(" ".join(words[at:]), session_id=session_id, limit=_LIMIT)
         for row in found:
-            for match in _STORED.finditer(row.text.split("\nAssistant: ", 1)[0]):
-                old = match.group("value").rstrip(".!")
+            for sentence in _SENTENCE_END.split(row.text.split("\nAssistant: ", 1)[0]):
+                match = _STORED.search(sentence)
+                if match is None:
+                    continue
+                old = " ".join(_bare(match.group("value")))
                 fact = set(match.group("fact").lower().split())
                 named = fact <= set(words) and set(words) - fact <= _CHANGE_WORDS
                 same = match.group("owner").lower() == owner and _digit(old)
-                if named and same and not holds(query, old) and new not in joined(old):
+                # A word that is no digit or name, as in "7319 too", must be in the old value too.
+                alike = _plain(value) == _plain(old.split())
+                if named and same and alike and not holds(query, old) and new not in joined(old):
                     return old
     return ""
 
