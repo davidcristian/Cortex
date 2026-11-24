@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-23
+**Verified:** 2026-11-24
 
 Drawn on the stack brain over four stored rows
 ([readings](../../readings/forget-everything-unread-role.md#drawn-after-the-card-changes-2026-11-15)):
@@ -20,8 +20,8 @@ message, and for the Romanian one a call naming `card` lists the card, since `to
 
 ## What to do
 
-1. Write the rows and the pass rule into the readings before any draw: over both messages,
-   count the replies that claim a delete, the notes shown and the rows the person ends up with.
+1. The draw with the rows and pass rule written first was taken on 2026-11-24, and the premise
+   holds ([readings](../../readings/forget-everything-unread-forms.md#drawn-on-the-stack-brain-2026-11-24)).
 2. Append a typed note that is true on every turn it reaches: when `everything`
    (`forget_permit.py`) reads the message, its unread words name a stored row and no forget call
    of the turn deleted a row, name a form the card reads, as `Forget everything but my card.`
@@ -38,3 +38,9 @@ message, and for the Romanian one a call naming `card` lists the card, since `to
   for `locker` or `4242` and the phone for `phone`. No forget reader of `forget_reach.py`,
   `forget_uncalled.py` or `forget_claim.py` changed since 2026-11-15. The live draw of step 1 was
   not taken, since the slot did no card work. Left open.
+- 2026-11-24: drew both messages 4 times each on the stack brain of this date, with the pass rule
+  written first ([readings](../../readings/forget-everything-unread-forms.md#drawn-on-the-stack-brain-2026-11-24)).
+  No draw made a forget call, the turn's request held the card row alone in all 8, and every
+  reply ended with a true note that nothing was deleted. 6 replies claimed a delete and 2 a
+  fresh start or a cleared context. The 3 rows asked to delete stayed stored in each draw, and
+  the card too. The premise holds, so step 2 is the next step. Left open.
