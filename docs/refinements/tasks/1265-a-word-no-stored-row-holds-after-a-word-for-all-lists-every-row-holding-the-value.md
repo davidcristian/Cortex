@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-23
+**Verified:** 2026-11-24
 
 Over the rows `Remember that my locker code is 4242.`, `Remember that my card is 4111 1111 1111
 4242.` and `Remember that my phone is 0721 555 4242.`, `Forget all cupboards 4242.` and `Forget
@@ -44,3 +44,9 @@ hold that. No reader tells `other` from `cupboards`: neither names a stored row,
   the generator in `~/.cache/cortex-run/2026-11-23/f2/`. It also keeps 498 rows that
   `every other 4242` and `every single 4242` ask to delete in five languages, and 13 forget
   tests change, so it waits for the table row of step 2.
+- 2026-11-24: still open. At the tree that reads a later clause in a message lacking the value,
+  the 180 generated calls of this form still list the 264 rows they do not ask for, over the
+  71,332 cases of the generator in `~/.cache/cortex-run/2026-11-24/f5/` (`f3gen/`, counted by
+  `ncount.py`). Reading the query's own words as row names in `quantifies` keeps all 264, lists
+  no row newly, and keeps 498 rows asked to delete, 249 under `other` and 249 under `single`.
+  The table row of step 2 is a new list of words, which waits for the user's pick of its words.
