@@ -27,6 +27,14 @@ embeds at most the first `EMBED_INPUT_CHARS` characters of a text
 `EmbedderError`. The ratio that bound rests on is in
 [embedding-input.md](../readings/embedding-input.md).
 
+**No task prefix.** The adapter sends the text with no `search_document: ` or `search_query: `
+prefix, though the card of `nomic-embed-text-v1.5` asks for them. Either prefix changes every
+vector, and a row with the document prefix scores above the same row without it against a prefixed
+query, so a store holding both forms ranks its old rows low
+([embedding-input.md](../readings/embedding-input.md#the-task-prefix)). The prefixes wait on a pass
+that embeds stored rows again, or on a reading showing a query prefix alone is enough
+([R-1321](../refinements/tasks/1321-the-embedder-prefixes-need-a-pass-that-embeds-stored-rows-again.md)).
+
 **Error contract.** Every failure crosses the `Embedder` port as `EmbedderError` with the cause
 chained:
 

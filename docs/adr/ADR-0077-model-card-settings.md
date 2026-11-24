@@ -84,7 +84,7 @@ The cards were read on 2026-11-16, when the models mount moved to the files
    | Drafter file of the gemma entries | the `Q4_0` file | the `Q8_0` file | kept: the mount holds the `Q8_0` file and every row was drawn with it |
    | Drafter inside a Qwen file | `--spec-type draft-mtp` with no drafter file | the same once a tier's drafter setting names the tier's own file; no Qwen file drafts unless named | kept: decision 7 |
    | `reasoning_effort` and `preserve_thinking` on Qwen3.8 | settings the template reads | the deep reply sends `medium` unless `CORTEX_REASONING_EFFORT_BRAIN` names another level or is empty, the preserve flag never | the effort kept: [ADR-0049](ADR-0049-thinking-switch-and-trace-budget.md) decision 20; the flag open, [R-1276](../refinements/tasks/1276-the-deep-tier-never-sends-the-templates-preserve-flag.md) |
-   | Embedder prefix | on every string | none | open, [R-1241](../refinements/tasks/1241-the-embedder-is-sent-no-task-prefix.md) |
+   | Embedder prefix | on every string | none | open, [R-1321](../refinements/tasks/1321-the-embedder-prefixes-need-a-pass-that-embeds-stored-rows-again.md): a store of both forms ranks old rows low ([readings](../readings/embedding-input.md#the-task-prefix)) |
    | Image token budget | one of the five listed | 1024 | kept: chosen on this machine's readings ([ADR-0029](ADR-0029-vision-screen-capture.md)) |
    | Context of a Qwen3.5 or Qwen3.6 tier | at least 128K | 16384 on the cortex and deep tiers, 8192 on a subagent server | kept: the VRAM budget of ADR-0004 decision 11 |
 

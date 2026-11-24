@@ -1,8 +1,10 @@
 # Readings: the embedder's input
 
-How many tokens of `nomic-embed-text-v1.5` a text costs, and how long an input the shipped
-embedder takes. Cited by [ADR-0008](../adr/ADR-0008-memory-v1.md) decision 4, which bounds what the
-core embeds by these numbers.
+How many tokens of `nomic-embed-text-v1.5` a text costs, how long an input the shipped embedder
+takes, and what the model card's task prefixes change in recall. Cited by
+[ADR-0008](../adr/ADR-0008-memory-v1.md) decision 4, which bounds what the core embeds by these
+numbers, and by [ADR-0077](../adr/ADR-0077-model-card-settings.md) decision 6, which lists the
+prefix as a difference from the card.
 
 ## Characters per token
 
@@ -41,6 +43,40 @@ combining marks, full-width forms, ligatures and emoji cost less than one token 
 process`, for both `東` and `-` repeated. The two framing tokens count against the 2048, so the
 text has 2046. At one token per character, 1800 characters is at most 1800 tokens, 246 below
 that bound.
+
+## The task prefix
+
+**2026-11-24.** The memory stack's `llama-embed` image (`ghcr.io/ggml-org/llama.cpp:server`, build
+`b10680-d7bd3bfca` off `GET /props`), `nomic-embed-text-v1.5.Q8_0.gguf` and its argv
+(`--embeddings --batch-size 2048 --ubatch-size 2048 -ngl 0`), called through `LlamaCppEmbedder`
+and `embedding_input`. The set is the corpus of the ranked recall readings (`recall_corpus.py`,
+41 notes, 22 answerable questions), ranked by cosine over every note. The card's prefixes are
+`search_document: ` on a stored text and `search_query: ` on a query. All 150 vectors came back
+identical when drawn a second time. A count is of the 22 questions whose gold note is first, in
+the top 3 (the `k` of those readings), in the top 5 (`DEFAULT_RECALL_K`) or in the top 20 (the
+shipped pool). The separation is the lowest gold score less the highest best hit of the four
+`ABSENT` questions, as in [the relevance floor](ranked-recall.md#a-relevance-floor).
+
+| stored rows | query | first | top 3 | top 5 | top 20 | MRR at `k` 3 | separation |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| no prefix | no prefix (ships) | 18 | 22 | 22 | 22 | 0.902 | -0.1582 |
+| prefix | prefix | 19 | 22 | 22 | 22 | 0.924 | -0.0919 |
+| no prefix | prefix | 19 | 22 | 22 | 22 | 0.932 | -0.1514 |
+| gold with none, every other row with the prefix | prefix | 16 | 20 | 20 | 22 | 0.818 | -0.1524 |
+
+The first row equals the published cosine column: MRR 0.902, `TRAP` 0.806 and the 0.6325 adjacent
+best hit. Three questions move. Under both prefixes the phone number question (`STALE`) rises from
+second to first and the Friday release question (`TRAP`) falls from second to third; under the
+query prefix alone the release question rises to first; under either, the question where the
+conversation state is kept (`TRAP`) rises from third to second. The last row is the worst case of
+a store whose newer rows have the prefix and whose older rows do not. Against a prefixed query, a
+row with the document prefix scores above the same row without it in 1,298 of the 1,394 question
+and note pairs (median +0.0499), so an old gold row falls behind new rows: the state question from
+third to nineteenth, the release question from second to sixth. With the roles reversed, the gold
+row prefixed and the rest not, 21 of 22 come first. Every separation stays below zero, so no
+relevance floor parts the populations under any of the forms. Method: `draw.py` and `offset.py` in
+`~/.cache/cortex-run/2026-11-24/s4/`, with the rows of each question in `rows-N.jsonl`,
+`rows-P.jsonl`, `rows-M.jsonl`, `rows-W.jsonl` and `rows-W2.jsonl`.
 
 ## A long exchange, recorded and recalled
 
