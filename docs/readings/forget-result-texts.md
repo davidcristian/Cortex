@@ -103,3 +103,53 @@ on the candidate said the locker was removed and that the card remains, and that
 not be removed. Every reply on both builds ended with `KEPT_NOTE` listing the rows kept, and each
 draw that deleted nothing also ended with the note that nothing was forgotten in the turn. The rule
 passes, 12 against 12, so the three texts ship.
+
+## A reply saying a kept row was forgotten, 2026-11-24
+
+The rig above, with the brain image built from the working tree at `87cff707c` (after the keep
+clause reader that keeps an item after a clause any keep reading keeps) and its `cortex_core`
+bound over: the base binds that commit's copy, the candidate the copy holding the check
+(`false_sentence` in `forget_kept_sentence.py`). The model host wrote the same argv as above. The
+seeds and messages a and b are those of the section above, 8 draws each per build.
+
+**Rule**, written in the task file before any draw: the check ships when the candidate marks no
+reply that the reading rule of the section above counts as true, and its false delete claims left
+unmarked are fewer than the base's false delete claims. A null, no mark, leaves the plain note.
+
+**Replay first.** The 32 recorded replies of the section above, each with the kept rows its
+`KEPT_NOTE` listed and the rows its draw deleted: the check marks 7 of the 24 false delete claims
+and none of the 8 others. It reads only the object of a stated removal: the words after an active
+form such as `I've removed`, up to a joining word (a conjunction or preposition such as `and`,
+`from` or `to`), a comma or a quote mark, and the subject before a passive form such as `has been
+removed` when no joining word or quote mark comes before it. So `I've deleted your locker code and
+saved your card.` and a quote of the person's message are not marked. The 7 marked claims name a
+kept locker row first, on draws that deleted nothing. Of the 17 it leaves, 11 name the kept row
+only after a joining word, as `the locker code and phone number` names the phone, and 6 name no
+row: `that information`, `those details`, `the requested information`, `those`, and `the other
+information` after a keep clause.
+
+| Build | Message | Draws | Locker row deleted | Phone row left | False delete claims | Marked | True replies marked |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| base | a | 8 | 5 | 8 | 8 | 0 | 0 |
+| base | b | 8 | 8 | 8 | 7 | 0 | 0 |
+| candidate | a | 8 | 4 | 8 | 6 | 6 | 0 |
+| candidate | b | 8 | 8 | 8 | 2 | 1 | 0 |
+
+The `Marked` column counts the notes each build showed. Read offline over the same replies, the
+check in the tree marks 4 of candidate a's 6 false claims, none of candidate b's 2 and 3 of the
+base's 15, and no true reply; each claim it leaves names the phone after a joining word, or names
+no row. The two candidate a replies saying only that the locker code was removed, on draws that
+deleted it, kept the plain note, and so did candidate b draw 4, which said the locker code was
+removed and the phone number could not be. The one unmarked false claim is `I've removed those from
+my memory.`. The note is written after the reply of a one turn chat, and the model's requests on
+the two builds hold the same system text, tool list and sampler settings, with result texts from
+unchanged code. They differ in the recalled rows' ages, up to 5 minutes on the base and 5 to 11 on
+the candidate, drawn later over the same seed rows, and for message b in the rows' order, another
+in 4 of 8 candidate draws against 1 of 8 base draws. So the change cannot move the count of false
+claims; the candidate's 8 against the base's 15 is the model's spread over those prompts (5 of the
+candidate b replies said only that the request was processed). The rule passes: no true reply
+marked, and 1 false claim unmarked against 15 in the notes shown, 4 offline. The head says the sentence is wrong about at least
+one of the rows below, because a sentence can name another kept row as kept, as candidate a draw 8
+did of the card. Rows: `logs/base.rows.jsonl`, `logs/cand.rows.jsonl`, `logs/base.offline.jsonl`
+and `replay-s3.jsonl` in `~/.cache/cortex-run/2026-11-24/s7/`; the offline counts of the check in
+the tree in `recorded-new.jsonl` and `live-new.jsonl` in `~/.cache/cortex-run/2026-11-24/f9/`.

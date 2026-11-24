@@ -15,6 +15,7 @@ from cortex_core.forget_claim import (
 )
 from cortex_core.forget_count_note import FORGOT_COUNT_NOTE, FORGOT_COUNT_NOTES
 from cortex_core.forget_inside import INSIDE_NOTE, INSIDE_NOTES
+from cortex_core.forget_kept_sentence import KEPT_CLAIM_NOTE, KEPT_CLAIM_NOTES
 from cortex_core.forget_longer import LONGER_NOTE, LONGER_NOTES
 from cortex_core.forget_uncalled import (
     HANDED_FORGET_NOTE,
@@ -104,6 +105,7 @@ REPLY_NOTES: tuple[str, ...] = (
     *_forms(HANDED_UNMATCHED_NOTE, HANDED_UNMATCHED_NOTES),
     *_forms(UNMATCHED_FORGET_NOTE, UNMATCHED_FORGET_NOTES),
     *_forms(KEPT_NOTE, KEPT_NOTES),
+    *_forms(KEPT_CLAIM_NOTE, KEPT_CLAIM_NOTES),
     *_forms(UNKEPT_CLAIM_NOTE, UNKEPT_CLAIM_NOTES),
     *_forms(OLD_VALUE_NOTE, OLD_VALUE_NOTES),
     *_forms(NUMBERS_LEFT_NOTE, NUMBERS_LEFT_NOTES),

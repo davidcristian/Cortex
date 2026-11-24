@@ -297,4 +297,4 @@ class ForgetChosenTool:
             said = forgot(removed, holding, len(shown.kept), len(inner), _text(call))
         error = bool(left) or shown.left_out
         result = self._result(call, said, error=error, holding=None if error else holding)
-        return replace(result, forgot=removed)
+        return replace(result, forgot=removed, gone=tuple(row.text for row in shown.rows))

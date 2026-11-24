@@ -157,6 +157,8 @@ class TaintLedger:
     forget_longer: tuple[str, ...] = ()
     # How many rows the successful ``forget_memories`` deletes of this turn removed.
     forget_deleted: int = 0
+    # The texts of the rows those deletes removed.
+    forget_gone: tuple[str, ...] = ()
     # Whether a sidecar call, or a call that runs sidecar tools, was refused as unasked.
     sidecar_refused: bool = False
     # Whether a ``schedule_task`` call stored a rule that repeats on days of every month.

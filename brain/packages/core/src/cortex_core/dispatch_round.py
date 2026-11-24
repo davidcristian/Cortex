@@ -191,9 +191,10 @@ def _stamp(context: ToolLoopContext) -> TurnStamp:
 
 
 def _note_forget(taint: TaintLedger, result: ToolResult) -> None:
-    """Record in ``taint`` whether a ``forget_memories`` result matched nothing or left numbers."""
+    """Record in ``taint`` what a ``forget_memories`` result deleted, kept, matched or left."""
     taint.forget_unmatched += int(result.matched_nothing)
     taint.forget_deleted += result.forgot
+    taint.forget_gone += result.gone
     if result.numbers_left is not None:
         taint.forget_numbers_left = result.numbers_left
     if result.kept is not None:

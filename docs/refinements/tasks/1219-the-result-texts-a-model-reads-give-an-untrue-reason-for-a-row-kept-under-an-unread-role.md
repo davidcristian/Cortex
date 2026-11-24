@@ -24,5 +24,6 @@ The candidate texts, the rows and the rule written before the draws are in the
 - 2026-11-24: drawn on the stack brain under the rule, every card approved, 8 draws per message
   and build: false delete claims 12 of 16 on the base and 12 of 16 on the candidate, untrue
   reasons 1 and 0. Equal counts pass the rule, so `KEPT_ALL` and the two kept texts of `forgot`
-  now say that the message was not read as meaning the rows. The false delete claims are
-  [R-1320](1320-a-reply-says-a-row-the-forget-kept-was-forgotten.md).
+  now say that the message was not read as meaning the rows. A reply naming a kept row as
+  forgotten now gets the kept note with a head quoting that sentence
+  ([readings](../../readings/forget-result-texts.md#a-reply-saying-a-kept-row-was-forgotten-2026-11-24)).

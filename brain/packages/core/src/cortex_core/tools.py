@@ -112,6 +112,8 @@ class ToolResult:
     longer: tuple[str, ...] | None = None
     # Set by a forget whose delete fully succeeded: how many rows it deleted.
     forgot: int = 0
+    # Set by a forget whose delete fully succeeded: the texts of the rows it deleted.
+    gone: tuple[str, ...] = ()
     # Set by an edit that ran: whether the item was one time before the edit.
     was_once: bool = False
     # Set by a cancel that deleted an item: its stored text, or its id when the text is unread or

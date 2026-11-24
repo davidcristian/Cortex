@@ -24,6 +24,7 @@ from cortex_core.file_claim_other import unread_folders_claim_other
 from cortex_core.forget_claim import names_removal, unforgotten_claim, unforgotten_note
 from cortex_core.forget_count_note import forgot_count_note, forgot_note_due
 from cortex_core.forget_inside import inside_note
+from cortex_core.forget_kept_sentence import kept_claim, kept_claim_note
 from cortex_core.forget_longer import longer_note
 from cortex_core.forget_uncalled import uncalled_note, uncalled_note_due
 from cortex_core.forget_unfound_claim import (
@@ -122,6 +123,8 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
     )
     unsearched = unsearched_files_claim(taint, reply)
     language = message_language(query)
+    untrue = kept_claim(reply, taint, made)
+    marked_kept = None if untrue is None else kept_claim_note(untrue, taint.forget_kept, language)
     said_in = partial(in_language, language=language)
     yield from cap_note(stops, parts, language)
     yield from rounds_note(stops, runs, parts, language)
@@ -157,7 +160,7 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
         (uncalled, uncalled_note(runs, language)),
         (counted, forgot_count_note(taint.forget_deleted, language)),
         (held, in_language(NUMBERS_LEFT_NOTE, NUMBERS_LEFT_NOTES, language)),
-        (bool(taint.forget_kept), kept_note(taint.forget_kept, language)),
+        (bool(taint.forget_kept), marked_kept or kept_note(taint.forget_kept, language)),
         (bool(taint.forget_inside), inside_note(taint.forget_inside, language)),
         (bool(taint.forget_longer), longer_note(taint.forget_longer, language)),
         (bool(taint.old_value), old_value_note(taint.old_value, language)),
