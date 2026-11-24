@@ -1,9 +1,8 @@
 # A word for all in a clause holding a keep verb keeps a last group of another kind
 
-**Status:** open, actionable
+**Status:** done 2026-11-24
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-15
 
 Over the rows `Remember that my locker code is 4242.`, `Remember that my card is 4111 1111 1111
 4242.` and `Remember that my phone is 0721 555 4242.`, with the call text `4242`, the message
@@ -28,3 +27,7 @@ note shows it.
 
 - 2026-11-15: filed while closing
   [task 1183](1183-a-forget-of-every-value-except-one-kind-keeps-a-row-of-another-kind.md).
+- 2026-11-24: done. `quantifies` now reads each clause only up to a keep clause inside it, so
+  the first message deletes the locker and phone rows; the badge and `Handy` rows stay kept. The
+  [readings](../../readings/forget-every-before-keep-verb.md) give the replay: 68 rows asked to
+  delete are now deleted and no row asked to keep is.

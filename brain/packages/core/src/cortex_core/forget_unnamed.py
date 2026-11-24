@@ -3,7 +3,17 @@
 import re
 from collections.abc import Iterable, Mapping
 
-from cortex_core.forget_clauses import AND, EVERY, EXCEPT, FORGET, KEEP, WHOSE, clauses, parts
+from cortex_core.forget_clauses import (
+    AND,
+    EVERY,
+    EXCEPT,
+    FORGET,
+    KEEP,
+    WHOSE,
+    clauses,
+    keeping,
+    parts,
+)
 from cortex_core.forget_kinds import before_every, kinds, limited, names, read_kinds
 from cortex_core.forget_languages import FUNCTION, readings
 from cortex_core.forget_value_added import adds_to_value
@@ -178,15 +188,15 @@ def asks_to_keep(text: str, query: str) -> bool:
 
 
 def quantifies(query: str, rows: Iterable[str] | None = None) -> bool:
-    """Whether a word for all in ``query`` asks for every row: within two words of a value, and,
-    given ``rows``, with no word ``limited`` reads between it and a value after it, or before a
-    value before it."""
+    """Whether a word for all before any keep clause of its clause asks for every row: within two
+    words of a value there, and, given ``rows``, with no word ``limited`` reads between it and a
+    value after it, or before a value before it."""
     split = clauses(query)
     function = {word for language in readings(query) for word in FUNCTION.get(language, ())}
     named = None if rows is None else {word for text in rows for word in row_words(text)} - function
-    for index, clause in enumerate(split):
-        if any(KEEP.fullmatch(token) for token in clause):
-            continue
+    for index, words in enumerate(split):
+        flags = keeping(words)
+        clause = words[: next((at for at, keeps in enumerate(flags) if keeps), len(words))]
         for at, token in enumerate(clause):
             if token not in EVERY or (at + 1 < len(clause) and clause[at + 1] in TOPIC):
                 continue

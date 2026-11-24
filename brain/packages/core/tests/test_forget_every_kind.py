@@ -158,6 +158,28 @@ def test_a_word_for_all_read_with_no_rows_reaches_a_value_past_any_word() -> Non
     assert quantifies("Forget every card 4242.")
 
 
+@pytest.mark.parametrize(
+    "query",
+    ["Forget every 4242 but keep the card.", "Vergiss alle 4242 aber behalte die Karte."],
+)
+def test_a_word_for_all_before_a_keep_clause_in_its_clause_asks_for_every_row(query: str) -> None:
+    assert quantifies(query)
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Keep every 4242.",
+        "Forget 4242 but keep every card.",
+        "Forget all but keep 4242.",
+        "Forget every 4242 I keep on the card.",
+        "Forget the card but keep all 4242.",
+    ],
+)
+def test_a_word_for_all_inside_a_keep_clause_of_its_clause_is_not_read(query: str) -> None:
+    assert not quantifies(query)
+
+
 async def test_a_row_holding_the_value_only_in_its_reply_is_kept_beside_the_named_row() -> None:
     gone = await _deleted("Forget every locker 4242.", ("locker", "recall"), ("4242",))
 

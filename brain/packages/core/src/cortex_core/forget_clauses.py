@@ -56,7 +56,7 @@ def _opens_keep(clause: list[str], at: int) -> bool:
     return at + 1 == len(clause) or not KEEP.fullmatch(clause[at + 1])
 
 
-def _keeping(clause: list[str]) -> list[bool]:
+def keeping(clause: list[str]) -> list[bool]:
     """Whether each token of ``clause`` is inside a clause asking to keep. A keep verb also keeps
     the words before it back to a forget verb, a word for but, or a word for and after a forget
     verb or just before it, as in ``mein Handy bleibt`` or ``the phone and the locker I keep``."""
@@ -86,9 +86,9 @@ def parts(query: str) -> tuple[list[str], list[str]]:
     for clause in clauses(query):
         unforgot = not any(FORGET.fullmatch(token) for token in clause)
         joined = kept and unforgot
-        flags = [True] * len(clause) if joined else _keeping(clause)
-        for token, keeping in zip(clause, flags, strict=True):
-            (keep if keeping else forget).append(token)
+        flags = [True] * len(clause) if joined else keeping(clause)
+        for token, inside in zip(clause, flags, strict=True):
+            (keep if inside else forget).append(token)
         kept = flags[-1]
     return forget, keep
 
@@ -107,7 +107,7 @@ def after_but(query: str) -> list[str]:
         forgot = forgot or bool(verbs)
         rest = clause[cut + 1 :]
         adds = rest[-2:] == ["as", "well"] or not _ADD.isdisjoint(rest)
-        told = adds or any(_keeping(clause)[cut:]) or any(at > cut for at in verbs)
+        told = adds or any(keeping(clause)[cut:]) or any(at > cut for at in verbs)
         found.extend([] if told else rest)
     return found
 
@@ -168,7 +168,7 @@ def _runs(query: str, value: str) -> Iterator[tuple[list[str], bool | None]]:
             continue
         seen = True
         verb = (at for at in range(start, len(clause)) if FORGET.fullmatch(clause[at]))
-        end, flags = next(verb, len(clause)), _keeping(clause)
+        end, flags = next(verb, len(clause)), keeping(clause)
         keep = next((at for at in range(start, end) if flags[at]), start)
         lead = next((at for at in range(keep, start, -1) if clause[at - 1] not in _LEAD), start)
         if lead > start:
@@ -293,6 +293,6 @@ def asking(query: str, value: str, named: frozenset[str] = frozenset()) -> str:
         joins = asked and piece[0] in AND
         adds = _adds(piece, named)
         asked = joins or _asks(piece) or _after(piece, wanted) is not None or (adds and not keeps)
-        keeps = keeps if adds else _keeping(piece)[-1]
+        keeps = keeps if adds else keeping(piece)[-1]
         found.extend(piece if asked else [])
     return " ".join(found)
