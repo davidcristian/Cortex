@@ -1,0 +1,88 @@
+from datetime import UTC, datetime, timedelta
+
+import pytest
+
+from cortex_core import (
+    FORGET_CHOSEN_TOOL_NAME,
+    GLOBAL_MEMORY_SCOPE,
+    ForgetChosenTool,
+    InMemoryMemoryStore,
+    MemoryRecord,
+    ToolCall,
+)
+from cortex_core.forget_clauses import ADDITION, UNREAD, before_value, beside, forget_end
+from cortex_core.tools import TurnStamp
+
+_AT = datetime(2026, 11, 24, 6, 0, 0, tzinfo=UTC)
+_ROWS = {
+    "car": "User: Remember that my car is parked in bay 4242.\nAssistant: Noted.",
+    "phone": "User: Remember that my phone is 0721 555 4242.\nAssistant: Noted.",
+    "locker": "User: Remember that my locker code is 4242.\nAssistant: Noted.",
+    "casier": "User: Retiens que le code du casier est 4242.\nAssistant: Noté.",
+    "gimnasio": "User: Recuerda que el código del gimnasio es 4242.\nAssistant: Anotado.",
+    "dulap": "User: Ține minte că codul de la dulap este 4242.\nAssistant: Notat.",
+}
+
+
+async def _left(query: str, kept: str, text: str = "4242") -> list[str]:
+    store = InMemoryMemoryStore()
+    for i, name in enumerate(("car", "phone", "locker", kept)):
+        at = _AT + timedelta(minutes=i)
+        record = MemoryRecord(
+            id=name, text=_ROWS[name], embedding=(1.0, 0.0), at=at, session_id="chat-a"
+        )
+        await store.add(record)
+    tool = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
+    stamp = TurnStamp(session_id="chat-new", turn_id="t1", query=query)
+    call = ToolCall(id="c1", name=FORGET_CHOSEN_TOOL_NAME, arguments={"text": text}, stamp=stamp)
+    await tool.card(call)
+    await tool.invoke(call)
+    return sorted(hit.record.id for hit in await store.search((1.0, 0.0), k=10))
+
+
+@pytest.mark.parametrize(
+    ("query", "kept"),
+    [
+        ("Forget my cart, the phone stays.", "phone"),
+        ("Forget my cart 4242, the phone stays.", "phone"),
+        ("Forget my cart 1234, the phone stays.", "phone"),
+        ("Forget my cart, the car stays.", "car"),
+        ("Oublie mon cart, le casier reste.", "casier"),
+        ("Oublie mon cart 4242, le casier reste.", "casier"),
+        ("Olvida mi cart, el gimnasio se queda.", "gimnasio"),
+        ("Olvida mi cart 4242, el gimnasio se queda.", "gimnasio"),
+        ("Uită cart, dulap rămâne.", "dulap"),
+        ("Uită cart 4242, dulap rămâne.", "dulap"),
+    ],
+)
+async def test_a_row_a_later_clause_names_is_kept_with_or_without_the_value(
+    query: str, kept: str
+) -> None:
+    assert kept in await _left(query, kept)
+
+
+@pytest.mark.parametrize(
+    ("query", "gone"),
+    [
+        ("Forget my car, the phone stays.", {"car"}),
+        ("Forget my car, the phone too.", {"car", "phone"}),
+        ("Forget my car, also the phone.", {"car", "phone"}),
+        ("Forget my car. Forget the phone.", {"car", "phone"}),
+        ("The phone stays, forget my car.", {"car"}),
+    ],
+)
+async def test_a_row_the_message_asks_to_delete_without_the_value_is_deleted(
+    query: str, gone: set[str]
+) -> None:
+    assert gone.isdisjoint(await _left(query, "locker"))
+
+
+def test_a_message_lacking_the_value_reads_the_end_of_a_forget_clause_as_its_place() -> None:
+    assert forget_end(["forget", "my", "cart"]) == 3
+    assert forget_end(["the", "phone", "stays"]) is None
+    assert before_value("Forget my cart, the phone stays.", "4242") == ["forget", "my", "cart"]
+    assert before_value("The phone stays.", "4242") == []
+    named, none = frozenset({"phone"}), frozenset[str]()
+    assert beside("Forget my cart, the phone stays.", "4242", named, none)[UNREAD] == {"phone"}
+    assert beside("Forget my cart, the phone too.", "4242", named, none)[ADDITION] == {"phone"}
+    assert not any(beside("The phone stays.", "4242", named, none).values())

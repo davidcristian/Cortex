@@ -149,9 +149,11 @@ def _runs(query: str, value: str) -> Iterator[tuple[list[str], bool | None]]:
     clause holds a keep clause from where the run starts: ``None`` for the words before a keep
     clause that opens inside a run, less the words leading into it, which are a run of their own."""
     wanted = [token for token in _TOKEN.findall(value.lower()) if token not in _MARKS]
+    split = clauses(query)
+    held = any(value_end(clause, wanted) is not None for clause in split)
     seen = False
-    for clause in clauses(query):
-        start = 0 if seen else value_end(clause, wanted)
+    for clause in split:
+        start = 0 if seen else value_end(clause, wanted) if held else forget_end(clause)
         if start is None:
             continue
         seen = True
@@ -243,12 +245,19 @@ def before_value(query: str, value: str) -> list[str]:
     """The words of each clause of ``query`` before the last place it holds ``value``, which name
     the rows the message asks to forget, as ``the card`` of ``Forget the card 4242``."""
     wanted = [token for token in _TOKEN.findall(value.lower()) if token not in _MARKS]
-    size = len(wanted)
+    size, split = len(wanted), clauses(query)
+    held = any(value_end(clause, wanted) is not None for clause in split)
     found: list[str] = []
-    for clause in clauses(query):
+    for clause in split:
         places = [at for at in range(len(clause) - size + 1) if clause[at : at + size] == wanted]
-        found.extend(clause[: max(places, default=0)])
+        found.extend(clause[: max(places, default=0) if held else forget_end(clause) or 0])
     return found
+
+
+def forget_end(clause: list[str]) -> int | None:
+    """The length of ``clause`` when it holds a forget verb, where a message lacking the value
+    reads the value's place."""
+    return len(clause) if any(FORGET.fullmatch(token) for token in clause) else None
 
 
 def value_end(clause: list[str], value: list[str]) -> int | None:

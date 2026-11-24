@@ -43,3 +43,29 @@ The cases are written by `mk2.py` (4,104) and `mk.py` (12,768) and counted by `c
 `~/.cache/cortex-run/2026-11-23/f4/`, which also holds the generator in `f3gen/`;
 `replay.sh after` takes the listings again, and the earlier trees' listings are in
 `~/.cache/cortex-run/2026-11-23/a1/`.
+
+## A message lacking the value, 2026-11-24
+
+The 902 rows and 9 of the 12 above are a later clause naming a row, with no keep verb, in a
+message that does not hold the call's value: `Forget my cart, the phone stays.`,
+`Oublie mon cart, le casier reste.`, `Olvida mi cart, el gimnasio se queda.`, `Uită cart, dulap
+rămâne.`, and `Forget my lockers 1234, the phone stays.` with the text `4242`. The readers of
+the words after the value (`after_value`, `beside`, `kept_again`) start only at the value, so
+they read nothing in such a message. The rule: a message holding no place of the call's value
+reads the end of each clause holding a forget verb as that place (`forget_end` in
+`forget_clauses.py`), for the words after it and for the words before it (`before_value`), so
+the words of the forget clause still name the rows the message asks to delete.
+
+| cases | rows asked to keep that the card lists, before | after | rows asked to delete newly kept | rows newly listed |
+| --- | --- | --- | --- | --- |
+| 12,768 word pair cases | 902 | 0 | 0 | 0 |
+| 4,104 longer word cases | 12 | 3 | 0 | 0 |
+| 71,332 generated and literal cases | 0 | 0 | 0 | 0 |
+
+The same rule without the words before the value keeps 40 more rows the message asks to delete,
+as the phone of `Forget my phones, the locker stays.`. The 3 left have the call text equal to
+the row word that the later clause holds, as `Forget my phones 1234, the phone stays.` with the
+text `phone`: the message holds that text, so the value's place is in the keep clause
+([R-1334](../refinements/tasks/1334-a-call-text-that-is-the-row-word-a-later-clause-keeps-lists-that-row.md)).
+The cases are counted by `ucount.py` and `count.py` in `~/.cache/cortex-run/2026-11-24/f5/`;
+`replay.sh head` and `replay.sh new` take the listings at the two trees.

@@ -350,7 +350,7 @@ def test_before_value_reads_the_words_of_each_clause_before_its_last_value() -> 
     query = "Forget the locker 4242 and my phone ending 4242 now, card stays, I mean 4242."
     words = "forget the locker 4242 and my phone ending i mean"
     assert before_value(query, "4242") == words.split()
-    assert before_value("Forget the card.", "4242") == []
+    assert before_value("Forget the card.", "4242") == ["forget", "the", "card"]
 
 
 _NAMES_NO_WORD = ("names none", "nomme aucun", "keines ihrer", "no nombra", "nu numește")

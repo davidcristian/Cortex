@@ -37,8 +37,9 @@ and `f2replay.sh` take them again.
 
 The second generator's 104 are 104 of the first's 124, in the 42,356 generated messages both
 share. The 914 are the 12 and 902 rows of the
-[word pair replay](forget-longer-word-beside-a-value.md), in forms this rule does not read
-([R-1310](../refinements/tasks/1310-a-clause-with-no-keep-verb-in-a-forget-message-holding-no-value-lists-the-row-it-keeps.md)).
+[word pair replay](forget-longer-word-beside-a-value.md), in forms this rule does not read;
+[the value's place in a message lacking it](forget-longer-word-beside-a-value.md#a-message-lacking-the-value-2026-11-24)
+reads 911 of them.
 The 75 rows are the five code rows holding `4242` whole beside 15 test strings such as
 `Oublie 4242, mon téléphone et la carte aussi.`, each asking for the value and adding a row. Over
 the first generator's opening forms, rows asked to delete that the card keeps fell from 23,782

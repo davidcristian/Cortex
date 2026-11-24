@@ -93,7 +93,6 @@ never a reading of what the tree does now.
 - **[R-1304](tasks/1304-a-romanian-plural-row-word-in-a-forget-message-names-no-row.md)** A Romanian plural row word in a forget message names no row (memory). Its claim was checked against the code on 2026-11-23.
 - **[R-1307](tasks/1307-the-deep-pick-has-no-decode-floor-from-a-cold-load.md)** The deep pick has no decode floor from a cold load (resource-governance). Its claim was checked against the code on 2026-11-23.
 - **[R-1308](tasks/1308-the-deep-picks-prompt-cache-restores-every-returning-conversation.md)** The deep pick's prompt cache restores every returning conversation (inference-model-manager). Its claim was checked against the code on 2026-11-24.
-- **[R-1310](tasks/1310-a-clause-with-no-keep-verb-in-a-forget-message-holding-no-value-lists-the-row-it-keeps.md)** A clause with no keep verb in a forget message holding no value lists the row it keeps (memory). Its claim was checked against the code on 2026-11-23.
 - **[R-1312](tasks/1312-a-question-for-the-number-to-keep-recalls-the-car-note-and-not-the-code.md)** A question for the number to keep recalls the car note and not the code (memory). Its claim was checked against the code on 2026-11-23.
 - **[R-1315](tasks/1315-nobody-has-looked-at-a-chat-a-restart-ended-in-the-overlay.md)** Choose which copy of a restart's record the overlay shows (body-overlay). Its claim was checked against the code on 2026-11-24.
 - **[R-1317](tasks/1317-the-alternate-deep-model-has-no-rate-row-with-one-layer-in-ram.md)** The alternate deep model has no rate row with one layer in RAM (inference-model-manager). Its claim was checked against the code on 2026-11-24.
@@ -108,6 +107,7 @@ never a reading of what the tree does now.
 - **[R-1329](tasks/1329-the-roster-alternate-hands-back-the-report-less-often-at-its-cards-sampler.md)** The roster alternate hands back the report less often at its card's sampler (inference). Its claim was checked against the code on 2026-11-24.
 - **[R-1331](tasks/1331-a-request-to-remember-a-fact-with-no-copula-keeps-the-forget-tool-beside-an-older-row.md)** A request to remember a fact with no copula keeps the forget tool beside an older row (memory). Its claim was checked against the code on 2026-11-24.
 - **[R-1333](tasks/1333-the-kept-notes-head-does-not-read-a-kept-row-named-after-a-joining-word.md)** The kept note's head does not read a kept row named after a joining word (memory). Its claim was checked against the code on 2026-11-24.
+- **[R-1334](tasks/1334-a-call-text-that-is-the-row-word-a-later-clause-keeps-lists-that-row.md)** A call text that is the row word a later clause keeps lists that row (memory). Its claim was checked against the code on 2026-11-24.
 
 ### Actionable, once a port changes (1)
 
@@ -734,7 +734,6 @@ never a reading of what the tree does now.
 - [R-1299](tasks/1299-a-forget-call-naming-a-number-the-message-writes-with-a-letter-or-as-a-year-keeps-its-row.md) A forget call naming a number the message writes with a letter or as a year keeps its row. declined 2026-11-23.
 - [R-1300](tasks/1300-a-forget-message-holding-a-value-no-row-holds-deletes-the-row-a-word-call-text-names.md) A forget message holding a value no row holds deletes the row a word call text names. done 2026-11-23.
 - [R-1304](tasks/1304-a-romanian-plural-row-word-in-a-forget-message-names-no-row.md) A Romanian plural row word in a forget message names no row. open, actionable.
-- [R-1310](tasks/1310-a-clause-with-no-keep-verb-in-a-forget-message-holding-no-value-lists-the-row-it-keeps.md) A clause with no keep verb in a forget message holding no value lists the row it keeps. open, actionable.
 - [R-1312](tasks/1312-a-question-for-the-number-to-keep-recalls-the-car-note-and-not-the-code.md) A question for the number to keep recalls the car note and not the code. open, actionable.
 - [R-1321](tasks/1321-the-embedder-prefixes-need-a-pass-that-embeds-stored-rows-again.md) The embedder prefixes need a pass that embeds stored rows again. open, actionable.
 - [R-1323](tasks/1323-a-reply-saying-the-whole-request-was-forgotten-gets-the-plain-kept-note.md) A reply saying the whole request was forgotten gets the plain kept note. open, actionable.
@@ -745,6 +744,7 @@ never a reading of what the tree does now.
 - [R-1328](tasks/1328-the-spanish-articles-and-possessives-are-not-read-by-the-forget-card.md) The Spanish articles and possessives are not read by the forget card. open, actionable.
 - [R-1331](tasks/1331-a-request-to-remember-a-fact-with-no-copula-keeps-the-forget-tool-beside-an-older-row.md) A request to remember a fact with no copula keeps the forget tool beside an older row. open, actionable.
 - [R-1333](tasks/1333-the-kept-notes-head-does-not-read-a-kept-row-named-after-a-joining-word.md) The kept note's head does not read a kept row named after a joining word. open, actionable.
+- [R-1334](tasks/1334-a-call-text-that-is-the-row-word-a-later-clause-keeps-lists-that-row.md) A call text that is the row word a later clause keeps lists that row. open, actionable.
 
 ### orchestrator
 
