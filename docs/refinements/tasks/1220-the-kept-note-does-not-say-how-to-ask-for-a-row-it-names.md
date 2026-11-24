@@ -1,9 +1,8 @@
 # The kept note does not say how to ask for a row it names
 
-**Status:** open, actionable
+**Status:** declined 2026-11-24
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-15
 
 The card line `KEPT_LINE` and the reply note `KEPT_NOTE` (`forget_unnamed.py`) name the rows a
 forget kept and say the message was not read as meaning them. Neither says what to send to have
@@ -30,3 +29,10 @@ note and give no reason there, so a sentence saying how to ask needs that reason
 
 - 2026-11-15: filed with the change that gives the card line and the reply note a reason true
   for every kept row ([readings](../../readings/forget-keep-except.md#the-role-of-a-row-named-after-the-value-2026-11-15)).
+- 2026-11-24: declined. No reader of an earlier reply reads a statement in the note:
+  `_asks_about_forgetting` (`unasked_tools.py`) reads the whole last reply but only a question,
+  and `_exchange` (`tool_loop.py`) reads it through `model_text`, which drops the note. The reason
+  is the rows the note names: they include a row a keep clause of the message names, as the card
+  of `Forget all 4242, card stays.` and `Forget all 4242 except the card.` for the call text
+  `card`, so a sentence on how to delete a named row would say how to delete a row the person
+  asked to keep. ADR-0075 now gives that reason where it says the note asks for nothing.
