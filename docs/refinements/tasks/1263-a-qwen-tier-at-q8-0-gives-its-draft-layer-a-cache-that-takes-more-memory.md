@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** inference-model-manager
 **Origin:** [ADR-0077](../../adr/ADR-0077-model-card-settings.md)
-**Verified:** 2026-11-23
+**Verified:** 2026-11-24
 
 `cache_flags` in
 [tiers.py](../../../brain/packages/model_manager/src/cortex_model_manager/tiers.py) gives a
@@ -58,3 +58,13 @@ its own for the files it helps or the reason recorded that it follows the model'
   MiB and its compute buffer 172.02 and 696.02 MiB; the model's own buffers matched, and the exit
   breakdown, which counts only the model's context, showed the difference as `unaccounted`. Step
   2 is open.
+- 2026-11-24: step 2 drawn for the deep tier on build b12375. At its 16K the pick's draft layer
+  read 64 and 34 MiB of cache and 148.02 and 160.02 MiB of compute at 16 and 8 bits, and 16,981
+  and 16,965 MiB above the floor; the model host's own launch read 16,965. The pass rule written
+  before the row keeps the deep tier's drafter at the model's type when 16 bits takes more than
+  15 MiB more, and keeps the task open with the row. A gemma drafter shares the model's cache, so
+  the type sets nothing for it. Still open: a Qwen3.5-9B tier at `q8_0`, which took 150 and 286
+  to 292 MiB more at 64K and 128K with its drafter at 8 bits, needs the drafter's type set on its
+  own. The cause is in [the drafter's cache](../../readings/drafter-cache.md) and ADR-0077
+  decision 8. No rate was drawn: the rates beside these rows are those of 2026-11-20 and
+  2026-11-21.

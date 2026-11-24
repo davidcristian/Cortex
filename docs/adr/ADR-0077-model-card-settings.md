@@ -179,11 +179,11 @@ The cards were read on 2026-11-16, when the models mount moved to the files
    [R-1244](../refinements/tasks/1244-the-deep-tiers-file-is-not-chosen-between-the-q4-and-the-nvfp4-files.md)
    keeps both deep entries on their Q4 file, so the default stays `q8_0`.
 
-   The drafter's cache keeps the model's type. The draft layer inside a Qwen file takes more
-   memory with its cache at 8 bits than at 16, 82 to 86 MiB on the pick's file at 48K
-   ([R-1263](../refinements/tasks/1263-a-qwen-tier-at-q8-0-gives-its-draft-layer-a-cache-that-takes-more-memory.md)).
-   That changes nothing for the pick: its rows were drawn with the drafter's cache at 8
-   bits, so the 570 MiB is what is left after that cost.
+   The drafter's cache keeps the model's type. A gemma drafter shares the model's cache, so the
+   type sets nothing. The pick's draft layer takes 16 MiB less at 8 bits at the tier's 16K and
+   82 to 86 MiB more at 48K, as the engine's compute buffer for it grows faster than the cache
+   saves ([drafter's cache](../readings/drafter-cache.md)); the rate is the same. Every row of
+   the pick was drawn with the drafter at the model's type.
 
    The pick's file is inside the model budget at 16K at both types: 16,995 MiB at `q8_0` and
    17,465 MiB at `f16` at draft length 3 ([readings](../readings/kv-cache-types.md)). The

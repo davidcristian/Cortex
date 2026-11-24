@@ -138,14 +138,8 @@ at `q8_0`, at the draft length named.
   MiB at 128K at load (148 and 272 MiB at the highest reading), at the same rate. The 128K pair
   was drawn again with the pass mark written first (246 to 326 MiB, a ratio inside 0.90 to
   1.05): it held, at 292 MiB.
-- **The engine gives the 8-bit drafter cache a larger compute buffer.** On 2026-11-23, build
-  `b12375`, the same 128K launch with the drafter cache set to `f16` and then to `q8_0` read 9141
-  and 9423 MiB above the floor. With `-lv 4` the draft context's KV buffer was 512 and 272 MiB and
-  its compute buffer 172.02 and 696.02 MiB, so the 8-bit type saves 240 MiB of cache and costs 524
-  of compute. The model's own buffers matched to the MiB (KV 2176, recurrent state 201, compute
-  704.02), and the exit breakdown, which counts only the model's context, put the difference in
-  `unaccounted`: 2076 and 2362 MiB. Method: `~/.cache/cortex-run/2026-11-23/s4/r1263.sh`, its
-  server logs in `logs/r1263-f16.server.log` and `logs/r1263-q8_0.server.log` beside it.
+- **Where the memory goes** is in [the drafter's cache](drafter-cache.md): the engine's compute
+  buffer for an 8-bit draft layer cache grows faster than the cache saves.
 - The ladders with the drafter's cache at 16 bits are fastest at draft length 3 at 64K for both
   models and at 4 at 128K.
 
@@ -231,8 +225,8 @@ tools/q8-output-report.py --texts`.
   whole, and the stack does not start a tier split, so the NVFP4 file of gemma-4-31B is not
   decided by these rows.
 - **The drafter's cache.** Left at 16 bits it saves 286 to 292 MiB for Qwen3.5-9B at 128K and
-  nothing for gemma-4-12B. The host gives the drafter the model's type; no tier's default file
-  has a Qwen draft layer, so nothing changes on these rows.
+  nothing for gemma-4-12B. The host gives the drafter the model's type, and
+  [ADR-0077](../adr/ADR-0077-model-card-settings.md) decision 8 says why that stays.
 
 No default changed on these rows. [The rows of 2026-11-21](kv-cache-flash-next.md) have
 Qwen3.8-Flash-Next, the one model this night left.
