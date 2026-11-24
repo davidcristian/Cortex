@@ -44,18 +44,18 @@ FORMS: dict[str, tuple[str, str, str, str, str]] = {
     RELATIVE: ("that which where", "que qu qui dont où", "", "que donde", "care"),
 }
 
-_ARTICLE = "a row the message says stays, named with its article as `dulapul` is for `dulap`"
+_PLURAL = "a row the message says stays, named in the plural as `cardurile` is for `cardul`"
 _UNASKED = "read, it lists a row no clause asks for when another adds or keeps one"
 _NO_ALL_BUT = "the word for but after a word for all does not mean except, which has its own row"
 # Why a cell is empty or leaves out the plain translation of an English word.
 UNREAD: dict[tuple[str, str], str] = {
     (ALL, "de"): "`alles` is a Dutch word too",
     (ALL, "es"): "`todo`, `toda` and `todos` are Portuguese words too, and `todo` an English noun",
-    (ALL, "ro"): f"`toate`: read, it lists {_ARTICLE}; `tot` also means still and is Dutch",
+    (ALL, "ro"): f"`toate`: read, it lists {_PLURAL}; `tot` also means still and is Dutch",
     (ONLY, "fr"): f"`seulement`: {_UNASKED}; `juste` also means right",
     (ONLY, "de"): f"`nur`: {_UNASKED}",
     (ONLY, "es"): "`solo` also means alone and is an Italian word too",
-    (ONLY, "ro"): f"`doar`: read, it lists {_ARTICLE}, or one that stays after `tot`",
+    (ONLY, "ro"): f"`doar`: {_UNASKED}",
     (ALSO, "es"): "`también`: read, it lists a row beside `solo`, a word for only left unread",
     (ALSO, "ro"): "`și` is the word for and, which has its own row, and `de asemenea` is two words",
     (ALL_BUT, "fr"): _NO_ALL_BUT,

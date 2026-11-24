@@ -1,9 +1,8 @@
 # The forms the forget card reads in English are not all read in the other four languages
 
-**Status:** open, actionable
+**Status:** done 2026-11-24
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-15
 
 The words the forget card reads for a form are one table (`forget_forms.py`): a row for each
 form, a cell for each of English, French, German, Spanish and Romanian, and in `UNREAD` the reason
@@ -63,3 +62,16 @@ the counts of those four cells are from the replay after it
   waited for; replayed after it, none of the four is filled, for the rows in the table above; the
   forms it does not take as one are task
   [1230](1230-a-forget-of-everything-in-a-form-the-card-does-not-take-as-one-lists-a-row-its-message-keeps.md).
+- 2026-11-24: done as a survey. None of the 11 cells is read on HEAD. Each was filled alone and
+  replayed over the forget card generator
+  ([readings](../../readings/forget-form-cells.md#the-cells-replayed-one-at-a-time-2026-11-24)):
+  no cell lists a row asked to keep except `toate`, whose 10 are Romanian plurals, while every
+  cell lists rows not asked for. The reasons of `toate` and `doar` in `UNREAD` now name the
+  plural and the rows not asked for. The words for all that another language shares stay in
+  [task 1230](1230-a-forget-of-everything-in-a-form-the-card-does-not-take-as-one-lists-a-row-its-message-keeps.md);
+  the rest is filed as four tasks, one per form:
+  [1325](1325-the-romanian-word-for-all-is-not-read-by-the-forget-card.md) (all),
+  [1326](1326-a-word-for-only-is-read-by-the-forget-card-in-english-alone.md) (only),
+  [1327](1327-the-spanish-and-romanian-adding-words-are-not-read-by-the-forget-card.md) (adding)
+  and [1328](1328-the-spanish-articles-and-possessives-are-not-read-by-the-forget-card.md) (the or
+  my).
