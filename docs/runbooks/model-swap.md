@@ -152,7 +152,7 @@ need `CORTEX_NGL_BRAIN` and `CORTEX_CTX_SIZE_BRAIN` to fit it, and [deep
 candidates](../readings/deep-candidates.md) has each one's cost) and set `CORTEX_ESCALATION=1` and
 `CORTEX_MODELHOST_BACKEND=supervisor`. The GPU override already points `CORTEX_BRAIN_ENDPOINT` at
 `http://model-host:8081`. A tier with no artifact is not in the roster, so a stock stack answers
-404 for the deep model, and `GET /health` lists exactly the tiers it can run. A path the mount does not hold for the deep tier or its drafter is named at the brain's boot: `the model host cannot start the deep model, so every handoff fails until it can`, with the setting and the path.
+404 for the deep model, and `GET /health` lists exactly the tiers it can run. A path the mount does not hold for the deep tier or its drafter is named at the brain's boot: `the model host cannot start the deep model, so every handoff fails until it can`, with the setting and the path. The alternate, gemma-4-31B's `UD-Q4_K_XL` file, is 196 MiB over the model budget at 16K with every layer on the card: a deployment naming it that must stay inside the budget sets `CORTEX_NGL_BRAIN=60`, which keeps layer 0 in RAM, at a rate not yet drawn ([readings](../readings/kv-cache-deep-whole.md#other-shapes-at-the-budget)).
 
 **Name the deep model's drafter beside it, and four settings move with it.** The pick has its
 draft layer inside its own file: give `CORTEX_MODEL_FILE_BRAIN_DRAFT` the same path as

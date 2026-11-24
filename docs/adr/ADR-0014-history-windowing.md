@@ -110,7 +110,8 @@ recall; this ADR is about the in-context history of the current session only.
    margin; at 8192 the same prompt was 1.16 to 1.33 times the context
    ([readings](../readings/history-window.md#the-cortexs-whole-prompt)). Behind a prompt filled to
    10,800 tokens the deep pick stopped with a reply on 11 of 12 stop-row draws at `medium` and
-   gemma-4-31B on 9 ([readings](../readings/deep-handoff-room.md)). With the question alone,
+   gemma-4-31B on 9, and on 10 with a window 10,000 characters shorter
+   ([readings](../readings/deep-handoff-room.md)). With the question alone,
    gemma-4-31B stopped with a reply on 12 of 12 at 16384, where 8192 cut one mid-reasoning
    ([readings](../readings/history-window.md#the-deep-tier-at-16384)); in one session it reads
    664 to 667 MiB more above idle than at 8192 and decodes at the same rate

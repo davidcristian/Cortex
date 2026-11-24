@@ -1,9 +1,8 @@
 # gemma-4-31B at 16K is over the model budget with every layer on the card
 
-**Status:** open, actionable
+**Status:** done 2026-11-24
 **Area:** inference-model-manager
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-11-20
 
 The model host starts the deep tier at 16K with every layer on the card. `llama_server_argv` in
 [tiers.py](../../../brain/packages/model_manager/src/cortex_model_manager/tiers.py) always
@@ -61,3 +60,16 @@ the reason recorded that the shape stays.
   [R-1260](1260-the-deep-picks-file-has-no-cache-type-row-in-the-shape-the-stack-starts.md)
   closed with the deep tier's default set to `q8_0`: its draw showed no shape of gemma-4-31B at
   16K inside the budget at either type.
+- 2026-11-24: drawn through the model host at `q8_0` without the drafter, with the rule written
+  before the first launch
+  ([readings](../../readings/kv-cache-deep-whole.md#other-shapes-at-the-budget)). The entry's
+  claim that no setting gives the file a shape inside the budget at 16K was wrong:
+  `CORTEX_NGL_BRAIN` moves layers to RAM. The tier read 18,373 MiB at 16K whole, 18,107 with
+  layer 0 in RAM, 17,839 with layers 0 and 1, 18,167 at 12K and 18,785 at 24K. The
+  [model swap runbook](../../runbooks/model-swap.md) gives a deployment naming this file that
+  must stay inside the budget `CORTEX_NGL_BRAIN=60`, the highest count that fits, and the default
+  stays whole. 12K is not given, since a smaller deep context lowers the history budget of both
+  phases and the deep trace's room. The two rows listed as not drawn decide nothing here: one is
+  a rate between cache types, and the other is the budget's own count of the desktop's apps,
+  which every row above applies. The split's rate is not drawn:
+  [R-1317](1317-the-alternate-deep-model-has-no-rate-row-with-one-layer-in-ram.md).

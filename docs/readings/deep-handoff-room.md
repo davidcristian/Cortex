@@ -72,10 +72,46 @@ HTTP 200, none called a tool and no reply holds a literal `</think>`.
 | cell | the rule, written before the first launch | read | files |
 | --- | --- | --- | --- |
 | Qwen3.8-27B, `medium` | 10 or fewer of 12 files a defect; 11 or 12 files nothing, since 1 of the 24 `medium` draws at 16384 also generated more than this room | 11 | nothing |
-| gemma-4-31B | the same rule, for the alternate | 9 | [R-1302](../refinements/tasks/1302-a-full-handoff-prompt-leaves-the-alternate-deep-model-too-little-context-to-reply.md) |
+| gemma-4-31B | the same rule, for the alternate | 9 | the row with a remedy in place, [below](#the-alternate-behind-a-shorter-window) |
 | Qwen3.8-27B, `xhigh` | files nothing: a deployment that sets `high` chooses longer traces | 11 | nothing |
 
 Method: `up.sh`, `chain.sh`, `tools.py` and `room16.py` in `~/.cache/cortex-run/2026-11-23/s2/`,
 over the questions of `measurements/deep-2026-09-26/q27-drivers/questions.py`; `cells/` there has
 every reply with its reasoning and token counts, `final.py` prints the rows and `notes.md` has the
 rule, the predictions and the hand reading.
+
+## The alternate behind a shorter window
+
+**2026-11-24**, the same image, build and file, started the same way without its drafter, with the
+argv of the table above. Every layer was on the card at 16384. Nothing else was named, so the
+deep tier was 196 MiB over the model budget
+([other shapes](kv-cache-deep-whole.md#other-shapes-at-the-budget)).
+
+The remedy drawn is a shorter history window, `CORTEX_HISTORY_CHAR_BUDGET` lowered from 24,000 to
+14,000 characters. A larger deep context is the other remedy, and it was not drawn: the alternate
+is over the budget at 16384 with every layer on the card and 608 MiB over at 24576, so it fits
+there only with layers in RAM, at a rate no row has. The shorter window changes neither memory
+nor placement. Each draw sent the request of the gemma-4-31B cell above with the prose 10,000
+characters shorter for each question, the request that the lower budget sends in its place.
+Prompts were 8,060 to 8,149 tokens, which leaves 8,235 to 8,324.
+
+The rule, written before the first launch: 11 or 12 of 12 makes the lower budget the setting a
+deployment naming the alternate gets; 10 or fewer leaves 9 of 12 a cost that deployment accepts,
+with this count beside it. Predicted: 11 (10 to 12).
+
+| cell | stopped (predicted) | held | right | reasoning tokens, median (range) | longest draw that stopped, generated | draws that filled the context |
+| --- | --- | --- | --- | --- | --- | --- |
+| gemma-4-31B, window 10,000 characters shorter | 10 (11, 10 to 12) | yes | 10 | 2528.5 (1276 to 8263) | 4940 | Q4 d1, Q4 d3 |
+
+- **The same question fills the larger room.** Q4 d1 and d3 each reasoned all 8,263 tokens and
+  wrote no reply, as Q4 d1 and d2 reasoned all 5,586 behind the full prompt. Q2 d3, cut there,
+  stopped here.
+- **Right by hand**: every reply. Every draw answered HTTP 200, none called a tool and no reply
+  holds a literal `</think>`.
+- **The rule applied**: 10 is under the mark, so the lower budget is not the alternate's setting,
+  and 9 of 12 behind a full handoff prompt is a cost of the alternate in
+  [ADR-0004](../adr/ADR-0004-model-lineup.md) decision 8.
+
+Method: `up.sh`, `chain.sh` and `room14.py` in `~/.cache/cortex-run/2026-11-24/s1/`, over the
+same questions and the 2026-11-23 cell's prose lengths; `cells/gemma-cut10k/` there has every
+reply and `notes.md` the rule, the prediction and the hand reading.

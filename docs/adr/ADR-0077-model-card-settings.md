@@ -190,8 +190,8 @@ The cards were read on 2026-11-16, when the models mount moved to the files
    default does not make the alternate fit it. At 16K with every layer on the card the
    alternate's file is over the 18,177 MiB at both types: by 198 to 207 MiB at `q8_0` without
    the drafter and 907 to 909 MiB with it, and by 1,266 and 1,597 MiB at `f16`. 8 bits takes
-   less, and what a deployment of that file gets at 16K is decided in
-   [R-1264](../refinements/tasks/1264-gemma-4-31b-at-16k-is-over-the-model-budget-with-every-layer-on-the-card.md).
+   less, and what a deployment of that file gets at 16K is in the
+   [model swap runbook](../runbooks/model-swap.md).
 
    The engine exits on an 8-bit V cache when flash attention is off. The stack cannot start a
    server that way: no tier's argv names a flash attention flag, which a test of the roster

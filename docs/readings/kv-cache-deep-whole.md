@@ -124,8 +124,7 @@ limits that:
 
 The rule decides the type only. Neither type leaves the 1,536 MiB free at 16K with every layer
 on the card, so what a deployment of this file gets at 16K is a separate question, which
-[R-1264](../refinements/tasks/1264-gemma-4-31b-at-16k-is-over-the-model-budget-with-every-layer-on-the-card.md)
-has. The deep tier's default is `q8_0` on this record
+[other shapes at the budget](#other-shapes-at-the-budget) has. The deep tier's default is `q8_0` on this record
 ([ADR-0077](../adr/ADR-0077-model-card-settings.md) decision 8).
 
 ## The tier started on compose defaults
@@ -190,3 +189,45 @@ brain, Redis and the model host from the repo's compose files.
 
 Method: `bash ~/.cache/cortex-run/2026-11-20/a2/live.sh`, compose project `cortexn25`, which the
 script removes; the record is `a2/logs/live.txt` there.
+
+## Other shapes at the budget
+
+**2026-11-24**, engine build `b12375-9d25e0014` from the `cortex-model-host` image, the same
+file without its drafter at the compose default `q8_0`. Only the model host was started, with
+`CORTEX_MODEL_FILE_BRAIN` naming the file and, where a row says so, `CORTEX_CTX_SIZE_BRAIN` or
+`CORTEX_NGL_BRAIN`. The cortex was stopped and the deep tier started over the control API. The
+argv after the model path was `--host 0.0.0.0 --port 8081 -ngl <n> --ctx-size <c> --parallel 1
+--jinja --cache-ram 0 --cache-type-k q8_0 --cache-type-v q8_0`: no drafter and no reasoning flag,
+and the brain sends this template no effort. Each launch read the card at ready, then sent one
+`/completion` of the context less 512 tokens with one token out, read every half second.
+
+The rule, written before the first launch: a shape fits the budget when its highest reading above
+the floor read after the tier stopped is at most 18,177 MiB, and a floor that moves 150 MiB or
+more makes the row unread. No floor moved more than 4 MiB.
+
+| context | `-ngl` | layers in RAM | at ready above the floor | highest above the floor | free by the budget | fits |
+| --- | --- | --- | --- | --- | --- | --- |
+| 16K | 99 | none | 18,355 | 18,373 | 1,340 | no, 196 MiB over |
+| 24K | 99 | none | 18,767 | 18,785 | 928 | no, 608 MiB over |
+| 16K | 60 | layer 0 | 18,087 | 18,107 | 1,606 | yes, by 70 MiB |
+| 16K | 59 | layers 0 and 1 | 17,815 | 17,839 | 1,874 | yes, by 338 MiB |
+| 12K | 99 | none | 18,149 | 18,167 | 1,546 | yes, by 10 MiB |
+
+- **The 16K row repeats the second draw**: 18,373 MiB against 18,375 there.
+- **Each layer in RAM frees 266 and 268 MiB.** `-ngl 59` reads 17,839 MiB, where the engine's
+  own fit at 16K and 8 bits kept 59 layers on the card at 17,841
+  ([split with RAM](kv-cache-every-model.md#the-deep-tier-split-with-ram-gemma-4-31b-the-q4-file)).
+- **A larger context is further over.** 24K adds 412 MiB to the 16K row. At 266 to 268 MiB a
+  layer it would need three layers in RAM to fit, which was not drawn.
+- **No rate was drawn.** The split's cost is a rate, and the only split rows are the engine's
+  fit with 8 threads, at which the file held whole at 12K wrote 1.54 times the split at 16K.
+
+The model swap runbook gives a deployment that names this file and must stay inside the budget
+`CORTEX_NGL_BRAIN=60`, the highest count that fits at 16K. 12K is not given: a smaller deep
+context lowers the history budget of both phases ([ADR-0014](../adr/ADR-0014-history-windowing.md)
+decision 8), which leaves the deep trace less room than the
+[handoff rows](deep-handoff-room.md) show it needs.
+
+Method: `up.sh`, `mem.py` and `chain.sh` in `~/.cache/cortex-run/2026-11-24/s1/`, compose
+project `cortexn29`, which `down.sh` there removed after each launch; rows in `logs/mem.jsonl`
+and the rule in `notes.md`.

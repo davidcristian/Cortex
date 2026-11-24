@@ -41,6 +41,6 @@ effort at which no draw of the 16384 rows generates more than 5,521 tokens.
   by the model host with its file named, with the pass rule written before the first launch
   ([readings](../../readings/deep-handoff-room.md)). The pick with its draft layer stopped with a
   reply on 11 of 12 at `medium` and 11 at `xhigh`, and the alternate's `UD-Q4_K_XL` file on 9.
-  ADR-0004 decision 8 now gives those counts. The rule files nothing at 11, and filed
-  [R-1302](1302-a-full-handoff-prompt-leaves-the-alternate-deep-model-too-little-context-to-reply.md)
-  for the alternate's 9.
+  ADR-0004 decision 8 now gives those counts. The rule files nothing at 11, and the alternate's 9
+  is a cost of the alternate in that decision, since a window 10,000 characters shorter stopped
+  on 10 ([readings](../../readings/deep-handoff-room.md#the-alternate-behind-a-shorter-window)).
