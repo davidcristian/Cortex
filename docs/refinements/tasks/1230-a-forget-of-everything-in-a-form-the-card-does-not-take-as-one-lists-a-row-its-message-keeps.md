@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-23
+**Verified:** 2026-11-24
 
 A forget of everything that names a stored row in a role no reader reads keeps every row
 (`message_rows` in `forget_permit.py`). It is read only from a word for all of the table of forms
@@ -25,15 +25,21 @@ or `4242` ([readings](../../readings/forget-everything-unread-role.md)):
 ## What to do
 
 1. Write near misses first: `Forget everything my card holds.`, `Forget all my card numbers.`,
-   `Vergeet 4242 tot morgen.` and `Forget my todo list.` must list what they list today.
-2. Read `alles`, `todo`, `toda`, `todos` and `tot` only to keep: a set this rule alone reads can
-   keep a row and can list none, so a Dutch or Portuguese message is not read as asking for
-   every row.
-3. For the form with no clause mark, keep every row when the words after the word for all name a
-   row and end in a word no reader reads, and count the limits that then keep a row asked to
-   delete (`Forget all my card numbers please.`).
-4. Replay with `every.py`, `replay.sh` and `show.py` of the readings above, kept in
-   `~/.cache/cortex-run/2026-11-15/slot13/`.
+   `Olvida todo sobre la tarjeta.`, `Vergeet 4242 tot morgen.` and `Forget my todo list.` must
+   list what they list today.
+2. For the forms with a clause mark before the kept row, read the clauses after the first forget
+   verb's clause, or after the first clause of a message with none, as the runs after a value
+   are, and keep a row named in a run whose role no reader reads. Name rows over the store, as
+   `_beyond_every` does, not only from the rows the call lists: read from those alone, the rule
+   keeps a row a later clause adds, 24 rows asked to delete in 7 test literals
+   ([readings](../../readings/forget-everything-unread-forms.md#two-rules-replayed-2026-11-24)).
+   Replay the family and the generator and count the rows asked to delete that are newly kept.
+3. The forms with no clause mark stay open: read with no new word, the rule of step 2 widened to
+   the forget verb's own clause keeps their rows, and also 92 rows asked to delete of the near
+   misses and 1,411 of the generator. A word for stays or a set of words for all read only to
+   keep is a new word list, which is not added.
+4. Replay with `f3gen/every.py`, `replay4.sh`, `ebreak.py`, `gtable.py` and `delta.py` in
+   `~/.cache/cortex-run/2026-11-24/f4/`.
 
 ## History
 
@@ -57,3 +63,15 @@ or `4242` ([readings](../../readings/forget-everything-unread-role.md)):
   numbers.`) or nothing (`Vergeet 4242 tot morgen.`, `Forget my todo list.`). No generator
   writes a forget of everything, so the cost of step 3 is still not counted; adding these forms
   to it comes first. No rule was built. Left open.
+- 2026-11-24: added a forget of everything family to the generator: 846 messages in five
+  languages with a keep clause after a read word for all, an unread one or no forget verb, with
+  and without a clause mark, and 56 near misses. Before any change the card lists 340 of 3,468
+  rows asked to keep, all in the forms with an unread part
+  ([readings](../../readings/forget-everything-unread-forms.md)). Two rules were replayed. Read
+  from the first forget verb, every form keeps its row, at 1,411 rows asked to delete newly kept
+  over the generator and 92 of the near misses, so it is not built. Read from the next clause,
+  118 rows are kept with none asked to delete over the generated cases, but 24 rows of 7 test
+  literals that a later clause adds. Steps 2 and 3 now say this. Of the seven messages above,
+  `Olvida todo, la tarjeta se queda.` and `Uită tot, cardul rămâne.` delete nothing for `4242`
+  on this tree and delete the card for its own word; the other five delete it for both. No rule
+  was built. Left open.
