@@ -69,3 +69,11 @@ text `phone`: the message holds that text, so the value's place is in the keep c
 ([R-1334](../refinements/tasks/1334-a-call-text-that-is-the-row-word-a-later-clause-keeps-lists-that-row.md)).
 The cases are counted by `ucount.py` and `count.py` in `~/.cache/cortex-run/2026-11-24/f5/`;
 `replay.sh head` and `replay.sh new` take the listings at the two trees.
+
+The rule also reads a message holding `4242` in a form the reader does not take as the value:
+`42 42`, `42-42`, `4 2 4 2`, `4.242`, two number word forms in each of the five languages, or
+split by the later clause, as `Forget the card 42, keep the phone, 42.`. Over 6,588 such
+messages it lists none of the 4,116 rows asked to keep, where the tree before it listed 492,
+newly lists no row, and keeps 632 more rows asked to delete, as the phone and the locker of
+`Forget all 42 42, the card stays.`. The cases are written by `mkforms.py` and counted by
+`bform.py` in `~/.cache/cortex-run/2026-11-24/a3/`.
