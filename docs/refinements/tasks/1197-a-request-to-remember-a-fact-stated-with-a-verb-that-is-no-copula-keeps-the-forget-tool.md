@@ -1,9 +1,8 @@
 # A request to remember a fact stated with a verb that is no copula keeps the forget tool
 
-**Status:** open, actionable
+**Status:** declined 2026-11-24
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-14
 
 `asks_kept_fact_other` (`fact_request.py`) reads a request to remember in French, German, Spanish
 or Romanian as one stated fact only when the fact holds a copula and a value, so `forget_unrequested`
@@ -27,3 +26,12 @@ es censé jeter mon code.`, reads as a stated fact.
 ## History
 
 - 2026-11-14: filed when the forget refusal was read only on a fact stated with a copula.
+- 2026-11-24: checked on HEAD with `forget_unrequested` alone: `Merk dir, dass mein Hund Bello
+  heißt.`, `Recuerda que tienes cita a las 9.` and `Ține minte că sora mea vine mâine.` still keep
+  the tool, the safe side. The draw of step 1 needs the card and stays for a count slot.
+- 2026-11-24: declined. Step 1 drew the store turn of the Bello, cita and sora forms into an
+  empty store, 8 draws each: the cortex called the forget tool unasked in 11 of 24 draws and all
+  24 stored the fact row, so no call withheld a row and step 2 is not needed
+  ([readings](../../readings/forget-refusal-stated-fact.md#the-store-turn-of-four-forms-the-rule-keeps)).
+  The same forms with an older row stored are
+  [task 1331](1331-a-request-to-remember-a-fact-with-no-copula-keeps-the-forget-tool-beside-an-older-row.md).

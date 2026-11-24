@@ -361,6 +361,11 @@ def test_a_request_to_remember_an_obligation_or_a_request_of_you_keeps_the_forge
         "Recuerda que las llaves están en el coche.",
         "Souviens-toi que sa voiture est rouge.",
         "Merk dir, dass meine Schwester Vegetarierin ist.",
+        "Retiens que mon code est 5528.",
+        "Recuerda que mi perro es Bello.",
+        "Ține minte că parola e x42.",
+        "Recuerda que ese número es el viejo.",
+        "Merk dir, dass der Code 4242 ist.",
     ],
 )
 def test_a_request_to_remember_a_fact_stated_with_a_copula_refuses_the_forget_tool(

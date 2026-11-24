@@ -16,6 +16,7 @@ from cortex_core import (
     InMemoryToolRegistry,
     JsonSchema,
     MemoryRecaller,
+    MemoryRecord,
     Message,
     RecordingAuditSink,
     Role,
@@ -39,9 +40,9 @@ _CALL = ToolCall(id="c1", name=FORGET_CHOSEN_TOOL_NAME, arguments={"text": "bike
 
 
 class _Backend:
-    def __init__(self, reply: str) -> None:
+    def __init__(self, reply: str, call: ToolCall) -> None:
         self.seen: list[Sequence[Message]] = []
-        self._calls = [_CALL]
+        self._calls = [call]
         self._reply = reply
 
     async def stream(
@@ -63,7 +64,7 @@ class _Backend:
 
 
 async def _turn(
-    query: str, reply: str, store: InMemoryMemoryStore | None = None
+    query: str, reply: str, store: InMemoryMemoryStore | None = None, call: ToolCall = _CALL
 ) -> tuple[list[str], list[str], str]:
     ran: list[str] = []
 
@@ -79,7 +80,9 @@ async def _turn(
     )
     memory = None if store is None else MemoryRecaller(store, HashEmbedder(), SystemClock())
     caps = TurnCapabilities(memory=memory, tools=tools)
-    engine = TurnEngine(InMemorySessionStore(), _Backend(reply), TickingClock(), capabilities=caps)
+    engine = TurnEngine(
+        InMemorySessionStore(), _Backend(reply, call), TickingClock(), capabilities=caps
+    )
     turn = engine.handle_turn("s", query, turn_id="t")
     shown = "".join([event.text async for event in turn if isinstance(event, TextDelta)])
     return ran, [record.detail for record in audit.records], shown
@@ -98,6 +101,29 @@ async def test_a_forget_refused_on_a_question_asking_to_note_a_fact_keeps_the_fa
     assert (ran, details) == ([], [FORGET_UNREQUESTED_MSG])
     (kept,) = await store.search(await HashEmbedder().embed("Anna plants"), k=5)
     assert "Anna likes plants" in kept.record.text
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "named"),
+    [
+        ("Souviens-toi que mon vélo est rouge.", "Souviens-toi que mon vélo est bleu.", "rouge"),
+        ("Recuerda que soy carnívoro.", "Recuerda que soy vegetariano.", "carnívoro"),
+    ],
+)
+async def test_a_new_value_of_one_word_refuses_a_forget_naming_the_stored_old_value(
+    *, old: str, new: str, named: str
+) -> None:
+    store = InMemoryMemoryStore()
+    seed = f"User: {old}\nAssistant: Noté."
+    embedding = tuple(await HashEmbedder().embed(seed))
+    at = datetime(2026, 11, 23, tzinfo=UTC)
+    await store.add(MemoryRecord(id="old", text=seed, embedding=embedding, at=at))
+    call = ToolCall(id="c1", name=FORGET_CHOSEN_TOOL_NAME, arguments={"text": named})
+    ran, details, _shown = await _turn(new, "Noté.", store, call)
+    kept = [hit.record.text for hit in await store.search(embedding, k=5)]
+    assert (ran, details) == ([], [FORGET_UNREQUESTED_MSG])
+    assert seed in kept
+    assert any(new in text for text in kept if text != seed)
 
 
 async def test_a_plain_fact_to_remember_keeps_its_own_single_refusal() -> None:

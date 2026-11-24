@@ -98,3 +98,97 @@ called the forget tool, so those rows decide nothing about the refusal. The two 
 no row called a file tool (`list_allowed_directories`), which leaves the turn out of memory: the
 fix draw showed the unkept note, and the start draw replied `I've saved your phone number` with no
 note ([task 1196](../refinements/tasks/1196-a-request-to-save-a-fact-in-english-keeps-the-file-tools.md)).
+
+## A value of one lowercase word, 2026-11-24
+
+`forget_unrequested` refuses the forget tool on every request to remember in French, German,
+Spanish or Romanian that `asks_kept_fact_other` reads as one stated fact, whatever its value. A
+value of one word with no digit and no capital letter can say that the stored value is old, as
+`Retiens que ce code est périmé.` and `Merk dir, dass die Nummer veraltet ist.` do, and the
+refusal costs such a message its forget
+([task 1199](../refinements/tasks/1199-a-request-to-remember-that-a-value-is-outdated-refuses-the-forget-tool-outside-english.md)).
+The same shape also states a new value, as `Souviens-toi que mon vélo est bleu.` does. A rule
+that kept the tool on such a value was measured below and is not in the tree: it read the word
+after the copula, or in German the word before a copula that ends the fact, and kept the tool
+when that word held lowercase letters alone.
+
+### The rule replayed
+
+Replayed with `forget_unrequested` alone, no model, over 86,507 strings: 16,023 string literals of
+the brain's tests, 15,792 backticked texts of `docs/` and the 54,692 distinct messages of the
+forget card generator.
+
+| Build | Refused |
+| --- | --- |
+| the tree | 1,086 |
+| the rule | 1,070 |
+
+The rule refused no string the tree keeps. It kept 16 test strings the tree refuses: the nine
+messages of task 1199, `Recuerda: mi código es viejo.`, and six that state a new value:
+`Souviens-toi que mon vélo est bleu.` with and without a leading `Merci.`, `Souviens-toi que sa
+voiture est rouge.`, `Mais souvenez-vous que je suis végétarien.`, `Recuerda que soy vegetariano.`
+and `Ține minte că sunt vegetarian.`. Scripts `collect.py`, `refuse.py`, `replay_r.sh` and
+`diffr.py`, logs `ref_head.json` (the tree's reader at `a84198033`), `ref_new.json` (the rule)
+and `diff_r.txt`, in `~/.cache/cortex-run/2026-11-24/f3/`. The tree's refused set, recomputed on
+this tree over the same strings, is the same 1,086 strings (`run.log`, `ref_new.json`, in
+`~/.cache/cortex-run/2026-11-24/f8/`).
+
+### The rule on the card
+
+Drawn with the cortex through the stack brain, every card approved, so a forget call that reaches
+the card deletes what it names: the worst case for the person. One brain image of HEAD
+`77dc5f1d7` had two `cortex_core` copies bound over it in turn: the rule, and the tree's reader
+(`a84198033`). The model host `cortex-model-host` on engine build `b12375` ran compose defaults:
+`gemma-4-12B-it-qat-UD-Q4_K_XL.gguf`, `--ctx-size 16384`, no cache type flag, the drafter
+`mtp-gemma-4-12B-it-Q8_0.gguf` with `--spec-type draft-mtp --spec-draft-n-max 3`, no reasoning
+effort flag. A forget call is counted from the model's tool calls in the proxy log, since a
+refused call sends no tool activity to the body. The rules were written in `notes.md` before the
+first draw; scripts `all.sh`, `rep.sh`, `count8.py` and `table8.py`, rows in `logs/rows.jsonl`,
+in `~/.cache/cortex-run/2026-11-24/s8/`.
+
+### The store turn of four forms the rule keeps
+
+On the rule, into an empty store, 8 draws each. The first three keep the tool in the tree too,
+since `asks_kept_fact_other` reads no stated fact in them, so their draws hold for the tree. The
+rule: step 2 of
+[task 1197](../refinements/tasks/1197-a-request-to-remember-a-fact-stated-with-a-verb-that-is-no-copula-keeps-the-forget-tool.md)
+opens only if a draw has a forget call and no fact row.
+
+| Message | Draws with a forget call | Fact row stored |
+| --- | --- | --- |
+| `Merk dir, dass mein Hund Bello heißt.` | 6 of 8 | 8 of 8 |
+| `Recuerda que tienes cita a las 9.` | 3 of 8 | 8 of 8 |
+| `Ține minte că sora mea vine mâine.` | 2 of 8 | 8 of 8 |
+| `Souviens-toi que mon vélo est bleu.` | 4 of 8 | 8 of 8 |
+
+**Result: no call withholds a row.** Every call named the new fact itself (`Bello`, `cita a las
+9`, `mon vélo est bleu`), matched nothing in the empty store, and the turn was recorded. The
+cortex called the tool unasked in 11 of the 24 draws of the first three forms, where the Bello
+message called it in 0 of 4 draws on 2026-11-14.
+
+### A new value with the old one already stored
+
+Each draw put back one seed row and sent the new value. A seeds `Souviens-toi que mon vélo est
+rouge.` and sends `Souviens-toi que mon vélo est bleu.`; B seeds `Recuerda que soy carnívoro.` and
+sends `Recuerda que soy vegetariano.`. The seed row was drawn once per stack run on the tree's
+reader. Two stack runs with fresh seed rows, 8 draws per pair, reader and run. The rule: 2 or more
+of 32 old rows deleted on the rule, with none on the tree, is a defect in the unsafe direction;
+1 asks for a replication. The first run gave 1, so the second run was drawn under that rule.
+
+| Pair | Reader | Draws with a forget call | Calls refused | Cards | Old row deleted | New fact stored |
+| --- | --- | --- | --- | --- | --- | --- |
+| A | the tree | 6 of 16 | 7 of 7 | 0 | 0 of 16 | 16 of 16 |
+| A | the rule | 13 of 16 | 0 of 14 | 2 | 2 of 16 | 14 of 16 |
+| B | the tree | 5 of 16 | 5 of 5 | 0 | 0 of 16 | 16 of 16 |
+| B | the rule | 5 of 16 | 0 of 5 | 1 | 1 of 16 | 15 of 16 |
+
+**Result: the rule loses rows in the unsafe direction, and the tree refuses the tool.** The rule
+deleted the old row in 3 of 32 draws, the tree in 0 of 32. Each of the 3 calls named the old value
+(`mon vélo est rouge`, `rouge`, `carnívoro`) and its card listed the seed row. After the delete
+the brain withheld the turn from memory, as `memory_withheld` (`memory_claim.py`) does with every
+turn whose forget call matched a row, and the reply's note said nothing of the message was kept,
+so the person ended up with neither value. The other 16 calls on the rule named the new value,
+matched nothing and left both rows. On the tree all 12 calls were refused and every draw stored
+the new fact beside the old row. No draw on either reader showed the old value note
+(`OLD_VALUE_NOTES`). The cost side, a message such as `Retiens que ce code est périmé.` with the
+old value stored, has not been drawn on the card (task 1199).
