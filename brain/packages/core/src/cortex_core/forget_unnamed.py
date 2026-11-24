@@ -36,8 +36,8 @@ TOPIC = frozenset({"about", "else", "sur", "über", "sobre"})
 _REST = EVERY | frozenset({"rest", "reste", "others"})
 KEPT_LINE = "Kept, since your message was not read as meaning them:"
 KEPT_ALL = (
-    "nothing was forgotten: each remembered exchange holding that value is about something the "
-    "user's message does not name or asks to keep, so each was kept"
+    "nothing was forgotten: the user's message was not read as meaning any remembered exchange "
+    "holding that value, so each was kept"
 )
 KEPT_NOTE = "\n\n(Still in memory, since your message was not read as meaning them:"
 KEPT_NOTES = {

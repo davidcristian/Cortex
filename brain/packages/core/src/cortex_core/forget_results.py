@@ -85,14 +85,13 @@ def forgot(removed: int, holding: int, kept: int, inner: int = 0, text: str | No
     if kept and text is not None and not any(char.isdigit() for char in text):
         return (
             f"forgot {removed} remembered exchanges; {kept} other remembered exchanges contain "
-            "that text, and the user's message names none of their words or asks to keep them, "
-            "so they were kept"
+            "that text, and the user's message was not read as meaning them, so they were kept"
         )
     if kept:
         return (
             f"forgot {removed} remembered exchanges; {kept} other remembered exchanges hold the "
-            "same value, and the user's message names none of their words or asks to keep them, "
-            "so they were kept and the value is still remembered"
+            "same value, and the user's message was not read as meaning them, so they were kept "
+            "and the value is still remembered"
         )
     if not holding and inner:
         return forgot_within(removed, inner)

@@ -246,5 +246,22 @@ async def test_a_row_asked_to_keep_beside_an_inside_row_gets_the_kept_result() -
     rows = (("gym", _GYM), ("shed", _SHED), ("pin", pin))
     _, said, numbers_left, left = await _forget("5521", query, *rows)
     assert said == f"{forgot(1, 0, 1)}."
-    assert "asks to keep them" in said
+    assert "not read as meaning them" in said
     assert (numbers_left, left) == (False, ["pin", "shed"])
+
+
+@pytest.mark.parametrize(
+    ("said", "reason"),
+    [
+        (KEPT_ALL, "not read as meaning"),
+        (forgot(1, 0, 1, text="card"), "not read as meaning"),
+        (forgot(1, 0, 1, text="4242"), "not read as meaning"),
+        (forgot(1, 2, 0, text="card"), "so that number is still remembered"),
+    ],
+)
+def test_a_kept_or_held_result_gives_one_reason_and_suggests_no_forget(
+    said: str, reason: str
+) -> None:
+    assert reason in said
+    assert "forget" not in said
+    assert "asks to keep" not in said
