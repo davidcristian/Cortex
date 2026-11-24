@@ -96,7 +96,7 @@ never a reading of what the tree does now.
 - **[R-1308](tasks/1308-the-deep-picks-prompt-cache-restores-every-returning-conversation.md)** The deep pick's prompt cache restores every returning conversation (inference-model-manager). Its claim was checked against the code on 2026-11-24.
 - **[R-1310](tasks/1310-a-clause-with-no-keep-verb-in-a-forget-message-holding-no-value-lists-the-row-it-keeps.md)** A clause with no keep verb in a forget message holding no value lists the row it keeps (memory). Its claim was checked against the code on 2026-11-23.
 - **[R-1312](tasks/1312-a-question-for-the-number-to-keep-recalls-the-car-note-and-not-the-code.md)** A question for the number to keep recalls the car note and not the code (memory). Its claim was checked against the code on 2026-11-23.
-- **[R-1315](tasks/1315-nobody-has-looked-at-a-chat-a-restart-ended-in-the-overlay.md)** Nobody has looked at a chat a restart ended in the overlay (body-overlay). Its claim was checked against the code on 2026-11-23.
+- **[R-1315](tasks/1315-nobody-has-looked-at-a-chat-a-restart-ended-in-the-overlay.md)** Choose which copy of a restart's record the overlay shows (body-overlay). Its claim was checked against the code on 2026-11-24.
 - **[R-1317](tasks/1317-the-alternate-deep-model-has-no-rate-row-with-one-layer-in-ram.md)** The alternate deep model has no rate row with one layer in RAM (inference-model-manager). Its claim was checked against the code on 2026-11-24.
 - **[R-1318](tasks/1318-the-rounds-note-asks-to-ask-again-on-a-turn-a-handoff-then-answers.md)** The rounds note asks to ask again on a turn a handoff then answers (tools-mcp). Its claim was checked against the code on 2026-11-24.
 - **[R-1321](tasks/1321-the-embedder-prefixes-need-a-pass-that-embeds-stored-rows-again.md)** The embedder prefixes need a pass that embeds stored rows again (memory). Its claim was checked against the code on 2026-11-24.
@@ -359,7 +359,7 @@ never a reading of what the tree does now.
 - [R-816](tasks/816-a-stopped-reply-goes-on-writing-and-is-not-kept.md) A stopped reply goes on writing, and is not kept. open, waiting for its trigger.
 - [R-818](tasks/818-a-body-started-before-the-brain-opens-a-new-chat.md) A body started before the brain opens a new chat, not the last one. open, waiting for its trigger.
 - [R-819](tasks/819-the-conversation-stopped-following-the-replies-of-one-chat.md) The conversation stopped following the replies of one chat. done 2026-10-10.
-- [R-1315](tasks/1315-nobody-has-looked-at-a-chat-a-restart-ended-in-the-overlay.md) Nobody has looked at a chat a restart ended in the overlay. open, actionable.
+- [R-1315](tasks/1315-nobody-has-looked-at-a-chat-a-restart-ended-in-the-overlay.md) Choose which copy of a restart's record the overlay shows. open, actionable.
 
 ### brain
 
