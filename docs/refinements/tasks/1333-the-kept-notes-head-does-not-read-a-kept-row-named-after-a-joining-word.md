@@ -1,9 +1,8 @@
 # The kept note's head does not read a kept row named after a joining word
 
-**Status:** open, actionable
+**Status:** done 2026-11-25
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-24
 
 `false_sentence` (`forget_kept_sentence.py`) reads only the object of a stated removal, up to a
 joining word such as `and`, `from` or `to`, a comma or a quote mark. So `I've removed the locker
@@ -23,3 +22,8 @@ sentence marked. A form that needs a word list to read is declined with the coun
 
 - 2026-11-24: filed from the offline replays in `~/.cache/cortex-run/2026-11-24/f9/`
   (`replay.sh`, `recorded-new.jsonl`, `live-new.jsonl`).
+- 2026-11-25: done. A word for and continues the object when a row's word follows it, after near
+  misses as tests; the recorded false claims marked went from 7 to 13 of 24, with no true sentence
+  marked ([readings](../../readings/forget-result-texts.md#a-removal-continued-past-a-word-for-and-2026-11-25)).
+  The 3 claims naming the phone after `and the` or `and your` are declined: reading them needs a
+  word the `the or my` row lacks, or marks a sentence the audit counts as true.

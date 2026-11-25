@@ -1,9 +1,10 @@
 """Find the sentence of a reply that says a row the turn's forget calls kept was forgotten."""
 
 import re
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Iterator, Sequence
 
 from cortex_core.conversation import ToolRun
+from cortex_core.forget_forms import AND, FORMS
 from cortex_core.forget_unnamed import row_words
 from cortex_core.memory_forget import FORGET_UNTRUSTED_TOOL_NAME
 from cortex_core.memory_values import digit_runs
@@ -52,6 +53,7 @@ _OPENERS = (
 _BREAK = re.compile(rf"[,;:()]|(?=\b(?:{_OPENERS})\b|n['\u2019]t\b)", re.IGNORECASE)
 _UNSTATED = re.compile(rf"\s*(?:\b(?:{_OPENERS})\b|n['\u2019]t\b)", re.IGNORECASE)
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
+_AND = frozenset(FORMS[AND][0].split())
 _REPLY = "Assistant: "
 
 
@@ -66,13 +68,36 @@ def _fact(row: str) -> set[str]:
     return (row_words(person) & row_words(reply)) | set(digit_runs(row))
 
 
-def _removed(clause: str) -> str:
+def _clauses(sentence: str) -> Iterator[tuple[str, bool]]:
+    """Each clause of ``sentence``, and whether an opening word rather than a mark ends it."""
+    start = 0
+    for mark in _BREAK.finditer(sentence):
+        yield sentence[start : mark.start()], not mark.group()
+        start = mark.end()
+    yield sentence[start:], False
+
+
+def _object(rest: str, facts: set[str], *, cut: bool) -> str:
+    """The text of ``rest`` to a joining word or quote mark, continued past a word for and when a
+    word of ``facts`` follows it and each word to the next joining word or clause mark is one."""
+    join = _JOIN.search(rest)
+    while join is not None and join.group().lower() in _AND:
+        following = _JOIN.search(rest, join.end())
+        item = rest[join.end() : len(rest) if following is None else following.start()]
+        first = _names(item.split()[0]) if item.split() else set[str]()
+        if (following is None and cut) or not first or not _names(item) <= facts:
+            break
+        join = following
+    return rest if join is None else rest[: join.start()]
+
+
+def _removed(clause: str, facts: set[str], *, cut: bool) -> str:
     """The object a removal stated in ``clause`` names, to a joining word or quote mark."""
     stated = None if _UNSTATED.match(clause) else _GONE.search(clause)
     if stated is None:
         return ""
     if stated.group("after") is not None:
-        return _JOIN.split(clause[stated.end() :], maxsplit=1)[0]
+        return _object(clause[stated.end() :], facts, cut=cut)
     subject = clause[: stated.start()]
     return "" if _JOIN.search(subject) else subject
 
@@ -83,12 +108,13 @@ def false_sentence(reply: str, kept: Iterable[str], gone: Iterable[str]) -> str 
     A word or digit run a row of ``gone``, the turn's deleted rows, holds names no kept row.
     """
     taken = set[str]().union(*map(_names, gone))
+    facts = set[str]().union(*map(_fact, (*kept, *gone)))
     named = set[str]().union(*map(_fact, kept)) - taken
     for sentence in _SENTENCE_END.split(reply):
         if sentence.rstrip().endswith("?"):
             continue
-        for clause in _BREAK.split(sentence):
-            if not named.isdisjoint(_names(_removed(clause))):
+        for clause, cut in _clauses(sentence):
+            if not named.isdisjoint(_names(_removed(clause, facts, cut=cut))):
                 return sentence.strip()
     return None
 
