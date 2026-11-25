@@ -172,6 +172,7 @@ Replayed offline through the check before and after the change (`replay.sh` in
 | recorded replies of the section above | 32 | 24 | 7 | 13 | 0 and 0 |
 | live draws of the section above | 32 | not counted by hand | 7 | 12 | none newly |
 | the audit's sentences (`truesent.py`) | 19 | 2 | 0 | 1 | 0 of 17 and 0 of 17 |
+| a later audit's true sentences (`truegen.py`) | 3,711 | 0 | 0 | 1,125 | 0 and 1,125 of 3,711 |
 
 Each newly marked live reply says the kept phone number was removed, as `I've removed the locker
 code and phone number from my memory, while keeping your card number.`. Of the 11 recorded claims
@@ -180,3 +181,9 @@ which names every kept row: 3 name the phone after `and the` or `and your` (`you
 the `the or my` row, and reading `and the` would also mark the audit's `I've removed the locker
 code and the card`, a sentence its set counts as true), 1 after `references to`, and 1 in the
 subject of a passive form after `and`.
+
+The 1,125 true sentences marked after the change each open a second clause with a bare kept row
+word, as `I've removed the locker code and card number in memory stays.`; `truegen.py` and the
+counts are in `~/.cache/cortex-run/2026-11-25/a3/`, and
+[task 1350](../refinements/tasks/1350-a-continued-removal-object-marks-a-true-sentence-whose-next-subject-is-a-bare-row-word.md)
+holds the form.

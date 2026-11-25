@@ -23,7 +23,9 @@ sentence marked. A form that needs a word list to read is declined with the coun
 - 2026-11-24: filed from the offline replays in `~/.cache/cortex-run/2026-11-24/f9/`
   (`replay.sh`, `recorded-new.jsonl`, `live-new.jsonl`).
 - 2026-11-25: done. A word for and continues the object when a row's word follows it, after near
-  misses as tests; the recorded false claims marked went from 7 to 13 of 24, with no true sentence
-  marked ([readings](../../readings/forget-result-texts.md#a-removal-continued-past-a-word-for-and-2026-11-25)).
+  misses as tests; the recorded false claims marked went from 7 to 13 of 24, with no recorded or
+  audit true sentence marked ([readings](../../readings/forget-result-texts.md#a-removal-continued-past-a-word-for-and-2026-11-25)).
   The 3 claims naming the phone after `and the` or `and your` are declined: reading them needs a
   word the `the or my` row lacks, or marks a sentence the audit counts as true.
+- 2026-11-25: filed [task 1350](1350-a-continued-removal-object-marks-a-true-sentence-whose-next-subject-is-a-bare-row-word.md)
+  for the true sentences with a bare row word as the next subject that the continuation marks.
