@@ -66,13 +66,18 @@ def test_a_word_for_all_outside_the_forget_keeps_the_fact_the_message_does_not_n
     "query",
     [
         "Forget all of 7319.",
-        "Forget my bike lock code, it is 7319, and every other 7319 too.",
         "Oublie le code de mon bike lock, c'est 7319, partout.",
         "Forget my bike lock code and all 7319s.",
     ],
 )
 def test_a_word_for_all_beside_the_value_asks_for_every_row(query: str) -> None:
     assert _kept(query, *_TWO) == []
+
+
+def test_other_after_a_word_for_all_reads_as_a_row_no_store_holds() -> None:
+    assert _kept("Forget my bike lock code, it is 7319, and every other 7319 too.", *_TWO) == [
+        "shed"
+    ]
 
 
 @pytest.mark.parametrize(

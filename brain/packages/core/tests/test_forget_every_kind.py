@@ -98,8 +98,6 @@ async def test_a_row_named_in_another_language_after_a_word_for_all_limits_the_f
         ("Forget all my 4242.", {"locker", "card", "phone"}),
         ("Forget all of 4242.", {"locker", "card", "phone"}),
         ("Forget all these 4242.", {"locker", "card", "phone"}),
-        ("Forget every other 4242.", {"locker", "card", "phone"}),
-        ("Forget every single 4242.", {"locker", "card", "phone"}),
         ("Forget 4242 everywhere.", {"locker", "card", "phone"}),
         ("Forget all 4242 except the card.", {"locker", "phone"}),
         ("Forget the card 4242.", {"card"}),
@@ -122,9 +120,7 @@ async def test_a_word_for_all_with_no_row_named_before_the_value_reads_as_before
     [
         ("Forget every 4242.", _FOUR),
         ("Forget all my 4242.", _FOUR),
-        ("Forget every other 4242.", _FOUR),
         ("Forget all codes 4242.", _FOUR),
-        ("Forget every locker 4242.", ("card", "phone")),
         ("Forget every 4242 card.", _FOUR),
         ("Forget 4242 on every card 7391.", _FOUR),
         ("Oublie tous les 4242.", ("casier", "carte")),
@@ -223,8 +219,6 @@ async def test_a_word_for_all_after_a_named_row_and_its_value_lists_the_named_ro
         ("Keep the card, forget 4242 everywhere.", _FOUR),
         ("The card. Forget 4242 everywhere.", _FOUR),
         ("My card is gone so forget 4242 everywhere.", _FOUR),
-        ("Forget the bike 4242 everywhere.", _FOUR),
-        ("Forget the locker 4242 everywhere.", ("card", "phone")),
         ("0721 555 4242 everywhere, forget it.", _FOUR),
         ("Oublie 4242 partout.", ("casier", "carte", "telephone")),
         ("Vergiss 4242 überall.", ("spind", "karte", "handy")),
@@ -275,21 +269,49 @@ async def test_a_word_for_all_stops_at_a_longer_form_of_a_stored_row_word(
 @pytest.mark.parametrize(
     ("query", "ids"),
     [
-        ("Forget every single 4242.", _FOUR),
-        ("Forget every other 4242.", _FOUR),
         ("Forget all the 4242.", ("theatre", "card")),
         ("Forget all these 4242.", ("theatre", "card")),
-        ("Forget every lock 4242.", _FOUR),
-        ("Forget all lockers 4242.", ("card", "phone")),
-        ("Forget all cupboards 4242.", _FOUR),
         ("Vergiss alle meine 4242.", _GERMAN),
         ("Oublie tous les 4242.", _FRENCH),
     ],
 )
-def test_a_word_for_all_reaches_a_value_past_a_word_no_stored_row_word_starts(
+def test_a_word_for_all_reaches_a_value_past_a_function_word_no_stored_row_word_starts(
     query: str, ids: tuple[str, ...]
 ) -> None:
     assert quantifies(query, [_ROWS[name] for name in ids])
+
+
+@pytest.mark.parametrize(
+    ("query", "ids"),
+    [
+        ("Forget all cupboards 4242.", _FOUR),
+        ("Forget every lock 4242.", _FOUR),
+        ("Forget all lockers 4242.", ("card", "phone")),
+        ("Forget every locker 4242.", ("card", "phone")),
+        ("Forget the bike 4242 everywhere.", _FOUR),
+        ("Forget the locker 4242 everywhere.", ("card", "phone")),
+        ("Forget every other 4242.", _FOUR),
+        ("Forget every single 4242.", _FOUR),
+    ],
+)
+def test_a_word_for_all_stops_at_a_word_of_the_message_no_stored_row_holds(
+    query: str, ids: tuple[str, ...]
+) -> None:
+    assert not quantifies(query, [_ROWS[name] for name in ids])
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Forget all cupboards 4242.",
+        "Forget every lock 4242.",
+        "Forget the bike 4242 everywhere.",
+        "Forget every other 4242.",
+        "Forget every single 4242.",
+    ],
+)
+async def test_a_word_for_all_beside_a_row_no_store_holds_keeps_every_row(query: str) -> None:
+    assert await _deleted(query, _FOUR, _TEXTS) == set()
 
 
 async def test_a_word_a_row_word_does_not_start_still_lists_every_row() -> None:

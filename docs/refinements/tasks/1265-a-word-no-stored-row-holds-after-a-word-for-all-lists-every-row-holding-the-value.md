@@ -1,9 +1,8 @@
 # A word no stored row holds after a word for all lists every row holding the value
 
-**Status:** open, actionable
+**Status:** done 2026-11-25
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-24
 
 Over the rows `Remember that my locker code is 4242.`, `Remember that my card is 4111 1111 1111
 4242.` and `Remember that my phone is 0721 555 4242.`, `Forget all cupboards 4242.` and `Forget
@@ -50,3 +49,11 @@ hold that. No reader tells `other` from `cupboards`: neither names a stored row,
   `ncount.py`). Reading the query's own words as row names in `quantifies` keeps all 264, lists
   no row newly, and keeps 498 rows asked to delete, 249 under `other` and 249 under `single`.
   The table row of step 2 is a new list of words, which waits for the user's pick of its words.
+- 2026-11-25: done. `quantifies` takes `named` from the message's own words as well as the
+  rows', less the function words, without the table row of step 2. Over the 71,332 generated
+  and literal cases it keeps the 264 rows, lists no row newly, and keeps 498 rows asked to
+  delete under `other` and `single`; no other case set changes
+  ([readings](../../readings/forget-everything-unread-role.md#a-word-of-the-message-no-stored-row-holds-2026-11-25)).
+  The table row is filed as
+  [R-1338](1338-words-that-only-modify-a-word-for-all-are-read-as-a-row-name.md), whose words
+  are the user's pick.

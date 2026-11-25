@@ -184,6 +184,36 @@ message may mean either way. A word no stored row word starts still lists every 
 `Forget all cupboards 4242.`, and is filed. Scripts `gen.py`, `mkcases.py`, `run.py` and
 `cmp.py` in `~/.cache/cortex-run/2026-11-20/forget-replay/`.
 
+## A word of the message no stored row holds, 2026-11-25
+
+`Forget all cupboards 4242.` and `Forget the bike 4242 everywhere.` listed every row holding
+`4242`, since `limited` stopped a word for all only at a word of a matched row or a kind word.
+`quantifies` (`forget_unnamed.py`) now takes the words that can name a row from the message as
+well as from the matched rows, less the function words, so a word the store holds no row for
+stops the word for all and the message keeps every row. Replayed at the tree before and after,
+with the instruments of `~/.cache/cortex-run/2026-11-24/`:
+
+| cases | rows not asked for that the card lists, before | after | rows asked to delete newly kept | rows newly listed |
+| --- | --- | --- | --- | --- |
+| 71,332 generated and literal cases | 1,518 | 1,254 | 498 | 0 |
+| 3,864 forget of everything cases | 56 | 56 | 0 | 0 |
+| 12,768 word pair cases | 417 | 417 | 0 | 0 |
+| 4,104 longer word cases | 3 | 3 | 0 | 0 |
+| 6,156 mixed messages | 0 | 0 | 0 | 0 |
+| 8,376 negation cases | 0 | 0 | 0 | 0 |
+
+The 264 rows kept are every row the 180 generated calls of this form list without being asked.
+No set lists a row asked to keep, before or after, but the 312 of the forget of everything
+cases. The cost is the 498 rows `every other 4242` and `every single 4242` ask to delete, 249
+under each, since no row of the table of forms holds a word that only modifies a word for all
+([R-1338](../refinements/tasks/1338-words-that-only-modify-a-word-for-all-are-read-as-a-row-name.md)).
+The literal calls over the strings of the brain's forget tests keep 107 more rows the generator
+does not label: 61 under `Forget all cupboards 4242.`, `Forget every lock 4242.` and `Forget the
+bike 4242 everywhere.`, and 46 asked to delete under `every other` and `every single`. A reading
+of the message's words alone, without the rows', changes no forget test. The listings are taken
+by `replay.sh a1334` and `replay.sh a1265` and compared by `cmp.py` in
+`~/.cache/cortex-run/2026-11-25/f1/`.
+
 ## The four blocked cells replayed, 2026-11-15
 
 With every row kept under an unread role, `toate`, `doar`, `seulement` and `también` were each

@@ -171,6 +171,7 @@ _LABELLED = "Forget my gym locker number, it is 5521."
         "Forget my gym locker number. It is 5521.",
         "Forget 5521, the gym one.",
         "Forget my gym locker number 5521 that I gave you.",
+        "Forget my gym locker number, it is 5521, and every other 5521 too.",
     ],
 )
 async def test_a_message_naming_the_value_beside_a_label_keeps_the_fact_it_does_not_name(
@@ -193,7 +194,6 @@ async def test_a_message_naming_the_value_beside_a_label_keeps_the_fact_it_does_
         "Forget all of 5521.",
         "Forget 5521 from your records.",
         "Forget my gym locker number and 5521 everywhere.",
-        "Forget my gym locker number, it is 5521, and every other 5521 too.",
         "Forget my gym locker and shed padlock numbers, both are 5521.",
         "Forget my bike code, it is 5521.",
         "Vergiss die Nummer 5521 überall.",

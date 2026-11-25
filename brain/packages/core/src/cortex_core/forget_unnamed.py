@@ -189,11 +189,11 @@ def asks_to_keep(text: str, query: str) -> bool:
 
 def quantifies(query: str, rows: Iterable[str] | None = None) -> bool:
     """Whether a word for all before any keep clause of its clause asks for every row: within two
-    words of a value there, and, given ``rows``, with no word ``limited`` reads between it and a
-    value after it, or before a value before it."""
+    words of a value there, and, given ``rows``, with no word ``limited`` reads by a word of the
+    rows or of ``query`` between it and a value after it, or before a value before it."""
     split = clauses(query)
     function = {word for language in readings(query) for word in FUNCTION.get(language, ())}
-    named = None if rows is None else {word for text in rows for word in row_words(text)} - function
+    named = None if rows is None else set[str]().union(*map(row_words, (*rows, query))) - function
     for index, words in enumerate(split):
         flags = keeping(words)
         clause = words[: next((at for at, keeps in enumerate(flags) if keeps), len(words))]
