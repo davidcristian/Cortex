@@ -466,6 +466,16 @@ fn now_millis() -> i64 {
     i64::try_from(since_epoch.as_millis()).unwrap_or(i64::MAX)
 }
 
+/// How far a capture time may lie from the test's own reading after the call, on either side. The
+/// wall clock can step back between two readings, so a range from one before the call can be empty.
+const WALL_CLOCK_SLACK_MS: i64 = 60_000;
+
+/// Whether `captured` is a wall-clock reading within the slack of `after`.
+fn near_reading(captured: i64, after: i64) -> bool {
+    (after.saturating_sub(WALL_CLOCK_SLACK_MS)..=after.saturating_add(WALL_CLOCK_SLACK_MS))
+        .contains(&captured)
+}
+
 /// Runs one capture, returning the blob the reply contained.
 async fn capture_once(addr: SocketAddr, max_edge: u32) -> Result<ImageBlob, tonic::Status> {
     capture_bounded(addr, max_edge, 0).await
@@ -515,11 +525,20 @@ async fn capture_reply(
         .into_inner())
 }
 
+#[test]
+fn a_capture_time_is_near_the_reading_after_the_call_when_the_wall_clock_steps_back() {
+    let after = 1_795_599_873_081;
+    assert!(near_reading(1_795_599_873_080, after));
+    assert!(near_reading(after + 911, after));
+    assert!(!near_reading(after - 2 * WALL_CLOCK_SLACK_MS, after));
+    assert!(!near_reading(0, after));
+    assert!(near_reading(i64::MAX, i64::MAX));
+}
+
 #[tokio::test]
 async fn capture_screen_returns_a_real_downscaled_png_with_its_source_size() {
     let screen = FakeScreen::answering(frame(400, 200));
     let requests = screen.requests();
-    let before = now_millis();
     let addr = spawn_screen(screen, FakeNotify::answering(true), true)
         .await
         .unwrap();
@@ -532,8 +551,8 @@ async fn capture_screen_returns_a_real_downscaled_png_with_its_source_size() {
     assert_eq!((blob.width, blob.height), (100, 50));
     assert_eq!((blob.source_width, blob.source_height), (400, 200));
     assert!(
-        (before..=after).contains(&blob.captured_at_unix_ms),
-        "{} is not between {before} and {after}",
+        near_reading(blob.captured_at_unix_ms, after),
+        "{} is not near {after}",
         blob.captured_at_unix_ms
     );
 
