@@ -1,9 +1,8 @@
 # A forget of every value beside a negated forget verb keeps every row
 
-**Status:** open, actionable
+**Status:** done 2026-11-25
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-24
 
 A forget of every value followed by a clause that negates a forget verb keeps every row, the rows
 it asks to delete too: `Vergiss alle 4242, lösch nicht die Karte.`, `Oublie tous les 4242,
@@ -31,3 +30,11 @@ every row the same way.
 
 - 2026-11-24: filed when a negation inside a clause holding a forget verb began to open a keep
   clause, which made these forms keep every row as the forms already read did.
+- 2026-11-25: done. The words a keep clause names leave out a forget verb as they leave out a
+  keep verb (`_split` in `forget_unnamed.py`), so `lösch nicht die Karte` names the card as
+  `nicht die Karte` does. Over the audit's 8,376 negated messages, 208 rows asked to delete are
+  now deleted (German 96, Spanish 76, Romanian 36) and no row asked to keep is listed; the
+  generator, the family, the mixed messages and the a1 word pairs list nothing new
+  ([readings](../../readings/forget-keep-any-reading.md#a-forget-verb-inside-a-keep-clause-2026-11-25)).
+  The French and English forms keep every row as their tails with no forget verb do: task
+  [1342](1342-a-forget-of-every-value-beside-a-french-or-english-negated-keep-clause-keeps-every-row.md).

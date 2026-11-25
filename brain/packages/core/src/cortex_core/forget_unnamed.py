@@ -166,7 +166,8 @@ def _split(query: str, language: str) -> tuple[set[str], set[str], set[str] | No
     function = FUNCTION.get(language, frozenset())
     named = _words(forget, function) | _stems(forget)
     kept = _words(keep) | _stems(keep) | _kinds(keep)
-    kept = {word for word in kept - named - _kinds(forget) - EXCEPT if not KEEP.fullmatch(word)}
+    kept -= named | _kinds(forget) | EXCEPT
+    kept = {word for word in kept if not (KEEP.fullmatch(word) or FORGET.fullmatch(word))}
     listed = (named or _kinds(forget)) if keep_tokens else None
     return named, kept, listed, bool(_stems(forget))
 

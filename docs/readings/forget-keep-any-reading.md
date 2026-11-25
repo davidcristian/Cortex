@@ -212,3 +212,27 @@ and 36 are a German message naming the card both to forget and to keep. The chan
 175 rows asked to delete that were kept, as the locker of `Oublie 4242, n'efface pas la carte.`.
 The scripts `mknear.py`, `replay.sh` and `cmp.py` and the listings are in
 `~/.cache/cortex-run/2026-11-24/f10/`, the audit's `mkneg.py` in `a3/`.
+
+## A forget verb inside a keep clause, 2026-11-25
+
+A keep clause holding a forget verb, as `lösch nicht die Karte` after `Vergiss alle 4242`, read
+that verb as a word naming a fact, and since it names no stored row the clause was read in part
+and every row was kept. The words a keep clause names (`_split` in `forget_unnamed.py`) now leave
+out a forget verb as they leave out a keep verb, so the clause names its row as `nicht die Karte`
+does. No word was added to a list. Replayed over the same sets as above, the tree before the
+change against the tree after it:
+
+| Case set | Cases | Rows asked to keep listed | Rows newly listed | Rows asked to delete newly kept |
+| --- | --- | --- | --- | --- |
+| the audit's negated messages | 8,376 | 0 before and after | 208, each asked to delete | 0 |
+| the generator, the family, mixed, pairs and valued | 98,224 | 222 before and after, all in the family | 0 | 0 |
+
+The 208 rows now deleted are German 96, Spanish 76 and Romanian 36, as the locker code of
+`Vergiss alle 4242, lösch nicht die Karte.`, `Olvida 4242, no borres la tarjeta.` and `Uită
+4242, nu uita cardul.`. French and English are unchanged: `Oublie tous les 4242, n'efface pas le
+casier.` keeps every row as `Oublie tous les 4242, pas le casier.` does, and `Forget all 4242,
+don't delete the locker.` reads `don` in the part asking to forget and keeps every row, as
+`Forget all 4242, not the locker.` does
+([R-1342](../refinements/tasks/1342-a-forget-of-every-value-beside-a-french-or-english-negated-keep-clause-keeps-every-row.md)).
+The scripts and listings are in `~/.cache/cortex-run/2026-11-25/f2/`.
+

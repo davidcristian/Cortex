@@ -85,6 +85,38 @@ async def test_a_negated_forget_verb_still_deletes_the_rows_the_first_clause_ask
 
 @pytest.mark.parametrize(
     "query",
+    [
+        "Vergiss alle 4242, nicht die Karte.",
+        "Vergiss alle 4242, lösch nicht die Karte.",
+        "Vergiss alle 4242, lösch die Karte nicht.",
+        "Vergiss alle 4242, die Karte nicht löschen.",
+        "Vergiss alle 4242, aber lösch nicht die Karte.",
+        "Vergiss alle 4242, lösch nicht die Karte und das Handy.",
+        "Lösch nicht die Karte, vergiss alle 4242.",
+    ],
+)
+async def test_a_forget_of_every_value_reads_a_negated_forget_verb_as_a_keep_clause_opening(
+    query: str,
+) -> None:
+    assert await _left(query, _GERMAN) == ["handy", "karte"]
+
+
+@pytest.mark.parametrize(
+    ("query", "ids"),
+    [
+        ("Vergiss alle 4242, lösch nicht.", _GERMAN),
+        ("Oublie tous les 4242, n'efface pas le casier.", _FRENCH),
+        ("Oublie tous les 4242, pas le casier.", _FRENCH),
+    ],
+)
+async def test_a_forget_of_every_value_beside_a_keep_clause_naming_no_row_keeps_every_row(
+    query: str, ids: tuple[str, ...]
+) -> None:
+    assert await _left(query, ids) == sorted(ids)
+
+
+@pytest.mark.parametrize(
+    "query",
     ["Forget 4242 on the card I no longer use.", "Forget 4242 on the card I do not use."],
 )
 async def test_a_negation_after_the_row_in_a_later_remark_still_deletes_the_row(
