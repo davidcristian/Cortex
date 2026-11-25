@@ -436,3 +436,12 @@ async def test_a_deep_phase_refuses_a_forget_call_on_a_request_to_remember() -> 
         pass
     assert rig.confirmer.requests == ()
     assert len(await rig.held()) == 2
+
+
+async def test_an_unsaid_forget_beside_one_matching_nothing_keeps_old_and_new() -> None:
+    rig = _Rig()
+    await rig.seed()
+    calls = [_forget("Rex"), _forget("Hund", 1)]
+    await rig.turn("Merk dir, dass mein Hund Fiat heißt.", _ReplyBackend(calls))
+    assert [record.ok for record in rig.audit.records] == [False, True]
+    assert len(await rig.held()) == 2
