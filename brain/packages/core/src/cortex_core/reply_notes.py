@@ -38,7 +38,11 @@ from cortex_core.memory_claim import UNKEPT_CLAIM_NOTE, UNKEPT_CLAIM_NOTES
 from cortex_core.memory_old_value import OLD_VALUE_NOTE, OLD_VALUE_NOTES
 from cortex_core.numbers_left_claim import NUMBERS_LEFT_NOTE, NUMBERS_LEFT_NOTES
 from cortex_core.repeat_watch import REPEATED_LINE_NOTE, REPEATED_LINE_NOTES
-from cortex_core.rounds_languages import ROUNDS_SPENT_NOTES
+from cortex_core.rounds_languages import (
+    HANDED_ROUNDS_NOTE,
+    HANDED_ROUNDS_NOTES,
+    ROUNDS_SPENT_NOTES,
+)
 from cortex_core.schedule_cancelled import CANCELLED_NOTE, CANCELLED_NOTES
 from cortex_core.schedule_claim import (
     LISTED_UNCHANGED_NOTE,
@@ -111,6 +115,7 @@ REPLY_NOTES: tuple[str, ...] = (
     *_forms(NUMBERS_LEFT_NOTE, NUMBERS_LEFT_NOTES),
     *_forms(REPEATED_LINE_NOTE, REPEATED_LINE_NOTES),
     *_forms(ROUNDS_SPENT_NOTE, ROUNDS_SPENT_NOTES),
+    *_forms(HANDED_ROUNDS_NOTE, HANDED_ROUNDS_NOTES),
     *_forms(CANCELLED_NOTE, CANCELLED_NOTES),
     *_forms(LISTED_UNCHANGED_NOTE, LISTED_UNCHANGED_NOTES),
     *_forms(MONTHLY_STORED_NOTE, MONTHLY_STORED_NOTES),

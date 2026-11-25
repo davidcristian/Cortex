@@ -51,7 +51,10 @@ Three ways to write the note in the right language were compared.
    writes them in the same language: `ROUNDS_SPENT_NOTE` its runs sentence (`runs_said`), with
    tool names as the tools name themselves and an approved handoff written as started, as
    `runs_line` writes it, `QUOTED_STORED_NOTE` the repeat and the time, and
-   `WEEKLY_STORED_NOTE` the weekday names joined by the language's word for "and".
+   `WEEKLY_STORED_NOTE` the weekday names joined by the language's word for "and". A turn whose
+   runs hand off (`hands_off`) gets `HANDED_ROUNDS_NOTE` instead, because the deep model's answer
+   may follow it in the same reply: it says a handoff started, writes the handoff as started with
+   nothing about its answer, and asks for nothing, so it is true whether or not an answer follows.
 5. **A translated note states the same fact and the same next step as the English one**, in the
    form of address the model used in the recorded replies: `vous` in French, `Sie` in German, `tú`
    in Spanish and `tu` in Romanian.

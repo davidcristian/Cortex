@@ -1973,21 +1973,23 @@ async def test_an_approved_escalation_snapshots_to_a_ready_record_in_the_store()
 
 
 @pytest.mark.parametrize(
-    ("message", "listed"),
+    ("message", "listed", "asked"),
     [
-        (
-            "Solve this properly.",
-            f"{ESCALATE_TOOL_NAME} (handoff started, answer not recorded here)",
-        ),
+        ("Solve this properly.", f"{ESCALATE_TOOL_NAME} (handoff started), read (", "Ask again"),
         (
             "Je voudrais que tu règles ce problème pour moi, s'il te plaît.",
-            f"{ESCALATE_TOOL_NAME} (transfert lancé",
+            f"{ESCALATE_TOOL_NAME} (transfert lancé), read (",
+            "Redemandez",
         ),
-        ("Löse das bitte gründlich.", f"{ESCALATE_TOOL_NAME} (Übergabe gestartet"),
+        (
+            "Löse das bitte gründlich.",
+            f"{ESCALATE_TOOL_NAME} (Übergabe gestartet), read (",
+            "erneut",
+        ),
     ],
 )
 async def test_a_turn_that_runs_out_of_rounds_after_a_handoff_names_it_as_started(
-    *, message: str, listed: str
+    *, message: str, listed: str, asked: str
 ) -> None:
     reads = InMemoryToolRegistry({"read": (_read_tool(), _read_handler)})
     dispatcher = ToolDispatcher(
@@ -2011,6 +2013,7 @@ async def test_a_turn_that_runs_out_of_rounds_after_a_handoff_names_it_as_starte
     completed = events[-1]
     assert isinstance(completed, TurnCompleted)
     assert listed in completed.full_text
+    assert asked not in completed.full_text
 
 
 class _CapturingRegistry:

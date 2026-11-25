@@ -12,6 +12,7 @@ from cortex_core.errors import (
     MemoryStoreError,
     SessionStoreError,
 )
+from cortex_core.escalate import hands_off
 from cortex_core.events import TextDelta, ToolActivity, ToolOutcome, TurnEvent
 from cortex_core.guardrail import OutputFilter
 from cortex_core.loop_events import ReasoningDelta, StepOutcome, ToolStep
@@ -21,7 +22,12 @@ from cortex_core.note_language import ENGLISH, in_language
 from cortex_core.output_channels import ThinkingChannel
 from cortex_core.ports_stores import SessionStore
 from cortex_core.repeat_watch import REPEATED_LINE_NOTE, REPEATED_LINE_NOTES, RepeatWatch
-from cortex_core.rounds_languages import ROUNDS_SPENT_NOTES, runs_said
+from cortex_core.rounds_languages import (
+    HANDED_ROUNDS_NOTE,
+    HANDED_ROUNDS_NOTES,
+    ROUNDS_SPENT_NOTES,
+    runs_said,
+)
 from cortex_core.stops import StopLedger
 from cortex_core.tool_replay import runs_line
 from cortex_core.tool_steps import MAX_TOOL_STEPS
@@ -57,7 +63,6 @@ ROUNDS_SPENT_NOTE = (
     "\n\n(I stopped after {rounds} rounds of tool calls, the most one answer may use, and did not "
     "reply to what the last calls returned. {runs} Ask again to continue.)"
 )
-NO_TOOL_RAN = "No tool ran."
 
 UNREADABLE_CALL_NOTE = (
     "\n\n(I tried to use a tool and wrote the request in a way I could not read back, so nothing "
@@ -117,11 +122,13 @@ def rounds_note(
     """Say so when the tool loop ran out of rounds, naming each tool the turn ran."""
     if not stops.out_of_rounds:
         return
-    if language in ROUNDS_SPENT_NOTES:
-        listed = runs_said(runs, language)
+    handed = hands_off(runs)
+    known = language if language in ROUNDS_SPENT_NOTES else ENGLISH
+    listed = runs_said(runs, known, handed=handed)
+    if handed:
+        note = in_language(HANDED_ROUNDS_NOTE, HANDED_ROUNDS_NOTES, language)
     else:
-        listed = f"{runs_line(runs)}." if runs else NO_TOOL_RAN
-    note = in_language(ROUNDS_SPENT_NOTE, ROUNDS_SPENT_NOTES, language)
+        note = in_language(ROUNDS_SPENT_NOTE, ROUNDS_SPENT_NOTES, language)
     yield from append_note(parts, note.format(rounds=MAX_TOOL_STEPS, runs=listed))
 
 

@@ -1,9 +1,8 @@
 # The rounds note asks to ask again on a turn a handoff then answers
 
-**Status:** open, actionable
+**Status:** done 2026-11-25
 **Area:** tools-mcp
 **Origin:** [ADR-0076](../../adr/ADR-0076-closing-note-language.md)
-**Verified:** 2026-11-24
 
 An approved `escalate_to_brain` call does not end the cortex's tool loop: its result tells the
 model to wrap up, and a model that calls tools on until `MAX_TOOL_STEPS` gets `ROUNDS_SPENT_NOTE`
@@ -23,3 +22,9 @@ its sentences written for review, or a test showing a handoff answer never follo
 
 - 2026-11-24: filed when the translated rounds note started writing a handoff as started
   ([R-1258](1258-the-translated-rounds-note-names-a-started-handoff-as-a-success.md)).
+- 2026-11-25: done. The premise holds: `EscalatingTurnEngine` runs the handoff after the cortex
+  phase whenever the slot holds a brief, so its answer or a failure note follows the rounds note.
+  A turn whose runs hand off now gets `HANDED_ROUNDS_NOTE` (`rounds_languages.py`) in all five
+  note languages: it says a handoff to the deep model started, lists the handoff as started with
+  nothing about its answer, and asks for nothing. A declined handoff keeps the note that asks
+  again. `model_text` leaves the new form out like every other note.

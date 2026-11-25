@@ -73,6 +73,84 @@ def test_the_rounds_note_holds_no_english_word_through_limit_notes(language: str
     assert not any(word in parts[-1] for word in _ENGLISH_WORDS)
 
 
+_HANDED_QUERIES = {
+    "en": "Tell me which reminders are planned this week.",
+    "fr": "Dis-moi quels rappels sont prévus cette semaine.",
+    "de": "Sag mir, welche Erinnerungen diese Woche geplant sind.",
+    "es": "Dime qué recordatorios tengo para esta semana, por favor.",
+    "ro": "Spune-mi ce mementouri sunt programate săptămâna aceasta.",
+}
+
+
+@pytest.mark.parametrize(
+    ("language", "note"),
+    [
+        (
+            "en",
+            "(I stopped after 8 rounds of tool calls, the most one answer may use, and started a "
+            "handoff to the deep model. Tools run: list_scheduled (failed), escalate_to_brain "
+            "(handoff started).)",
+        ),
+        (
+            "fr",
+            "(Les appels d'outils se sont arrêtés après 8 tours, le maximum pour une réponse, et "
+            "un transfert au modèle profond a été lancé. Outils lancés : list_scheduled (échoué), "
+            "escalate_to_brain (transfert lancé).)",
+        ),
+        (
+            "de",
+            "(Die Werkzeugaufrufe endeten nach 8 Runden, dem Höchstwert für eine Antwort, und eine "
+            "Übergabe an das tiefe Modell wurde gestartet. Ausgeführte Werkzeuge: list_scheduled "
+            "(fehlgeschlagen), escalate_to_brain (Übergabe gestartet).)",
+        ),
+        (
+            "es",
+            "(Las llamadas a herramientas se detuvieron tras 8 rondas, el máximo para una "
+            "respuesta, y se inició un traspaso al modelo profundo. Herramientas ejecutadas: "
+            "list_scheduled (falló), escalate_to_brain (traspaso iniciado).)",
+        ),
+        (
+            "ro",
+            "(Apelurile de unelte s-au oprit după 8 runde, maximul pentru un răspuns, și a fost "
+            "pornită o predare către modelul profund. Unelte rulate: list_scheduled (eșuat), "
+            "escalate_to_brain (predare pornită).)",
+        ),
+    ],
+)
+def test_a_turn_that_hands_off_gets_a_rounds_note_true_whatever_the_deep_model_does(
+    *, language: str, note: str
+) -> None:
+    stops = StopLedger()
+    stops.observe_round_limit()
+    parts = ["Done."]
+    query = _HANDED_QUERIES[language]
+    runs = (_FAILED, _STARTED)
+    list(limit_notes(stops, runs, parts, caps=TurnCapabilities(), taint=TaintLedger(), query=query))
+    assert parts[1:] == [f"\n\n{note}"]
+
+
+@pytest.mark.parametrize("language", ["en", "fr", "de", "es", "ro"])
+def test_a_declined_handoff_keeps_the_rounds_note_that_asks_again(language: str) -> None:
+    stops = StopLedger()
+    stops.observe_round_limit()
+    parts = ["Done."]
+    declined = ToolRun(name=ESCALATE_TOOL_NAME, ok=False)
+    query = _HANDED_QUERIES[language]
+    list(
+        limit_notes(
+            stops, (declined,), parts, caps=TurnCapabilities(), taint=TaintLedger(), query=query
+        )
+    )
+    asked = {
+        "en": "Ask again to continue.)",
+        "fr": "Redemandez pour continuer.)",
+        "de": "Bitten Sie erneut darum, um fortzufahren.)",
+        "es": "Pídelo de nuevo para continuar.)",
+        "ro": "Cere din nou pentru a continua.)",
+    }[language]
+    assert parts[-1].endswith(asked)
+
+
 @pytest.mark.parametrize(
     ("language", "daily", "time", "what"),
     [
