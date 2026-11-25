@@ -44,9 +44,11 @@ re-run by anyone but its author.
    `expect_used` denied through workspace lints, relaxed in tests by `clippy.toml`; clippy pedantic
    at warn, which `-D warnings` escalates. An OS adapter crate that needs `unsafe` gets its own ADR
    and a scoped lint override, per AGENTS.md rule 5.
-8. **Python policy:** CPython 3.12 baseline; pyright strict; the `integration` pytest marker is
-   deselected in `addopts` (`-m "not integration"`), so live suites stay out of the coverage
-   threshold.
+8. **Python policy:** CPython 3.12, the brain image's Python, set by the `.python-version` in
+   `brain/` and in `scripts/`, since uv reads only the one in its project directory. On 3.14
+   coverage reports two `async for` exits the suite runs as missed, so the checks run on the
+   image's interpreter, which `crosscheck.py` ties to pyright's `pythonVersion` and the image base.
+   Pyright strict; `addopts` deselects the `integration` marker, so live suites skip coverage.
 9. **The pre-commit stage is one local hook running `just check`**, a literal mirror, so the hook
    cannot diverge from the command. The commit-msg stage runs the two message checks AGENTS.md
    describes.
@@ -100,8 +102,7 @@ whenever real records existed, passing while asserting nothing.
     dir that predates it the run fails before any check (`InvalidCatalogNameError`, or
     `to_regclass('memories')` returning null) and prints the two statements that create it, instead
     of falling back to the configured DSN. The same protections as decision 14 apply, with `reset`
-    checking `current_database()`. The `pg-backup` sidecar dumps `-d cortex`, which leaves this one
-    out.
+    checking `current_database()`. `pg-backup` dumps `-d cortex`, which leaves this one out.
 
 ### Test order
 
@@ -190,8 +191,7 @@ whenever real records existed, passing while asserting nothing.
 - Logical databases do not exist on Redis Cluster; this stack is one loopback-only container
   (ADR-0001). A schema change to `init.sql` has two databases to reach on an existing data dir
   ([memory-pgvector runbook](../runbooks/memory-pgvector.md)). Live tests at the gRPC boundary
-  share the running brain's stores and assert relative properties, which is what makes sharing
-  safe.
+  share the running brain's stores and assert relative properties, which makes sharing safe.
 - A planted order dependency fails at a given seed about half the time, so the fixed seeds catch
   about half of new dependencies when they are added and the weekly run finds the rest
   ([reading](../readings/test-order-shuffle.md)). A Rust failure can name a pair its commit did not

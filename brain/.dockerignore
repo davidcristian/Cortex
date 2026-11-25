@@ -8,6 +8,9 @@
 .pytest_cache
 .ruff_cache
 
+# The image runs its base image's Python, so the file naming the checks' interpreter stays out.
+.python-version
+
 # Tests are not in the image; they run on the host through `just check`.
 **/tests
 

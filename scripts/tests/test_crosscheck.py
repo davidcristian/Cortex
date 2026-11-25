@@ -127,6 +127,15 @@ def test_read_value_fails_closed_on_an_unknown_language(tmp_path: Path) -> None:
         crosscheck.read_value(tmp_path, crosscheck.Site("decl.go", "A"))
 
 
+def test_read_value_reads_a_toml_key_at_column_zero_and_not_one_indented(tmp_path: Path) -> None:
+    (tmp_path / "pyproject.toml").write_text(
+        '[tool.pyright]\npythonVersion = "3.12"  # the image\n  pythonVersion = "3.14"\n',
+        encoding="utf-8",
+    )
+    site = crosscheck.Site("pyproject.toml", "pythonVersion")
+    assert crosscheck.read_value(tmp_path, site) == "3.12"
+
+
 def test_read_value_ties_a_number_from_typescript_to_python(tmp_path: Path) -> None:
     (tmp_path / "sessionState.ts").write_text("const TITLE_MAX = 48;\n", encoding="utf-8")
     (tmp_path / "sessions.py").write_text("TITLE_MAX = 48\n", encoding="utf-8")

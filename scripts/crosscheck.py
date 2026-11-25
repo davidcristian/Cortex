@@ -42,6 +42,7 @@ DECLARATIONS = {
         r"^(?:export[ \t]+)?const[ \t]+{name}(?:[ \t]*:[^=\n]*)?[ \t]*"
         r'=(?P<value>(?:"[^"\n]*"|[^;\n"])*);'
     ),
+    ".toml": r"^{name}[ \t]*=(?P<value>[^\n]*)$",
 }
 
 

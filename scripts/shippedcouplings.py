@@ -10,6 +10,7 @@ SCHEDULE_TIME = "brain/packages/core/src/cortex_core/schedule_time.py"
 TOOLS_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config_tools.py"
 BODY_CORE_DOC = "docs/modules/body-core-retry.md"
 BODY_RPC_DOC = "docs/modules/body-rpc.md"
+BRAIN_DOCKERFILE = "brain/Dockerfile"
 RETRY_PLAN = "body/crates/core/src/retry/plan.rs"
 RPC_CALL = "body/crates/rpc/src/call.rs"
 RETRY_GAP = "body/crates/core/src/retry/gap.rs"
@@ -246,6 +247,26 @@ SHIPPED_COUPLINGS: tuple[Constant, ...] = (
         mentions=(
             Mention(BASE_COMPOSE, "${CORTEX_LOG_FORMAT:-{value}}"),
             Mention(GPU_COMPOSE, '"${CORTEX_MODELHOST_LOG_FORMAT:-{value}}"'),
+        ),
+    ),
+    Constant(
+        label="the Python version",
+        why=(
+            "pyright types each tree against this version, uv builds each tree's environment on "
+            "the one the `.python-version` in its project directory names, and the brain image "
+            "runs its base image's Python, so a tree set to another version runs its checks on an "
+            "interpreter the image does not have, where coverage reads other branch arcs"
+        ),
+        sites=(
+            Site("brain/pyproject.toml", "pythonVersion"),
+            Site("scripts/pyproject.toml", "pythonVersion"),
+        ),
+        mentions=(
+            Mention(".python-version", "{value}", occurrences=1),
+            Mention("brain/.python-version", "{value}", occurrences=1),
+            Mention("scripts/.python-version", "{value}", occurrences=1),
+            Mention(BRAIN_DOCKERFILE, "uv:0.11-python{value}-trixie-slim AS builder"),
+            Mention(BRAIN_DOCKERFILE, "FROM python:{value}-slim-trixie\n"),
         ),
     ),
 )

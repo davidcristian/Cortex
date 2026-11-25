@@ -43,8 +43,9 @@ weeks and moved here to keep each record to one subject.
    to `values.Digits` (its written digits, so `5` and `5.0` are two forms), and a boolean reduced to
    `values.Truth` (its word). A guessed reduction would report two values as equal that were never
    compared. `crosscheck.DECLARATIONS` holds one declaration syntax per language: module-level
-   Python, Rust `const` or `static`, and TypeScript `const` at column 0. A site names what a file
-   declares, so a private `_NAME` is read under its underscore; the scan imports nothing.
+   Python, Rust `const` or `static`, TypeScript `const` at column 0, and a TOML key at column 0,
+   which is how pyright's `pythonVersion` is a site. A site names what a file declares, so a
+   private `_NAME` is read under its underscore; the scan imports nothing.
 5. **Three relations.** `EQUAL` by default. `ORDERED` requires sites to be non-decreasing in
    registry order and compares integers only, refusing a string, a decimal or a boolean. `MEMBER`
    requires every site but the last to hold a value that the last site's collection contains, and
