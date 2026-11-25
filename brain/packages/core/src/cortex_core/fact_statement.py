@@ -36,9 +36,28 @@ FACT_VALUE = (
     rf"\b(?P<owner>my|our|his|her|their)\s+(?P<fact>(?:[\w'\u2019-]+\s+){{1,6}}?)"
     rf"(?:is|are)\s+(?P<value>{_VALUE_WORD}(?:\s+{_VALUE_WORD}){{0,3}}?)[.!]?[ \t]*$"
 )
+_DIGIT_WORD = rf"(?=\d){_VALUE_WORD}"
+_FACT_WORDS = r"(?P<fact>(?:[\w'\u2019-]+\s+){1,6}?)"
+_VALUE_LAST = rf"(?P<value>{_VALUE_WORD}(?:\s+{_VALUE_WORD}){{0,3}}?)[.!]?[ \t]*$"
+_DE_OWNER = r"\b(?P<owner>mein|meine|unser|unsere)\s+"
+# The same statement in French, German, Spanish and Romanian, with "my" or "our". After "dass"
+# German puts the copula last, so only a value opening with a digit ends the fact words there. A
+# Romanian possessive follows the first noun: "codul meu de alarmă este 5528".
+FACT_VALUES_OTHER = {
+    "fr": (rf"\b(?P<owner>mon|ma|mes|notre|nos)\s+{_FACT_WORDS}(?:est|sont)\s+{_VALUE_LAST}",),
+    "de": (
+        rf"{_DE_OWNER}{_FACT_WORDS}(?:ist|sind)\s+{_VALUE_LAST}",
+        rf"{_DE_OWNER}(?P<fact>(?:(?!\d)[\w'\u2019-]+\s+){{1,6}}?)"
+        rf"(?P<value>{_DIGIT_WORD}(?:\s+{_VALUE_WORD}){{0,3}}?)\s+(?:ist|sind)[.!]?[ \t]*$",
+    ),
+    "es": (rf"\b(?P<owner>mis?|nuestr[oa]s?)\s+{_FACT_WORDS}(?:es|son)\s+{_VALUE_LAST}",),
+    "ro": (
+        rf"\b(?P<noun>[^\W\d_][\w'\u2019-]*)\s+(?P<owner>meu|mea|mei|mele|nostru|noastr[ăae]"
+        rf"|no[șşs]tri)\s+(?P<fact>(?:[\w'\u2019-]+\s+){{0,5}}?)(?:este|e|sunt)\s+{_VALUE_LAST}",
+    ),
+}
 # A word that names a value, so a number after it is its value with no "is" between them.
 VALUE_NAMES = r"(?:numbers?|codes?|pins?|passwords?|passcodes?|address|birthday)"
-_DIGIT_WORD = rf"(?=\d){_VALUE_WORD}"
 # The same present value with no copula: a word naming a value, then words that each start with
 # a digit, as in "my alarm code 5528". "my draft 2" and "my code 8426 should go" state none.
 FACT_POSSESSED = (

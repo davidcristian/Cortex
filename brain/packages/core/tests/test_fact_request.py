@@ -1,6 +1,6 @@
 import pytest
 
-from cortex_core.fact_request import asks_kept_fact_other, stores_fact
+from cortex_core.fact_request import asks_kept_fact_other, fact_asked_other, stores_fact
 
 
 @pytest.mark.parametrize(
@@ -113,3 +113,31 @@ def test_a_request_to_remember_an_action_or_no_copula_is_not_kept_fact_other(
     query: str,
 ) -> None:
     assert not asks_kept_fact_other(query)
+
+
+@pytest.mark.parametrize(
+    ("query", "fact"),
+    [
+        ("Retiens que mon code d'alarme est 5528.", "mon code d'alarme est 5528."),
+        ("Merk dir, dass mein Alarmcode 5528 ist.", "mein Alarmcode 5528 ist."),
+        ("Recuerda que mi código de alarma es 5528.", "mi código de alarma es 5528."),
+        ("Reține că codul meu de alarmă este 5528.", "codul meu de alarmă este 5528."),
+        ("Merci. Retiens que mon code est 5528. Merci.", "mon code est 5528"),
+    ],
+)
+def test_a_request_to_remember_a_fact_in_another_language_returns_the_fact(
+    query: str, fact: str
+) -> None:
+    assert fact_asked_other(query) == fact
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Mon code d'alarme est 5528.",
+        "Recuerda que tienes cita a las 9.",
+        "Ricorda, il mio codice è 4242.",
+    ],
+)
+def test_a_statement_or_a_request_with_no_copula_returns_no_fact(query: str) -> None:
+    assert fact_asked_other(query) is None

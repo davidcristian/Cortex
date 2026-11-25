@@ -3,8 +3,8 @@
 import re
 
 from cortex_core.errors import MemoryStoreError
-from cortex_core.fact_request import fact_asked
-from cortex_core.fact_statement import FACT_POSSESSED, FACT_VALUE
+from cortex_core.fact_request import fact_asked, fact_asked_other
+from cortex_core.fact_statement import FACT_POSSESSED, FACT_VALUE, FACT_VALUES_OTHER
 from cortex_core.forget_clauses import NOT
 from cortex_core.forget_languages import FUNCTION
 from cortex_core.memory_claim import claims_kept
@@ -67,6 +67,14 @@ _SEPARATOR = re.compile(r"[ ./-]+")
 _STATED = re.compile(rf"\W*{FACT_VALUE}", re.IGNORECASE)
 _POSSESSED = re.compile(rf"\W*{FACT_POSSESSED}", re.IGNORECASE)
 _STORED = re.compile(FACT_VALUE, re.IGNORECASE | re.MULTILINE)
+_STATED_OTHER = {
+    language: tuple(re.compile(rf"\W*{pattern}", re.IGNORECASE) for pattern in patterns)
+    for language, patterns in FACT_VALUES_OTHER.items()
+}
+_STORED_OTHER = {
+    language: tuple(re.compile(pattern, re.IGNORECASE | re.MULTILINE) for pattern in patterns)
+    for language, patterns in FACT_VALUES_OTHER.items()
+}
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
 # The words a statement can add before a stored fact's words to say it gives the fact a new value.
 _CHANGE_WORDS = frozenset(("new", "current", "actual"))
@@ -136,32 +144,53 @@ def _bare(value: str) -> list[str]:
     return words if words and not _plain(words[:1]) else []
 
 
-async def _replaced(memory: MemoryRecaller, query: str, session_id: str) -> str:
-    """The value with a digit a stored row states for the fact ``query`` states in one sentence,
-    alone or after a request to keep it, with the same possessive, fact words and words
-    that are no digit or name, when no word of ``query`` negates it."""
+def _fact_words(match: re.Match[str]) -> list[str]:
+    noun = match.group("noun") if "noun" in match.re.groupindex else ""
+    return f"{noun} {match.group('fact')}".lower().split()
+
+
+def _statement(query: str) -> tuple[re.Match[str], tuple[re.Pattern[str], ...]] | None:
+    """The one sentence ``query`` states a value in, alone or after a request to keep it, read in
+    groups, and the patterns that read a stored row in its language; ``None`` when unsure."""
     asked = fact_asked(query)
-    text = (query if asked is None else asked).strip()
+    other = fact_asked_other(query) if asked is None else None
+    text = (asked if asked is not None else query if other is None else other).strip()
     # A later sentence can take the value back, as in "Wait, that is wrong."
-    sentence = "" if _SENTENCE_END.search(text) else text
-    stated = _STATED.fullmatch(sentence)
+    if _SENTENCE_END.search(text) or not NOT.isdisjoint(re.findall(r"\w+", text.lower())):
+        return None
+    stated = _STATED.fullmatch(text)
     if stated is None and asked is not None:
-        stated = _POSSESSED.fullmatch(sentence)
-    negated = not NOT.isdisjoint(re.findall(r"\w+", text.lower()))
-    if stated is None or negated:
+        stated = _POSSESSED.fullmatch(text)
+    if stated is not None:
+        return stated, (_STORED,)
+    found = [
+        (match, _STORED_OTHER[language])
+        for language, patterns in _STATED_OTHER.items()
+        for pattern in patterns
+        if (match := pattern.fullmatch(text)) is not None
+    ]
+    return found[0] if len(found) == 1 else None
+
+
+async def _replaced(memory: MemoryRecaller, query: str, session_id: str) -> str:
+    """The value with a digit a stored row states for the fact ``query`` states, with the same
+    possessive, fact words and words that are no digit or name, in the language of ``query``."""
+    found = _statement(query)
+    if found is None:
         return ""
+    stated, stored = found
     # "My sister is vegan." beside "my sister is Ana" gives her another detail, not a new value.
     value, owner = _bare(stated.group("value")), stated.group("owner").lower()
-    words, new = stated.group("fact").lower().split(), joined(" ".join(value))
+    words, new = _fact_words(stated), joined(" ".join(value))
     for at in range(len(words) if _digit(new) else 0):
-        found = await memory.find_value(" ".join(words[at:]), session_id=session_id, limit=_LIMIT)
-        for row in found:
+        rows = await memory.find_value(" ".join(words[at:]), session_id=session_id, limit=_LIMIT)
+        for row in rows:
             for sentence in _SENTENCE_END.split(row.text.split("\nAssistant: ", 1)[0]):
-                match = _STORED.search(sentence)
+                match = next((m for m in (p.search(sentence) for p in stored) if m), None)
                 if match is None:
                     continue
                 old = " ".join(_bare(match.group("value")))
-                fact = set(match.group("fact").lower().split())
+                fact = set(_fact_words(match))
                 named = fact <= set(words) and set(words) - fact <= _CHANGE_WORDS
                 same = match.group("owner").lower() == owner and _digit(old)
                 # A word that is no digit or name, as in "7319 too", must be in the old value too.

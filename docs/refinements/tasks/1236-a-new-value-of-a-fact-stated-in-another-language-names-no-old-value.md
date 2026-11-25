@@ -1,9 +1,8 @@
 # A new value of a fact stated in another language names no old value
 
-**Status:** open, actionable
+**Status:** done 2026-11-25
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-24
 
 `_replaced` (`memory_old_value.py`) reads the stated fact and the stored row with `FACT_VALUE`
 (`fact_statement.py`), which is English only: `my`, `our`, `his`, `her` or `their`, the fact
@@ -51,3 +50,12 @@ words.
   sentence only: the five messages above still name nothing. The steps now name what exists to reuse
   and what the German and Romanian orders need. Left open, since a note not shown is the safe
   direction.
+- 2026-11-25: done. `FACT_VALUES_OTHER` (`fact_statement.py`) reads the statement with `my` or
+  `our` in each language, German in both orders and Romanian with the possessive after the first
+  noun, and `fact_asked_other` (`fact_request.py`) returns the fact `asks_kept_fact_other` tests.
+  `_replaced` reads the stored row in the message's language and names nothing when two patterns
+  read the message. The five messages above name `4826`; on the replay every English note is
+  unchanged, 76 notes are new, and Italian, Portuguese, Dutch and Polish name nothing
+  ([readings](../../readings/old-value-other-languages.md)). Reading `maintenant`, `jetzt` or
+  `nouveau` is
+  [task 1339](1339-a-new-value-stated-in-another-language-with-a-word-for-now-or-new-names-no-old-value.md).

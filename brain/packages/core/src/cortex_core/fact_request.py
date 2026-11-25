@@ -55,8 +55,8 @@ def fact_asked(query: str) -> str | None:
     return _FACT_AFTER_REMEMBER.sub("", query[found.end() :], count=1)
 
 
-def asks_kept_fact_other(query: str) -> bool:
-    """Whether ``query`` opens with a request to remember one fact stated with a copula.
+def fact_asked_other(query: str) -> str | None:
+    """The one fact stated with a copula after a request to remember that opens ``query``.
 
     The request is in French, German, Spanish or Romanian, and only thanks may come before it."""
     offset = 0
@@ -71,5 +71,10 @@ def asks_kept_fact_other(query: str) -> bool:
         before = THANKS.sub("", query[: start + found.start()])
         alone = SECOND_CLAUSE.search(fact) is None and _ASKS_OF_YOU.search(fact) is None
         stated = _STATED.fullmatch(fact) is not None
-        return re.search(r"\w", before) is None and alone and stated
-    return False
+        return fact if re.search(r"\w", before) is None and alone and stated else None
+    return None
+
+
+def asks_kept_fact_other(query: str) -> bool:
+    """Whether ``query`` opens with a request to remember one fact stated with a copula."""
+    return fact_asked_other(query) is not None
