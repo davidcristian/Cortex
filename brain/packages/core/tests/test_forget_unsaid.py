@@ -99,6 +99,25 @@ def test_a_message_read_as_no_request_to_remember_in_another_language_has_no_wor
     assert not reads_call_words(query, ())
 
 
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Vergiss meine alte Karte und merk dir die neue: 5500 0000 0000 1234.",
+        "Lösch meine Karte. Merk dir, dass ich eine neue habe.",
+        "Oublie ma carte et retiens que la nouvelle finit par 1234.",
+        "Olvida mi tarjeta y recuerda que la nueva termina en 1234.",
+        "Uită cardul meu și ține minte că cel nou se termină în 1234.",
+    ],
+)
+def test_a_request_to_remember_that_also_asks_to_forget_has_no_words_read(query: str) -> None:
+    assert forget_unsaid(_forget("4111 1111 1111 4242"), query)
+    assert not reads_call_words(query, ())
+
+
+def test_a_request_to_remember_that_states_it_forgets_nothing_has_its_words_read() -> None:
+    assert reads_call_words("Merk dir, dass ich nichts vergesse.", ())
+
+
 def test_another_tool_or_a_text_that_is_no_string_is_never_unsaid() -> None:
     other = ToolCall(id="x", name="schedule_task", arguments={"text": "Rex"})
     assert not forget_unsaid(other, _BELLO)

@@ -5,7 +5,7 @@ from collections.abc import Sequence
 
 from cortex_core.forget_open import Exchange, forget_open
 from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
-from cortex_core.memory_request import asks_kept_other
+from cortex_core.memory_request import asks_kept_other, asks_to_forget
 from cortex_core.tools import ToolCall
 
 FORGET_UNSAID_MSG = (
@@ -21,8 +21,8 @@ def _words(text: str) -> set[str]:
 
 
 def reads_call_words(query: str, earlier: Sequence[Exchange]) -> bool:
-    """Whether ``query`` asks to remember in another language with no forget opened before it."""
-    return asks_kept_other(query) and not forget_open(earlier)
+    """Whether ``query`` asks to remember in another language with no forget asked or opened."""
+    return asks_kept_other(query) and not asks_to_forget(query) and not forget_open(earlier)
 
 
 def forget_unsaid(call: ToolCall, query: str) -> bool:

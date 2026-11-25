@@ -1,8 +1,8 @@
 # Readings: a forget call naming a word the message lacks
 
 These readings check `forget_unsaid` (`forget_unsaid.py`): on a request to remember that
-`asks_kept_other` reads in French, German, Spanish or Romanian, after no exchange that opened a
-forget, a `forget_memories` call is refused every time its text holds a word (a run of letters or
+`asks_kept_other` reads in French, German, Spanish or Romanian and `asks_to_forget` does not,
+after no exchange that opened a forget, a `forget_memories` call is refused every time its text holds a word (a run of letters or
 digits) that the message does not hold, compared after case folding. A refused call is not counted
 as a forget the turn named, so the turn is still recorded. The decision is in
 [ADR-0075](../adr/ADR-0075-forget-chosen-memories.md). The rule, the stop rule and the pass rule
@@ -68,3 +68,18 @@ other seven named only words of the message and matched nothing. The sora messag
 call, against 4 of 16 on the tree earlier the same night, so its result rests on the replay above
 ([task 1340](../refinements/tasks/1340-a-romanian-request-to-remember-drew-no-forget-call-on-the-call-word-check.md)). No draw showed the old value note. Rows in `logs/rows-a.jsonl` and
 `logs/rows-c.jsonl` of `~/.cache/cortex-run/2026-11-25/r2/` (`count8.py`).
+
+## A request to forget beside it, 2026-11-25
+
+A message that asks to forget with a forget verb and to remember in another language, such as
+`Vergiss meine alte Karte und merk dir die neue: 5500 0000 0000 1234.`, asks to delete the row its
+stored value names, so `reads_call_words` does not read its call words when `asks_to_forget`
+reads the message. Over ten such messages (the card and the phone, five forms in four languages)
+with the rows of their language stored and the calls the noun, the subject phrase and the stored
+value, the card deletes the asked row on 18 of 30 calls, and deletes no other row. The old check
+refused 10 of those 18 (every stored value call), the tree refuses 0. Over both families, the
+generator and the 81 recorded calls of the seeded draws, the tree refuses the same calls as the
+old check: none of those messages asks to forget. Of the 8 calls in draws that lost an old row,
+one runs before and after (`sora mea vine mâine`), and the card keeps the row on it. `Merk dir,
+dass ich nichts vergesse.` still has its call words read. Scripts `five.py`, `fam_cmp.py` and
+`replay2.py` in `r2tools/` of `~/.cache/cortex-run/2026-11-25/x1/`, log `r1343.log`.
