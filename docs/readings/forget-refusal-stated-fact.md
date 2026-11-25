@@ -192,3 +192,27 @@ matched nothing and left both rows. On the tree all 12 calls were refused and ev
 the new fact beside the old row. No draw on either reader showed the old value note
 (`OLD_VALUE_NOTES`). The cost side, a message such as `Retiens que ce code est périmé.` with the
 old value stored, has not been drawn on the card (task 1199).
+
+### Three forms with no copula and an older row stored, 2026-11-25
+
+The cortex through the stack brain on compose defaults: the model host image `cortex-model-host`
+(engine build b12375, never built) and a brain image built from the tree, every card approved.
+The argv the model host wrote: `gemma-4-12B-it-qat-UD-Q4_K_XL.gguf`, `--ctx-size 16384`, no cache
+type flag, the drafter `mtp-gemma-4-12B-it-Q8_0.gguf` with `--spec-draft-n-max 3`, no reasoning
+flag. `forget_unrequested` keeps the tool on every seed and message below. Each seed turn was
+drawn once per stack run into an empty store and put back before every draw. Two stack runs with
+fresh seed rows, 8 draws per form and run; the second run was drawn under a rule written after the
+first gave one deleted row. Rules, scripts and rows in `~/.cache/cortex-run/2026-11-25/s2/`
+(`notes.md`, `count8.py`, `logs/rows-*.jsonl`).
+
+| Seed, then message | Draws with a forget call | Cards | Old row deleted | New fact stored | Neither value kept |
+| --- | --- | --- | --- | --- | --- |
+| `Merk dir, dass mein Hund Rex heißt.`, then `Bello` | 15 of 16 | 1 | 1 of 16 | 15 of 16 | 1 of 16 |
+| `Recuerda que tienes cita a las 8.`, then `9` | 1 of 16 | 0 | 0 of 16 | 16 of 16 | 0 of 16 |
+| `Ține minte că sora mea vine vineri.`, then `mâine` | 4 of 16 | 2 | 2 of 16 | 14 of 16 | 2 of 16 |
+
+**Result: keeping the tool lost both values in 3 of 48 draws.** Each of the 3 calls named the old
+value (`Rex`, `sora mea vine vineri`, `sora ta vine vineri`) and its approved card listed the seed
+row. The brain then withheld the turn from memory, as on the new value rows above, so the person
+ended up with neither value. Every other call named the new fact and matched nothing. No call was
+refused, and no draw showed the old value note.
