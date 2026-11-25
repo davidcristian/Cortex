@@ -27,7 +27,9 @@ deleting calls, or more than 0 over the generator.
 
 **Result: the cost is under the bound.** The check refuses a forget that names the stored value of
 a row the message names only by its noun, and no other call of either family. Every request of
-both families still deletes its row on a call naming the noun or the subject phrase. The near
+both families still deletes its row on a call naming the noun or the subject phrase, except the
+80 German requests whose later clause the card now keeps
+([forget-everything-unread-forms.md](forget-everything-unread-forms.md#the-later-clauses-read-2026-11-25)). The near
 miss `Merk dir, dass meine Karte weg muss.` with the call `4111 1111 1111 4242` is refused, and a
 test states it. Script `tools/cost.py`, log `logs/cost.log`.
 

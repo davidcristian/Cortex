@@ -77,9 +77,10 @@ or `4242` ([readings](../../readings/forget-everything-unread-role.md)):
 - 2026-11-25: done for the forms with a clause mark before the kept row. The clauses after the
   first one holding a forget verb outside a keep clause, or after the first clause of a message
   with none, are read as the runs after a value are, with rows named over the store, and a row a
-  run names in a role no reader reads is kept (`_kept_later` in `forget_permit.py`). Over the family those forms list no
-  row asked to keep, from 90; no case set lists a row it did not list before, and no row asked to
-  delete is newly kept over the generator. One test message, `Merk dir, dass Rex weg muss.`, now
-  keeps the row its forget call names
+  run names in a role no reader reads is kept (`_kept_later` in `forget_permit.py`). Over the
+  family those forms list no row asked to keep, from 90; no case set lists a row it did not list
+  before, and no row asked to delete is newly kept over the generator. The German requests to
+  remember worded as a forget, as `Merk dir, dass meine Karte weg muss.`, now keep the row their
+  forget call names (280 calls over the two families)
   ([readings](../../readings/forget-everything-unread-forms.md#the-later-clauses-read-2026-11-25)).
   The 222 rows of the forms with no clause mark are task [1341](1341-a-forget-of-everything-with-no-clause-mark-before-the-kept-row-lists-that-row.md).

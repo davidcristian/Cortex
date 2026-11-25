@@ -114,10 +114,15 @@ queda.`. The 222 with no clause mark are 96 of a head with no forget verb, 66 of
 60 of a word for all left unread, as `Forget everything the card stays.` and `Vergiss alles bis
 auf die Karte.`. The generator keeps 104 more rows in 19 test literals that mark no row as asked
 to keep or delete: stored row texts, replies and requests to remember, and `Forget the card
-4242, the card and the 4242 stay.`, whose card rows the message asks to keep. One test message of the call word
-refusal, `Merk dir, dass Rex weg muss.`, now keeps the row its forget call names: the cost of
-the rule is that row, against the 24 rows asked to delete in 7 test literals of the rule read
-from the rows the call lists alone.
+4242, the card and the 4242 stay.`, whose card rows the message asks to keep. One test message
+of the call word refusal, `Merk dir, dass Rex weg muss.`, now keeps the row its forget call
+names, against the 24 rows asked to delete in 7 test literals of the rule read from the rows the
+call lists alone. The same holds for every German request of the two families of
+[forget-refusal-possessive-subject.md](forget-refusal-possessive-subject.md) after `Merk dir,`,
+`Merke dir,` or `Merk dir:` (80 requests, as `Merk dir, dass meine Karte weg muss.`): the card
+now keeps the row it deleted for 120 of the 587 calls of family 1 and 160 of the 776 of family
+2, for every call kind, and lists no row it kept before. Script `cost/famdiff.py` in
+`~/.cache/cortex-run/2026-11-25/a1/`.
 
 Scripts: `replay.sh`, `cmp.py` and `ecount2.py` in `~/.cache/cortex-run/2026-11-25/f2/`.
 
