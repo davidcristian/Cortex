@@ -17,11 +17,19 @@ mixed messages. Counts in `~/.cache/cortex-run/2026-11-25/a1/gen/` (`*_fix.json`
 
 ## What to do
 
-1. Look for a message where `_held` alone keeps a row the message asks to keep; write each one
-   found as a test that fails without `_held`.
-2. If none is found, remove `_held`, record the 64 rows as deleted where the message asks, and
-   draw it live with the rows seeded before it ships, since the card then lists more rows.
+1. Remove `_held`, count the rows the card then deletes where the message asks (the 64 above and
+   the 1,230 of the search below), and draw it live with the rows seeded before it ships, since
+   the card then lists more rows.
 
 ## History
 
 - 2026-11-25: filed by the audit of the night's forget commits.
+- 2026-11-25: searched for a message where `_held` alone keeps a row the message asks to keep,
+  and found none. The search: 21,996 messages from the rows' own words in five languages whose
+  call (the noun, the phrase, or the noun and value) names a row word only in a clause after the
+  first forget clause, beside a keep, stays, but, except or not clause for another row, as in
+  `Forget it 4242, the card 4242, the locker stays.`. With `_held` and with it reverted the card
+  lists no row asked to keep, and `_held` keeps 1,230 rows asked to delete that the reverted
+  check deletes. The audit's generator, forget of everything, mixed and negation sets show no
+  difference on a row asked to keep either (`search.py`, `held.py`, `held.log` in
+  `~/.cache/cortex-run/2026-11-25/x1/held/`). `_held` stays until the seeded draw.
