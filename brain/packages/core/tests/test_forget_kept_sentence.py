@@ -61,9 +61,8 @@ SAYS_A_KEPT_ROW_WAS_FORGOTTEN = [
     "Done. I've deleted 0721 555 4242.",
     "I\u2019ve removed your phone number.",
     "I've removed your locker code and phone number.",
-    "I've removed the locker code and phone number from my memory.",
     "I've deleted the locker code and phone too.",
-    "I've deleted the locker and 0721 555 4242, as you asked.",
+    "I've deleted the locker and 0721 555 4242.",
     "I've deleted the old entry and locker and phone.",
 ]
 KEPT_ROW_OUTSIDE_THE_REMOVED_OBJECT = [
@@ -80,6 +79,16 @@ KEPT_ROW_OUTSIDE_THE_REMOVED_OBJECT = [
     "Your phone stays and the locker code has been removed.",
 ]
 REMOVAL_OR_KEPT_ROW_AFTER_A_JOINING_WORD = [
+    "I've removed the locker code and phone number from my memory.",
+    "I've removed the locker code and phone number in memory stays.",
+    "I've removed the locker code and card number of yours is still saved.",
+    "I've deleted the locker code and card number and phone number are kept.",
+    "I've deleted the locker code and card number and phone number stay.",
+    "I've removed the locker code and phone number, as you asked, stays.",
+    "I've removed the locker code and phone number, still saved.",
+    "I've removed the locker code and phone number (kept).",
+    "I've deleted the locker and 0721 555 4242, as you asked.",
+    "I've removed the locker code and.",
     "I've deleted your locker code and phone stays.",
     "I've deleted your locker code and phone is kept.",
     "I've deleted your locker code and phone remains saved.",
