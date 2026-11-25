@@ -48,7 +48,7 @@ re-run by anyone but its author.
    `brain/` and in `scripts/`, since uv reads only the one in its project directory. On 3.14
    coverage reports two `async for` exits the suite runs as missed, so the checks run on the
    image's interpreter, which `crosscheck.py` ties to pyright's `pythonVersion` and the image base.
-   Pyright strict; `addopts` deselects the `integration` marker, so live suites skip coverage.
+   Pyright strict; `addopts` holds `-m "not integration"`, so live suites stay out of coverage.
 9. **The pre-commit stage is one local hook running `just check`**, a literal mirror, so the hook
    cannot diverge from the command. The commit-msg stage runs the two message checks AGENTS.md
    describes.
@@ -102,7 +102,7 @@ whenever real records existed, passing while asserting nothing.
     dir that predates it the run fails before any check (`InvalidCatalogNameError`, or
     `to_regclass('memories')` returning null) and prints the two statements that create it, instead
     of falling back to the configured DSN. The same protections as decision 14 apply, with `reset`
-    checking `current_database()`. `pg-backup` dumps `-d cortex`, which leaves this one out.
+    checking `current_database()`. The `pg-backup` sidecar dumps `-d cortex` and not this one.
 
 ### Test order
 
