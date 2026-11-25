@@ -122,5 +122,30 @@ listed, and 238 rows the generators mark as asked to delete are newly kept: 232 
 the first row of `Forget 4242, the card, the phone stays.` with the text of its noun and the same
 forms closed by a period, 216 of them among the 1,230 above, and 6 Spanish and Romanian rows
 before an addition no reader reads, as `Olvida la tarjeta 4242, el gimnasio, el teléfono
-también.`. No live draw of the change is taken yet. Scripts `listgen.py`, `listcount.py`,
-`replay.sh`, `cmp.py` and `costform.py`, outputs in `out/` of `~/.cache/cortex-run/2026-11-25/a2/`.
+también.`. The seeded live draw is [below](#the-list-reading-drawn-with-the-rows-seeded-2026-11-25).
+Scripts `listgen.py`, `listcount.py`, `replay.sh`, `cmp.py` and `costform.py`, outputs in `out/` of
+`~/.cache/cortex-run/2026-11-25/a2/`.
+
+## The list reading drawn with the rows seeded, 2026-11-25
+
+The stack above, with a brain image built from the clean tree after the list reading was added to
+`kept_again` (the hashes of the seven forget files matched, `logs/up.txt`) and the same argv. The
+rules were written before the first launch, in `notes.md` of `~/.cache/cortex-run/2026-11-25/s6/`.
+The three rows of the language were seeded, 8 draws per message, every card approved. A row is
+kept when any reading of a clause keeps it, so the list reading of `the card, the phone stays`
+asks to keep the card. **Pass rule:** no approved card lists a row asked to keep and no draw
+deletes one; a row asked to delete that stays stored is a cost.
+
+| Message | Asked to delete | Draws with a call | Calls | Refused | Cards | Asked rows deleted | Draws listing or deleting another row |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `Forget 4242, the card, the phone stays.` | locker | 8 of 8 | 31 | 0 | 0 | 0 of 8 | 0 of 8 |
+| `Forget 4242, the card, the phone, the locker stays too.` | none | 8 of 8 | 34 | 0 | 0 | none asked | 0 of 8 |
+| `Vergiss 4242, die Karte, das Handy bleibt.` | Spind | 8 of 8 | 32 | 1 | 0 | 0 of 8 | 0 of 8 |
+
+**Result: the rule passes.** No card was shown in the 24 draws, so every row stayed stored, where
+the candidate core above deleted the card in 7 of 8 draws of the first form. The cost is the locker
+and the Spind row, kept in all 16 draws that asked to delete one, where the candidate core kept the
+locker in 7 of 8. Of the 97 calls, 94 returned that the message was not read as meaning a row
+holding the value, two (`the card`, `the phone`) that no row contains that exact text, and one was
+refused as a repeated call. Every reply had the note that the rows are still in memory. Rows in
+`logs/rows-l1.jsonl` to `rows-l3.jsonl`.
