@@ -101,6 +101,25 @@ async def test_a_call_text_naming_a_row_the_message_asks_to_delete_deletes_it(
 
 
 @pytest.mark.parametrize(
+    ("query", "text", "left"),
+    [
+        ("Forget 4242, the phone, the locker stays.", "phone", ["car", "locker", "locker"]),
+        ("Forget it 4242, the phone 4242, the locker stays.", "phone", ["car", "locker", "locker"]),
+        ("Forget 4242, the car, the locker stays.", "car", ["locker", "locker", "phone"]),
+        (
+            "Forget the car 4242, the phone and the locker too.",
+            "phone",
+            ["car", "locker", "locker"],
+        ),
+    ],
+)
+async def test_a_call_text_naming_a_row_after_the_first_forget_clause_deletes_that_row(
+    query: str, text: str, left: list[str]
+) -> None:
+    assert await _left(query, "locker", text) == left
+
+
+@pytest.mark.parametrize(
     ("query", "gone"),
     [
         ("Forget my car, the phone stays.", {"car"}),

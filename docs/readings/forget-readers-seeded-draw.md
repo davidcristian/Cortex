@@ -73,3 +73,25 @@ base draw of these forms stands beside them.
 clause keeps or a row `Forget all lockers 4242.` does not name. The calls `4242` listed the card
 alone on the first form and the locker alone on the third. Rows in `logs/rows-c6.jsonl` to
 `rows-c8.jsonl`.
+
+## The removals in the tree, 2026-11-25
+
+The tree now reads the value's place in `_runs` over every clause, as the candidate core does. The
+card's listings over the replay sets, at the tree before the removal and after it:
+
+| cases | rows asked to keep listed, before | after | rows asked to delete kept, before | after | rows newly listed |
+| --- | --- | --- | --- | --- | --- |
+| 71,332 generated and literal cases | 0 | 0 | 33,339 | 33,339 | 52 |
+| 3,864 forget of everything cases | 222 | 222 | 6,869 | 6,869 | 0 |
+| 6,156 mixed messages | 0 | 0 | 312 | 312 | 12 |
+| 13,827 mixed messages from the rows' words | 0 | 0 | 8,912 | 8,912 | 0 |
+| 12,768 word pair cases | 0 | 0 | 2,189 | 2,189 | 0 |
+| 4,104 longer word cases | 0 | 0 | 4,469 | 4,469 | 0 |
+| 8,376 negation cases | 0 | 0 | 5,760 | 5,760 | 0 |
+| 21,996 later clause search cases | 0 | 0 | 21,116 | 19,886 | 1,230 |
+
+The 1,230 rows are asked to delete, as the card of `Forget 4242, the card, the phone stays.` with
+the text `card`. The 64 in the generated cases and mixed messages are rows the generator marks as
+either outcome or leaves unmarked, as the phone of `Forget the card 4242, the phone and the locker
+too.` with the text `phone`. The listings are taken by `replay.sh` and compared by `cmp.py` in
+`~/.cache/cortex-run/2026-11-25/x2/`.

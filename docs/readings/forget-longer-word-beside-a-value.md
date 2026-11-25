@@ -105,3 +105,7 @@ delete a row the reading now keeps. It also keeps 12 rows the generator marks as
 in the mixed messages, and 28 rows asked to keep in Spanish and Romanian forgets of everything,
 as `Olvida todo, la tarjeta se queda.`. The listings are taken by `replay.sh base` and `replay.sh
 a1334` and compared by `cmp.py` in `~/.cache/cortex-run/2026-11-25/f1/`.
+
+The reading was removed the same day, once the clauses after the first forget clause were read for
+the rows they keep; [the replay of that removal](forget-readers-seeded-draw.md#the-removals-in-the-tree-2026-11-25)
+lists no row asked to keep.
