@@ -154,7 +154,7 @@ async def test_a_statement_of_one_sentence_names_the_old_value(
         ("My alarm code is 5528 or 5529.", _ALARM),
         ("My alarm code is 5528 and my door code is 1234.", _ALARM),
         ("My alarm code is 5528. My wife's alarm code is 4826.", _ALARM),
-        ("My alarm code is 5528. Thanks!", _ALARM),
+        ("My alarm code is 5528. Thanks, that is wrong.", _ALARM),
         ("My alarm code is 5528. Wait, that is wrong.", _ALARM),
         ("My alarm code is 5528. Just kidding.", _ALARM),
         ("My alarm code is 5528. My alarm code is 5528.", _ALARM),
@@ -295,3 +295,43 @@ async def test_a_store_request_turn_beside_the_old_row_ends_with_the_note() -> N
     events = engine.handle_turn("s", "Save this: my alarm code is 5528.", turn_id="t")
     reply = "".join([event.text async for event in events if isinstance(event, TextDelta)])
     assert reply == "Saved, your alarm code is 5528." + old_value_note("4826", "en")
+
+
+_CODE = "User: Remember that my code is 90909.\nAssistant: Noted."
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Remember that my code is 5528. Thanks!",
+        "Remember that my code is 5528, thanks.",
+        "Remember that my code is 5528. Thank you!",
+        "My code is 5528. Thanks!",
+        "My code is now 5528, thank you.",
+    ],
+)
+async def test_a_statement_closed_by_thanks_names_the_old_value(query: str) -> None:
+    assert await _held(query, _CODE) == "90909"
+
+
+async def test_a_value_ending_in_thanks_keeps_its_last_word() -> None:
+    row = "User: Remember that my password is Pass4."
+    assert await _held("Remember that my password is Pass4thanks.", row) == "Pass4"
+
+
+@pytest.mark.parametrize(
+    ("query", "row"),
+    [
+        ("Remember that my code is thanks 5528.", _CODE),
+        ("Remember that my password is Thanks.", "User: Remember that my password is 90909."),
+        ("Remember that my code is 5528. Thanks for changing it!", _CODE),
+        ("Remember that my code is 5528. Thanks, and my gym code is 1234.", _CODE),
+        ("Remember that my gym code is 5528. Thanks!", _CODE),
+        ("Remember that my code is 5528. Thanks, not 1234!", _CODE),
+        ("Thanks! Remember that my code is 5528.", _CODE),
+    ],
+)
+async def test_a_thanks_that_does_not_close_a_statement_of_the_fact_names_none(
+    query: str, row: str
+) -> None:
+    assert await _held(query, row) == ""

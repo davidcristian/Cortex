@@ -40,3 +40,19 @@ the change and on the tree after it. Scripts in `~/.cache/cortex-run/2026-11-25/
   another possessive or a row in another language.
 - The five messages the task named, each beside a row of the same fact with `4826` in the same
   language, now name `4826`; `test_memory_old_fact_other.py` holds them with the near misses.
+
+## An English closing thanks, 2026-11-25
+
+An English statement, alone or after an English request to store or remember, now has a closing
+`thanks` or `thank you` cut before it is read, as `fact_asked_other` cuts the thanks of the other
+four languages. Every message of the pairs and the cross pairs above was replayed as written and
+closed three ways (` Thanks!`, `, thanks.`, ` Thank you.`), 66,416 pairs, through the tree before
+the change and after it (`~/.cache/cortex-run/2026-11-25/x1/note/`, `chk.py`).
+
+- Notes: 380 before, 1,000 after; none dropped or changed. Of the 620 new notes, 618 stand on a
+  thanks form and name the value the same message without thanks names, and 2 are test messages
+  that already close with `Thanks!`, beside a row of the same fact.
+- A thanks inside the fact, a fact whose value is `Thanks`, a thanks followed by more words, and
+  an opening thanks (`Thanks! Remember that my code is 5528.`) name no value;
+  `test_memory_old_fact.py` holds them.
+- `THANKS` (`memory_request.py`) is unchanged, so no forget reader reads a message differently.

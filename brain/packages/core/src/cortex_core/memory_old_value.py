@@ -76,6 +76,8 @@ _STORED_OTHER = {
     for language, patterns in FACT_VALUES_OTHER.items()
 }
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
+# The English closing thanks; ``fact_asked_other`` strips the other languages' thanks.
+_THANKS = re.compile(r"[\s,.;!]*\b(?:thanks|thank\s+you)\W*$", re.IGNORECASE)
 # The words a statement can add before a stored fact's words to say it gives the fact a new value.
 _CHANGE_WORDS = frozenset(("new", "current", "actual"))
 # The words a statement can add before or after a new value to say it replaces the old one.
@@ -155,6 +157,7 @@ def _statement(query: str) -> tuple[re.Match[str], tuple[re.Pattern[str], ...]] 
     asked = fact_asked(query)
     other = fact_asked_other(query) if asked is None else None
     text = (asked if asked is not None else query if other is None else other).strip()
+    text = text if other is not None else _THANKS.sub("", text)
     # A later sentence can take the value back, as in "Wait, that is wrong."
     if _SENTENCE_END.search(text) or not NOT.isdisjoint(re.findall(r"\w+", text.lower())):
         return None
