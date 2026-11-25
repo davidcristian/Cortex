@@ -20,19 +20,25 @@ for the sora form), and each time the person ended up with neither value
 
 ## What to do
 
-1. Write the rule first, then draw each of the three forms with an older row of the same fact
-   stored (`Merk dir, dass mein Hund Rex heißt.` before the Bello message, and so on), 8 draws
-   each, every card approved, and count the calls, the old row deleted and the new fact stored.
-2. Build the stated fact shape that step 2 of task 1197 names, as tests first and with no verb
-   list: a possessive subject (`mein Hund`, `sora mea`, `mon vélo`, `mi perro`) with a finite verb
-   and a value, which reads the Bello and sora forms and none of the five action forms of task
-   1171. The cita form has no subject and may stay unread, since it lost no row in 16 draws.
-3. Before the build, count over the forget generator (`gen.py` in
-   `~/.cache/cortex-run/2026-11-24/f4/f3gen/`) the requests to forget in the four languages that
-   the shape would newly refuse, as rows asked to delete that are kept, and replay it over the
-   strings of the readings. A request such as `Merk dir, dass mein Code weg muss.` has a
-   possessive subject too.
-4. Draw the Bello and sora forms live on the new reader with the seeds of the readings, 16 draws
+Reading these forms as stated facts costs more than it prevents: of two shapes counted before any
+build, each newly refuses more than half of a family of requests to forget phrased as a request to
+remember, such as `Merk dir, dass meine Karte 4242 weg muss.`
+([readings](../../readings/forget-refusal-possessive-subject.md)). So the next remedy reads the
+forget call, not the message's form.
+
+1. Write the rule first, then build a check on the call: on a turn whose message `asks_kept_other`
+   reads as a request to remember, refuse a forget call whose text holds a word the message does
+   not hold. In each of the six draws that deleted an old row unasked, a call named such a word
+   (`Rex`, `vineri`, `rouge`, `carnívoro`), and every other call of the 2026-11-25 draws named only
+   words of the message, except one, which matched no row
+   ([readings](../../readings/forget-refusal-possessive-subject.md#what-the-losing-calls-named)).
+   Write the near misses as tests first: a call naming the stored value of a row the message asks
+   to drop (`4111 1111 1111 4242` for `Merk dir, dass meine Karte weg muss.`), and a call that
+   changes only the case of a word (`Mein Hund heißt Bello.`).
+2. Before the build, count its cost over the forget generator and both families of the readings,
+   with the calls the card generator uses, as rows asked to delete that are now kept, and replay
+   it over the strings of the readings.
+3. Draw the Bello and sora forms live on the new check with the seeds of the readings, 16 draws
    each, every card approved: no old row may be deleted.
 
 ## History
@@ -44,3 +50,7 @@ for the sora form), and each time the person ended up with neither value
   48 draws deleted the old row unasked and lost both values, so step 2 opens. Steps 2 to 4 now
   name the shape, the cost count and the live draw. Left open, since the shape, its count and
   its draw did not fit the slot together.
+- 2026-11-25: the stated fact shape and its cost were counted before any build, and no reader was
+  built. A possessive subject and two to five words newly refuses 147 of 239 and 150 of 238
+  requests to forget in two families; the same shape with a name or a number, 10 of 239 and 150
+  of 238. The rule allowed at most half of each. Steps now name a check on the call text. Left open.

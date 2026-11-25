@@ -216,3 +216,6 @@ value (`Rex`, `sora mea vine vineri`, `sora ta vine vineri`) and its approved ca
 row. The brain then withheld the turn from memory, as on the new value rows above, so the person
 ended up with neither value. Every other call named the new fact and matched nothing. No call was
 refused, and no draw showed the old value note.
+
+Two shapes that would refuse the tool on the Bello and sora forms were counted and not built
+([forget-refusal-possessive-subject.md](forget-refusal-possessive-subject.md)).
