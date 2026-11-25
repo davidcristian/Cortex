@@ -20,6 +20,11 @@ mixed messages. Counts in `~/.cache/cortex-run/2026-11-25/a1/gen/` (`*_fix.json`
 1. Remove `_held`, count the rows the card then deletes where the message asks (the 64 above and
    the 1,230 of the search below), and draw it live with the rows seeded before it ships, since
    the card then lists more rows.
+2. The seeded draw, before the removal ships: a core whose `_runs` reads `held` over every
+   clause, the three English rows holding `4242` seeded, every card approved, 8 draws each of
+   `Forget 4242, the card, the phone stays.`, `Forget it 4242, the card 4242, the locker stays.`
+   and `Forget all lockers 4242.`. It passes when no approved card lists or deletes a row the
+   message does not ask to delete; a failure keeps `_held`.
 
 ## History
 
@@ -33,3 +38,7 @@ mixed messages. Counts in `~/.cache/cortex-run/2026-11-25/a1/gen/` (`*_fix.json`
   check deletes. The audit's generator, forget of everything, mixed and negation sets show no
   difference on a row asked to keep either (`search.py`, `held.py`, `held.log` in
   `~/.cache/cortex-run/2026-11-25/x1/held/`). `_held` stays until the seeded draw.
+- 2026-11-25: drew step 2 on a candidate core with both this removal and that of task 1347, and it
+  passed: 0 of 24 draws listed or deleted a row the message does not ask to delete
+  ([readings](../../readings/forget-readers-seeded-draw.md#two-reader-parts-removed-a-candidate-core)).
+  The removal, its tests and the counts of step 1 are left to a code slot.

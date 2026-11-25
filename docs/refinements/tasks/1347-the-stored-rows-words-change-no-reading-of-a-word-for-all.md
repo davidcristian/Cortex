@@ -26,6 +26,9 @@ it would assert one.
 1. Read the message's words only (`quantifies(query, limit=...)` in place of the rows, at its
    three call sites and in `test_forget_every_kind.py`). It reads more messages as asking for
    every row, so draw it with the seeded draw of task 1345 before it ships.
+2. That draw, on a core with both removals: it passes when no approved card lists or deletes a
+   row the message does not ask to delete, over the three forms of task 1345 (`Forget all
+   lockers 4242.` is the one `quantifies` reads); a failure keeps the rows' part.
 
 ## History
 
@@ -34,3 +37,8 @@ it would assert one.
 - 2026-11-25: found that the rows' part stops a word for all only through a row word that starts
   a message word `row_words` drops; no test written, since it would assert that accident, and the
   removal left for the seeded draw.
+- 2026-11-25: drew step 2 on a candidate core with both removals, and it passed: 0 of 24 draws
+  listed or deleted a row the message does not ask to delete, and `Forget all lockers 4242.`
+  deleted only the locker
+  ([readings](../../readings/forget-readers-seeded-draw.md#two-reader-parts-removed-a-candidate-core)).
+  The removal and its tests are left to a code slot.

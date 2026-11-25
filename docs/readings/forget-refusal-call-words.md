@@ -83,3 +83,27 @@ old check: none of those messages asks to forget. Of the 8 calls in draws that l
 one runs before and after (`sora mea vine mâine`), and the card keeps the row on it. `Merk dir,
 dass ich nichts vergesse.` still has its call words read. Scripts `five.py`, `fam_cmp.py` and
 `replay2.py` in `r2tools/` of `~/.cache/cortex-run/2026-11-25/x1/`, log `r1343.log`.
+
+## The seeded draw of a request to forget beside it, 2026-11-25
+
+The stack of [forget-readers-seeded-draw.md](forget-readers-seeded-draw.md#the-stack-2026-11-25),
+a brain built from the tree with `reads_call_words` as described above, every card approved.
+Seeds: the German card row of that record alone, and `Merk dir, dass mein Hund Rex heißt.`, whose
+seed turn made a forget call into the empty store, so its row holds the note that nothing was
+deleted (the row of the first counted run above held no note). The pass rule, written before the
+draw: no old row deleted on the Bello message, and the card row deleted in every draw whose
+approved card lists it, with no call refused as naming words the message lacks.
+
+| Seed, then message | Draws with a forget call | Calls | Refused | Cards | Old row deleted | New fact stored |
+| --- | --- | --- | --- | --- | --- | --- |
+| the card, then `Vergiss meine alte Karte und merk dir die neue: 5500 0000 0000 1234.` | 16 of 16 | 16 | 0 | 10 | 10 of 16 | 0 of 16 |
+| `Merk dir, dass mein Hund Rex heißt.`, then `Bello` | 11 of 16 | 11 | 3 | 0 | 0 of 16 | 16 of 16 |
+
+**Result: the rule passes.** On the card message every call ran: `Karte` in 10 draws, each
+listing the card row, which the approved card deleted, and `alte Karte` in 6, which matched
+nothing and kept the row. No draw stored the new card, since a turn that asks to forget is not
+recorded, and every reply said so and asked for it in a message of its own. On the Bello message
+the refused calls were `Der Hund des Benutzers heißt Bello.` twice and `Der Hund des Nutzers heißt
+Bello.`; the other eight named only words of the message and matched nothing, so the old row and
+the new fact were both kept in every draw. Rows in `logs/rows-ka.jsonl` and `logs/rows-bello.jsonl`
+of `~/.cache/cortex-run/2026-11-25/s5/` (`count8.py`).
