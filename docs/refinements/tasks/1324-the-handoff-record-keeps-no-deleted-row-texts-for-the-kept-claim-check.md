@@ -1,9 +1,8 @@
 # The handoff record keeps no deleted row texts for the kept claim check
 
-**Status:** open, actionable
+**Status:** done 2026-11-25
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-24
 
 `kept_claim` (`forget_kept_sentence.py`) marks a reply only while `TaintLedger.forget_gone`, the
 texts of the turn's deleted rows, covers `TaintLedger.forget_deleted`, since a word of a deleted
@@ -19,3 +18,6 @@ phase test whose reply names a kept row as forgotten after a cortex phase delete
 ## History
 
 - 2026-11-24: filed with the check that marks a reply naming a kept row as forgotten.
+- 2026-11-25: done. `HandoffRecord` and `handoff_codec.py` keep `forget_gone`, a record written
+  before it reads back as an empty tuple, and a deep phase test shows the marked head on a deep
+  reply naming a row the cortex phase kept as forgotten.

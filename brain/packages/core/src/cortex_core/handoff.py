@@ -63,6 +63,7 @@ class HandoffRecord:
     forget_inside: tuple[str, ...] = ()
     forget_longer: tuple[str, ...] = ()
     forget_deleted: int = 0
+    forget_gone: tuple[str, ...] = ()
     sidecar_refused: bool = False
     monthly_stored: bool = False
     stored_time: str = ""
@@ -103,6 +104,7 @@ class HandoffRecord:
             forget_inside=self.forget_inside,
             forget_longer=self.forget_longer,
             forget_deleted=self.forget_deleted,
+            forget_gone=self.forget_gone,
             sidecar_refused=self.sidecar_refused,
             monthly_stored=self.monthly_stored,
             stored_time=self.stored_time,
@@ -190,6 +192,7 @@ class EscalationSlot:
             forget_inside=self.refs.taint.forget_inside,
             forget_longer=self.refs.taint.forget_longer,
             forget_deleted=self.refs.taint.forget_deleted,
+            forget_gone=self.refs.taint.forget_gone,
             sidecar_refused=self.refs.taint.sidecar_refused,
             monthly_stored=self.refs.taint.monthly_stored,
             stored_time=self.refs.taint.stored_time,

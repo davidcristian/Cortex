@@ -402,13 +402,24 @@ async def test_a_record_keeps_how_many_rows_its_forgets_deleted() -> None:
     assert loaded.forget_deleted == 3
 
 
+async def test_a_record_keeps_the_text_of_each_row_its_forgets_deleted() -> None:
+    store = RedisHandoffStore(FakeAsyncRedis(server=FakeServer()))
+    await store.put(replace(handoff_contract.make_record("t1"), forget_gone=("a row", "b row")))
+    loaded = await store.get("t1")
+    assert loaded is not None
+    assert loaded.forget_gone == ("a row", "b row")
+    assert loaded.taint_ledger().forget_gone == ("a row", "b row")
+
+
 async def test_a_record_written_before_the_kept_rows_reads_as_none_kept() -> None:
     client = FakeAsyncRedis(server=FakeServer())
     fields = cast("dict[str, Any]", json.loads(encode_record(handoff_contract.make_record("t1"))))
     del fields["forget_kept"]
     del fields["forget_spared"]
+    del fields["forget_gone"]
     await client.set("cortex:handoff:t1", json.dumps(fields))
     loaded = await RedisHandoffStore(client).get("t1")
     assert loaded is not None
     assert loaded.forget_kept == ()
     assert loaded.forget_spared == ()
+    assert loaded.forget_gone == ()

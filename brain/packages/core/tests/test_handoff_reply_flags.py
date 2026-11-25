@@ -23,6 +23,8 @@ from cortex_core import (
 from cortex_core.access_claim import UNSEARCHED_FILES_NOTE
 from cortex_core.brain_phase import BrainPhase
 from cortex_core.forget_count_note import forgot_count_note
+from cortex_core.forget_kept_sentence import KEPT_CLAIM_NOTE
+from cortex_core.forget_unnamed import KEPT_NOTE
 from cortex_core.numbers_left_claim import NUMBERS_LEFT_NOTE
 from cortex_core.schedule_claim import MONTHLY_STORED_NOTE, UNSCHEDULED_CLAIM_NOTE
 from cortex_core.schedule_daily import DAILY_STORED_NOTE, DAILY_STORED_NOTES
@@ -135,3 +137,20 @@ async def test_a_deep_reply_reads_how_many_rows_the_cortex_forget_deleted(delete
         (ToolRun(FORGET_CHOSEN_TOOL_NAME, ok=True),),
     )
     assert (forgot_count_note(2, "en") in shown) is bool(deleted)
+
+
+async def test_a_deep_reply_naming_a_row_the_cortex_forget_kept_as_forgotten_is_marked() -> None:
+    said = "I've removed the phone number and the locker code from my memory."
+    phone = "User: Remember that my phone is 0721 555 4242. Assistant: Noted your phone."
+    locker = "User: Remember that my locker code is 4242. Assistant: Noted your locker code."
+    taint = TaintLedger(
+        forget_asked=True,
+        forget_calls=1,
+        forget_kept=(phone,),
+        forget_gone=(locker,),
+        forget_deleted=1,
+    )
+    runs = (ToolRun(FORGET_CHOSEN_TOOL_NAME, ok=True),)
+    shown = await _deep_reply("Forget the locker code 4242.", said, taint, runs)
+    assert KEPT_CLAIM_NOTE.lstrip("\n").format(sentence=said) in shown
+    assert KEPT_NOTE.strip() not in shown
