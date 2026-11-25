@@ -225,10 +225,13 @@ _REMEMBER_AND_FORGET = "Remember that my car is a red Fiat, and forget the locke
 
 
 class _ReplyBackend:
-    """Writes one round of ``calls``, then ``reply``."""
+    """Writes one round of ``calls``, a round of ``then`` when given, then ``reply``."""
 
-    def __init__(self, calls: Sequence[ToolCall], reply: str = "Noted.") -> None:
+    def __init__(
+        self, calls: Sequence[ToolCall], reply: str = "Noted.", then: Sequence[ToolCall] = ()
+    ) -> None:
         self._calls = list(calls)
+        self._then = list(then)
         self._reply = reply
         self.seen: list[str] = []
 
@@ -243,7 +246,7 @@ class _ReplyBackend:
     ) -> AsyncIterator[InferenceEvent]:
         del model, tools, schema, bounds
         self.seen.append(messages[-1].text)
-        calls, self._calls = self._calls, []
+        calls, self._calls, self._then = self._calls, self._then, []
         for call in calls:
             yield call
         if not calls:
@@ -443,5 +446,15 @@ async def test_an_unsaid_forget_beside_one_matching_nothing_keeps_old_and_new() 
     await rig.seed()
     calls = [_forget("Rex"), _forget("Hund", 1)]
     await rig.turn("Merk dir, dass mein Hund Fiat heißt.", _ReplyBackend(calls))
+    assert [record.ok for record in rig.audit.records] == [False, True]
+    assert len(await rig.held()) == 2
+
+
+async def test_an_unsaid_forget_retried_with_message_words_keeps_old_and_new() -> None:
+    rig = _Rig()
+    await rig.seed()
+    backend = _ReplyBackend([_forget("Rex")], then=[_forget("Hund", 1)])
+    await rig.turn("Merk dir, dass mein Hund Fiat heißt.", backend)
+    assert rig.audit.records[0].detail == FORGET_UNSAID_MSG
     assert [record.ok for record in rig.audit.records] == [False, True]
     assert len(await rig.held()) == 2
