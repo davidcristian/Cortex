@@ -1,9 +1,8 @@
 # A forget of everything in a form the card does not take as one lists a row its message keeps
 
-**Status:** open, actionable
+**Status:** done 2026-11-25
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-24
 
 A forget of everything that names a stored row in a role no reader reads keeps every row
 (`message_rows` in `forget_permit.py`). It is read only from a word for all of the table of forms
@@ -75,3 +74,12 @@ or `4242` ([readings](../../readings/forget-everything-unread-role.md)):
   `Olvida todo, la tarjeta se queda.` and `Uită tot, cardul rămâne.` delete nothing for `4242`
   on this tree and delete the card for its own word; the other five delete it for both. No rule
   was built. Left open.
+- 2026-11-25: done for the forms with a clause mark before the kept row. The clauses after the
+  first one holding a forget verb, or after the first clause of a message with none, are read as
+  the runs after a value are, with rows named over the store, and a row a run names in a role no
+  reader reads is kept (`_kept_later` in `forget_permit.py`). Over the family those forms list no
+  row asked to keep, from 90; no case set lists a row it did not list before, and no row asked to
+  delete is newly kept over the generator. One test message, `Merk dir, dass Rex weg muss.`, now
+  keeps the row its forget call names
+  ([readings](../../readings/forget-everything-unread-forms.md#the-later-clauses-read-2026-11-25)).
+  The 222 rows of the forms with no clause mark are task [1341](1341-a-forget-of-everything-with-no-clause-mark-before-the-kept-row-lists-that-row.md).

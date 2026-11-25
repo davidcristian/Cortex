@@ -90,3 +90,33 @@ and one Romanian reply also ended with `UNKEPT_CLAIM_NOTE`, after `remains store
 reținut.`. Logs `a.jsonl`, `b.jsonl` and `up.txt` and the scripts in
 `~/.cache/cortex-run/2026-11-24/f4/stack/`; the Romanian sentences are translated in
 `~/.cache/cortex-run/2026-11-24/f4/translations.md`.
+
+## The later clauses read, 2026-11-25
+
+The rule built (`_kept_later` in `forget_permit.py`): for a message that is no forget of
+everything the card reads, the clauses after the first one holding a forget verb, or after the
+first clause of a message with none, are read as the runs after a value are, and a stored row a
+run names in a role no reader reads is kept. Rows are named over the store, as for a forget of
+everything, not only from the rows the call matches. Replayed over the family (3,864 cases over
+925 messages), the generator of the forget slots (71,332 cases, with the test literals), the
+mixed messages (6,156), the a1 word pairs (12,768), the valued cases (4,104) and the negated
+messages (8,376), the tree before the change against the tree after it:
+
+| Case set | Keep rows listed before | After | Rows newly listed | Rows asked to delete newly kept |
+| --- | --- | --- | --- | --- |
+| family, a clause mark before the kept row | 90 | 0 | 0 | 0 |
+| family, no clause mark | 222 | 222 | 0 | 0 |
+| generator, mixed, pairs, valued, negated | 0 | 0 | 0 | 0 |
+
+The 90 rows are all of the heads with no forget verb: `Wipe everything, the card stays.`,
+`Wipe everything, leave the card.`, `Vide tout, la carte reste.` and `Todo fuera, la tarjeta se
+queda.`. The 222 with no clause mark are 96 of a head with no forget verb, 66 of a read head and
+60 of a word for all left unread, as `Forget everything the card stays.` and `Vergiss alles bis
+auf die Karte.`. The generator keeps 104 more rows in 19 test literals that mark no row as asked
+to keep or delete: stored row texts, replies and requests to remember, and `Forget the card
+4242, the card and the 4242 stay.`, whose card rows the message asks to keep. One test message of the call word
+refusal, `Merk dir, dass Rex weg muss.`, now keeps the row its forget call names: the cost of
+the rule is that row, against the 24 rows asked to delete in 7 test literals of the rule read
+from the rows the call lists alone.
+
+Scripts: `replay.sh`, `cmp.py` and `ecount2.py` in `~/.cache/cortex-run/2026-11-25/f2/`.

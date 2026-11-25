@@ -176,6 +176,11 @@ async def test_every_unsaid_forget_of_the_old_name_is_refused_and_the_row_kept()
 
 
 async def test_a_forget_naming_the_message_words_still_shows_its_card_and_runs() -> None:
-    left, audit, _ = await _loop("Merk dir, dass Rex weg muss.", [[_forget("Rex")]])
+    left, audit, _ = await _loop("Merk dir dass Rex weg muss.", [[_forget("Rex")]])
     assert left == []
     assert [record.ok for record in audit.records] == [True]
+
+
+async def test_a_row_a_later_clause_names_in_a_role_no_reader_reads_is_kept() -> None:
+    left, _, confirmer = await _loop("Merk dir, dass Rex weg muss.", [[_forget("Rex")]])
+    assert (left, confirmer.requests) == (["rex"], ())

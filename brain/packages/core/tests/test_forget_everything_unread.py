@@ -27,6 +27,8 @@ _ROWS = {
     "spind": "User: Merke dir, der Code vom Spind ist 4242.\nAssistant: Notiert.",
     "tarjeta": "User: Recuerda que mi tarjeta es 4111 1111 1111 4242.\nAssistant: Anotado.",
     "gimnasio": "User: Recuerda que el código del gimnasio es 4242.\nAssistant: Anotado.",
+    "cardul": "User: Ține minte că cardul meu este 4111 1111 1111 4242.\nAssistant: Notat.",
+    "dulap": "User: Ține minte că codul de la dulap este 4242.\nAssistant: Notat.",
 }
 _THREE = ("locker", "card", "phone")
 _TEXTS = {"locker": "locker code", "karte": "Karte", "spind": "Spind"}
@@ -82,6 +84,20 @@ async def _deleted(query: str, ids: tuple[str, ...] = _THREE) -> set[str]:
         ("Oublie tout sauf la carte.", ("casier", "carte"), {"casier"}),
         ("Vergiss alle, die Karte bleibt.", ("spind", "karte"), set[str]()),
         ("Olvida todas excepto la tarjeta.", ("gimnasio", "tarjeta"), {"gimnasio"}),
+        ("Forget everything my card holds.", _THREE, {"card"}),
+        ("Olvida todo sobre la tarjeta.", ("gimnasio", "tarjeta"), {"tarjeta"}),
+        ("Vergeet 4242 tot morgen.", _THREE, set[str]()),
+        ("Forget my todo list.", _THREE, {"locker", "card", "phone"}),
+        ("Forget everything my card stays.", _THREE, {"card"}),
+        ("Wipe everything, the card too.", _THREE, {"locker", "card", "phone"}),
+        ("Wipe everything, and the card.", _THREE, {"locker", "card", "phone"}),
+        ("Wipe the card, the phone as well.", _THREE, {"card", "phone"}),
+        (
+            "Forget the locker code, the phone and the card too.",
+            _THREE,
+            {"locker", "card", "phone"},
+        ),
+        ("My card is old, forget it.", _THREE, {"card"}),
     ],
 )
 async def test_a_forget_of_everything_in_a_form_a_reader_reads_lists_what_it_listed(
@@ -123,6 +139,27 @@ async def test_a_forget_of_everything_naming_a_row_in_a_form_no_reader_reads_kee
     query: str, ids: tuple[str, ...]
 ) -> None:
     assert await _deleted(query, ids) == set()
+
+
+@pytest.mark.parametrize(
+    ("query", "ids", "gone"),
+    [
+        ("Wipe everything, my card stays.", _THREE, {"locker", "phone"}),
+        ("Wipe everything, leave the card.", _THREE, {"locker", "phone"}),
+        ("Clear everything. The card stays.", _THREE, {"locker", "phone"}),
+        ("Everything must go, my card stays.", _THREE, set[str]()),
+        ("Vide tout, la carte reste.", ("casier", "carte"), {"casier"}),
+        ("Alles muss weg, die Karte bleibt.", ("spind", "karte"), set[str]()),
+        ("Todo fuera, la tarjeta se queda.", ("gimnasio", "tarjeta"), set[str]()),
+        ("Olvida todo, la tarjeta se queda.", ("gimnasio", "tarjeta"), set[str]()),
+        ("Uită tot, cardul rămâne.", ("dulap", "cardul"), set[str]()),
+        ("Forget my locker code, my card stays.", _THREE, {"locker"}),
+    ],
+)
+async def test_a_row_a_later_clause_names_in_a_role_no_reader_reads_is_kept(
+    query: str, ids: tuple[str, ...], gone: set[str]
+) -> None:
+    assert await _deleted(query, ids) == gone
 
 
 async def test_a_forget_of_everything_keeping_every_row_says_each_was_kept() -> None:

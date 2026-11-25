@@ -11,8 +11,8 @@ The Romanian cell of the word for all in `FORMS` (`forget_forms.py`) is empty, s
 each named in the plural in a keep clause (`Uită toate 4242, cardurile rămâne.`), and 36 not
 asked for, each beside an unread `doar`, `și` or `tot` ([readings](../../readings/forget-form-cells.md#the-cells-replayed-one-at-a-time-2026-11-24)). The plural is
 [task 1304](1304-a-romanian-plural-row-word-in-a-forget-message-names-no-row.md); the words for
-all that another language shares (`tot`, `alles`, `todo`) are
-[task 1230](1230-a-forget-of-everything-in-a-form-the-card-does-not-take-as-one-lists-a-row-its-message-keeps.md).
+all that another language shares (`tot`, `alles`, `todo`), with no clause mark before a kept row,
+are [task 1341](1341-a-forget-of-everything-with-no-clause-mark-before-the-kept-row-lists-that-row.md).
 
 ## What to do
 
@@ -25,3 +25,5 @@ all that another language shares (`tot`, `alles`, `todo`) are
 ## History
 
 - 2026-11-24: filed from the survey of [task 1221](1221-the-forms-the-forget-card-reads-in-english-are-not-all-read-in-the-other-four-languages.md).
+- 2026-11-25: the words for all another language shares now point at task 1341, which holds
+  the forms of task 1230 with no clause mark.

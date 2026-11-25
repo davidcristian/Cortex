@@ -14,6 +14,7 @@ from cortex_core.forget_clauses import (
     WHOSE,
     beside,
     clauses,
+    forget_end,
     kept_again,
     parts,
 )
@@ -32,6 +33,8 @@ Listing = Callable[[ToolCall], Awaitable[tuple[str, ...] | str]]
 _PLACE = forms.words(forms.PLACE)
 _TOKEN = re.compile(r"[^\W_]+")
 _REPLY = "\nAssistant: "
+# Clauses joined behind a forget verb read as the runs after a value, from their first word.
+_VERB = "forget"
 
 
 def call_text(call: ToolCall) -> str:
@@ -171,6 +174,20 @@ def _apart(call: ToolCall) -> bool:
     return whole_values(text).keys().isdisjoint(whole_values(query))
 
 
+async def _store_named(
+    store: MemoryStore, scope: MemoryScope, call: ToolCall, seen: Sequence[MemoryRecord]
+) -> tuple[dict[str, set[str]], frozenset[str]]:
+    """The ids of the rows, of ``seen`` or stored, each word of the call's message names, and the
+    words that name one, with each code word of the message."""
+    query, scopes = call.stamp.query, scope.read_scopes(call.stamp.session_id)
+    rows: dict[str, set[str]] = {}
+    for word in sorted(content(query)):
+        found = await store.find_text(word, limit=FORGET_CHOSEN_LIMIT + 1, scopes=scopes)
+        rows[word] = {row.id for row in (*seen, *found) if names({word}, request(row))}
+    codes = {word for clause in clauses(query) for word in clause if code_word(word)}
+    return rows, frozenset({word for word, ids in rows.items() if ids} | codes)
+
+
 async def _beyond_every(
     store: MemoryStore, scope: MemoryScope, call: ToolCall, seen: Sequence[MemoryRecord]
 ) -> frozenset[str] | None:
@@ -180,13 +197,7 @@ async def _beyond_every(
     query, place = call.stamp.query, everything(call.stamp.query)
     if place is None:
         return None
-    scopes = scope.read_scopes(call.stamp.session_id)
-    rows: dict[str, set[str]] = {}
-    for word in sorted(content(query)):
-        found = await store.find_text(word, limit=FORGET_CHOSEN_LIMIT + 1, scopes=scopes)
-        rows[word] = {row.id for row in (*seen, *found) if names({word}, request(row))}
-    codes = {word for clause in clauses(query) for word in clause if code_word(word)}
-    named = frozenset({word for word, ids in rows.items() if ids} | codes)
+    rows, named = await _store_named(store, scope, call, seen)
     split, (index, at) = clauses(query), place
     every = split[index][at]
     # Words opening as a limit does, as in "all my card numbers", are left to the limit readers.
@@ -200,6 +211,20 @@ async def _beyond_every(
     return frozenset({row for word in limit for row in rows.get(word, ())} - kept)
 
 
+async def _kept_later(
+    store: MemoryStore, scope: MemoryScope, call: ToolCall, seen: Sequence[MemoryRecord]
+) -> frozenset[str]:
+    """The ids of the stored rows a clause after the first holding a forget verb, or after the
+    first clause of a message with none, names in a run whose role no reader reads."""
+    split = clauses(call.stamp.query)
+    first = next((at for at, clause in enumerate(split) if forget_end(clause)), 0)
+    if first + 1 >= len(split):
+        return frozenset()
+    rows, named = await _store_named(store, scope, call, seen)
+    later = ", ".join([_VERB, *(" ".join(clause) for clause in split[first + 1 :])])
+    return frozenset(row for word in kept_again(later, _VERB, named) for row in rows.get(word, ()))
+
+
 async def message_rows(
     store: MemoryStore,
     scope: MemoryScope,
@@ -207,9 +232,9 @@ async def message_rows(
     seen: Sequence[MemoryRecord],
     listing: Listing,
 ) -> tuple[list[MemoryRecord], frozenset[str] | None]:
-    """The rows ``forget_named`` reads from the call's message, and the ids it permits a call to
-    list: those of ``permitted``, ``_same_fact`` or ``_coded``, the first that reads it, none for
-    a call ``_apart`` from it that no reader reads, less each row a forget of everything keeps."""
+    """The rows ``forget_named`` reads from the call's message, and the ids the first of
+    ``permitted``, ``_same_fact`` and ``_coded`` that reads it permits, none for a call ``_apart``
+    from it no reader reads, less each row ``_beyond_every`` or ``_kept_later`` keeps."""
     told = await forget_named(store, scope, call, FORGET_CHOSEN_LIMIT + 1, seen)
     apart = _apart(call)
     allowed = await permitted(call, told, listing, apart=apart)
@@ -220,6 +245,9 @@ async def message_rows(
     if allowed is None and apart:
         allowed = frozenset[str]()
     beyond = await _beyond_every(store, scope, call, seen)
-    if beyond is None or allowed is None:
-        return told, allowed if beyond is None else beyond
-    return told, allowed & beyond
+    if beyond is None:
+        kept = await _kept_later(store, scope, call, seen)
+        if kept and allowed is None:
+            allowed = frozenset(row.id for row in seen)
+        return told, allowed if allowed is None else allowed - kept
+    return told, beyond if allowed is None else allowed & beyond
