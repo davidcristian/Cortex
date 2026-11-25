@@ -218,4 +218,5 @@ ended up with neither value. Every other call named the new fact and matched not
 refused, and no draw showed the old value note.
 
 Two shapes that would refuse the tool on the Bello and sora forms were counted and not built
-([forget-refusal-possessive-subject.md](forget-refusal-possessive-subject.md)).
+([forget-refusal-possessive-subject.md](forget-refusal-possessive-subject.md)). A check on the forget call's
+words was built instead ([forget-refusal-call-words.md](forget-refusal-call-words.md)).

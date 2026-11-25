@@ -1,9 +1,8 @@
 # A request to remember a fact with no copula keeps the forget tool beside an older row
 
-**Status:** open, actionable
+**Status:** done 2026-11-25
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-25
 
 `forget_unrequested` (`forget_unrequested.py`) keeps the forget tool on a request to remember in
 French, German, Spanish or Romanian whose fact holds no copula, such as `Merk dir, dass mein Hund
@@ -54,3 +53,12 @@ forget call, not the message's form.
   built. A possessive subject and two to five words newly refuses 147 of 239 and 150 of 238
   requests to forget in two families; the same shape with a name or a number, 10 of 239 and 150
   of 238. The rule allowed at most half of each. Steps now name a check on the call text. Left open.
+- 2026-11-25: built `forget_unsaid` (`forget_unsaid.py`): on a request to remember that
+  `asks_kept_other` reads, with no forget opened in the last two exchanges, every forget call whose
+  text holds a word the message lacks is refused and does not keep the turn out of memory. Counted
+  before the build, it refuses 0 calls over the generator and 198 of 587 and 194 of 776 deleting
+  calls of the two families, each a stored value call, under the bound of half. Drawn with the old
+  row seeded, 16 draws per form, every card approved: 0 of 32 old rows deleted, 32 of 32 new facts
+  stored ([readings](../../readings/forget-refusal-call-words.md)). The sora form drew no forget
+  call, so its draw is filed as
+  [task 1340](1340-a-romanian-request-to-remember-drew-no-forget-call-on-the-call-word-check.md).

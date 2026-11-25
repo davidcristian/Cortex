@@ -106,7 +106,7 @@ pool down to the hits one turn sees. The turn that calls it is in
   called `forget_memories`, whatever its result, since the query or reply may name the text; a deep
   phase passes the cortex's runs of the turn as `earlier`, so a forget before a handoff counts. A
   call that never ran counts too: the tool loop sets `TaintLedger.forget_asked` for every call the
-  model names before any refusal or cut, except on a message `unasked_forget` or `forget_unrequested` reads, the engine and the deep phase set it for an unreadable call
+  model names before any refusal or cut, except on a message `unasked_forget` or `forget_unrequested` reads and for a call `forget_unsaid` refuses, the engine and the deep phase set it for an unreadable call
   whose `MalformedToolCallError.tool_name` is the forget, and the handoff record keeps it for the
   deep phase. Each of those also counts in `TaintLedger.forget_calls` (`name_forget`), and the
   round counts a run whose result has `matched_nothing` set, which only the no-match run of

@@ -97,7 +97,11 @@ async def test_a_card_nobody_can_answer_ends_with_the_note() -> None:
     assert result.content == f"{UNANSWERED_MSG} {_NOTE}"
 
 
-_KEPT = (DispatchRefusal.UNASKED, DispatchRefusal.FORGET_UNREQUESTED)
+_KEPT = (
+    DispatchRefusal.UNASKED,
+    DispatchRefusal.FORGET_UNREQUESTED,
+    DispatchRefusal.FORGET_UNSAID,
+)
 
 
 @pytest.mark.parametrize(

@@ -6,6 +6,7 @@ from dataclasses import dataclass, field, replace
 from cortex_core.cadence import CadenceWatch
 from cortex_core.conversation import Message
 from cortex_core.dispatch import DispatchRefusal, ToolDispatcher
+from cortex_core.forget_unsaid import forget_unsaid
 from cortex_core.forget_value_unasked import value_unasked
 from cortex_core.handoff import EscalationSlot
 from cortex_core.inference import GenerationBounds, JsonSchema
@@ -93,6 +94,8 @@ class LoopRecord:
     unasked: frozenset[str] = frozenset()
     # Those of them refused because the message holds no word that can retract something.
     unrequested: frozenset[str] = frozenset()
+    # Whether a forget call naming a word the message lacks is refused (``forget_unsaid.py``).
+    reads_words: bool = False
     # The monthly schedule calls refused for a yearly date; a retry on the same days runs.
     yearly_refused: list[ToolCall] = field(default_factory=list[ToolCall])
     # The 00:00 schedule calls refused once in this turn; a second one runs.
@@ -113,6 +116,8 @@ def _unasked_refusal(
         return DispatchRefusal.FORGET_UNREQUESTED
     if call.name in record.unasked:
         return DispatchRefusal.UNASKED
+    if record.reads_words and forget_unsaid(call, context.query):
+        return DispatchRefusal.FORGET_UNSAID
     retried = any(same_month_days(call, refused) for refused in record.yearly_refused)
     if not retried and monthly_for_yearly(call, context.query):
         record.yearly_refused.append(call)

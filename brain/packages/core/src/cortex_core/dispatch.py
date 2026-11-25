@@ -9,6 +9,7 @@ from types import MappingProxyType
 from cortex_core.composite import RecordCard, ResultNote, ToolOffer
 from cortex_core.errors import ToolError
 from cortex_core.forget_unrequested import FORGET_UNREQUESTED_MSG
+from cortex_core.forget_unsaid import FORGET_UNSAID_MSG
 from cortex_core.forget_value_unasked import FORGET_VALUE_MSG
 from cortex_core.log_secrets import REDACTED
 from cortex_core.ports import Clock, Confirmer, ToolAuditSink, ToolRegistry
@@ -88,6 +89,7 @@ class DispatchRefusal(Enum):
     BUDGET = BUDGET_EXHAUSTED_MSG
     DECLINED = ALREADY_DECLINED_MSG
     FORGET_UNREQUESTED = FORGET_UNREQUESTED_MSG
+    FORGET_UNSAID = FORGET_UNSAID_MSG
     FORGET_VALUE = FORGET_VALUE_MSG
     MIDNIGHT_TIME = MIDNIGHT_TIME_MSG
     OFFSET_DATE = OFFSET_DATE_MSG
@@ -126,7 +128,11 @@ class DispatchPolicy:
 
 
 DEFAULT_DISPATCH_POLICY = DispatchPolicy()
-_KEPT_TURN = (DispatchRefusal.UNASKED, DispatchRefusal.FORGET_UNREQUESTED)
+_KEPT_TURN = (
+    DispatchRefusal.UNASKED,
+    DispatchRefusal.FORGET_UNREQUESTED,
+    DispatchRefusal.FORGET_UNSAID,
+)
 
 
 def _blocked_text(stamp: TurnStamp) -> str:

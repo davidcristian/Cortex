@@ -42,6 +42,7 @@ from cortex_core import (
 from cortex_core.brain_phase import BrainPhase
 from cortex_core.dispatch import UNASKED_MSG, DispatchRefusal
 from cortex_core.forget_count_note import forgot_count_note
+from cortex_core.forget_unsaid import FORGET_UNSAID_MSG
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 
 _AT = datetime(2026, 10, 30, 3, 0, 0, tzinfo=UTC)
@@ -302,6 +303,15 @@ async def test_a_forget_call_on_a_request_to_remember_a_stored_fact_keeps_old_an
     assert len(await rig.held()) == 2
 
 
+async def test_an_unsaid_forget_on_a_request_to_remember_keeps_old_and_new() -> None:
+    rig = _Rig()
+    await rig.seed()
+    reply = await rig.turn("Merk dir, dass mein Hund Fiat heißt.", _ReplyBackend([_forget("Rex")]))
+    assert reply == "Noted."
+    assert [record.detail for record in rig.audit.records] == [FORGET_UNSAID_MSG]
+    assert len(await rig.held()) == 2
+
+
 @pytest.mark.parametrize(
     ("query", "says_not_kept"),
     [(_REMEMBER_FIAT, False), (_REMEMBER_AND_FORGET, True), ("Forget the Fiat.", True)],
@@ -322,7 +332,11 @@ async def test_a_refused_forget_ends_with_the_note_unless_it_was_refused_as_unas
     refusal: DispatchRefusal,
 ) -> None:
     result = await _Rig().dispatcher.dispatch(_forget("Fiat"), refusal=refusal)
-    kept = (DispatchRefusal.UNASKED, DispatchRefusal.FORGET_UNREQUESTED)
+    kept = (
+        DispatchRefusal.UNASKED,
+        DispatchRefusal.FORGET_UNREQUESTED,
+        DispatchRefusal.FORGET_UNSAID,
+    )
     assert (FORGET_NOT_KEPT_NOTE in result.content) is (refusal not in kept)
 
 

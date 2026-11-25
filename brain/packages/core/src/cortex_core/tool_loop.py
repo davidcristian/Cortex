@@ -7,6 +7,7 @@ from cortex_core.dispatch_round import LoopRecord, ToolLoopContext, run_round
 from cortex_core.errors import InferenceError
 from cortex_core.forget_open import Exchange
 from cortex_core.forget_unrequested import forget_unrequested
+from cortex_core.forget_unsaid import forget_unsaid, reads_call_words
 from cortex_core.inference import (
     DecodeCadence,
     DecodeStop,
@@ -116,10 +117,10 @@ def _earlier_exchanges(working: Sequence[Message], turn_id: str) -> tuple[Exchan
 
 async def _turn_tools(
     context: ToolLoopContext, working: Sequence[Message]
-) -> tuple[Sequence[ToolSpec], Mapping[str, ToolSpec], frozenset[str], frozenset[str]]:
-    """The tools offered, every listed spec by name, those refused by name, and the unrequested."""
+) -> tuple[Sequence[ToolSpec], Mapping[str, ToolSpec], frozenset[str], frozenset[str], bool]:
+    """The tools offered, every spec by name, those refused, the unrequested, and the words read."""
     if context.dispatcher is None:
-        return (), {}, frozenset(), frozenset()
+        return (), {}, frozenset(), frozenset(), False
     specs = await list_tools(context.dispatcher, context.progress)
     left_out = unasked_tools(context.query)
     withheld = await context.dispatcher.withheld(context.session_id) | left_out
@@ -132,7 +133,8 @@ async def _turn_tools(
     earlier = _earlier_exchanges(working, context.turn_id)
     unrequested = forget_unrequested(context.query, earlier) - forget
     refused = left_out | unasked_sidecar_tools(context.query, specs) | forget | unrequested
-    return offered, {s.name: s for s in specs}, refused, unrequested
+    reads_words = reads_call_words(context.query, earlier)
+    return offered, {s.name: s for s in specs}, refused, unrequested, reads_words
 
 
 async def stream_tool_loop(
@@ -143,13 +145,14 @@ async def stream_tool_loop(
 ) -> AsyncGenerator[str | ReasoningDelta | ToolStep | StepOutcome, None]:
     """Run the bounded infer↔tool loop over ``working``, yielding each delta, step and outcome."""
     dispatcher = context.dispatcher
-    specs, spec_by_name, unasked, unrequested = await _turn_tools(context, working)
+    specs, spec_by_name, unasked, unrequested, reads_words = await _turn_tools(context, working)
     # Per loop rather than per turn: a repeat is redundant only against the ``working`` messages
     # that already hold its answer, and the results share the room of that one request.
     record = LoopRecord(
         room=ResultRoom(context.room_chars, spent=context.results_spent),
         unasked=unasked,
         unrequested=unrequested,
+        reads_words=reads_words,
         yearly_refused=list(context.yearly_refused),
         midnight_refused=list(context.midnight_refused),
         weekly_refused=list(context.weekly_refused),
@@ -175,7 +178,8 @@ async def stream_tool_loop(
         # Before any refusal or the round's cut, so a call that never runs still marks the turn,
         # unless the person's message cannot have asked for it.
         if FORGET_CHOSEN_TOOL_NAME not in unasked:
-            context.taint.name_forget(sum(call.name == FORGET_CHOSEN_TOOL_NAME for call in calls))
+            named = (c for c in calls if not (reads_words and forget_unsaid(c, context.query)))
+            context.taint.name_forget(sum(c.name == FORGET_CHOSEN_TOOL_NAME for c in named))
         if not calls or dispatcher is None:
             break
         plan = plan_round(calls)
