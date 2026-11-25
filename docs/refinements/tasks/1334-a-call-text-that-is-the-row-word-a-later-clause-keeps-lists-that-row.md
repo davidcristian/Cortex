@@ -1,9 +1,8 @@
 # A call text that is the row word a later clause keeps lists that row
 
-**Status:** open, actionable
+**Status:** done 2026-11-25
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-24
 
 Over a locker code `4242` and a phone `0721 555 4242`, in unit calls through `ForgetChosenTool`,
 `Forget my phones 1234, the phone stays.` with the call text `phone` lists
@@ -30,3 +29,8 @@ still list.
 
 - 2026-11-24: filed from the close of the reading of a later clause in a message lacking the
   call's value, which keeps 911 of the 914 word pair rows asked to keep and leaves these 3.
+- 2026-11-25: done. A call text that is a word naming a row, held only after the first clause
+  holding a forget verb, is read as the row's name with the end of the forget clause as the
+  value's place (`_held` in `forget_clauses.py`). It keeps the 3 rows, lists no row newly over
+  the six case sets, and keeps 42 rows asked to delete in 21 literal calls
+  ([readings](../../readings/forget-longer-word-beside-a-value.md#a-call-text-only-in-a-later-clause-2026-11-25)).

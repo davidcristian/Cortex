@@ -10,7 +10,14 @@ from cortex_core import (
     MemoryRecord,
     ToolCall,
 )
-from cortex_core.forget_clauses import ADDITION, UNREAD, before_value, beside, forget_end
+from cortex_core.forget_clauses import (
+    ADDITION,
+    UNREAD,
+    before_value,
+    beside,
+    forget_end,
+    kept_again,
+)
 from cortex_core.tools import TurnStamp
 
 _AT = datetime(2026, 11, 24, 6, 0, 0, tzinfo=UTC)
@@ -62,6 +69,38 @@ async def test_a_row_a_later_clause_names_is_kept_with_or_without_the_value(
 
 
 @pytest.mark.parametrize(
+    ("query", "kept", "text"),
+    [
+        ("Forget my phones 1234, the phone stays.", "phone", "phone"),
+        ("Forget my phones 1234, the phone stays.", "phone", "4242"),
+        ("Forget my lockers 1234, the locker stays.", "locker", "locker"),
+        ("Forget my lockers 1234, the locker stays.", "locker", "4242"),
+        ("Forget my remembered 1234, the locker stays.", "locker", "locker"),
+        ("Forget my remembered 1234, the locker stays.", "locker", "4242"),
+    ],
+)
+async def test_a_call_text_naming_a_row_only_in_a_later_clause_keeps_that_row(
+    query: str, kept: str, text: str
+) -> None:
+    assert kept in await _left(query, kept, text)
+
+
+@pytest.mark.parametrize(
+    ("query", "text"),
+    [
+        ("Forget my phone, the locker stays.", "phone"),
+        ("Forget the locker. Forget the phone.", "phone"),
+        ("Forget the locker, the phone too.", "phone"),
+        ("Forget the locker, also the phone.", "phone"),
+    ],
+)
+async def test_a_call_text_naming_a_row_the_message_asks_to_delete_deletes_it(
+    query: str, text: str
+) -> None:
+    assert "phone" not in await _left(query, "locker", text)
+
+
+@pytest.mark.parametrize(
     ("query", "gone"),
     [
         ("Forget my car, the phone stays.", {"car"}),
@@ -86,3 +125,8 @@ def test_a_message_lacking_the_value_reads_the_end_of_a_forget_clause_as_its_pla
     assert beside("Forget my cart, the phone stays.", "4242", named, none)[UNREAD] == {"phone"}
     assert beside("Forget my cart, the phone too.", "4242", named, none)[ADDITION] == {"phone"}
     assert not any(beside("The phone stays.", "4242", named, none).values())
+
+
+def test_a_call_text_naming_a_row_in_a_message_with_no_forget_verb_is_read_where_it_is() -> None:
+    named = frozenset({"card", "phone", "locker"})
+    assert kept_again("The card, the phone, the locker stays.", "phone", named) == {"locker"}

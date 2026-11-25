@@ -77,3 +77,31 @@ messages it lists none of the 4,116 rows asked to keep, where the tree before it
 newly lists no row, and keeps 632 more rows asked to delete, as the phone and the locker of
 `Forget all 42 42, the card stays.`. The cases are written by `mkforms.py` and counted by
 `bform.py` in `~/.cache/cortex-run/2026-11-24/a3/`.
+
+## A call text only in a later clause, 2026-11-25
+
+The 3 rows left above have a call text that is a word naming a row, which the message holds only
+after its first clause holding a forget verb. The readers of the words after the value now read
+such a text as `kept_again` reads a later place of it: as the row's name, with the end of the
+forget clause as the value's place (`_held` in `forget_clauses.py`). The words before the value
+(`before_value`) are still read up to the text's place.
+
+| cases | rows asked to keep that the card lists, before | after | rows asked to delete newly kept | rows newly listed |
+| --- | --- | --- | --- | --- |
+| 4,104 longer word cases | 3 | 0 | 0 | 0 |
+| 12,768 word pair cases | 0 | 0 | 0 | 0 |
+| 71,332 generated and literal cases | 0 | 0 | 42 | 0 |
+| 3,864 forget of everything cases | 340 | 312 | 0 | 0 |
+| 6,156 mixed messages | 0 | 0 | 0 | 0 |
+| 8,376 negation cases | 0 | 0 | 0 | 0 |
+
+The cost is the 42 rows, in 21 literal calls over the strings of the brain's forget tests, two in
+each: the row the call text names and the row holding it inside a longer word (`téléphone` of
+`phone`, `cardul` of `card`). An example is the phone of `Forget the card 4242, the phone and the
+locker too.` with the text `phone`: the call matches no locker row, so `locker` is a word no
+reader reads and the later clause names the phone under a role no reader reads. 20 of the 21
+messages ask to delete that row, and the last is a result text. No generated message asks to
+delete a row the reading now keeps. It also keeps 12 rows the generator marks as either outcome,
+in the mixed messages, and 28 rows asked to keep in Spanish and Romanian forgets of everything,
+as `Olvida todo, la tarjeta se queda.`. The listings are taken by `replay.sh base` and `replay.sh
+a1334` and compared by `cmp.py` in `~/.cache/cortex-run/2026-11-25/f1/`.

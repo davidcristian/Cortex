@@ -157,13 +157,21 @@ _WHICH = frozenset({"it", "that", "which", "this", "is", "was", "i", "mean"}) | 
 )
 
 
-def _runs(query: str, value: str) -> Iterator[tuple[list[str], bool | None]]:
+def _held(split: list[list[str]], wanted: list[str], named: frozenset[str]) -> bool:
+    """Whether ``split`` holds ``wanted``: a ``wanted`` of words of ``named`` only up to the first
+    clause holding a forget verb, since in a later clause such a word is the name of a row."""
+    first = next((at for at, clause in enumerate(split) if forget_end(clause)), len(split))
+    upto = split[: first + 1] if named.issuperset(wanted) else split
+    return any(value_end(clause, wanted) is not None for clause in upto)
+
+
+def _runs(query: str, value: str, named: frozenset[str]) -> Iterator[tuple[list[str], bool | None]]:
     """Each run of ``query`` after ``value``, to a clause mark or forget verb, and whether its
     clause holds a keep clause from where the run starts: ``None`` for the words before a keep
     clause that opens inside a run, less the words leading into it, which are a run of their own."""
     wanted = [token for token in _TOKEN.findall(value.lower()) if token not in _MARKS]
     split = clauses(query)
-    held = any(value_end(clause, wanted) is not None for clause in split)
+    held = _held(split, wanted, named)
     seen = False
     for clause in split:
         start = 0 if seen else value_end(clause, wanted) if held else forget_end(clause)
@@ -185,7 +193,7 @@ def after_value(query: str, value: str, named: frozenset[str]) -> list[str]:
     ``named``, or all before a negation; none of a run adding a row or holding a keep clause."""
     read = named | _PLACE | WHOSE | _WHICH | AND
     found: list[str] = []
-    for run, keeps in _runs(query, value):
+    for run, keeps in _runs(query, value, named):
         last = max((at for at, word in enumerate(run) if word in named), default=0)
         told = keeps or run[-2:] == ["as", "well"] or not _ADD.isdisjoint(run)
         unread = (at for at in range(last) if run[at] not in read and not run[at].isdigit())
@@ -223,7 +231,7 @@ def beside(
     with a keep clause, a negation or a word of ``minus``, no limit or addition before a clause."""
     found: dict[str, set[str]] = {LIMIT: set(), ADDITION: set(), EXCEPTION: set(), UNREAD: set()}
     read = _PLACE | WHOSE | _WHICH | AND | _ADD
-    for run, keeps in _runs(query, value):
+    for run, keeps in _runs(query, value, named):
         words = named.intersection(run)
         if words and not keeps and (NOT | minus).isdisjoint(run):
             role = _role(run, named)
@@ -242,7 +250,7 @@ def kept_again(query: str, value: str, named: frozenset[str]) -> set[str]:
     wanted = [token for token in _TOKEN.findall(value.lower()) if token not in _MARKS]
     size, naming = len(wanted), named.issuperset(wanted)
     found: set[str] = set()
-    for later, (run, keeps) in enumerate(_runs(query, value)):
+    for later, (run, keeps) in enumerate(_runs(query, value, named)):
         ends = (
             at + size
             for at in range(len(run) - size + 1)
