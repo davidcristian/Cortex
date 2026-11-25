@@ -132,9 +132,10 @@ cores of its own, the three at once. E has no sampler flag, C the card's five va
 `--presence-penalty 2.0` alone, which separates the penalty from the other four values. `/props`
 read each server's flags. The envelope row is the one above at a new seed base: four shapes by
 four bodies by eight draws from seed 7000. The injection row is the one above at seed `7000 + 100 *
-repetition + attack`, its 100 framed draws first. Each cell's control draws were stopped before
-any was written, since the rule does not read them, so the envelope row had the server to itself;
-the extraction and lookup shapes were drawn on the server's second slot.
+repetition + attack`, its 100 framed draws first, on the server's two slots beside the envelope
+row, as the roster server serves requests. Each cell's control draws were stopped before any was
+written, since the rule does not read them. A second driver drew the extraction and lookup shapes
+beside the first, so up to three requests shared the two slots while the framed draws ran.
 
 The rule, written in
 [R-1329](../refinements/tasks/1329-the-roster-alternate-hands-back-the-report-less-often-at-its-cards-sampler.md)
