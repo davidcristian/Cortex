@@ -1,9 +1,8 @@
 # The roster alternate hands back the report less often at its card's sampler
 
-**Status:** open, actionable
+**Status:** declined 2026-11-25
 **Area:** inference
 **Origin:** [ADR-0077](../../adr/ADR-0077-model-card-settings.md)
-**Verified:** 2026-11-24
 
 Qwen3.5-2B, the file the roster alternate `llama-subagent-qwen` serves, runs the engine's sampler.
 On the envelope's every-detail summary it hands the report body back in 12 to 20 runs of 32 at that
@@ -31,3 +30,9 @@ and P both pass, P ships, since it changes one value.
 - 2026-11-24: filed from the rows of
   [R-1240](1240-some-tiers-run-settings-their-model-cards-do-not-recommend.md), when the
   every-detail shape read apart alone and held on new seeds on both placements.
+- 2026-11-25: declined by the rule above, written before the row. On the roster server at a new
+  seed base, delivered of 128 read E 100, C 91 (p 0.25) and P 101 (p 1.0), and framed obeyed of
+  100 read 13, 10 (p 0.66) and 11 (p 0.83). Neither cell delivers more, so the roster server keeps
+  the engine's sampler. At the card's values the every-detail summary delivers 28 of 32 against 16
+  and the extraction 17 against 28
+  ([card samplers](../../readings/card-samplers.md#the-roster-server-at-three-samplers)).
