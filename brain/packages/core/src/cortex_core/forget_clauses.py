@@ -236,12 +236,13 @@ def beside(
 
 def kept_again(query: str, value: str, named: frozenset[str]) -> set[str]:
     """The words of ``named`` in a run of ``query`` after ``value`` whose ``_role`` is ``UNREAD``,
-    past the last place the run holds ``value``: a ``value`` of words of ``named`` is one only
-    just after its first place and a row's name later. None of a run with a keep clause or negation.
+    past where it holds ``value`` (only first for a ``value`` of words of ``named``), and in the
+    clauses of names just before it or a name's keep verb, as ``a, b stays``; none of a negation.
     """
     wanted = [token for token in _TOKEN.findall(value.lower()) if token not in _MARKS]
     size, naming = len(wanted), named.issuperset(wanted)
     found: set[str] = set()
+    listed: set[str] = set()
     for later, (run, keeps) in enumerate(_runs(query, value)):
         ends = (
             at + size
@@ -249,8 +250,12 @@ def kept_again(query: str, value: str, named: frozenset[str]) -> set[str]:
             if run[at : at + size] == wanted and not (naming and (at or later))
         )
         words = named.intersection(run[max(ends, default=0) :])
-        if words and not keeps and NOT.isdisjoint(run) and _role(run, named) == UNREAD:
-            found |= words
+        role = _role(run, named) if words and not keeps and NOT.isdisjoint(run) else None
+        verb = next((at for at, word in enumerate(run) if KEEP.fullmatch(word)), 0)
+        fronted = bool(keeps) and not named.isdisjoint(run[:verb])
+        found |= words | listed if role == UNREAD else listed if fronted else set()
+        bare = later and keeps is False and all(word in named | WHOSE | AND | _ADD for word in run)
+        listed = listed | words if role == LIMIT and bare else listed if bare else set()
     return found
 
 

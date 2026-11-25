@@ -65,14 +65,17 @@ base draw of these forms stands beside them.
 
 | Message | Asked to delete | Draws with a call | Calls | Refused | Cards | Asked rows deleted | Draws listing or deleting another row |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `Forget 4242, the card, the phone stays.` | card, locker | 8 of 8 | 19 | 0 | 8 | 8 of 16 | 0 of 8 |
+| `Forget 4242, the card, the phone stays.` | locker | 8 of 8 | 19 | 0 | 8 | 1 of 8 | 7 of 8 |
 | `Forget it 4242, the card 4242, the locker stays.` | card, phone | 8 of 8 | 28 | 1 | 3 | 3 of 16 | 0 of 8 |
 | `Forget all lockers 4242.` | locker | 8 of 8 | 12 | 0 | 5 | 5 of 8 | 0 of 8 |
 
-**Result: the rule passes on the candidate.** Over the 24 draws no card listed the row a stays
-clause keeps or a row `Forget all lockers 4242.` does not name. The calls `4242` listed the card
-alone on the first form and the locker alone on the third. Rows in `logs/rows-c6.jsonl` to
-`rows-c8.jsonl`.
+**Result: the rule fails on the first form.** Read as a list, `the card, the phone stays` keeps
+the card, and a row is kept when any reading keeps it, so the card is asked to keep. The calls
+`4242`, `card` and `4111 1111 1111 4242` listed the card alone in 7 of 8 draws, and every one was
+deleted; the tree now keeps it ([below](#a-list-of-names-before-a-stays-clause-2026-11-25)). The
+other two forms pass: no card listed the row a stays clause keeps or a row `Forget all lockers
+4242.` does not name, and the calls `4242` listed the locker alone on the third. Rows in
+`logs/rows-c6.jsonl` to `rows-c8.jsonl`.
 
 ## The removals in the tree, 2026-11-25
 
@@ -90,13 +93,34 @@ card's listings over the replay sets, at the tree before the removal and after i
 | 8,376 negation cases | 0 | 0 | 5,760 | 5,760 | 0 |
 | 21,996 later clause search cases | 0 | 0 | 21,116 | 19,886 | 1,230 |
 
-The 1,230 rows are asked to delete, as the card of `Forget 4242, the card, the phone stays.` with
-the text `card`. The 64 in the generated cases and mixed messages are rows the generator marks as
-either outcome or leaves unmarked, as the phone of `Forget the card 4242, the phone and the locker
-too.` with the text `phone`. The listings are taken by `replay.sh` and compared by `cmp.py` in
-`~/.cache/cortex-run/2026-11-25/x2/`.
+The search set marks the 1,230 rows as asked to delete, as the card of `Forget 4242, the card. The
+phone stays.` with the text `card`. Of the 64 in the generated cases and mixed messages, 40 are rows
+literal forms ask to delete, as the phone of `Forget the card 4242, the phone and the locker too.`
+with the text `phone`, 12 the card of the same forms closed by a period, and 12 the card of
+`Forget 4242, the card, the phone stays.` and its variants, which a reading as a list keeps. The
+listings are taken by `replay.sh` and compared by `cmp.py` in `~/.cache/cortex-run/2026-11-25/x2/`.
 
 The tree also reads a word for all against the message's words only, as the candidate core does
 (`quantifies(query, limit=True)` at the three call sites that passed the rows). Over the same eight
 sets, at the tree before and after that removal, no listing changed: the counts are those of the
 after columns above, and no row is newly listed or newly kept.
+
+## A list of names before a stays clause, 2026-11-25
+
+A clause holding only names of rows, joined by a clause mark to a later run that no reader reads
+or to a keep clause naming its row before the keep verb, is read as a list that run or clause
+ends, so `Forget 4242, the card, the phone stays.` keeps both rows (`kept_again`). A clause with a
+word for also passes the list on and keeps its own row only when another reader does. A run in the
+clause of the value, as `Forget 4242 on the card, the phone stays.`, or holding a placing,
+identifying or value word, is no list item, and the card is deleted.
+
+Over 672 messages in five languages listing two or three rows before a stays clause, with and
+without a word for too or also on the keep clause or a list item, and 2,688 calls (the value and
+each row's noun), the tree before the change listed 1,308 of 6,384 rows asked to keep, and the
+tree lists 0. Over the eight replay sets of the section above (142,423 cases), no row is newly
+listed, and 238 rows the generators mark as asked to delete are newly kept: 232 of the search set,
+the first row of `Forget 4242, the card, the phone stays.` with the text of its noun and the same
+forms closed by a period, 216 of them among the 1,230 above, and 6 Spanish and Romanian rows
+before an addition no reader reads, as `Olvida la tarjeta 4242, el gimnasio, el teléfono
+también.`. No live draw of the change is taken yet. Scripts `listgen.py`, `listcount.py`,
+`replay.sh`, `cmp.py` and `costform.py`, outputs in `out/` of `~/.cache/cortex-run/2026-11-25/a2/`.

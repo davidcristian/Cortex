@@ -108,4 +108,5 @@ a1334` and compared by `cmp.py` in `~/.cache/cortex-run/2026-11-25/f1/`.
 
 The reading was removed the same day, once the clauses after the first forget clause were read for
 the rows they keep; [the replay of that removal](forget-readers-seeded-draw.md#the-removals-in-the-tree-2026-11-25)
-lists no row asked to keep.
+lists no row the generators mark as asked to keep, and 12 a reading as a list keeps, which [a later
+reader](forget-readers-seeded-draw.md#a-list-of-names-before-a-stays-clause-2026-11-25) keeps.

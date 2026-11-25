@@ -103,9 +103,9 @@ async def test_a_call_text_naming_a_row_the_message_asks_to_delete_deletes_it(
 @pytest.mark.parametrize(
     ("query", "text", "left"),
     [
-        ("Forget 4242, the phone, the locker stays.", "phone", ["car", "locker", "locker"]),
+        ("Forget 4242, the car, but not the locker.", "car", ["locker", "locker", "phone"]),
         ("Forget it 4242, the phone 4242, the locker stays.", "phone", ["car", "locker", "locker"]),
-        ("Forget 4242, the car, the locker stays.", "car", ["locker", "locker", "phone"]),
+        ("Forget 4242, the car, except the locker.", "car", ["locker", "locker", "phone"]),
         (
             "Forget the car 4242, the phone and the locker too.",
             "phone",
@@ -117,6 +117,35 @@ async def test_a_call_text_naming_a_row_after_the_first_forget_clause_deletes_th
     query: str, text: str, left: list[str]
 ) -> None:
     assert await _left(query, "locker", text) == left
+
+
+@pytest.mark.parametrize(
+    ("query", "text"),
+    [
+        ("Forget 4242, the phone, the locker stays.", "phone"),
+        ("Forget 4242, the car, the locker stays.", "car"),
+        ("Forget 4242, the car, the phone, the locker stays.", "4242"),
+        ("Forget all 4242, the car, the phone, the locker stays too.", "car"),
+        ("Forget 4242, the car, also the phone, the locker stays.", "4242"),
+        ("Forget 4242, the car, the phone, the locker I keep.", "4242"),
+    ],
+)
+async def test_a_row_named_in_a_list_before_a_stays_clause_is_kept(query: str, text: str) -> None:
+    assert await _left(query, "locker", text) == ["car", "locker", "locker", "phone"]
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Forget 4242 on the car, the locker stays.",
+        "Forget 4242, only the car, the locker stays.",
+        "Forget 4242 the car, the locker stays.",
+        "Forget 4242, the car 4242, the locker stays.",
+        "Forget 4242, the car, keep the locker.",
+    ],
+)
+async def test_a_row_named_beside_the_value_before_a_stays_clause_is_deleted(query: str) -> None:
+    assert await _left(query, "locker") == ["locker", "locker", "phone"]
 
 
 @pytest.mark.parametrize(
