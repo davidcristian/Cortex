@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-11-23
+**Verified:** 2026-11-25
 
 One live turn of `Amintește-mi la ora 18 să scot gunoiul pentru colectarea de luni.` on the stack
 cortex (gemma-4-12B, text only) replied `Am programat unKy memore pentru astăzi, la ora 18:00`,
@@ -19,12 +19,22 @@ person reads when the reminder fires. Every draw called the schedule tool once a
 The brain sends no sampling field, so the cortex samples at the settings its server reports in
 `/props`: temperature 1.0, `top_k` 64, `top_p` 0.95, `min_p` 0.05.
 
+On 2026-11-25 the same 24 messages were drawn twice in each of three cells, the server's settings,
+temperature 0.5 and `min_p` 0.2, each sent in every cortex request. Replies with a word that is
+not Romanian read 6, 3 and 3 of 48, and items with one 4, 4 and 6 of 48, so no setting passed the
+rule written first ([readings](../../readings/cortex-sampling-broken-words.md)). Every broken item
+is M1's `Scote` or `Scoat` for `Scoate` (take out), written by the cortex in the call's `text`
+argument, and neither setting removed it. A sent sampler would also move every cortex row that
+readings record lists, and [ADR-0077](../../adr/ADR-0077-model-card-settings.md) decision 3 needs
+those rows drawn before a tier's sampler moves.
+
 ## What to do
 
-1. Write a rule, then draw the same 24 messages with a lower temperature and, separately, a higher
-   `min_p`, each sent in the request, and count the replies and items holding a broken word. The
-   rule also counts the forms of the repo's other cortex rows that the same setting can move.
-2. Record which setting the rows support before any change to a default or a prompt.
+1. Write a rule for a typed check of a reminder's `text` against the words of the person's
+   message, with near-miss rows first: `Scot`, `Scoate`, `Să scot`, `Sună`, `Suna` and
+   `Plătește` are right, `Scote` and `Scoat` are not. Replay every item recorded on 2026-11-23 and
+   2026-11-25 through it before any draw, counting items flagged that are right.
+2. Leave the sampler as the file sets it unless a later row on another form calls for one.
 
 ## History
 
@@ -32,3 +42,6 @@ The brain sends no sampling field, so the cortex samples at the settings its ser
   [the readings](../../readings/schedule-weekday-day-after.md#the-refusal-or-a-note-2026-11-08).
 - 2026-11-23: counted. The form recurs in 8 of 24 replies over three messages and in 4 of 24 stored
   items, and the sampling settings are read; a comparison of two settings is the next step.
+- 2026-11-25: drew the 24 messages twice at the server's settings, at temperature 0.5 and at
+  `min_p` 0.2. No setting passed the rule; the broken items are one M1 form that no setting
+  removed, so the next step is a typed check of the item text.
