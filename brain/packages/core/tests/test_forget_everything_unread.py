@@ -154,6 +154,11 @@ async def test_a_forget_of_everything_naming_a_row_in_a_form_no_reader_reads_kee
         ("Olvida todo, la tarjeta se queda.", ("gimnasio", "tarjeta"), set[str]()),
         ("Uită tot, cardul rămâne.", ("dulap", "cardul"), set[str]()),
         ("Forget my locker code, my card stays.", _THREE, {"locker"}),
+        ("Wipe everything, the card stays, don't delete the phone.", _THREE, set[str]()),
+        ("Wipe everything, the card stays. Do not forget the phone.", _THREE, set[str]()),
+        ("Wipe everything but don't erase the phone, the card stays.", _THREE, set[str]()),
+        ("Vide tout, la carte reste, n'efface pas le casier.", ("casier", "carte"), set[str]()),
+        ("Uită tot, cardul rămâne, nu șterge dulapul.", ("dulap", "cardul"), set[str]()),
     ],
 )
 async def test_a_row_a_later_clause_names_in_a_role_no_reader_reads_is_kept(

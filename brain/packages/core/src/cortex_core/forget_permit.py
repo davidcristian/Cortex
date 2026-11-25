@@ -14,7 +14,7 @@ from cortex_core.forget_clauses import (
     WHOSE,
     beside,
     clauses,
-    forget_end,
+    keeping,
     kept_again,
     parts,
 )
@@ -211,13 +211,21 @@ async def _beyond_every(
     return frozenset({row for word in limit for row in rows.get(word, ())} - kept)
 
 
+def _forgets(clause: list[str]) -> bool:
+    """Whether ``clause`` holds a forget verb outside a keep clause, as ``don't delete`` is not."""
+    return any(
+        FORGET.fullmatch(word) and not kept
+        for word, kept in zip(clause, keeping(clause), strict=True)
+    )
+
+
 async def _kept_later(
     store: MemoryStore, scope: MemoryScope, call: ToolCall, seen: Sequence[MemoryRecord]
 ) -> frozenset[str]:
-    """The ids of the stored rows a clause after the first holding a forget verb, or after the
-    first clause of a message with none, names in a run whose role no reader reads."""
+    """The ids of the stored rows a clause after the first holding a forget verb outside a keep
+    clause, or after the first clause of a message with none, names in a run no reader reads."""
     split = clauses(call.stamp.query)
-    first = next((at for at, clause in enumerate(split) if forget_end(clause)), 0)
+    first = next((at for at, clause in enumerate(split) if _forgets(clause)), 0)
     if first + 1 >= len(split):
         return frozenset()
     rows, named = await _store_named(store, scope, call, seen)

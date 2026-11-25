@@ -75,9 +75,9 @@ or `4242` ([readings](../../readings/forget-everything-unread-role.md)):
   on this tree and delete the card for its own word; the other five delete it for both. No rule
   was built. Left open.
 - 2026-11-25: done for the forms with a clause mark before the kept row. The clauses after the
-  first one holding a forget verb, or after the first clause of a message with none, are read as
-  the runs after a value are, with rows named over the store, and a row a run names in a role no
-  reader reads is kept (`_kept_later` in `forget_permit.py`). Over the family those forms list no
+  first one holding a forget verb outside a keep clause, or after the first clause of a message
+  with none, are read as the runs after a value are, with rows named over the store, and a row a
+  run names in a role no reader reads is kept (`_kept_later` in `forget_permit.py`). Over the family those forms list no
   row asked to keep, from 90; no case set lists a row it did not list before, and no row asked to
   delete is newly kept over the generator. One test message, `Merk dir, dass Rex weg muss.`, now
   keeps the row its forget call names

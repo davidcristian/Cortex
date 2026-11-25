@@ -94,8 +94,8 @@ reținut.`. Logs `a.jsonl`, `b.jsonl` and `up.txt` and the scripts in
 ## The later clauses read, 2026-11-25
 
 The rule built (`_kept_later` in `forget_permit.py`): for a message that is no forget of
-everything the card reads, the clauses after the first one holding a forget verb, or after the
-first clause of a message with none, are read as the runs after a value are, and a stored row a
+everything the card reads, the clauses after the first one holding a forget verb outside a keep
+clause (`don't delete the phone` holds none), or after the first clause of a message with none, are read as the runs after a value are, and a stored row a
 run names in a role no reader reads is kept. Rows are named over the store, as for a forget of
 everything, not only from the rows the call matches. Replayed over the family (3,864 cases over
 925 messages), the generator of the forget slots (71,332 cases, with the test literals), the
@@ -120,3 +120,11 @@ the rule is that row, against the 24 rows asked to delete in 7 test literals of 
 from the rows the call lists alone.
 
 Scripts: `replay.sh`, `cmp.py` and `ecount2.py` in `~/.cache/cortex-run/2026-11-25/f2/`.
+
+A forget verb inside a keep clause opens no forget clause: over 13,827 mixed messages from the
+rows' own words in five languages (a forget of everything with no forget verb, a stays clause and a
+negated forget verb, as `Wipe everything, the card stays, don't delete the phone.`), 92 rows asked
+to keep were listed when the negated verb counted as the first forget clause, and none are now;
+no row is newly listed and no row asked to delete is newly kept over those cases or the five sets
+above. The test literal `Wipe everything, the card stays, don't delete the phone.` now keeps the
+locker for the call `locker code` as well. Cases and counts: `~/.cache/cortex-run/2026-11-25/a1/gen/`.
