@@ -81,6 +81,20 @@ NEAR_MISSES = (
     "Remove the alarm for tomorrow, and remind me at 10 instead.",
     "Remember to delete the draft.",
     "Remember that I deleted my account.",
+    "Delete the draft, all done.",
+    "All good, clear the cache.",
+    "Everything works, remove the old alarm.",
+    "I deleted everything already.",
+    "Don't delete everything.",
+    "Remove the wallpaper in the hall.",
+)
+# A delete verb opening a clause before a word for all asks the note alone to show.
+WIPED = (
+    "Wipe everything, the card stays, don't delete the phone.",
+    "Wipe everything, the card stays.",
+    "Delete everything, the card stays.",
+    "Please clear it all.",
+    "Then remove every one of them.",
 )
 # Read as a request too wide on purpose, since the note is true on every turn with no forget call.
 WIDE = (
@@ -141,6 +155,14 @@ def test_a_forget_with_no_keep_clause_and_no_forget_call_ends_with_the_note(quer
 def test_a_message_that_does_not_ask_to_forget_gets_no_note(query: str) -> None:
     assert not uncalled_note_due(query, ())
     assert _closed(query) == _ONLY
+
+
+@pytest.mark.parametrize("query", WIPED)
+def test_a_delete_verb_before_a_word_for_all_with_no_forget_call_ends_with_the_note(
+    query: str,
+) -> None:
+    reply = "I've kept your card in my memory as requested and cleared any other information."
+    assert _closed(query, reply) == reply + UNCALLED_FORGET_NOTE
 
 
 def test_a_removal_claim_the_claim_reader_misses_on_a_plain_forget_gets_the_note() -> None:

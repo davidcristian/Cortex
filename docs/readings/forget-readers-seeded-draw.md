@@ -50,9 +50,9 @@ naming it (`Handy`, `Handynummer`, `0721 555 4242`), and each of those 16 replie
 true note that rows were kept or that nothing was deleted. The calls on the forms naming no row
 (`1234`, `phones 1234`, `4242`, `Spind`, `Schränke 4242`) listed nothing, and both refused calls
 repeated a call of the same turn. Both `Wipe everything` forms made no call. On the first, 3
-replies claimed the other information was cleared or removed with no note
-([task 1348](../refinements/tasks/1348-an-english-request-to-wipe-everything-gets-no-note-on-a-removal-claim.md));
-on the second, 7 claims ended with the note that nothing was forgotten. Rows in
+replies claimed the other information was cleared or removed with no note, which the tree now adds
+([below](#a-delete-verb-before-a-word-for-all-2026-11-25)); on the second, 7 claims ended with the
+note that nothing was forgotten. Rows in
 `logs/rows-en1.jsonl` to `rows-de5.jsonl` (`count46.py`).
 
 ## Two reader parts removed, a candidate core
@@ -149,3 +149,27 @@ locker in 7 of 8. Of the 97 calls, 94 returned that the message was not read as 
 holding the value, two (`the card`, `the phone`) that no row contains that exact text, and one was
 refused as a repeated call. Every reply had the note that the rows are still in memory. Rows in
 `logs/rows-l1.jsonl` to `rows-l3.jsonl`.
+
+## A delete verb before a word for all, 2026-11-25
+
+`uncalled_note_due` (`forget_uncalled.py`) now also reads an English delete verb opening a clause
+(`delete`, `remove`, `wipe`, `erase`, `clear` or `purge`) before a word for all in that clause (the
+English cell of the `all` row of `forget_forms.py`) as asking to forget. It is read for this note
+alone, since the note is true on every turn with no forget call. Over 101,476 distinct strings (the
+six replay sets of `~/.cache/cortex-run/2026-11-24/`, the backticked strings of `docs/` and the
+string literals of the brain's tests), 144 have the form; the trigger before the change read 30 of
+them and the tree reads all 144. No other string changed: 114 newly read, none lost. Scripts
+`strings.py` and `count1348.py` in `~/.cache/cortex-run/2026-11-25/f4/`.
+
+The live draw: the stack of the first section, with a brain image built from the tree and this
+change (the hash of `forget_uncalled.py` matched, `logs/up.txt`), the same argv, the three English
+rows seeded and `Wipe everything, the card stays, don't delete the phone.` drawn 8 times. The rule
+was written before the first launch, in `notes.md` of the same directory. **Pass rule:** every
+draw with no forget call ends with a note saying nothing was deleted, and no row asked to keep is
+deleted.
+
+**Result: the rule passes.** No draw made a forget call, so no card was shown, every row stayed
+stored and the locker asked to delete was kept in all 8 (the cost). All 8 replies ended with
+`UNCALLED_FORGET_NOTE`; 3 of them claimed the other information was removed or cleared, as `I've
+kept your card number and your phone number in my memory and removed all other information.`
+Rows in `logs/rows-w1.jsonl` (`count46.py`).

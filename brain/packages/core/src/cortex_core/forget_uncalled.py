@@ -5,6 +5,7 @@ from collections.abc import Sequence
 
 from cortex_core.conversation import ToolRun
 from cortex_core.escalate import hands_off
+from cortex_core.forget_forms import ALL, FORMS
 from cortex_core.forget_unnamed import asks_to_forget_keeping
 from cortex_core.memory_forget import FORGET_UNTRUSTED_TOOL_NAME
 from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
@@ -34,11 +35,15 @@ HANDED_FORGET_NOTES = {
     "nu s-a executat niciun apel de uitare.)",
 }
 _FORGET_TOOLS = frozenset({FORGET_CHOSEN_TOOL_NAME, FORGET_UNTRUSTED_TOOL_NAME})
-# Read only beside a request to remember, since "delete my 9am reminder" asks nothing of memory.
+# Read only beside a request to remember or before a word for all in its clause, since "delete my
+# 9am reminder" asks nothing of memory, while the note is true on any turn with no forget call.
 _DELETE = re.compile(
     r"(?:^\W*|[,;:]\s*|\b(?:and|but|so|then|please)\s+)(?:(?:please|also|just|then|now)\s+)*"
     r"(?:delete|remove|wipe|erase|clear|purge)\b",
     re.IGNORECASE,
+)
+_DELETE_ALL = re.compile(
+    rf"{_DELETE.pattern}[^,;:.!?]*?\b(?:{'|'.join(FORMS[ALL][0].split())})\b", re.IGNORECASE
 )
 
 
@@ -48,6 +53,7 @@ def uncalled_note_due(query: str, made: Sequence[ToolRun]) -> bool:
         asks_to_forget(query)
         or asks_to_forget_keeping(query)
         or (asks_kept(query) and _DELETE.search(query) is not None)
+        or _DELETE_ALL.search(query) is not None
     )
     return asked and all(run.name not in _FORGET_TOOLS for run in made)
 
