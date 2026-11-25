@@ -153,3 +153,61 @@ also reads `until the end of`, `while`, `as long as`, `jusqu'à`, `tant que dure
 `pendant le chat` still does. Replayed over the same 749 replies, the old and new reader each flag
 the same 4 and change none (`replay4.py` and `replay4.log` in
 the `slot15` scratch directory of the 2026-11-08 run).
+
+## A tool whose result says the exchange is stored: rows and rule, 2026-11-25
+
+Written before any draw. The rig is the `cortexn30` stack over `Converse`, the cortex of today's
+compose defaults behind a recording proxy, schedules on, the store and the schedule items emptied
+before each draw, every card approved. Rows R01 to R15 are drawn once per build, in three blocks:
+base, then C1, then C2.
+
+- **Base**: the brain image built from the tree at `b67667c0a`.
+- **C1**: base with a candidate core bound over the image's, offering one more built-in,
+  `remember_memories`. Its description reads "Use when the user asks you to remember or keep
+  something in mind. Memory stores every exchange by itself when the turn ends, and later chats
+  recall it, so this call only confirms that; it does not need the fact." It takes one optional
+  argument, `fact`, stores nothing, and returns a trusted text: "Nothing more to do: memory stores
+  this whole exchange by itself when the turn ends, and later chats recall it."
+- **C2**: C1 with the tool named `remember`.
+
+The items are the first rule's, with two changes: trace characters are summed over every chat
+request of the turn, so the round a call adds is counted, and forget is read from the requests,
+since a refused call sends no event. Two items are added: **Call**, the turn called the candidate
+tool, and **Requests**, the chat requests the turn sent. A candidate's own name is in its tool
+list, so naming it is not a search.
+
+- A candidate **passes** when its search count is at most 2 of 15 against at least 10 of 15 on
+  base, no reply has the chat-only form, it calls `forget_memories` in no more draws than base, it
+  stores the fact in no fewer draws than base less one, its median trace characters are at most
+  half of base's, and its median requests per turn exceed base's by at most one.
+- No time is drawn, since the 24 GB card ran at another power limit than the one earlier rate
+  rows were drawn at. The trace characters and the request count stand in for the median turn
+  time the first rule weighed.
+- A pass ships nothing: the tool's name is a pick for the user, and the task keeps the proposal.
+
+## A tool whose result says the exchange is stored: the draws, 2026-11-25
+
+The model host ran from the `cortex-model-host` image at engine build `b12375-9d25e0014` with the
+tree's model manager bound over the image's. Its argv for the cortex, after the model path
+`unsloth/gemma-4-12B-it-qat-GGUF/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf`: `-ngl 99 --ctx-size 16384
+--parallel 1 --jinja --cache-ram 8192 --model-draft .../mtp-gemma-4-12B-it-Q8_0.gguf --spec-type
+draft-mtp --spec-draft-n-max 3`, so the KV cache is the engine's f16 and no reasoning effort is
+set. The brain sent no sampling field. Each candidate's first request holds base's messages,
+equal once times and ids are masked, and base's tool list plus the one tool.
+
+| Build | Search | Median trace characters | Call | Requests per turn | Chat only | Forget | Stored |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Base | 15 of 15 | 1,972 | no such tool | 1 in 5 draws, 2 in 10 | 0 of 15 | 10 of 15 | 15 of 15 |
+| C1, `remember_memories` | 0 of 15 | 153 | 15 of 15 | 2 in 15 | 0 of 15 | 0 of 15 | 15 of 15 |
+| C2, `remember` | 0 of 15 | 137 | 15 of 15 | 2 in 15 | 0 of 15 | 0 of 15 | 15 of 15 |
+
+Both candidates pass. On base every second request is the round after a `forget_memories` call,
+which the typed refusal answered each time; on a candidate it is the round after its own call. So
+the median is 2 requests in all three, and base's mean is 1.67. Every candidate call showed one
+`ToolActivity` event and no card, and every stored row holds a `Tools run: <name> (succeeded)`
+line. No reply of any build says the fact is kept for this chat.
+
+The 2026-11-23 count on the same rows read a search in 15 of 15, a median trace of 2,819
+characters and forget in 8 of 15. Run log: `r995-base.jsonl`, `r995-c1.jsonl` and
+`r995-c2.jsonl` with their `.ranges.jsonl` proxy line ranges, counted by `count995.py`, in
+`~/.cache/cortex-run/2026-11-25/s1/`, with the candidate tool in `core-cand/` there.

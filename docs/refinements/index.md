@@ -71,7 +71,7 @@ never a reading of what the tree does now.
 
 - **[R-959](tasks/959-a-turn-refused-as-deleted-while-the-overlay-is-away-raises-an-empty-preview.md)** A turn refused as deleted while the overlay is away raises an empty preview (session-read-rpc). Its claim was checked against the code on 2026-11-05.
 - **[R-967](tasks/967-a-request-to-remember-a-new-value-and-forget-the-old-one-keeps-neither.md)** A request to remember a new value and forget the old one keeps neither (memory). Its claim was checked against the code on 2026-11-05.
-- **[R-995](tasks/995-a-request-to-remember-spends-its-thinking-looking-for-a-tool-to-store-the-fact.md)** A request to remember spends its thinking looking for a tool to store the fact (memory). Its claim was checked against the code on 2026-11-23.
+- **[R-995](tasks/995-a-request-to-remember-spends-its-thinking-looking-for-a-tool-to-store-the-fact.md)** A request to remember spends its thinking looking for a tool to store the fact (memory). Its claim was checked against the code on 2026-11-25.
 - **[R-1057](tasks/1057-a-romanian-reminder-reply-holds-a-broken-word.md)** A Romanian reminder reply holds a broken word (inference). Its claim was checked against the code on 2026-11-25.
 - **[R-1193](tasks/1193-a-forget-in-words-no-reader-reads-is-refused-on-the-answer.md)** A forget in words no reader reads is refused on the answer (memory). Its claim was checked against the code on 2026-11-13.
 - **[R-1199](tasks/1199-a-request-to-remember-that-a-value-is-outdated-refuses-the-forget-tool-outside-english.md)** A request to remember that a value is outdated refuses the forget tool outside English (memory). Its claim was checked against the code on 2026-11-24.

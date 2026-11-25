@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** memory
 **Origin:** [ADR-0008](../../adr/ADR-0008-memory-v1.md)
-**Verified:** 2026-11-23
+**Verified:** 2026-11-25
 
 The brain records every exchange at turn end and offers no tool that stores one
 ([ADR-0008](../../adr/ADR-0008-memory-v1.md)), and nothing the cortex reads says so. The only memory
@@ -39,20 +39,34 @@ from the same search. That is an assumption no row has tested.
 ## What to do
 
 A reply that keeps the fact for this chat only now ends with `KEPT_BEYOND_CHAT_NOTE`
-([readings](../../readings/remember-request-tool-search.md#the-draws-2026-11-07)). The search is
-left: base searched in 15 of 15 draws, and one system message on a turn `asks_kept` reads cut it
-to 5 of 15, above the bound of 2 its rule set.
+([readings](../../readings/remember-request-tool-search.md#the-draws-2026-11-07)). Sentences in the
+request did not stop the search: one system message on a turn `asks_kept` reads cut it to 5 of 15,
+and the same sentence in the first system message or in the `forget_memories` description to 14
+and 13 of 15.
 
-The same sentence at the end of the first system message searched in 14 of 15 draws, and in the
-`forget_memories` description in 13 of 15
-([readings](../../readings/remember-request-tool-search.md#two-more-places-for-the-sentence-the-draws-2026-11-07)).
+A built-in whose result says the exchange is stored at turn end passed its rule on 2026-11-25 under
+two names: a search in 0 of 15 draws against 15 of 15 on base, a median trace of 153 and 137
+characters against 1,972, every draw calling it, no `forget_memories` call against 10 of 15, and
+every fact stored ([readings](../../readings/remember-request-tool-search.md#a-tool-whose-result-says-the-exchange-is-stored-the-draws-2026-11-25)).
+The candidate lives only in that run's scratch core; nothing shipped.
 
-1. Write rows and a rule into that readings record before any draw for a typed result text in
-   place of a sentence: a tool that does what the trace looks for, whose result says the exchange
-   is stored when the turn ends. A call adds a round, so the rule weighs the median turn time as a
-   ratio of base's beside the search count. The tool's name is a pick for the maintainer; propose
-   a set with alternatives.
-2. Compare the first requests of each pair before writing a rule item.
+The tool's name is the user's pick. The proposal, one verb and object like the other built-ins:
+
+| Name | Why | Drawn |
+| --- | --- | --- |
+| `remember_memories` (recommended) | The pair of `forget_memories`: the same object with the opposite verb, so the list reads as one pair | C1, passed |
+| `remember` | The person's own verb, and the name base traces looked for most (11 of 15 draws) | C2, passed |
+| `save_memory` | The other name the traces looked for (5 of 15), but it says the call saves, which it does not | not drawn |
+
+1. The user picks the name.
+2. Build it with tests behind `BuiltinTool`. Its result must be true on every turn it reaches, so
+   `ToolOffer` offers it only on turns memory will store, and under `CORTEX_MEMORY_SCOPE=session`
+   its text says later chats do not recall the exchange. It marks its argument private, since a
+   fact can be a code. Edit [ADR-0008](../../adr/ADR-0008-memory-v1.md), which offers no such
+   tool, and the memory module doc.
+3. Draw R01 to R15 again on the built tool, with the rule above, plus the request-to-remember rows
+   of [side-effect-tools-on-remember.md](../../readings/side-effect-tools-on-remember.md) that
+   counted `forget_memories` calls.
 
 ## History
 
@@ -76,3 +90,7 @@ The same sentence at the end of the first system message searched in 14 of 15 dr
   draws called `forget_memories`, and the typed refusal answered each call, which sends no event
   ([readings](../../readings/single-draw-recounts.md#the-search-for-a-store-tool-counted-again)).
   Step 1 is unchanged.
+- 2026-11-25: drew base and a built-in whose result says the exchange is stored, named
+  `remember_memories` and `remember`, on R01 to R15. Both passed the rule written first: no search,
+  a trace under a tenth of base's median and no `forget_memories` call. The name is proposed above
+  for the user's pick.
