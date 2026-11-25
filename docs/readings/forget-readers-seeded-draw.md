@@ -95,3 +95,8 @@ the text `card`. The 64 in the generated cases and mixed messages are rows the g
 either outcome or leaves unmarked, as the phone of `Forget the card 4242, the phone and the locker
 too.` with the text `phone`. The listings are taken by `replay.sh` and compared by `cmp.py` in
 `~/.cache/cortex-run/2026-11-25/x2/`.
+
+The tree also reads a word for all against the message's words only, as the candidate core does
+(`quantifies(query, limit=True)` at the three call sites that passed the rows). Over the same eight
+sets, at the tree before and after that removal, no listing changed: the counts are those of the
+after columns above, and no row is newly listed or newly kept.

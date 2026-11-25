@@ -153,7 +153,7 @@ def _ends(
     kinds = any(code_word(word) for word in _WORD.findall(query))
     texts = [record.text for record in (*held, *records)]
     read = _read(texts, text, query, pattern)
-    every = quantifies(query, texts) and not kinds
+    every = quantifies(query, limit=True) and not kinds
     holding = [] if every else [row for row in texts if _whole(row, text)]
     beside = {word for row in holding for word in row_words(row)}
     words = row_words(read)
@@ -281,6 +281,6 @@ def _unnamed_groups(
     words, word = content(query), not any(char.isdigit() for char in text)
     named = {r.id for r in (*rows, *within) if r.id in told or names(words, row_words(r.text))}
     apart = bool(told) and not any(char.isdigit() for char in query)
-    if quantifies(query, [row.text for row in (*rows, *within)]) or not (named or apart):
+    if quantifies(query, limit=True) or not (named or apart):
         return []
     return [row for row in rows if row.id not in named and (word or _in_longer(row.text, text))]

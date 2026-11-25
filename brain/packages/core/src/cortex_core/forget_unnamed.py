@@ -188,13 +188,13 @@ def asks_to_keep(text: str, query: str) -> bool:
     return not _REST.isdisjoint(parts(query)[1]) or not kept.isdisjoint(row_names(text))
 
 
-def quantifies(query: str, rows: Iterable[str] | None = None) -> bool:
+def quantifies(query: str, *, limit: bool = False) -> bool:
     """Whether a word for all before any keep clause of its clause asks for every row: within two
-    words of a value there, and, given ``rows``, with no word ``limited`` reads by a word of the
-    rows or of ``query`` between it and a value after it, or before a value before it."""
+    words of a value there, and, given ``limit``, with no word ``limited`` reads by a word of
+    ``query`` between it and a value after it, or before a value before it."""
     split = clauses(query)
     function = {word for language in readings(query) for word in FUNCTION.get(language, ())}
-    named = None if rows is None else set[str]().union(*map(row_words, (*rows, query))) - function
+    named = row_words(query) - function if limit else None
     for index, words in enumerate(split):
         flags = keeping(words)
         clause = words[: next((at for at, keeps in enumerate(flags) if keeps), len(words))]
@@ -288,7 +288,7 @@ def _unnamed(
     named = compound or _named(rows, words, deleted)
     texts = [record.text for record in (*rows, *deleted)]
     adds = adds_to_value(query, text, frozenset(word for row in texts for word in row_words(row)))
-    every = values <= asked and (not named or adds or quantifies(query, texts))
+    every = values <= asked and (not named or adds or quantifies(query, limit=True))
     said = None if named else just_said(rows, session_id, deleted)
     return [
         record
