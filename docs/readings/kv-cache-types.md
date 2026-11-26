@@ -16,8 +16,8 @@ read on, so each one is written as a ratio of the 16-bit rate at the same contex
 16-bit rows. One server at a time on the 24 GB card (24,463 MiB), started with `--parallel 1 --jinja
 --cache-ram 0`, every layer on the card (`-ngl 99 --fit off`), the sampler and the flash attention
 setting of the model's card. An 8-bit row adds `--cache-type-k q8_0 --cache-type-v q8_0`, and a row
-that drafts adds `--cache-type-k-draft q8_0 --cache-type-v-draft q8_0`, so the drafter's cache
-follows the model's: a tier sets one type for the whole server.
+that drafts adds `--cache-type-k-draft q8_0 --cache-type-v-draft q8_0`, so in these rows the
+drafter's cache followed the model's ([which type a tier's drafter takes](drafter-cache.md)).
 
 - **Budget.** Models get 18,177 MiB at the highest reading of a row: the card less 4,750 MiB counted
   for the desktop's apps and 1,536 MiB kept free. A chat row also leaves 3,850 MiB for one

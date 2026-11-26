@@ -7,6 +7,9 @@ from cortex_model_manager.tiers import cache_flags, draft_and_cache_flags
 _MODEL_CACHE = ("--cache-type-k", "q8_0", "--cache-type-v", "q8_0")
 _DRAFT_CACHE = ("--cache-type-k-draft", "q8_0", "--cache-type-v-draft", "q8_0")
 _E4B = "unsloth/gemma-4-E4B-it-qat-GGUF/gemma-4-E4B-it-qat-UD-Q4_K_XL.gguf"
+_QWEN9 = "unsloth/Qwen3.5-9B-MTP-GGUF/Qwen3.5-9B-Q4_K_M.gguf"
+_PICK = "unsloth/Qwen3.8-27B-GGUF/Qwen3.8-27B-UD-Q4_K_M.gguf"
+_OWN_LAYER = ("--spec-type", "draft-mtp", "--spec-draft-n-max", "3")
 _VARIABLES = {
     "cortex": "CORTEX_KV_CACHE_TYPE",
     "brain": "CORTEX_KV_CACHE_TYPE_BRAIN",
@@ -128,11 +131,37 @@ def test_no_tier_names_a_flash_attention_setting_so_an_8_bit_cache_is_never_refu
         assert not [item for item in argv if item in ("-fa", "--flash-attn")]
 
 
-def test_the_cache_flags_are_nothing_at_16_bits_and_one_type_for_the_whole_server() -> None:
-    assert cache_flags("f16", drafting=True) == ()
-    assert cache_flags("f16", drafting=False) == ()
-    assert cache_flags("q8_0", drafting=False) == _MODEL_CACHE
-    assert cache_flags("q8_0", drafting=True) == (*_MODEL_CACHE, *_DRAFT_CACHE)
+def test_the_cache_flags_name_each_type_only_where_it_is_not_the_engines() -> None:
+    assert cache_flags("f16", draft_type="f16") == ()
+    assert cache_flags("f16", draft_type=None) == ()
+    assert cache_flags("q8_0", draft_type=None) == _MODEL_CACHE
+    assert cache_flags("q8_0", draft_type="q8_0") == (*_MODEL_CACHE, *_DRAFT_CACHE)
+    assert cache_flags("q8_0", draft_type="f16") == _MODEL_CACHE
+    assert cache_flags("f16", draft_type="q8_0") == _DRAFT_CACHE
+
+
+@pytest.mark.parametrize(
+    ("model", "variables"),
+    [
+        ("cortex", ("CORTEX_MODEL_FILE_CORTEX", "CORTEX_MODEL_FILE_CORTEX_DRAFT")),
+        ("brain", ("CORTEX_MODEL_FILE_BRAIN", "CORTEX_MODEL_FILE_BRAIN_DRAFT")),
+    ],
+)
+def test_a_qwen35_9b_tier_at_8_bits_leaves_its_own_draft_layers_cache_at_16_bits(
+    monkeypatch: pytest.MonkeyPatch, model: str, variables: tuple[str, str]
+) -> None:
+    settings = dict.fromkeys(variables, _QWEN9)
+    argv = _roster(monkeypatch, **{_VARIABLES[model]: "q8_0"}, **settings)[model]
+    assert argv[-8:] == (*_OWN_LAYER, *_MODEL_CACHE)
+    assert "--cache-type-k-draft" not in argv
+
+
+def test_the_deep_pick_at_8_bits_keeps_its_draft_layer_at_the_models_type(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = dict.fromkeys(("CORTEX_MODEL_FILE_BRAIN", "CORTEX_MODEL_FILE_BRAIN_DRAFT"), _PICK)
+    argv = _roster(monkeypatch, **settings)["brain"]
+    assert argv[-12:] == (*_OWN_LAYER, *_MODEL_CACHE, *_DRAFT_CACHE)
 
 
 def test_the_cache_flags_follow_the_drafter_flags() -> None:
@@ -145,4 +174,23 @@ def test_the_cache_flags_follow_the_drafter_flags() -> None:
         "5",
         *_MODEL_CACHE,
         *_DRAFT_CACHE,
+    )
+
+
+@pytest.mark.parametrize(
+    ("drafter", "model"),
+    [
+        (f"/models/{_QWEN9}", f"/models/other/{_QWEN9}"),
+        ("/models/qwen/drafter.gguf", f"/models/{_QWEN9}"),
+        ("/models/other/Qwen3.5-9B-Q4_K_M.gguf", "/models/other/Qwen3.5-9B-Q4_K_M.gguf"),
+        (f"/models/x{_QWEN9}", f"/models/x{_QWEN9}"),
+    ],
+)
+def test_only_the_listed_files_own_draft_layer_keeps_its_cache_at_16_bits(
+    drafter: str, model: str
+) -> None:
+    assert draft_and_cache_flags(drafter, 3, model, "q8_0")[-8:] == (*_MODEL_CACHE, *_DRAFT_CACHE)
+    assert draft_and_cache_flags(f"/models/{_QWEN9}", 3, f"/models/{_QWEN9}", "q8_0") == (
+        *_OWN_LAYER,
+        *_MODEL_CACHE,
     )

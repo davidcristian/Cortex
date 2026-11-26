@@ -136,8 +136,8 @@ The cards were read on 2026-11-16, when the models mount moved to the files
    `CORTEX_KV_CACHE_TYPE_SUBAGENT_GPU` take `f16` or `q8_0`, the two types the readings have rows
    for, and any other value is refused when the settings are read. At `f16` a tier names no flag. At
    `q8_0`, `cache_flags` in `tiers.py` writes `--cache-type-k q8_0 --cache-type-v q8_0`, and
-   `--cache-type-k-draft q8_0 --cache-type-v-draft q8_0` after them when the tier drafts: a tier
-   sets one type for the whole server, as the rows did.
+   `--cache-type-k-draft` and `--cache-type-v-draft` after them at the drafter's own type when the
+   tier drafts and that type is not 16 bits.
 
    The defaults follow the rule the readings wrote before their rows
    ([KV cache types](../readings/kv-cache-types.md)): the engine accepts the type, the tier gains
@@ -174,11 +174,14 @@ The cards were read on 2026-11-16, when the models mount moved to the files
    [R-1244](../refinements/tasks/1244-the-deep-tiers-file-is-not-chosen-between-the-q4-and-the-nvfp4-files.md)
    keeps both deep entries on their Q4 file, so the default stays `q8_0`.
 
-   The drafter's cache keeps the model's type. A gemma drafter shares the model's cache, so the
-   type sets nothing. The pick's draft layer takes 16 MiB less at 8 bits at the tier's 16K and
-   82 to 86 MiB more at 48K, as the engine's compute buffer for it grows faster than the cache
-   saves ([drafter's cache](../readings/drafter-cache.md)); the rate is the same. Every row of
-   the pick was drawn with the drafter at the model's type.
+   The drafter's cache keeps the model's type unless the file's own draft layer takes at most 15
+   MiB more at 16 bits; such a file is listed in `drafters.py` and its layer keeps 16 bits. The
+   engine's compute buffer for an 8-bit draft cache grows faster than the cache saves
+   ([drafter's cache](../readings/drafter-cache.md)), and the rate is the same at both types.
+   Qwen3.5-9B is listed: at 16 bits its layer takes 150 MiB less at 64K and 282 to 292 MiB less
+   at 128K. The pick is not: at the tier's 16K its layer takes 16 MiB more at 16 bits, and every
+   row of the pick was drawn with the drafter at the model's type. A gemma drafter shares the
+   model's cache, so the type sets nothing for it.
 
    The pick's file is inside the model budget at 16K at both types: 16,995 MiB at `q8_0` and
    17,465 MiB at `f16` at draft length 3 ([readings](../readings/kv-cache-types.md)). The

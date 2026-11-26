@@ -1,9 +1,8 @@
 # A Qwen tier at q8_0 gives its draft layer a cache that takes more memory
 
-**Status:** open, actionable
+**Status:** done 2026-11-26
 **Area:** inference-model-manager
 **Origin:** [ADR-0077](../../adr/ADR-0077-model-card-settings.md)
-**Verified:** 2026-11-24
 
 `cache_flags` in
 [tiers.py](../../../brain/packages/model_manager/src/cortex_model_manager/tiers.py) gives a
@@ -68,3 +67,10 @@ its own for the files it helps or the reason recorded that it follows the model'
   own. The cause is in [the drafter's cache](../../readings/drafter-cache.md) and ADR-0077
   decision 8. No rate was drawn: the rates beside these rows are those of 2026-11-20 and
   2026-11-21.
+- 2026-11-26: done. `cache_flags` takes the drafter's type on its own, and `draft_cache_type`
+  sets it per file by the rule of 2026-11-24: a file `drafters.py` lists keeps its own draft
+  layer at 16 bits, any other drafter takes the model's type. Qwen3.5-9B is listed and the pick is
+  not. The model host on build b12375 started a Qwen3.5-9B tier at `q8_0` and 128K with no
+  drafter cache flag; the draft context read 512 MiB at `f16`, and the card 9137 MiB above the
+  floor, against 9141 and 9423 for the two types on 2026-11-23
+  ([readings](../../readings/drafter-cache.md#the-rule-and-the-model-hosts-argv-after-it)).

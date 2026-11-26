@@ -3,6 +3,7 @@
 from dataclasses import dataclass, field
 from typing import Literal
 
+from cortex_model_manager.drafters import draft_layer_at_16_bits
 from cortex_model_manager.spec import ModelSpec
 
 _BIND_ALL = "0.0.0.0"  # noqa: S104 - the child serves the compose network, not the host
@@ -92,28 +93,41 @@ def drafter_flags(path: str, length: int, model_path: str) -> tuple[str, ...]:
     return flags[2:] if path == model_path else flags
 
 
-def cache_flags(cache_type: KvCacheType, *, drafting: bool) -> tuple[str, ...]:
-    """A tier's KV cache type, for its drafter's cache too, or nothing at the engine's own type."""
-    if cache_type == ENGINE_KV_CACHE_TYPE:
-        return ()
+def cache_flags(cache_type: KvCacheType, *, draft_type: KvCacheType | None) -> tuple[str, ...]:
+    """A tier's KV cache type, then its drafter's, each named only where it is not the engine's."""
+    draft = cache_type if draft_type is None else draft_type
     flags = (
         "--cache-type-k",
         cache_type,
         "--cache-type-v",
         cache_type,
         "--cache-type-k-draft",
-        cache_type,
+        draft,
         "--cache-type-v-draft",
-        cache_type,
+        draft,
     )
-    return flags if drafting else flags[:4]
+    model = flags[:4] if cache_type != ENGINE_KV_CACHE_TYPE else ()
+    drafter = flags[4:] if draft_type not in (None, ENGINE_KV_CACHE_TYPE) else ()
+    return (*model, *drafter)
+
+
+def draft_cache_type(
+    drafter_path: str, model_path: str, cache_type: KvCacheType
+) -> KvCacheType | None:
+    """A drafter's cache type: 16 bits for a listed file's own layer, else the model's type."""
+    if not drafter_path:
+        return None
+    if drafter_path == model_path and draft_layer_at_16_bits(model_path):
+        return ENGINE_KV_CACHE_TYPE
+    return cache_type
 
 
 def draft_and_cache_flags(
     drafter_path: str, length: int, model_path: str, cache_type: KvCacheType
 ) -> tuple[str, ...]:
-    """A tier's drafter flags, then the flags of its KV cache type."""
+    """A tier's drafter flags, then the flags of its KV cache types."""
+    draft_type = draft_cache_type(drafter_path, model_path, cache_type)
     return (
         *drafter_flags(drafter_path, length, model_path),
-        *cache_flags(cache_type, drafting=bool(drafter_path)),
+        *cache_flags(cache_type, draft_type=draft_type),
     )

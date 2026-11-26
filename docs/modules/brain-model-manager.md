@@ -139,8 +139,8 @@ compares the two, so retune both or neither. `RosterError` is a boot-time miscon
   tier's own model file. Unset, the cortex and each GPU subagent server take the drafter `drafters.py`
   lists beside their file, and none when empty; the deep tier drafts only when named. A server of
   several slots drafts only on a listed file, and `undrafted()` names the one left out. A tier's KV
-  cache type is `f16` or `q8_0`, and the deep tier's default is `q8_0`: `cache_flags` writes nothing at
-  `f16`, and at `q8_0` the model's pair and a drafter's. `scripts/hostedtiers.py` reads both off `extra`.
+  cache type is `f16` or `q8_0`, and the deep tier's default is `q8_0`: `cache_flags` writes each pair only
+  away from `f16`, a drafter's at the model's type unless `drafters.py` lists the file's own layer at 16 bits. `scripts/hostedtiers.py` reads both off `extra`.
 
 ## Invariants
 
