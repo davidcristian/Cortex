@@ -166,3 +166,21 @@ whole clause (1,411 rows asked to delete over the generator and 92 in the near m
 keeps every row asked to keep in the family at 16 near miss rows and 95 generator rows. Scripts:
 `replay.sh`, `cmp.py` and `ecount2.py` in `~/.cache/cortex-run/2026-11-26/f1/`, with the
 candidate rules `cand/c1.py` to `cand/c6.py` there.
+
+## Heads of more than one word, 2026-11-26
+
+An audit replay of 1,083 mixed messages from the rows' own words in five languages (2,482 cases:
+heads of a forget of everything before a kept row, a word for only beside a keep, an except or a
+negated keep clause, Romanian plurals, longer words that start with a row word, request verbs in a
+message and in a row's fact, and `Don` beside `don't`), the tree before the night's forget changes
+against the tree after them: rows asked to keep and listed fell from 86 to 18 of 2,316, no row is
+newly listed, and 157 rows are newly kept (68 asked to keep, 70 not asked about, 19 asked to
+delete). The 18 are the nine messages `Forget all of it the card stays.`, `Forget all of it the
+card holds.` and `Forget all of it my card stays.` with their phone and locker forms, for the call
+texts `4242` and the row word: a placing word, `of`, follows `all`, so `_head_run` reads nothing.
+A probe of nearby heads before `the card stays.` lists the card after `Forget all of them`,
+`Forget it all`, `Forget the lot`, `Forget everything of mine`, `Forget all of my memories`,
+`Forget everything on it` and `Delete all of it`, and keeps it after `Forget all that`, `Forget
+all`, a comma after the head, and the four other languages' heads tried (`Oublie tout ça`,
+`Vergiss das alles`, `Olvida todo eso`, `Uită tot asta`). Cases and counts: `gen.py`, `probe.py`,
+`replay.sh` and `cmp.py` in `~/.cache/cortex-run/2026-11-26/a1/`.
