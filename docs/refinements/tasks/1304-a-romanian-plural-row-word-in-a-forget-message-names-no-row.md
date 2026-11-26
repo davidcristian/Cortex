@@ -31,6 +31,4 @@ article `ul`.
   last letter, in `forget_named` when no other word names a row and in `_coded`. Over the plural
   set the rows not asked for listed fell from 128 to 64, and no row was newly listed in any case
   set ([readings](../../readings/forget-romanian-plural.md)). The forms left are [task
-  1355](1355-a-romanian-plural-that-changes-its-stem-or-adds-one-letter-names-no-row.md), and a
-  defect of `extends` the probe found is [task
-  1356](1356-a-forget-word-two-letters-longer-than-remember-names-every-row.md).
+  1355](1355-a-romanian-plural-that-changes-its-stem-or-adds-one-letter-names-no-row.md).

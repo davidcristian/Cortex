@@ -49,7 +49,7 @@ async def forget_named(
 ) -> list[MemoryRecord]:
     """The stored rows the chat can read, and those of ``gone``, the rows the turn deleted, whose
     request a word of ``forget_words`` names or, in a forget verb's clause, ``extends``, else each
-    such a word ``grows`` from."""
+    such a word ``grows`` from, of the words ``_apart`` leaves."""
     query = call.stamp.query
     words = forget_words(query)
     scopes = scope.read_scopes(call.stamp.session_id)
@@ -60,11 +60,18 @@ async def forget_named(
     unread = {word for word in told if not any(names({word}, request(row)) for row in rows)}
     for stem in sorted({stem for word in unread for stem in (*shorter(word), *prefixes(word))}):
         rows += await store.find_text(stem, limit=limit, scopes=scopes)
+    asked = _apart({row.id: request(row) - _FUNCTION for row in rows})
     named = [
         row
         for row in rows
-        if names(words, request(row))
-        or any(extends(word, request(row) - _FUNCTION) for word in unread)
+        if names(words, request(row)) or any(extends(word, asked[row.id]) for word in unread)
     ]
-    grown = [row for row in rows if any(grows(word, request(row) - _FUNCTION) for word in unread)]
+    grown = [row for row in rows if any(grows(word, asked[row.id]) for word in unread)]
     return named or grown
+
+
+def _apart(asked: dict[str, set[str]]) -> dict[str, set[str]]:
+    """Each row's words of ``asked`` less those every request of two or more holds, as
+    ``remember``, which tell no row apart."""
+    shared = set[str].intersection(*asked.values()) if len(asked) > 1 else set[str]()
+    return {row: words - shared for row, words in asked.items()}

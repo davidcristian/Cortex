@@ -13,16 +13,15 @@ rows not asked for are listed over the plural set of 640 cases
 three letters longer than the row word, so `carduri` of `cardul` is one letter short, and
 `telefoane` changes the stem `telefon`.
 
-Reading a word one or two letters longer this way would also read `remembered` as naming every
-English row by `remember`, which narrows nothing and lets a call list rows the message does not
-ask for. With
-`unnamed` (`forget_unnamed.py`) a call text of `4242` keeps every row for `Uită cardurile.`, where
-`Uită cardul.` deletes the card.
+`_apart` (`forget_keep_named.py`) drops a word every request of two or more rows read holds,
+such as `remember`, before `extends` and `grows` read a row, so a reading of a word one letter
+longer names no row by it ([readings](../../readings/forget-request-verb.md)). With `unnamed`
+(`forget_unnamed.py`) a call text of `4242` keeps every row for `Uită cardurile.`, where `Uită
+cardul.` deletes the card.
 
 ## What to do
 
-1. Write the four forms as tests first, and `Forget what you remembered about my card.` with the
-   call text `4242`, which deletes the card alone.
+1. Write the four forms as tests first.
 2. Find a reading of these forms that adds no word list and lists no row the plural does not
    name, replayed over the plural set in `~/.cache/cortex-run/2026-11-26/f4/` (`plgen.py`) and
    the word pairs, or decline with the 64 rows it leaves.

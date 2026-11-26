@@ -103,7 +103,7 @@ never a reading of what the tree does now.
 - **[R-1353](tasks/1353-a-request-to-use-the-forget-tool-reads-as-no-forget.md)** A request to use the forget tool reads as no forget (memory). Its claim was checked against the code on 2026-11-26.
 - **[R-1354](tasks/1354-an-adding-run-holding-a-word-for-only-lists-the-row-it-adds.md)** An adding run holding a word for only lists the row it adds (memory). Its claim was checked against the code on 2026-11-26.
 - **[R-1355](tasks/1355-a-romanian-plural-that-changes-its-stem-or-adds-one-letter-names-no-row.md)** A Romanian plural that changes its stem or adds one letter names no row (memory). Its claim was checked against the code on 2026-11-26.
-- **[R-1356](tasks/1356-a-forget-word-two-letters-longer-than-remember-names-every-row.md)** A forget word two letters longer than remember names every row (memory). Its claim was checked against the code on 2026-11-26.
+- **[R-1357](tasks/1357-a-forget-message-quoting-the-request-verb-keeps-the-row-it-names.md)** A forget message quoting the request verb keeps the row it names (memory). Its claim was checked against the code on 2026-11-26.
 
 ### Actionable, once a port changes (1)
 
@@ -751,7 +751,7 @@ never a reading of what the tree does now.
 - [R-1353](tasks/1353-a-request-to-use-the-forget-tool-reads-as-no-forget.md) A request to use the forget tool reads as no forget. open, actionable.
 - [R-1354](tasks/1354-an-adding-run-holding-a-word-for-only-lists-the-row-it-adds.md) An adding run holding a word for only lists the row it adds. open, actionable.
 - [R-1355](tasks/1355-a-romanian-plural-that-changes-its-stem-or-adds-one-letter-names-no-row.md) A Romanian plural that changes its stem or adds one letter names no row. open, actionable.
-- [R-1356](tasks/1356-a-forget-word-two-letters-longer-than-remember-names-every-row.md) A forget word two letters longer than remember names every row. open, actionable.
+- [R-1357](tasks/1357-a-forget-message-quoting-the-request-verb-keeps-the-row-it-names.md) A forget message quoting the request verb keeps the row it names. open, actionable.
 
 ### orchestrator
 
