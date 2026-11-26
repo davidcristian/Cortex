@@ -72,7 +72,7 @@ The cards were read on 2026-11-16, when the models mount moved to the files
    | Difference | The card | The stack | Kept or open |
    |---|---|---|---|
    | Sampler, `min_p` and presence penalty of the Qwen3.5 entries, the cortex alternate and the roster alternate among them | the values of decision 4 | the engine's defaults | kept: at the card's values no entry read better on the injection row or over the 2B's four reply envelope shapes, by a rule written before the rows ([readings](../readings/card-samplers.md)); on the every-detail shape alone the 2B delivered more and copied the report less at the card's values, and on the roster server over the four shapes neither those values nor their presence penalty alone delivered more, by the rule of [R-1329](../refinements/tasks/1329-the-roster-alternate-hands-back-the-report-less-often-at-its-cards-sampler.md) ([readings](../readings/card-samplers.md#the-roster-server-at-three-samplers)) |
-   | `min_p` on Qwen3.8 and Qwen3.6 | 0 | 0.05, the engine's default | open, [R-1240](../refinements/tasks/1240-some-tiers-run-settings-their-model-cards-do-not-recommend.md) |
+   | `min_p` on Qwen3.8 and Qwen3.6 | 0 | 0.05, the engine's default | kept on the deep pick: at `min_p` 0 it obeyed 0 of 100 framed injection draws against 0 at 0.05 (p 1) and stopped on 11 of 12 behind a full handoff prompt against 11, by a rule written before the rows ([readings](../readings/card-samplers.md#the-deep-pick-at-min_p-0)); open on Qwen3.8-Flash-Next and Qwen3.6, which are no tier's file, [R-1240](../refinements/tasks/1240-some-tiers-run-settings-their-model-cards-do-not-recommend.md) |
    | Presence penalty on Qwen3.6 | 1.5 with thinking on | none | open, R-1240 |
    | Flash attention | on, and off for gemma-4-E4B | unset, the engine's `auto`, which turned it on for every entry read | open, R-1240: it changes the rate more than the reply, and needs rate rows |
    | Draft length of the gemma entries | 4 | 3 on every tier | kept: decision 7 |
@@ -217,7 +217,8 @@ The cards were read on 2026-11-16, when the models mount moved to the files
 ## Alternatives rejected
 
 - **Setting each card's sampler as a server flag now**: for the picks it would change only `min_p`,
-  which the gemma cards do not name, and the Qwen3.5 entries read no better at the card's values.
+  which the gemma cards do not name; the deep pick at `min_p` 0 and the Qwen3.5 entries at their
+  cards' values read no better.
 - **Keeping the card values only in backlog tasks**: a task closes and is no longer read, and the
   values are the reference for every later pick.
 - **A compose default for a drafter file**: `${VAR:-default}` cannot be turned off by an empty
