@@ -220,3 +220,26 @@ refused, and no draw showed the old value note.
 Two shapes that would refuse the tool on the Bello and sora forms were counted and not built
 ([forget-refusal-possessive-subject.md](forget-refusal-possessive-subject.md)). A check on the forget call's
 words was built instead ([forget-refusal-call-words.md](forget-refusal-call-words.md)).
+
+## A value said to be outdated, the old value stored, 2026-11-26
+
+The stack of [forget-readers-live-draw.md](forget-readers-live-draw.md#the-stack-2026-11-26), a
+brain built from the tree, every card approved. Each seed was drawn once into an empty store and
+put back before every draw, 8 draws per message. The rule, written before the first draw: the
+refusal costs the person something on a message when, in 2 or more of its 8 draws, a forget call
+is refused and the person ends up with the old row stored and no note saying a remembered exchange
+still holds it. Rules and rows in `~/.cache/cortex-run/2026-11-26/s3/` (`notes.md`,
+`count1199.py`, `logs/rows-p1.jsonl` to `rows-p3.jsonl`).
+
+| Seed, then message | Draws with a forget call | Refused | Cards | Old row deleted | New message stored | Old value note |
+| --- | --- | --- | --- | --- | --- | --- |
+| `Retiens que mon code est 5528.`, then `Retiens que ce code est périmé.` | 1 of 8 | 1 | 0 | 0 of 8 | 8 of 8 | 0 of 8 |
+| `Merk dir, dass mein Code 5528 ist.`, then `Merk dir, dass der Code ungültig ist.` | 3 of 8 | 3 | 0 | 0 of 8 | 8 of 8 | 0 of 8 |
+| `Recuerda que mi código es 5528.`, then `Recuerda que el código está caducado.` | 3 of 8 | 3 | 0 | 0 of 8 | 8 of 8 | 0 of 8 |
+
+**Result: the cost is real on the German and Spanish messages.** Every call named the old value
+(`5528`, `Code 5528`) and was refused, and no reply had a note of any kind; each reply after a
+refused call said the code was noted as outdated, which the stored message holds. So in 3 of 8 draws of each of those two
+messages the person ended up with the old code stored beside the new message and was not told it
+is still held. On the French message 1 of 8 draws refused a call, under the rule's 2. No old row
+was deleted in any draw.
