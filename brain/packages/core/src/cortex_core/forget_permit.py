@@ -225,10 +225,12 @@ def _forgets(clause: list[str]) -> bool:
     )
 
 
-def _head_run(clause: list[str], named: frozenset[str]) -> list[str]:
-    """The words of ``clause`` after its forget verb and an unread first word, as ``the card stays``
-    of ``Forget everything the card stays``: none with a value, with no word of ``named`` after
-    that word, a topic word before one or a word for on or of next to it."""
+def _head_run(clause: list[str], named: frozenset[str], every: int | None) -> list[str]:
+    """The words of ``clause`` after its word for all at ``every``, as ``of it the card stays`` of
+    ``Forget all of it the card stays``, or else after its forget verb and an unread first word,
+    with a word of ``named`` past it, no value, no topic word before one, no placing word next."""
+    if every is not None:
+        return clause[every + 1 :]
     start = next((at + 1 for at, word in enumerate(clause) if FORGET.fullmatch(word)), 0)
     rest = clause[start + (not TOPIC.isdisjoint(clause[start : start + 1])) :]
     first = next((at for at, word in enumerate(rest) if word in named), 0)
@@ -246,7 +248,8 @@ async def _kept_later(
     split = clauses(call.stamp.query)
     first = next((at for at, clause in enumerate(split) if _forgets(clause)), 0)
     rows, named = await _store_named(store, scope, call, seen)
-    head = _head_run(split[first], named) if split else []
+    place = everything(" ".join(split[first])) if split else None
+    head = _head_run(split[first], named, place and place[1]) if split else []
     if first + 1 >= len(split) and not head:
         return frozenset()
     later = ", ".join([_VERB, " ".join(head), *(" ".join(clause) for clause in split[first + 1 :])])

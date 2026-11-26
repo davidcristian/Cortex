@@ -72,8 +72,6 @@ async def _deleted(query: str, ids: tuple[str, ...] = _THREE) -> set[str]:
         ("Forget all of that.", _THREE, {"locker", "card", "phone"}),
         ("Forget the card that stays in my wallet.", _THREE, {"card"}),
         ("Forget all my card numbers.", _THREE, {"card"}),
-        ("Delete all of my card details from memory.", _THREE, {"card"}),
-        ("Forget everything on my card please.", _THREE, {"card"}),
         ("Forget what stays the same.", _THREE, {"locker", "card", "phone"}),
         ("Do not forget everything, my card stays.", _THREE, set[str]()),
         ("Everything fine, forget my card.", _THREE, {"card"}),
@@ -102,6 +100,10 @@ async def _deleted(query: str, ids: tuple[str, ...] = _THREE) -> set[str]:
         ("Forget everything about my card.", _THREE, {"card"}),
         ("Vergiss alles von der Karte.", ("spind", "karte"), {"karte"}),
         ("Olvida todo de la tarjeta.", ("gimnasio", "tarjeta"), {"tarjeta"}),
+        ("Forget all of my card numbers.", _THREE, {"card"}),
+        ("Forget all of the card.", _THREE, {"card"}),
+        ("Forget everything of my card.", _THREE, {"card"}),
+        ("Forget it all on my card.", _THREE, {"card"}),
     ],
 )
 async def test_a_forget_of_everything_in_a_form_a_reader_reads_lists_what_it_listed(
@@ -147,6 +149,13 @@ async def test_a_forget_of_everything_in_a_form_a_reader_reads_lists_what_it_lis
         ("Alles muss weg bis auf die Karte.", ("spind", "karte")),
         ("Olvida todo la tarjeta se queda.", ("gimnasio", "tarjeta")),
         ("Uită tot în afară de cardul.", ("dulap", "cardul")),
+        ("Forget all of it the card stays.", _THREE),
+        ("Forget all of them the card stays.", _THREE),
+        ("Delete all of it the card stays.", _THREE),
+        ("Forget it all the card stays.", _THREE),
+        ("Forget everything of mine the card stays.", _THREE),
+        ("Forget everything on it the card stays.", _THREE),
+        ("Forget everything card stays.", _THREE),
     ],
 )
 async def test_a_forget_of_everything_naming_a_row_in_a_form_no_reader_reads_keeps_every_row(
@@ -161,6 +170,9 @@ async def test_a_forget_of_everything_naming_a_row_in_a_form_no_reader_reads_kee
         ("Forget everything my card holds.", _THREE),
         ("Forget all my card numbers but quickly.", _THREE),
         ("Uită tot despre cardul.", ("dulap", "cardul")),
+        ("Forget everything on my card please.", _THREE),
+        ("Forget all of my card details.", _THREE),
+        ("Delete all of my card details from memory.", _THREE),
     ],
 )
 async def test_a_forget_of_everything_differing_from_a_kept_form_by_an_unread_word_keeps_it(

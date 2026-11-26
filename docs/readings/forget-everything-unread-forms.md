@@ -184,3 +184,25 @@ A probe of nearby heads before `the card stays.` lists the card after `Forget al
 all`, a comma after the head, and the four other languages' heads tried (`Oublie tout ça`,
 `Vergiss das alles`, `Olvida todo eso`, `Uită tot asta`). Cases and counts: `gen.py`, `probe.py`,
 `replay.sh` and `cmp.py` in `~/.cache/cortex-run/2026-11-26/a1/`.
+
+The rule built for these heads: when `everything` reads a forget of everything in the first
+clause holding a forget verb, the words of that clause after its word for all are read as one more
+run after a value, whatever stands before that word and whatever placing word follows it, and a
+stored row the run names in a role no reader reads is kept. Replayed with `replay.sh` and `cmp.py` in
+`~/.cache/cortex-run/2026-11-26/x1/`, the tree before the change against the tree after it:
+
+| Case set | Cases | Keep rows listed before | After | Rows newly listed | Rows asked to delete newly kept |
+| --- | --- | --- | --- | --- | --- |
+| audit mixed messages | 2,482 | 18 | 0 | 0 | 0 |
+| probe of nearby heads | 30 | 16 | 2 | 0 | 0 |
+| generator | 71,332 | 0 | 0 | 0 | 16 the generator marks neither way |
+| family, plurals, remember sets, mixed, pairs, valued, negated, `Don` | 65,835 | 0 | 0 | 0 | 0 |
+
+The 16 are the rows of two test literals asking to delete, `Forget everything on my card please.`
+and `Delete all of my card details from memory.`: `please` and `details` are words no reader reads
+after the row, so these read as `Forget everything the card stays.` does, against 1,411 rows for
+the rule reading the forget verb's whole clause. The 2 still listed are `Forget the lot the card
+stays.` for both call texts: `lot` is no word for all, so `everything` reads no forget of
+everything there. A forget of everything in a clause after another forget clause lists the kept
+row at both trees, for a head of one word too: `Forget the card. Forget everything the phone
+stays.` deletes the phone.
