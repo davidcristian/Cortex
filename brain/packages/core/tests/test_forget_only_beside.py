@@ -22,7 +22,7 @@ _ROWS = {
 _NAMED = frozenset({"card", "phone", "locker"})
 
 
-async def _left(query: str) -> list[str]:
+async def _left(query: str, call_text: str = "4242") -> list[str]:
     store = InMemoryMemoryStore()
     for i, (name, text) in enumerate(_ROWS.items()):
         at = _AT + timedelta(minutes=i)
@@ -31,7 +31,9 @@ async def _left(query: str) -> list[str]:
         )
     tool = ForgetChosenTool(store, GLOBAL_MEMORY_SCOPE)
     stamp = TurnStamp(session_id="chat-new", turn_id="t1", query=query)
-    call = ToolCall(id="c1", name=FORGET_CHOSEN_TOOL_NAME, arguments={"text": "4242"}, stamp=stamp)
+    call = ToolCall(
+        id="c1", name=FORGET_CHOSEN_TOOL_NAME, arguments={"text": call_text}, stamp=stamp
+    )
     await tool.card(call)
     await tool.invoke(call)
     return sorted(hit.record.id for hit in await store.search((1.0, 0.0), k=10))
@@ -71,6 +73,41 @@ async def test_a_word_for_only_or_an_adding_clause_alone_still_deletes_what_it_n
     query: str, left: list[str]
 ) -> None:
     assert await _left(query) == left
+
+
+@pytest.mark.parametrize("text", ["locker 4242", "code is 4242", "my locker code is 4242"])
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Forget 4242, the card too, only the phone.",
+        "Forget all 4242, only the card.",
+        "Forget all 4242, except the card, just the phone.",
+        "Forget 4242, keep the card, just the phone.",
+        "Forget 4242, only the phone and the card.",
+        "Forget 4242 just the phone.",
+        "Forget all 4242 only the card.",
+    ],
+)
+async def test_a_word_for_only_keeps_a_row_a_call_naming_it_beside_the_value_lists(
+    query: str, text: str
+) -> None:
+    assert "locker" in await _left(query, text)
+
+
+@pytest.mark.parametrize("text", ["locker 4242", "Remember that my locker code is 4242."])
+@pytest.mark.parametrize(
+    ("query", "left"),
+    [
+        ("Forget all 4242, only the locker.", ["card", "phone"]),
+        ("Forget all 4242, just the locker.", ["card", "phone"]),
+        ("Forget 4242 only the locker.", ["card", "phone"]),
+        ("Forget 4242, the card too.", ["card", "phone"]),
+    ],
+)
+async def test_a_call_naming_a_row_beside_the_value_deletes_it_when_the_run_names_it(
+    query: str, left: list[str], text: str
+) -> None:
+    assert await _left(query, text) == left
 
 
 @pytest.mark.parametrize(

@@ -64,7 +64,7 @@ async def _deleted(query: str, ids: tuple[str, ...] = _THREE) -> set[str]:
         ("Forget everything except my card.", _THREE, {"locker", "phone"}),
         ("Forget everything, also the card.", _THREE, {"locker", "card", "phone"}),
         ("Forget everything, my card too.", _THREE, {"locker", "card", "phone"}),
-        ("Forget everything, only the card.", _THREE, {"locker", "card", "phone"}),
+        ("Forget everything, only the card.", _THREE, {"card"}),
         ("Forget everything on my card.", _THREE, {"card"}),
         ("Forget everything about my gym.", ("gym", "card"), {"gym"}),
         ("Forget everything about my stay.", _THREE, {"locker", "card", "phone"}),

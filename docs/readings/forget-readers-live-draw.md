@@ -66,9 +66,9 @@ locker in none: the word for only removed the card loss. Replayed over the three
 call text holding the value beside a word of the row (`locker 4242`, `code is 4242`, `my locker
 code is 4242` and the whole request) lists the locker at both trees, on this form and on `Forget
 all 4242, only the card.`, while `4242` lists no row other than the card the second form names:
-`alone` reads the runs after the call text in the message, and a call text the message does not
-hold has none
-([task 1362](../refinements/tasks/1362-a-forget-call-holding-the-value-beside-a-row-word-passes-a-word-for-only.md)).
+the reader of the word for only named rows by the words of the call's matches alone, so with the
+locker the one match, `phone` and `card` named no row it read
+([the replay of the fix](forget-form-cells.md#a-word-for-only-beside-a-call-naming-a-row-2026-11-26)).
 Rows in `logs/rows-h1.jsonl` to `rows-h8.jsonl` and `rows-o3.jsonl` (`count.py`, `sum.py`).
 
 ## The cost of the head rule after a word for all

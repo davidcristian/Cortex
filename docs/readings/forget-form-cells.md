@@ -74,3 +74,28 @@ and, and holds the word for only: `Oublie 4242, aussi la carte seulement sur le 
 `Forget 4242, also the card only on the phone.` and `Forget 4242 and the card only on the
 phone.`. Scripts `replay.sh`, `both.sh`, `three.sh`, `cmp.py` and `forms.py` in
 `~/.cache/cortex-run/2026-11-26/f2/`.
+
+## A word for only beside a call naming a row, 2026-11-26
+
+A call text holding the value beside a word of a row, as `locker 4242`, `code is 4242` or the row's
+whole request, matches that row alone, so `alone` in `may_keep` read `phone` of `Forget 4242, the
+card too, only the phone.` as a word naming no row and kept nothing. `_kept_later` in
+`forget_permit.py` now reads the same runs, after the message's value that the call's text holds,
+with every word of the message naming a stored row, and keeps each row of the card that the run
+leaves out. The word for only generator writes 3,420 such messages in five languages, 12 forms, each
+with the value as the call text and three call texts per row (`onlygen.py`).
+
+| Set | Messages | Asked to keep, listed | Not asked for, newly listed | Asked to delete, newly kept |
+| --- | --- | --- | --- | --- |
+| word for only generator, before | 3,420 | 444 | | |
+| word for only generator, after | 3,420 | 324 | 0 | 0 |
+| every other set, after | 140,200 | unchanged | 0 | 3 |
+
+The other sets are the generator's 71,332 messages, the forgets of every value, both mixed sets,
+both word pair sets, the valued and negated messages, and every set of the a1 and x1 slots. The
+120 rows no longer listed are all English. The 3 rows newly kept are the phone rows of `Forget
+everything, only the card.`, which the reading "only the card" keeps. The 324 left are 300 in the
+four languages whose cell for only is empty and 24 English rows in `Forget 4242 and only the
+phone.` and `Forget only the phone 4242.`
+([task 1365](../refinements/tasks/1365-a-word-for-only-the-card-leaves-unread-lists-a-row-asked-to-keep.md)).
+Scripts `onlygen.py`, `replay.sh`, `both.sh` and `cmp.py` in `~/.cache/cortex-run/2026-11-26/f5/`.
