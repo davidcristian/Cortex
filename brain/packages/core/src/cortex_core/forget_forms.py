@@ -45,7 +45,7 @@ FORMS: dict[str, tuple[str, str, str, str, str]] = {
 }
 
 _PLURAL = "a row the message says stays, named in the plural as `cardurile` is for `cardul`"
-_UNASKED = "read, it lists a row no clause asks for when another adds or keeps one"
+_UNASKED = "read, it lists the row of an adding run holding it, as `only` does in English"
 _NO_ALL_BUT = "the word for but after a word for all does not mean except, which has its own row"
 # Why a cell is empty or leaves out the plain translation of an English word.
 UNREAD: dict[tuple[str, str], str] = {
@@ -55,7 +55,7 @@ UNREAD: dict[tuple[str, str], str] = {
     (ONLY, "fr"): f"`seulement`: {_UNASKED}; `juste` also means right",
     (ONLY, "de"): f"`nur`: {_UNASKED}",
     (ONLY, "es"): "`solo` also means alone and is an Italian word too",
-    (ONLY, "ro"): f"`doar`: {_UNASKED}",
+    (ONLY, "ro"): "`doar`: read, it lists a row no clause asks for when another adds or keeps one",
     (ALSO, "es"): "`también`: read, it lists a row beside `solo`, a word for only left unread",
     (ALSO, "ro"): "`și` is the word for and, which has its own row, and `de asemenea` is two words",
     (ALL_BUT, "fr"): _NO_ALL_BUT,

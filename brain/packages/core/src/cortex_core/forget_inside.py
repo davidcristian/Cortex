@@ -21,6 +21,7 @@ from cortex_core.forget_clauses import (
 )
 from cortex_core.forget_kinds import MINUS, extends, names, read_kinds, reads
 from cortex_core.forget_languages import FUNCTION, readings
+from cortex_core.forget_only import alone
 from cortex_core.forget_remarks import asking
 from cortex_core.forget_unnamed import just_said, quantifies, row_words, unnamed
 from cortex_core.memory import MemoryRecord
@@ -232,7 +233,7 @@ def may_keep(
 ) -> list[MemoryRecord]:
     """The ``rows`` ``query`` may ask to keep: each a word names in any reading (``reads``) in a
     keep clause, after minus, in ``after_but``, ``after_value``, ``kept_again`` or ``after_kept``,
-    or an exception ``beside`` reads, and each kept for the role of a row named beside the value."""
+    or an exception ``beside`` reads, and each a role beside the value or ``alone`` leaves out."""
     after = after_but(query)
     for clause in clauses(query):
         at = next((at for at, token in enumerate(clause) if token in MINUS), len(clause))
@@ -253,6 +254,7 @@ def may_keep(
     kept = frozenset(keeps | kept_again(query, text, frozenset(known | wide)))
     keeps |= content(query, " ".join(after_kept(query, kept)))
     limit, every = roles[LIMIT] & named, quantifies(query)
+    only = alone(query, text, known)
     unread = bool(roles[UNREAD] & (named | beyond) or broad[UNREAD] & (named | beyond | wide))
     head = content(query, " ".join(before_value(query, text))) | roles[LIMIT] | roles[ADDITION]
     return [
@@ -261,6 +263,7 @@ def may_keep(
         if reads(keeps, row_words(row.text), asked[row.id] - _FUNCTION)
         or (unread and not names(head & named, asked[row.id]))
         or (every and bool(limit) and not names(limit, asked[row.id]))
+        or (bool(only) and not names(only, asked[row.id]))
     ]
 
 

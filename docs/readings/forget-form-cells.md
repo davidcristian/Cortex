@@ -45,3 +45,32 @@ No cell keeps a row asked to delete that HEAD deletes. Where the rows come from:
 `de asemenea` is two words and a cell holds one word per entry, so it was not replayed. Scripts
 `variants.py`, `cells.sh`, `toate.sh`, `cells_diff.py` and `detail.py`, logs `cells_diff.txt`
 and `ro_diff.txt`, in `~/.cache/cortex-run/2026-11-24/f3/`.
+
+## A word for only read as a limit beside another clause, 2026-11-26
+
+The forget card keeps each row that a run after the value holding a word for only, read as a
+limit, does not name (`alone` in `forget_only.py`), whatever other clause the message holds. The
+replay is over the generator's 71,332 messages, the 3,864 forgets of every value, the 6,156 and
+13,827 mixed messages, the 12,768 word pairs, the 4,104 valued messages and the 8,376 negated
+messages, against HEAD `f71fb6d13`.
+
+| Tree | Asked to keep, listed | Not asked for, listed | Asked to delete, kept |
+| --- | --- | --- | --- |
+| HEAD | 0 | 1,254 | 33,355 |
+| `alone` | 0 | 881 | 33,505 |
+| `alone`, then `seulement` filled | 0 | 885 | 32,625 |
+| `alone`, then `nur` filled | 0 | 851 | 32,997 |
+
+All counts are over the generator; every other set is unchanged in every row. `alone` lists no
+row HEAD keeps. It keeps 373 rows not asked for that HEAD lists, as the card of `Forget 4242, the
+card too, only the phone.`, and 150 rows asked to delete, each added by a clause after the run
+(`Forget 4242, only the card, the phone too.`). Read only beside a clause adding, keeping or
+excepting a row, it kept 113 fewer rows not asked for and the same 150 rows asked to delete.
+
+After `alone`, `seulement` deletes 880 rows asked to delete and `nur` 508, and they newly list 56
+and 22 rows not asked for, all in a run that adds a row, by an adding word or a first word for
+and, and holds the word for only: `Oublie 4242, aussi la carte seulement sur le téléphone.`,
+`Vergiss 4242 und das Handy nur auf der Karte.`. English lists 64 rows in the same form, as in
+`Forget 4242, also the card only on the phone.` and `Forget 4242 and the card only on the
+phone.`. Scripts `replay.sh`, `both.sh`, `three.sh`, `cmp.py` and `forms.py` in
+`~/.cache/cortex-run/2026-11-26/f2/`.

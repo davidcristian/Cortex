@@ -164,7 +164,7 @@ WHICH = frozenset({"it", "that", "which", "this", "is", "was", "i", "mean"}) | f
 )
 
 
-def _runs(query: str, value: str) -> Iterator[tuple[list[str], bool | None]]:
+def runs(query: str, value: str) -> Iterator[tuple[list[str], bool | None]]:
     """Each run of ``query`` after ``value``, to a clause mark or forget verb, and whether its
     clause holds a keep clause from where the run starts: ``None`` for the words before a keep
     clause that opens inside a run, less the words leading into it, which are a run of their own."""
@@ -192,7 +192,7 @@ def after_value(query: str, value: str, named: frozenset[str]) -> list[str]:
     ``named``, or all before a negation; none of a run adding a row or holding a keep clause."""
     read = named | _PLACE | WHOSE | WHICH | AND
     found: list[str] = []
-    for run, keeps in _runs(query, value):
+    for run, keeps in runs(query, value):
         last = max((at for at, word in enumerate(run) if word in named), default=0)
         told = keeps or run[-2:] == ["as", "well"] or not _ADD.isdisjoint(run)
         unread = (at for at in range(last) if run[at] not in read and not run[at].isdigit())
@@ -205,7 +205,7 @@ LIMIT, ADDITION, EXCEPTION, UNREAD = "limit", "addition", "exception", "unread"
 _ONE = frozenset({"one", "ones"})
 
 
-def _role(run: list[str], named: frozenset[str]) -> str:
+def run_role(run: list[str], named: frozenset[str]) -> str:
     """What ``run`` asks for the rows it names: ``ADDITION`` with an adding word at an end or a
     word for and first, ``EXCEPTION`` after a word for but, else ``LIMIT``; ``UNREAD`` when a
     word between is none of ``named`` and none a reader of that role reads."""
@@ -225,15 +225,15 @@ def _role(run: list[str], named: frozenset[str]) -> str:
 def beside(
     query: str, value: str, named: frozenset[str], minus: frozenset[str]
 ) -> dict[str, set[str]]:
-    """The words of ``named`` in the runs of ``query`` after ``value``, by the ``_role`` of their
+    """The words of ``named`` in the runs of ``query`` after ``value``, by the ``run_role`` of their
     run, ``UNREAD`` when a later run naming no row holds a word no reader reads: none of a run
     with a keep clause, a negation or a word of ``minus``, no limit or addition before a clause."""
     found: dict[str, set[str]] = {LIMIT: set(), ADDITION: set(), EXCEPTION: set(), UNREAD: set()}
     read = _PLACE | WHOSE | WHICH | AND | _ADD
-    for run, keeps in _runs(query, value):
+    for run, keeps in runs(query, value):
         words = named.intersection(run)
         if words and not keeps and (NOT | minus).isdisjoint(run):
-            role = _role(run, named)
+            role = run_role(run, named)
             found[role] |= set() if keeps is None and role in (LIMIT, ADDITION) else words
         elif not words and not all(word in read or word.isdigit() for word in run):
             unread = found[LIMIT] | found[ADDITION] | found[EXCEPTION] | found[UNREAD]
@@ -242,7 +242,7 @@ def beside(
 
 
 def kept_again(query: str, value: str, named: frozenset[str]) -> set[str]:
-    """The words of ``named`` in a run of ``query`` after ``value`` whose ``_role`` is ``UNREAD``,
+    """The words of ``named`` in a run of ``query`` past ``value`` whose ``run_role`` is ``UNREAD``,
     past where it holds ``value`` (only first for a ``value`` of words of ``named``), and in the
     clauses of names just before it or a name's keep verb, as ``a, b stays``; none of a negation.
     """
@@ -250,14 +250,14 @@ def kept_again(query: str, value: str, named: frozenset[str]) -> set[str]:
     size, naming = len(wanted), named.issuperset(wanted)
     found: set[str] = set()
     listed: set[str] = set()
-    for later, (run, keeps) in enumerate(_runs(query, value)):
+    for later, (run, keeps) in enumerate(runs(query, value)):
         ends = (
             at + size
             for at in range(len(run) - size + 1)
             if run[at : at + size] == wanted and not (naming and (at or later))
         )
         words = named.intersection(run[max(ends, default=0) :])
-        role = _role(run, named) if words and not keeps and NOT.isdisjoint(run) else None
+        role = run_role(run, named) if words and not keeps and NOT.isdisjoint(run) else None
         verb = next((at for at, word in enumerate(run) if KEEP.fullmatch(word)), 0)
         fronted = bool(keeps) and not named.isdisjoint(run[:verb])
         found |= words | listed if role == UNREAD else listed if fronted else set()
