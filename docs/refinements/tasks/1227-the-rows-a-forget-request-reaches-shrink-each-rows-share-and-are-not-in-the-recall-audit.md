@@ -1,9 +1,8 @@
 # The rows a forget request reaches shrink each row's share and are not in the recall audit
 
-**Status:** open, actionable
+**Status:** done 2026-11-26
 **Area:** memory
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
-**Verified:** 2026-11-15
 
 On a request to forget, `with_forget_reach` (`forget_reach.py`) adds up to 5 stored rows to the 5
 that recall ranked. On 2026-11-15 unit runs of `assemble_inference_messages` showed four things it
@@ -31,3 +30,10 @@ the rows are framed as ranked rows are and the tools offered do not change.
 
 - 2026-11-15: filed from the audit of the reach beside the defences already there
   ([readings](../../readings/forget-everything-but-call.md#the-reach-beside-the-defences-already-there-2026-11-15)).
+- 2026-11-26: the first three findings held in the code. Reached rows keep a share of
+  `RECALL_CHAR_BUDGET`, written into the origin ADR with the reason (a second budget would take
+  about half the room left for tool steps and the reply), and a test shows a value past a reached
+  row's cut is not in the request. The memory context ends with `more_held_note` for each value a
+  row the turn does not show also holds, and `RecallAudit.reached` lists the reached rows, which
+  the fake, both file sinks and the log line keep. `FORGET_REACH_LIMIT` equals `DEFAULT_RECALL_K`
+  today, as its comment says.

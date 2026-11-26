@@ -137,13 +137,13 @@ the rank is working.
 Set `CORTEX_MEMORY_RECALL_AUDIT=1` to turn the audit on: one `cortex.memory.recall` line per
 recall, in the brain's container logs, with the conversation and turn it was made for, the pool
 size, how many candidates were available to it, the rank basis, whether keys on that basis may be
-compared, and each kept hit's memory id, cosine score and rank key. It is a bare
-`memory.recall` message followed by those as `key=value` fields, with `hits` and `dropped` as
-compact JSON inside their own field, so one line is both readable and pasteable into `jq`
-(`CORTEX_LOG_FORMAT=packed` makes the whole line one JSON object; see
-[brain-logs.md](brain-logs.md)). It never includes text, so a line names which memories came back
-and never what they said; pair an id with the `memories` table for the content. To keep the trail in
-a file an operator can query with `jq`, see [memory-recall-file.md](memory-recall-file.md).
+compared, each kept hit's memory id, cosine score and rank key, and on a request to forget the
+`reached` rows added after them, by id and taint bit. It is a bare `memory.recall` message followed
+by those as `key=value` fields, with `hits` and `dropped` as compact JSON inside their own field, so
+one line is both readable and pasteable into `jq` (`CORTEX_LOG_FORMAT=packed` makes the whole line
+one JSON object; see [brain-logs.md](brain-logs.md)). It never includes text, so a line names which
+memories came back and never what they said; pair an id with the `memories` table for the content.
+To keep the trail in a file an operator can query with `jq`, see [memory-recall-file.md](memory-recall-file.md).
 
     docker compose --project-directory . -f docker/docker-compose.yml \
       -f docker/docker-compose.gpu.yml -f docker/docker-compose.memory.yml logs -f brain \

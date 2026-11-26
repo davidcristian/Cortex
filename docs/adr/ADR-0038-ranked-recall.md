@@ -55,7 +55,7 @@ what a memory says cannot do without.
 
 5. **Recall observability is a port and a sink, modelled on `ToolAuditSink`.** `RecallAuditSink`
    takes one `RecallAudit` per recall: `session_id`, `turn_id`, `query`, `pool_size`, `available`,
-   `k`, the `ranking`, the `dropped` candidates and `at`. `LoggingRecallSink`
+   `k`, the `ranking`, the `dropped` candidates, `at`, and the rows a forget `reached` after the rank. `LoggingRecallSink`
    (`cortex_memory/audit.py`) writes one `memory.recall` line with the query's length, never its
    text, and each hit's id, score, key and taint bit, never its text. It is opt-in
    (`CORTEX_MEMORY_RECALL_AUDIT`, default off, which wires no sink), and `MemoryRecaller` builds the
@@ -76,7 +76,7 @@ what a memory says cannot do without.
    numbered list, each note after its age ([ADR-0008](ADR-0008-memory-v1.md) decision 4), under the
    JSON-schema-constrained `ORDER_ENVELOPE` ([ADR-0028](ADR-0028-grammar-constrained-subagents.md)),
    and turns the order into keys in (0, 1]. `CORTEX_MEMORY_RECALL` defaults to `judge`; `raw` is the
-   opt-out that restores the founding behaviour. A message asking to forget adds the stored rows it reaches after the ranked ones, whatever the policy ([ADR-0075](ADR-0075-forget-chosen-memories.md)). Its fallback (default `RAW_RECALL_POLICY`, which
+   opt-out that restores the founding behaviour. A message asking to forget adds the stored rows it reaches after the ranked ones, whatever the policy ([ADR-0075](ADR-0075-forget-chosen-memories.md)). The reached rows share `RECALL_CHAR_BUDGET` with the ranked ones and get no budget of their own: that budget is sized so a full window and every tool leave about 3,000 tokens for tool steps and the reply ([ADR-0008](ADR-0008-memory-v1.md) decision 4), and a second one would take about half of them on the turn that runs a forget. So a value past a reached row's cut is not in the request. The forget card lists rows from the store by the call's text, so the cut changes what the cortex reads and not what the card lists. The judge's fallback (default `RAW_RECALL_POLICY`, which
    `recall_policy_from_config` does not override) takes an unreachable model, a reply outside the
    envelope, a truncated one, an order of nothing that exists and an empty pool, and the ranking
    then uses the fallback's basis, so the record says what ranked. `rank_bounds(k)` is `24 + 8k`

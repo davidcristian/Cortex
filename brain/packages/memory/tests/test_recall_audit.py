@@ -1,4 +1,5 @@
 import logging
+from dataclasses import replace
 from datetime import UTC, datetime
 
 import pytest
@@ -181,3 +182,13 @@ async def test_the_fields_reach_the_line_an_operator_actually_reads(
     assert "session_id=s1" in line
     assert "turn_id=t1" in line
     assert "basis=ember" in line
+
+
+async def test_the_trail_names_each_reached_row_by_id_and_taint_and_never_its_text(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    row = MemoryRecord(id="m7", text=_ALSO_PRIVATE, embedding=(0.0, 1.0), at=_AT, tainted=True)
+    with caplog.at_level(logging.INFO, logger="cortex.memory.recall"):
+        await LoggingRecallSink().record(replace(_audit(), reached=(row,)))
+    assert _logged(caplog)["reached"] == [{"id": "m7", "tainted": True}]
+    assert _ALSO_PRIVATE not in _rendered(caplog)

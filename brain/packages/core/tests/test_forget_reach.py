@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -9,13 +9,14 @@ from cortex_core import (
     MemoryRecaller,
     MemoryRecord,
     MemoryStoreError,
+    RecordingRecallSink,
     ScoredMemory,
     SystemClock,
     TaintLedger,
     TurnCapabilities,
 )
 from cortex_core.dispatch_round import ToolLoopContext
-from cortex_core.forget_reach import FORGET_REACH_LIMIT, with_forget_reach
+from cortex_core.forget_reach import FORGET_REACH_LIMIT, forget_reach, more_held_note
 from cortex_core.ranking import RankBasis, RankedMemory, Ranking
 from cortex_core.turn_context import assemble_inference_messages
 
@@ -80,7 +81,10 @@ class _ValueFails(InMemoryMemoryStore):
 
 
 async def _rig(
-    store: InMemoryMemoryStore, *texts: str, tainted: Sequence[str] = ()
+    store: InMemoryMemoryStore,
+    *texts: str,
+    tainted: Sequence[str] = (),
+    audit: RecordingRecallSink | None = None,
 ) -> TurnCapabilities:
     for index, text in enumerate(texts):
         embedding = tuple(await HashEmbedder().embed(text))
@@ -89,7 +93,7 @@ async def _rig(
                 id=f"m{index}", text=text, embedding=embedding, at=_AT, tainted=text in tainted
             )
         )
-    recaller = MemoryRecaller(store, HashEmbedder(), SystemClock(), policy=_CardOnly())
+    recaller = MemoryRecaller(store, HashEmbedder(), SystemClock(), policy=_CardOnly(), audit=audit)
     return TurnCapabilities(memory=recaller)
 
 
@@ -227,12 +231,63 @@ async def test_a_store_that_fails_while_reaching_answers_the_turn_without_memory
     assert await _memory_text(caps, "Forget all 4242 except the card.") == ""
 
 
-async def test_the_rows_already_held_are_returned_as_they_are_on_another_message() -> None:
+async def test_a_message_asking_to_forget_nothing_reaches_nothing() -> None:
     caps = await _rig(InMemoryMemoryStore(), _CARD, _LOCKER)
     assert caps.memory is not None
-    hits = await caps.memory.recall("What is my card?", k=5, session_id="s", turn_id="t")
 
-    assert await with_forget_reach("What is my card?", caps.memory, hits, session_id="s") is hits
+    assert await forget_reach("What is my card?", caps.memory, session_id="s", ranked=5) is None
+
+
+def _long_card(index: int) -> str:
+    return f"User: Remember that card {index} {'is kept in the blue folder ' * 30}opens 4242."
+
+
+async def test_a_value_past_the_cut_of_a_reached_row_is_not_in_the_request() -> None:
+    rows = [_long_card(index) for index in range(12)]
+    caps = await _rig(InMemoryMemoryStore(), *rows)
+
+    text = await _memory_text(caps, "Forget 4242.")
+
+    shown = text.count("Remember that card")
+    assert shown > FORGET_REACH_LIMIT
+    assert text.count("[memory cut here:") == shown
+    assert "opens 4242." not in text
+    assert text.endswith(more_held_note("4242"))
+
+
+async def test_no_line_says_more_rows_hold_a_value_when_every_row_holding_it_is_shown() -> None:
+    caps = await _rig(InMemoryMemoryStore(), _LOCKER, _CARD, _PHONE, _CAT)
+
+    text = await _memory_text(caps, "Forget 4242.")
+
+    assert _said(_LOCKER) in text
+    assert more_held_note("4242") not in text
+
+
+async def test_the_line_names_only_the_value_more_rows_hold_than_are_shown() -> None:
+    doors = [
+        f"User: Remember that door {index} opens with 4242.\nAssistant: Noted."
+        for index in range(8)
+    ]
+    caps = await _rig(InMemoryMemoryStore(), _CARD, _CAT, *doors)
+
+    text = await _memory_text(caps, "Forget 4242 and Miso, keep the card.")
+
+    assert more_held_note("4242") in text
+    assert more_held_note("Miso") not in text
+
+
+async def test_the_recall_audit_holds_the_rows_the_forget_reached() -> None:
+    audit = RecordingRecallSink()
+    caps = await _rig(InMemoryMemoryStore(), _CARD, _LOCKER, _CAT, audit=audit)
+
+    await _memory_text(caps, "Forget all 4242 except the card.")
+    await _memory_text(caps, "What is my card?")
+
+    first, second = audit.audits
+    assert [row.text for row in first.reached] == [_LOCKER]
+    assert [hit.hit.record.text for hit in first.ranking.hits] == [_CARD]
+    assert second.reached == ()
 
 
 async def test_nearest_returns_the_rows_a_search_finds_without_the_policy() -> None:
@@ -243,3 +298,28 @@ async def test_nearest_returns_the_rows_a_search_finds_without_the_policy() -> N
 
     assert len(rows) == 2
     assert {row.id for row in rows} <= {"m0", "m1", "m2"}
+
+
+class _EveryCard(_CardOnly):
+    def candidate_k(self, k: int) -> int:
+        return 4 * k
+
+
+async def test_the_line_shows_when_one_row_more_holds_the_value_than_the_turn_can_show() -> None:
+    store = InMemoryMemoryStore()
+    texts = [
+        *(f"User: Remember that door {index} opens with 4242." for index in range(5)),
+        *(f"User: Remember that card {index} ends in 4242." for index in range(5)),
+        "User: Remember that the last door opens with 4242.",
+    ]
+    for index, text in enumerate(texts):
+        embedding = tuple(await HashEmbedder().embed(text))
+        at = _AT + timedelta(minutes=index)
+        await store.add(MemoryRecord(id=f"m{index}", text=text, embedding=embedding, at=at))
+    recaller = MemoryRecaller(store, HashEmbedder(), SystemClock(), policy=_EveryCard())
+
+    text = await _memory_text(TurnCapabilities(memory=recaller), "Forget 4242.")
+
+    assert sum(row in text for row in texts) == 2 * FORGET_REACH_LIMIT
+    assert texts[-1] not in text
+    assert text.endswith(more_held_note("4242"))

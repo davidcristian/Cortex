@@ -10,7 +10,7 @@ _logger = logging.getLogger(_LOGGER_NAME)
 
 
 def recall_fields(audit: RecallAudit) -> dict[str, object]:
-    """The pool, what it was drawn from, the basis, the hits and the drops, never the texts."""
+    """The pool, its source, the basis, the hits, the drops and the rows reached, never a text."""
     return {
         "session_id": audit.session_id,
         "turn_id": audit.turn_id,
@@ -33,6 +33,7 @@ def recall_fields(audit: RecallAudit) -> dict[str, object]:
             {"id": candidate.id, "score": candidate.score} for candidate in audit.dropped.listed
         ],
         "dropped_omitted": audit.dropped.omitted,
+        "reached": [{"id": row.id, "tainted": row.tainted} for row in audit.reached],
         "at": audit.at.isoformat(),
     }
 

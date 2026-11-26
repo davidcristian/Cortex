@@ -33,6 +33,7 @@ class Kept:
     hits: tuple[str, ...]
     dropped: tuple[str, ...]
     dropped_omitted: int
+    reached: tuple[str, ...]
     at: str
 
 
@@ -48,6 +49,7 @@ type Check = Callable[[SinkUnderTest], Awaitable[None]]
 
 def _audit(turn_id: str = "t1", *, session_id: str = "s1", demur: bool = False) -> RecallAudit:
     record = MemoryRecord(id="m1", text="private", embedding=(1.0, 0.0), at=_AT, tainted=True)
+    reached = MemoryRecord(id="m9", text="4242", embedding=(0.0, 1.0), at=_AT)
     hits = () if demur else (RankedMemory(hit=ScoredMemory(record=record, score=0.87), key=0.7),)
     return RecallAudit(
         session_id=session_id,
@@ -62,6 +64,7 @@ def _audit(turn_id: str = "t1", *, session_id: str = "s1", demur: bool = False) 
             omitted=7,
         ),
         at=_AT,
+        reached=(reached,),
     )
 
 
@@ -74,6 +77,7 @@ def _from_audit(audit: RecallAudit) -> Kept:
         hits=tuple(ranked.hit.record.id for ranked in audit.ranking.hits),
         dropped=tuple(candidate.id for candidate in audit.dropped.listed),
         dropped_omitted=audit.dropped.omitted,
+        reached=tuple(row.id for row in audit.reached),
         at=audit.at.isoformat(),
     )
 
@@ -93,6 +97,7 @@ def _read_file(path: Path) -> list[Kept]:
                 hits=tuple(hit["id"] for hit in row["hits"]),
                 dropped=tuple(candidate["id"] for candidate in row["dropped"]),
                 dropped_omitted=row["dropped_omitted"],
+                reached=tuple(held["id"] for held in row["reached"]),
                 at=row["at"],
             )
         )

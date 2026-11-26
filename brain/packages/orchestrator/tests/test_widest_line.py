@@ -26,6 +26,7 @@ from cortex_core import (
     Trust,
     record_fields,
 )
+from cortex_core.forget_reach import FORGET_REACH_LIMIT
 from cortex_core.turn_context import DEFAULT_RECALL_K
 from cortex_memory import JsonLinesRecallSink, LoggingRecallSink
 from cortex_tools import JsonLinesAuditSink, LoggingAuditSink
@@ -100,7 +101,7 @@ async def test_the_widest_recall_trail_line_fits_one_log_driver_message(
     recaller = MemoryRecaller(InMemoryMemoryStore(), HashEmbedder(), SystemClock())
     written = [
         await recaller.record(f"note {number}", session_id="s1")
-        for number in range(_HITS + _DROPPED)
+        for number in range(_HITS + _DROPPED + FORGET_REACH_LIMIT)
     ]
     stored = [record for record in written if record is not None]
     assert len(stored) == len(written)
@@ -124,11 +125,13 @@ async def test_the_widest_recall_trail_line_fits_one_log_driver_message(
             ),
             dropped=DroppedCandidates(
                 listed=tuple(
-                    DroppedCandidate(id=held.id, score=_WIDEST_FLOAT) for held in stored[_HITS:]
+                    DroppedCandidate(id=held.id, score=_WIDEST_FLOAT)
+                    for held in stored[_HITS : _HITS + _DROPPED]
                 ),
                 omitted=0,
             ),
             at=_AT,
+            reached=tuple(stored[_HITS + _DROPPED :]),
         )
     )
     (record,) = caplog.records
@@ -146,6 +149,7 @@ async def test_the_widest_recall_trail_line_fits_one_log_driver_message(
         "keys_comparable",
         "pool",
         "query_chars",
+        "reached",
         "session_id",
         "turn_id",
     }

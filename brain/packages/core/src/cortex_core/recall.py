@@ -92,8 +92,9 @@ class MemoryRecaller:
         session_id: str,
         turn_id: str,
         leave_out: Collection[str] = (),
+        reach: Callable[[Sequence[ScoredMemory]], Sequence[ScoredMemory]] | None = None,
     ) -> Sequence[ScoredMemory]:
-        """Return the ``k`` most relevant memories to ``query`` within the turn's read-scopes.
+        """The ``k`` best memories for ``query`` in the turn's scopes, then those ``reach`` adds.
 
         The rows ``leave_out`` names are dropped before ranking; the next nearest fill the pool.
         """
@@ -108,6 +109,7 @@ class MemoryRecaller:
         ranking = await self._policy.select(
             pool, query=query, now=now, k=k, session_id=session_id, turn_id=turn_id
         )
+        reached = () if reach is None else tuple(reach(ranking.memories))
         if self._audit is not None:
             await self._audit.record(
                 RecallAudit(
@@ -120,9 +122,10 @@ class MemoryRecaller:
                     ranking=ranking,
                     dropped=dropped_candidates(pool, ranking),
                     at=now,
+                    reached=tuple(hit.record for hit in reached),
                 )
             )
-        return ranking.memories
+        return (*ranking.memories, *reached)
 
     async def _count_candidates(self, scopes: Sequence[str] | None) -> int:
         """How many memories the read scopes hold, or ``0`` when no audit sink is wired."""

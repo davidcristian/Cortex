@@ -14,7 +14,8 @@ the host.
 The same fields the log line prints and no more: the conversation and turn, `query_chars` and never
 the query, `pool`, `available`, `k`, `basis`, `keys_comparable`, `hits` (each kept memory's `id`,
 `score`, `key` and `tainted`), `dropped` (each passed-over candidate's `id` and `score`),
-`dropped_omitted` and `at`. No memory text is written. `dropped` is the list the log line prints,
+`dropped_omitted`, `reached` (each row a request to forget added after the rank, by `id` and
+`tainted`) and `at`. No memory text is written. `dropped` is the list the log line prints,
 bounded at 20 before either sink sees it, with `dropped_omitted` counting the rest.
 
 A value the log line prints whole is kept as JSON. A value the line cuts past 2,048 characters, or

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
-from cortex_core.memory import ScoredMemory
+from cortex_core.memory import MemoryRecord, ScoredMemory
 
 
 class RankBasis(Enum):
@@ -91,7 +91,7 @@ def dropped_candidates(
 
 @dataclass(frozen=True, slots=True)
 class RecallAudit:
-    """One recall as the audit records it: the query, the pool width, and what ranked."""
+    """One recall as the audit records it: the query, the pool width, the rows ranked or reached."""
 
     session_id: str
     turn_id: str
@@ -102,3 +102,4 @@ class RecallAudit:
     ranking: Ranking
     dropped: DroppedCandidates
     at: datetime
+    reached: tuple[MemoryRecord, ...] = ()

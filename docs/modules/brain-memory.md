@@ -120,6 +120,8 @@ unbelievable model shows the fallback's own basis with the hits it chose.
   field holds one id per candidate, so its rendered width moves with whatever mints them; the id
   width at which it stops fitting `VALUE_CHARS` is written beside the factory itself, at
   `MemoryRecaller` in [brain-core.md](brain-core.md).
+- `reached` lists the rows a request to forget added after the rank, one `{"id", "tainted"}` per
+  row and never its text, and is empty on any other turn (ADR-0075).
 - `available` beside `pool` is how many candidates there were, against how many came back (ADR-0038
   decision 14). When the two are equal, the pool was the whole readable store, so an id on neither
   list was either never written or written outside the read scopes. When they differ, the pool was
