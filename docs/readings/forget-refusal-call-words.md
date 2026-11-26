@@ -107,3 +107,20 @@ the refused calls were `Der Hund des Benutzers heißt Bello.` twice and `Der Hun
 Bello.`; the other eight named only words of the message and matched nothing, so the old row and
 the new fact were both kept in every draw. Rows in `logs/rows-ka.jsonl` and `logs/rows-bello.jsonl`
 of `~/.cache/cortex-run/2026-11-25/s5/` (`count8.py`).
+
+## The Romanian remember drawn again, 2026-11-26
+
+The stack of [forget-readers-live-draw.md](forget-readers-live-draw.md#the-stack-2026-11-26), a
+brain built from the tree, every card approved. The seed `Ține minte că sora mea vine vineri.`
+was drawn once into an empty store and put back before every draw. The pass rule, written before
+the draw: no old row deleted, and at least 4 draws with a forget call.
+
+| Seed, then message | Draws with a forget call | Calls | Refused | Cards | Old row deleted | New fact stored |
+| --- | --- | --- | --- | --- | --- | --- |
+| `Ține minte că sora mea vine vineri.`, then `Ține minte că sora mea vine mâine.` | 6 of 32 | 6 | 4 | 0 | 0 of 32 | 32 of 32 |
+
+**Result: the rule passes.** The 4 refused calls named the old value, `sora mea vine vineri`, and
+were refused as naming words the message lacks; the other 2 (`sora mea vine mâine` and `Sora mea
+vine mâine`) named the new fact and matched nothing. Every draw kept the old row and stored the
+new fact, so the person ended up with both values. Rows in `logs/rows-r1.jsonl` of
+`~/.cache/cortex-run/2026-11-26/s3/` (`count.py`).

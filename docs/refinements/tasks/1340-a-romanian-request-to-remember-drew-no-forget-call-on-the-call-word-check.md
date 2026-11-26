@@ -1,9 +1,8 @@
 # A Romanian request to remember drew no forget call on the call word check
 
-**Status:** open, actionable
+**Status:** done 2026-11-26
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-25
 
 `forget_unsaid` (`forget_unsaid.py`) refuses a forget call naming a word that a request to
 remember in another language lacks. With the old row seeded, the 16 draws of `Ține minte că sora
@@ -23,3 +22,7 @@ calls recorded on it (`sora mea vine vineri`, `sora ta vine vineri`) are refused
 - 2026-11-25: filed when
   [task 1331](1331-a-request-to-remember-a-fact-with-no-copula-keeps-the-forget-tool-beside-an-older-row.md)
   was closed on draws where this form wrote no forget call.
+- 2026-11-26: done. 32 draws on the call word check with the old row seeded: 6 with a forget
+  call, the 4 calls naming the old value refused, no card shown, the old row kept and the new fact
+  stored in all 32
+  ([readings](../../readings/forget-refusal-call-words.md#the-romanian-remember-drawn-again-2026-11-26)).
