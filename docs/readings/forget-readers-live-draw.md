@@ -120,3 +120,24 @@ deleted the locker in 2 of 8 draws above, now return that the message was not re
 the phone the first word for only form asks to delete stayed stored in all 8, a cost. The model
 made no forget call on `Forget all of it the card stays.` or `Forget everything, only the card.`,
 so those two rows test no reader; the replays cover them.
+
+## The head read after another forget clause, 2026-11-26
+
+The head rule now reads the head, and the clauses after it, from each clause holding a forget verb
+([replay](forget-form-cells.md#a-head-after-another-forget-clause-2026-11-26)). Drawn on a brain
+built from that tree, the same stack and argv, the English rows seeded, the pass rule above, 8
+draws each, every card approved (rules in `notes.md`, rows in `logs/rows-h1.jsonl` to
+`rows-h3.jsonl`, in `~/.cache/cortex-run/2026-11-26/a3/`):
+
+| Message | Asked to delete | Draws with a call | Calls | Refused | Cards | Asked rows deleted | Draws listing or deleting another row |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `Forget the card. Forget everything the phone stays.` | card, locker | 8 of 8 | 13 | 0 | 8 | 8 of 16 | 0 of 8 |
+| `Forget my old card. Forget all of it the phone stays.` | card, locker | 8 of 8 | 8 | 0 | 7 | 7 of 16 | 0 of 8 |
+| `Forget my card. Forget everything about my phone.` | card, phone | 8 of 8 | 16 | 0 | 16 | 16 of 16 | 0 of 8 |
+
+**Result: every form passes.** The phone stayed stored in all 16 draws of the two forms that ask
+to keep it. In 3 draws of the first form the model also called with `phone` or `0721 555 4242`,
+and each such call returned that the message was not read as meaning the phone, with no card. The
+locker those two forms ask to delete stayed stored in all 16 draws, a cost: every call named the
+card. The plain request deleted the card and the phone in all 8 draws and never the locker. One
+call of the second form, `old card`, matched no row.

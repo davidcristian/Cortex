@@ -151,8 +151,8 @@ directory of the 2026-11-26 run). The tree before the change against the tree af
 Every row still listed after another forget clause follows a head that lists it in a first clause
 too: `todo de eso`, `tot de pe el` and `tot dulapul`
 ([task 1366](../refinements/tasks/1366-a-spanish-or-romanian-head-before-a-kept-row-lists-that-row.md)).
-The change is not yet drawn live with the rows seeded
-([task 1369](../refinements/tasks/1369-draw-the-head-read-after-another-forget-clause-with-the-rows-seeded.md)).
+The change was drawn live with the rows seeded
+([readings](forget-readers-live-draw.md#the-head-read-after-another-forget-clause-2026-11-26)).
 
 ## Mixed messages of the third audit, 2026-11-26
 
