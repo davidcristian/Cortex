@@ -84,3 +84,4 @@ turn holds, and the person is the one reader who knows which value is old.
   the user's pick.
 - 2026-11-26: the audit of `words_to_keep` found it returns a request verb alone when a retraction
   follows the verb, written into step 1; with no caller, no card shows it today.
+- 2026-11-26: meets the bar of the freeze of the forget message readers ([ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md) decision 7): it rests on 16 live draws of a message a person types (rows M01 and M02), and its remedy is a second card, not a wider reader.

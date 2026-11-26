@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-25
+**Verified:** 2026-11-26
 
 `false_sentence` (`forget_kept_sentence.py`) marks a reply sentence only when it names a kept row
 by a word both sides of the row say or by its digits. A sentence that names the whole request by a
@@ -32,3 +32,4 @@ needs the message for.
   `Forget the locker 4242 including the phone.` (`those details` twice, `that information`, `The
   requested information`, `those`). Not built inside the slot's time box; the remedy above is
   written down.
+- 2026-11-26: meets the bar of the freeze of the forget message readers ([ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md) decision 7): it rests on the recorded replies of live draws, 5 of the 6 on `Forget the locker 4242 including the phone.`, and its remedy is a reply check that reads the message through `forget_words` as it stands, with no list of reference words.

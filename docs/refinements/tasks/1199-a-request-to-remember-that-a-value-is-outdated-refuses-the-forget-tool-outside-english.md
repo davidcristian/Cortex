@@ -25,15 +25,13 @@ with the old value stored an unasked forget call then deleted the old row
 1. The cost side is drawn: with the old value stored, the German and Spanish messages each had a
    refused call in 3 of 8 draws and no note, so the person kept the old code without being told
    ([readings](../../readings/forget-refusal-stated-fact.md#a-value-said-to-be-outdated-the-old-value-stored-2026-11-26)).
-2. That cost is real. First count, over the 7 draws with a refused call, whether a note shown
-   when a refused forget call names a value a stored row holds would reach each of them: it keeps
-   the refusal and tells the person. Only if it cannot, write tests first: each message above
-   keeps the tool, and `Retiens que mon code est 5528.`, `Souviens-toi que mon vélo est bleu.`
-   and `Recuerda que soy vegetariano.` stay refused. Do not add a word list of words that mean
-   outdated, and do not key the rule on the value's shape alone.
-3. Replay every string literal of the brain's tests and every backticked string of `docs/` through
-   both builds, count refusals newly dropped, and draw any new value the change keeps with its old
-   value stored.
+2. That cost is real. Count, over the 7 draws with a refused call, whether a note shown when a
+   refused forget call names a value a stored row holds would reach each of them: it keeps the
+   refusal and tells the person. Write the note to be true on every turn it reaches, with its
+   tests first. `forget_unrequested` is not widened and no word list of words that mean outdated
+   is added.
+3. Draw the note with the old value stored, and decline with the count if it cannot reach the
+   draws.
 
 ## History
 
@@ -48,3 +46,4 @@ with the old value stored an unasked forget call then deleted the old row
   ist.` and `Recuerda que el código está caducado.` in 3 each; no old row deleted, the new message
   stored in all 24, no note shown. By the rule written before the draw the cost is real on the
   German and Spanish messages, and step 2 is next.
+- 2026-11-26: meets the bar of the freeze of the forget message readers ([ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md) decision 7): it rests on seeded live draws of messages a person types, 7 of 24 with a refused call, and its remedy is a note shown on a refused call; the fallback that kept the tool on these messages widened a reader and is removed from step 2.

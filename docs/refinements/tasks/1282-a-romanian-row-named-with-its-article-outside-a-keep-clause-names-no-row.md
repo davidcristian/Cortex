@@ -1,9 +1,8 @@
 # A Romanian row named with its article outside a keep clause names no row
 
-**Status:** open, actionable
+**Status:** declined 2026-11-26
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-26
 
 Over the rows `Ține minte că codul de la dulap este 4242.`, `Ține minte că cardul meu este 4111
 1111 1111 4242.` and `Ține minte că telefonul meu este 0721 555 4242.`, with the call text `4242`,
@@ -47,3 +46,4 @@ locker it asks to keep, and `Uită cardul 4242 mai puțin codul de la sală.` li
   was not built.
   `Uită 4242, păstrează dulapul.` keeps every row through `unnamed` (`forget_unnamed.py`). The
   replay is in `~/.cache/cortex-run/2026-11-26/f4/` (tree `c5`).
+- 2026-11-26: declined at the freeze of the forget message readers ([ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md) decision 7): its counts are over generated messages and its remedy reads a new word form. 716 rows asked to delete stay kept over 42,356 generator messages ([readings](../../readings/forget-freeze.md#forms-left-unread-at-the-freeze-2026-11-26)).

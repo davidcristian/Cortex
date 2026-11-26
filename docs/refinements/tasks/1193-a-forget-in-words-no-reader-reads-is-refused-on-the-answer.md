@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-13
+**Verified:** 2026-11-26
 
 `forget_open` (`forget_open.py`) reads an open forget from what the last two exchanges did: a
 forget call that ran, a reply naming forgetting, or a person's message `asks_to_forget` reads. A
@@ -29,3 +29,4 @@ the reply says nothing about it.
 
 - 2026-11-13: filed by the slot that read the open forget from earlier turns, which replayed the
   recorded turn above.
+- 2026-11-26: meets the bar of the freeze of the forget message readers ([ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md) decision 7): it rests on a recorded live turn, `Cancel the code I gave you.` then `My alarm code is 5528.`, refused, and its remedy is a note the brain appends, not a wider word list.

@@ -207,7 +207,7 @@ memory.`, and 29 rows asked to delete of 144 forgets of everything with a placin
 word for all in five languages (`placegen.py` in `f5/`); with it, none of those, and no row is
 newly listed. Over the same 144, 10 rows asked to keep are listed at every tree, after `Olvida
 todo de eso` and `Uită tot de pe el`
-([task 1366](../refinements/tasks/1366-a-spanish-or-romanian-head-before-a-kept-row-lists-that-row.md)).
+([left unread](forget-freeze.md#forms-left-unread-at-the-freeze-2026-11-26)).
 The 2 still listed are `Forget the lot the card
 stays.` for both call texts: `lot` is no word for all, so `everything` reads no forget of
 everything there. A head in a clause after another forget clause is read the same way

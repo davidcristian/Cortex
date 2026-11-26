@@ -1,11 +1,8 @@
 # A third person statement after a conjunction reads as a request to forget
 
-**Status:** open, waiting for its trigger
+**Status:** declined 2026-11-26
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-10
-**Trigger:** a recorded message, in a draw, a flow record or a test, that states what someone else
-forgets or erases after `et`, `mais`, `y`, `pero`, `și` or `dar` in French, Spanish or Romanian.
 
 `asks_not_kept` (`memory_request.py`) reads an imperative to forget or erase at a clause start in
 French, German, Spanish and Romanian, and a clause also starts after a conjunction. In French,
@@ -30,3 +27,4 @@ code.`, `Gracias y olvida mi PIN.`), and replay every recorded message through t
   one of the six conjunctions before a forget or erase verb in French, Spanish or Romanian finds
   `Mon code est 7731, mais oublie-le.`, an imperative, and this task's own example in
   `claim-reader-replays.md`.
+- 2026-11-26: declined at the freeze of the forget message readers ([ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md) decision 7): its trigger is any recorded message rather than a live failure, and its remedy narrows `asks_not_kept`. The form was 0 of 13,259 recorded strings ([readings](../../readings/forget-freeze.md#forms-left-unread-at-the-freeze-2026-11-26)).

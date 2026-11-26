@@ -1,11 +1,8 @@
 # The lead words of a forget clause are not read from the table of forms
 
-**Status:** open, waiting for its trigger
+**Status:** declined 2026-11-26
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-15
-**Trigger:** an adding word is filled for Spanish or Romanian in the row `ALSO` of `FORMS` in
-`forget_forms.py`. Recheck by reading that row: both cells empty means this has not fired.
 
 `forget_clauses.py` builds ten word sets from the table of forms (`forget_forms.py`). Three sets
 still hold a copy of words the table holds: `_LEAD` the six words for but and `and`, `und` and
@@ -28,3 +25,4 @@ reads `JOIN` only beside an adding word, and no adding word is read in Spanish o
 
 - 2026-11-15: filed from the audit of the table of forms, whose sets were compared with those
   of the commit before it: the same but for `toute`, `jede`, `jeden` and `jedes`.
+- 2026-11-26: declined at the freeze of the forget message readers ([ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md) decision 7): no `FORMS` cell is filled any more, so its trigger cannot fire. The form lists and keeps no row today ([readings](../../readings/forget-freeze.md#forms-left-unread-at-the-freeze-2026-11-26)).

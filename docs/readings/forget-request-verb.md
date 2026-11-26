@@ -46,5 +46,5 @@ the valued set are kept, as for `Forget my lockers 1234.` with the call text `lo
 
 The 1,652 rows asked to delete that the family keeps are kept at both trees: most forms of the
 family delete nothing, a cost that
-[task 1357](../refinements/tasks/1357-a-forget-message-quoting-the-request-verb-keeps-the-row-it-names.md)
-records.
+[the freeze record](forget-freeze.md#forms-left-unread-at-the-freeze-2026-11-26)
+keeps.

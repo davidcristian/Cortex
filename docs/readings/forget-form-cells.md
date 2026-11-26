@@ -98,7 +98,7 @@ everything, only the card.`, which the reading "only the card" keeps
 ([the card row](#a-word-for-only-after-a-forget-of-everything-2026-11-26)). The 324 left are 300 in the
 four languages whose cell for only is empty and 24 English rows in `Forget 4242 and only the
 phone.` and `Forget only the phone 4242.`
-([task 1365](../refinements/tasks/1365-a-word-for-only-the-card-leaves-unread-lists-a-row-asked-to-keep.md)).
+([left unread](forget-freeze.md#forms-left-unread-at-the-freeze-2026-11-26)).
 Scripts `onlygen.py`, `replay.sh`, `both.sh` and `cmp.py` in `~/.cache/cortex-run/2026-11-26/f5/`.
 
 ## A word for only after a forget of everything, 2026-11-26
@@ -121,13 +121,13 @@ No tree lists a row an earlier tree keeps. The change keeps 36 rows, each a row 
 and lists none. Of the 142 left, 92 follow another forget clause
 ([a head after another forget clause](#a-head-after-another-forget-clause-2026-11-26)),
 24 follow a Spanish or Romanian head
-([task 1366](../refinements/tasks/1366-a-spanish-or-romanian-head-before-a-kept-row-lists-that-row.md))
+([left unread](forget-freeze.md#forms-left-unread-at-the-freeze-2026-11-26))
 and 26 follow `Wipe` or a Romanian row named with its article
-([task 1367](../refinements/tasks/1367-a-word-for-only-after-a-forget-of-everything-no-reader-reads-lists-a-row.md)).
+([left unread](forget-freeze.md#forms-left-unread-at-the-freeze-2026-11-26)).
 Over every set of the replay above, no row is newly listed; the generator keeps 12 more rows asked
 to delete, as the card of `Forget all tulip, only the card.`, whose value holds no digit, 4 rows not
 asked for and 8 rows it marks neither way, all in that form or the card's. `Forget all 4242, only the card.` still deletes the card
-([task 1368](../refinements/tasks/1368-a-word-for-only-after-a-value-of-all-deletes-the-row-a-reading-keeps.md)).
+([left unread](forget-freeze.md#forms-left-unread-at-the-freeze-2026-11-26)).
 
 ## A head after another forget clause, 2026-11-26
 
@@ -150,7 +150,7 @@ directory of the 2026-11-26 run). The tree before the change against the tree af
 
 Every row still listed after another forget clause follows a head that lists it in a first clause
 too: `todo de eso`, `tot de pe el` and `tot dulapul`
-([task 1366](../refinements/tasks/1366-a-spanish-or-romanian-head-before-a-kept-row-lists-that-row.md)).
+([left unread](forget-freeze.md#forms-left-unread-at-the-freeze-2026-11-26)).
 The change was drawn live with the rows seeded
 ([readings](forget-readers-live-draw.md#the-head-read-after-another-forget-clause-2026-11-26)).
 
@@ -183,12 +183,12 @@ alone does at every tree, since `tot` is no word for all and the words after it 
 
 The 26 rows asked to keep still deleted are all Romanian: 16 after `Uită tot dulapul rămâne.`
 following another forget clause, with the call text `dulap`
-([task 1366](../refinements/tasks/1366-a-spanish-or-romanian-head-before-a-kept-row-lists-that-row.md)),
+([left unread](forget-freeze.md#forms-left-unread-at-the-freeze-2026-11-26)),
 6 after `Uită tot, doar dulapul.` with the call text `cardul`
-([task 1367](../refinements/tasks/1367-a-word-for-only-after-a-forget-of-everything-no-reader-reads-lists-a-row.md)),
+([left unread](forget-freeze.md#forms-left-unread-at-the-freeze-2026-11-26)),
 and 4 after `Uită cardul meu. Uită tot în afară de dulapul.` with the call text `dulap`, which its
 second clause alone lists at every tree
-([task 1370](../refinements/tasks/1370-a-romanian-forget-of-everything-except-a-row-named-with-its-article-lists-it.md)).
+([left unread](forget-freeze.md#forms-left-unread-at-the-freeze-2026-11-26)).
 With the call text `4242`, a deletion of a row's details keeps the row in all 24 cases in French,
 German, Spanish and Romanian at every tree, where English deletes it in all 6
-([task 1371](../refinements/tasks/1371-a-deletion-of-a-rows-details-keeps-the-row-outside-english.md)).
+([left unread](forget-freeze.md#forms-left-unread-at-the-freeze-2026-11-26)).

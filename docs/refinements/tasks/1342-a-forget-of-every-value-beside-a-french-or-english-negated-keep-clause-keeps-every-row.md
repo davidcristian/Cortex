@@ -29,8 +29,8 @@ don't delete the locker.` delete nothing for the call text `4242` or any row's w
   holding the value as the last group of a longer value only when `_other_kinds` reads each kept
   word as a kind of the card and phone table, and `locker`, `casier` and `Spind` are none, so
   `Vergiss alle 4242, nicht den Spind.` keeps every row too; the German message above names the
-  card. The kept row decides, not the language. Filed as
-  [task 1352](1352-a-forget-of-every-value-beside-a-keep-clause-naming-a-row-of-no-kind-keeps-every-row.md).
+  card. The kept row decides, not the language. Its count is
+  [recorded](../../readings/forget-freeze.md#forms-left-unread-at-the-freeze-2026-11-26).
   Step 2: `parts` reads `don` before `t` in the keep clause, so `Forget all 4242, don't delete the
   card.` keeps the card alone, and 312 negated and 30 mixed builder rows asked to delete are now
   deleted, with no row asked to keep newly listed

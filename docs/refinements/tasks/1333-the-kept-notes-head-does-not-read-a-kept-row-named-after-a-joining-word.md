@@ -1,9 +1,8 @@
 # The kept note's head does not read a kept row named after a joining word
 
-**Status:** open, actionable
+**Status:** declined 2026-11-26
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-25
 
 `false_sentence` (`forget_kept_sentence.py`) reads only the object of a stated removal, up to a
 joining word such as `and`, `from` or `to`, a comma or a quote mark. So `I've removed the locker
@@ -33,3 +32,4 @@ no such reading exists.
   stays.`, which no rule tells from the `from my memory` form without a list of verbs. The 3
   claims naming the phone after `and the` or `and your` are declined: reading them needs a word
   the `the or my` row lacks, or marks a sentence the audit counts as true.
+- 2026-11-26: declined at the freeze of the forget message readers ([ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md) decision 7): the reading it asks for needs a list of verbs, and no row is at risk, since the plain note names every kept row. 6 and 3 of 24 recorded false delete claims keep the plain head ([readings](../../readings/forget-freeze.md#forms-left-unread-at-the-freeze-2026-11-26)).

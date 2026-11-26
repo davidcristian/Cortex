@@ -1,12 +1,8 @@
 # A later forget with the asked value and another still runs
 
-**Status:** open, waiting for its trigger
+**Status:** declined 2026-11-26
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-10
-**Trigger:** a later `forget_memories` call, in a draw or a flow record, whose text holds the asked
-value beside a phrase or another value, or names another fact by a phrase, after a delete left a
-deleted number held.
 
 `value_unasked` in `forget_value_unasked.py` refuses a later `forget_memories` call, after a delete
 left a deleted number held, only when the call's values and the message's values share none. Unit
@@ -41,3 +37,4 @@ value alone, and neither unrefused form occurred
   (`forget-value-short-groups.md`, `forget-matched-nothing-note.md`, `forget-keep-clause.md`) no
   turn made a `forget_memories` call after an earlier call of the same turn deleted a row; the only
   turns with several calls, flow o's, deleted none.
+- 2026-11-26: declined at the freeze of the forget message readers ([ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md) decision 7): the card a later call shows is the boundary, and its remedy widens `value_unasked`. The form was 0 of 8 later calls in 24 draws ([readings](../../readings/forget-freeze.md#forms-left-unread-at-the-freeze-2026-11-26)).

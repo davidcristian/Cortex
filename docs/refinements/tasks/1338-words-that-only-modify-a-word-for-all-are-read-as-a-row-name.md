@@ -1,9 +1,8 @@
 # Words that only modify a word for all are read as a row name
 
-**Status:** open, actionable
+**Status:** declined 2026-11-26
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-25
 
 `quantifies` (`forget_unnamed.py`) reads every word of the message that can name a row, less
 the function words, as a row name, so a word the store holds no row for stops a word for all
@@ -38,3 +37,4 @@ This is the safe direction: the card keeps rows.
 - 2026-11-25: filed from the close of
   [R-1265](1265-a-word-no-stored-row-holds-after-a-word-for-all-lists-every-row-holding-the-value.md),
   which reads the message's own words as row names in `quantifies` at the cost of these rows.
+- 2026-11-26: declined at the freeze of the forget message readers ([ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md) decision 7): its remedy adds a row of words to `FORMS`, so the freeze answers the pick it waited on, and its counts are over generated messages. 498 generated rows and 46 over the brain's forget tests stay kept ([readings](../../readings/forget-freeze.md#forms-left-unread-at-the-freeze-2026-11-26)).

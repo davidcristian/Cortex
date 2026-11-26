@@ -30,5 +30,5 @@ article `ul`.
   more letters longer than a request word or code word that it starts with, or with it less its
   last letter, in `forget_named` when no other word names a row and in `_coded`. Over the plural
   set the rows not asked for listed fell from 128 to 64, and no row was newly listed in any case
-  set ([readings](../../readings/forget-romanian-plural.md)). The forms left are [task
-  1355](1355-a-romanian-plural-that-changes-its-stem-or-adds-one-letter-names-no-row.md).
+  set ([readings](../../readings/forget-romanian-plural.md)). The forms left are
+  [recorded with their count](../../readings/forget-freeze.md#forms-left-unread-at-the-freeze-2026-11-26).

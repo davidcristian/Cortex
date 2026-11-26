@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-24
+**Verified:** 2026-11-26
 
 Drawn on the stack brain over four stored rows
 ([readings](../../readings/forget-everything-unread-role.md#drawn-after-the-card-changes-2026-11-15)):
@@ -44,3 +44,4 @@ message, and for the Romanian one a call naming `card` lists the card, since `to
   reply ended with a true note that nothing was deleted. 6 replies claimed a delete and 2 a
   fresh start or a cleared context. The 3 rows asked to delete stayed stored in each draw, and
   the card too. The premise holds, so step 2 is the next step. Left open.
+- 2026-11-26: meets the bar of the freeze of the forget message readers ([ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md) decision 7): it rests on 8 live draws of `Forget everything, my card stays.` and `Uită tot în afară de card.` on the stack brain, and its remedy is a note true on every turn it reaches, built on the readers as they stand.

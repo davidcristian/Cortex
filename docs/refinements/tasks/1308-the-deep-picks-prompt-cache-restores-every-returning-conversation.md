@@ -43,5 +43,5 @@ returning requests save.
   ([counts](../../readings/prompt-cache.md#deep-requests-in-handoffs)). A stop ends the server,
   so the request asked for again started on an empty slot. By the rule written before the draw,
   ADR-0059 decision 4 is restated on that ground and `--cache-ram 0` stays. The draw also showed
-  a forget request worded as a use of the tool being refused, filed as
-  [R-1353](1353-a-request-to-use-the-forget-tool-reads-as-no-forget.md).
+  a forget request worded as a use of the tool being refused, recorded
+  [with the forms left unread](../../readings/forget-freeze.md#forms-left-unread-at-the-freeze-2026-11-26).

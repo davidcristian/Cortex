@@ -1,9 +1,8 @@
 # The Romanian word for all is not read by the forget card
 
-**Status:** open, actionable
+**Status:** declined 2026-11-26
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-26
 
 The Romanian cell of the word for all in `FORMS` (`forget_forms.py`) is empty, so `Uită toate
 4242.` keeps every row where `Forget all 4242.` deletes all three. Filled alone, `toate` deletes
@@ -33,3 +32,4 @@ are [task 1341](1341-a-forget-of-everything-with-no-clause-mark-before-the-kept-
   and deletes 441 rows asked to delete; reading `grows` in `reads` (`forget_kinds.py`) as well
   keeps none of the 10, so another reader lists them. The replay is in
   `~/.cache/cortex-run/2026-11-26/f4/` (trees `c3` and `c4`).
+- 2026-11-26: declined at the freeze of the forget message readers ([ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md) decision 7): its remedy fills a `FORMS` cell and its counts are over generated messages. 441 rows asked to delete stay kept over the generator ([readings](../../readings/forget-freeze.md#forms-left-unread-at-the-freeze-2026-11-26)).

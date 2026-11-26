@@ -1,9 +1,8 @@
 # The Spanish articles and possessives are not read by the forget card
 
-**Status:** open, actionable
+**Status:** declined 2026-11-26
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-24
 
 The Spanish cell of the word for the or my in `FORMS` (`forget_forms.py`) holds `la` alone;
 `el`, `los`, `mi` and `mis` add a row only beside an adding word, and the Spanish one is not
@@ -20,3 +19,4 @@ each beside an unread `solo` ([readings](../../readings/forget-form-cells.md#the
 ## History
 
 - 2026-11-24: filed from the survey of [task 1221](1221-the-forms-the-forget-card-reads-in-english-are-not-all-read-in-the-other-four-languages.md).
+- 2026-11-26: declined at the freeze of the forget message readers ([ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md) decision 7): its remedy fills a `FORMS` cell and its counts are over generated messages. 180 rows asked to delete stay kept beyond those of `también` ([readings](../../readings/forget-freeze.md#forms-left-unread-at-the-freeze-2026-11-26)).
