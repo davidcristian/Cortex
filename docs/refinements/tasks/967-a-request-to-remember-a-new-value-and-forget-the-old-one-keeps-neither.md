@@ -45,7 +45,11 @@ turn holds, and the person is the one reader who knows which value is old.
 1. The card's text is `words_to_keep` (`retraction.py`), which has no caller yet: the words up to the
    first English retraction clause, or after it when it comes first, and `None` (no card) when no
    retraction opens a clause or a forget verb is left in the words. Its cost is a fact holding one of
-   those verbs, as `the dentist will remove my tooth`, which shows no card.
+   those verbs, as `the dentist will remove my tooth`, which shows no card. It returns a request
+   verb alone for a retraction right after it: `Remember` of `Remember, delete the old one.` and
+   of `Remember: wipe my old card and store 5500.`, and `Please remember`, `Note that` and `Keep in
+   mind` in the same forms, which a card would store as a fact. Before the card is built, write a
+   rule that shows no card for words holding no fact past the request verb, with these as tests.
 2. Call `Confirmer` outside `ToolDispatcher`. `ConfirmationRequest` names a tool call today, and the
    overlay's `ConfirmCard` shows `tool_name` as the card's title and each argument as a row, so the
    card is a request with a name and one `text` argument holding the person's words. Proposed name,
@@ -78,3 +82,5 @@ turn holds, and the person is the one reader who knows which value is old.
   not cover the second card: it stores nothing itself and is offered only on turns memory will
   store, while this card serves a turn memory withholds. Steps 2 to 4 stay open; the card's name is
   the user's pick.
+- 2026-11-26: the audit of `words_to_keep` found it returns a request verb alone when a retraction
+  follows the verb, written into step 1; with no caller, no card shows it today.
