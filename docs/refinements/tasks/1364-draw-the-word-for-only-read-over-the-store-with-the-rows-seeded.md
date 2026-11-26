@@ -18,9 +18,14 @@ did no card work.
 1. Draw `Forget 4242, the card too, only the phone.` and `Forget all 4242, only the card.` with
    the three English rows seeded, 8 draws each, on the tree and on the base. Pass rule: no row
    asked to keep is listed or deleted, and no row the message does not name is deleted.
-2. Write the rows into
+2. Draw `Delete all of my card details from memory.`, `Forget everything on my card please.` and
+   `Forget all of it the card stays.` the same way, since `_head_run` reads a placing word after a
+   word for all that leads to a row word as the forget's scope. The card deleted on the first two
+   and kept on the third passes.
+3. Write the rows into
    [forget-readers-live-draw.md](../../readings/forget-readers-live-draw.md) and close this task.
 
 ## History
 
-- 2026-11-26: filed when the reader of the word for only was widened to the rows of the store.
+- 2026-11-26: filed when the reader of the word for only was widened to the rows of the store and
+  the head rule read a placing word after a word for all as the forget's scope.

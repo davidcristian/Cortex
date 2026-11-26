@@ -106,9 +106,9 @@ never a reading of what the tree does now.
 - **[R-1359](tasks/1359-a-forget-of-a-row-named-don-beside-a-negated-keep-clause-keeps-that-row.md)** A forget of a row named Don beside a negated keep clause keeps that row (memory). Its claim was checked against the code on 2026-11-26.
 - **[R-1360](tasks/1360-a-forget-of-the-lot-before-a-kept-row-lists-that-row.md)** A forget of the lot before a kept row lists that row (memory). Its claim was checked against the code on 2026-11-26.
 - **[R-1361](tasks/1361-a-forget-of-everything-after-another-forget-clause-lists-the-kept-row.md)** A forget of everything after another forget clause lists the kept row (memory). Its claim was checked against the code on 2026-11-26.
-- **[R-1363](tasks/1363-a-plain-request-to-delete-a-row-after-a-word-for-all-keeps-the-row.md)** A plain request to delete a row after a word for all keeps the row (memory). Its claim was checked against the code on 2026-11-26.
 - **[R-1364](tasks/1364-draw-the-word-for-only-read-over-the-store-with-the-rows-seeded.md)** Draw the word for only read over the store with the rows seeded (memory). Its claim was checked against the code on 2026-11-26.
 - **[R-1365](tasks/1365-a-word-for-only-the-card-leaves-unread-lists-a-row-asked-to-keep.md)** A word for only the card leaves unread lists a row asked to keep (memory). Its claim was checked against the code on 2026-11-26.
+- **[R-1366](tasks/1366-a-spanish-or-romanian-head-before-a-kept-row-lists-that-row.md)** A Spanish or Romanian head before a kept row lists that row (memory). Its claim was checked against the code on 2026-11-26.
 
 ### Actionable, once a port changes (1)
 
@@ -760,9 +760,9 @@ never a reading of what the tree does now.
 - [R-1359](tasks/1359-a-forget-of-a-row-named-don-beside-a-negated-keep-clause-keeps-that-row.md) A forget of a row named Don beside a negated keep clause keeps that row. open, actionable.
 - [R-1360](tasks/1360-a-forget-of-the-lot-before-a-kept-row-lists-that-row.md) A forget of the lot before a kept row lists that row. open, actionable.
 - [R-1361](tasks/1361-a-forget-of-everything-after-another-forget-clause-lists-the-kept-row.md) A forget of everything after another forget clause lists the kept row. open, actionable.
-- [R-1363](tasks/1363-a-plain-request-to-delete-a-row-after-a-word-for-all-keeps-the-row.md) A plain request to delete a row after a word for all keeps the row. open, actionable.
 - [R-1364](tasks/1364-draw-the-word-for-only-read-over-the-store-with-the-rows-seeded.md) Draw the word for only read over the store with the rows seeded. open, actionable.
 - [R-1365](tasks/1365-a-word-for-only-the-card-leaves-unread-lists-a-row-asked-to-keep.md) A word for only the card leaves unread lists a row asked to keep. open, actionable.
+- [R-1366](tasks/1366-a-spanish-or-romanian-head-before-a-kept-row-lists-that-row.md) A Spanish or Romanian head before a kept row lists that row. open, actionable.
 
 ### orchestrator
 

@@ -226,12 +226,18 @@ def _forgets(clause: list[str]) -> bool:
     )
 
 
-def _head_run(clause: list[str], named: frozenset[str], every: int | None) -> list[str]:
-    """The words of ``clause`` after its word for all at ``every``, as ``of it the card stays`` of
-    ``Forget all of it the card stays``, or else after its forget verb and an unread first word,
-    with a word of ``named`` past it, no value, no topic word before one, no placing word next."""
+def _head_run(
+    clause: list[str], rows: dict[str, set[str]], named: frozenset[str], every: int | None
+) -> list[str]:
+    """The words of ``clause`` after its word for all at ``every``, none if a placing word next
+    leads to the one row of ``rows`` its words name, or after its forget verb and an unread first
+    word, with a word of ``named`` past it, no value, no topic word before one, no placing next."""
     if every is not None:
-        return clause[every + 1 :]
+        after = clause[every + 2 :]
+        lead = next((word for word in after if word not in WHOSE), "")
+        one = all(rows.get(word, set()) <= rows.get(lead, set()) for word in named & set(after))
+        scope = not _PLACE.isdisjoint(clause[every + 1 : every + 2]) and one
+        return [] if scope else clause[every + 1 :]
     start = next((at + 1 for at, word in enumerate(clause) if FORGET.fullmatch(word)), 0)
     rest = clause[start + (not TOPIC.isdisjoint(clause[start : start + 1])) :]
     first = next((at for at, word in enumerate(rest) if word in named), 0)
@@ -254,7 +260,7 @@ async def _kept_later(
     only = alone(call.stamp.query, values[held[0]] if held else text, named)
     left = {row.id for row in seen if only and not names(only, request(row))}
     place = everything(" ".join(split[first])) if split else None
-    head = _head_run(split[first], named, place and place[1]) if split else []
+    head = _head_run(split[first], rows, named, place and place[1]) if split else []
     if first + 1 >= len(split) and not head:
         return frozenset(left)
     later = ", ".join([_VERB, " ".join(head), *(" ".join(clause) for clause in split[first + 1 :])])

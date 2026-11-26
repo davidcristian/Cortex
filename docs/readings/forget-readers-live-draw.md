@@ -89,8 +89,8 @@ draws on the tree, against 0 of 16 on the base, where each card listed the card 
 on the tree but one (`card details`, which matched no row) returned that the message was not read
 as meaning a row, and every reply ended with a note that nothing was forgotten or deleted in the
 turn. The 8 replies to the first form said the card details were not found; 4 of the 8 to the
-second first said the card was cleared, removed or forgotten. The tree keeps the rule, whose
-replay showed no row asked to keep newly listed; telling these forms from `Forget all of it the
-card stays.` is
-[task 1363](../refinements/tasks/1363-a-plain-request-to-delete-a-row-after-a-word-for-all-keeps-the-row.md).
+second first said the card was cleared, removed or forgotten. The tree now reads a placing word
+after the word for all that leads to the one row the clause names as the forget's scope, which
+tells these forms from `Forget all of it the card stays.`
+([replay](forget-everything-unread-forms.md#heads-of-more-than-one-word-2026-11-26)).
 Rows in `logs/rows-k1.jsonl`, `rows-k2.jsonl`, `rows-o1.jsonl` and `rows-o2.jsonl`.
