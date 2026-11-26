@@ -6,7 +6,7 @@
 **Trigger:** One recall's pool can draw from more than one non-empty scope: the union read of
 R-084 ships, or a store already holding per-session scopes is read under
 `CORTEX_MEMORY_SCOPE=global`, whose unfiltered search mixes them.
-**Verified:** 2026-10-25
+**Verified:** 2026-11-26
 
 Weighting a recall hit by the scope it came from. It was one of three refinements left behind the
 `MemoryScope` port when per-session scoping shipped
@@ -45,3 +45,6 @@ Weighting a recall hit by the scope it came from. It was one of three refinement
   two rows, both in `global`, so a recall under the default scope mixes no scopes there.
 - 2026-10-25: checked again and not fired: `memory_scope_from_name` still builds no union scope and
   `RankBasis` is unchanged.
+- 2026-11-26: checked again and not fired: `memory_scope_from_name` still builds no union scope,
+  `RankBasis` still has its six members, and no record in the tree shows a store holding per-session
+  scopes read under `global`.

@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-10-28
+**Verified:** 2026-11-26
 **Trigger:** the tool audit trail shows two subagent tasks of one turn (one `turn_id`, two `task_id`
 values) dispatching the same tool with the same arguments.
 
@@ -68,3 +68,6 @@ once per member.
 - 2026-10-28: checked again and not fired, and corrected: `dispatched` is now a field of the
   `LoopRecord` that each loop builds beside its result room, rather than a bare local. Each subagent
   attempt still runs its own loop, so a sibling's calls stay out of sight.
+- 2026-11-26: checked again and not fired: no audit file from a run shows two tasks of one turn
+  dispatching one call, since the subagent audit lines kept from recent runs are test output and
+  copied sources. `RepeatSalience` still reads only its own loop's `LoopRecord.dispatched`.

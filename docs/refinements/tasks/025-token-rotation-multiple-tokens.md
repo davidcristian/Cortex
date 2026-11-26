@@ -4,7 +4,7 @@
 **Area:** rpc-auth
 **Origin:** [ADR-0016](../../adr/ADR-0016-shared-token.md)
 **Trigger:** A second party on this connection, meaning a client the pair's own operator does not run, whose credential has to be withdrawn without disturbing the other. In the tree that is the ROADMAP's security model, assumption 5, being revised to admit a second user, or a runbook, compose file or client handing `CORTEX_SEAM_TOKEN` to a process the operator does not start; `git grep -l CORTEX_SEAM_TOKEN` lists every file that names it.
-**Verified:** 2026-10-25
+**Verified:** 2026-11-26
 
 Rotating or issuing several tokens buys nothing for one body and brain pair run by one person.
 The other deferred item from the same ADR, mTLS on a non-loopback link, is recorded at
@@ -55,3 +55,8 @@ another keeps working, which is what the trigger now asks for.
   what a mismatched token shows rather than handing it to a second party.
 - 2026-10-25: checked again and not fired: `CORTEX_SEAM_TOKEN` is still read by the same three shell
   files and the brain's `RpcServerConfig.token`; the wiring change since did not touch it.
+- 2026-11-26: checked again and not fired. Outside tests and probes the token is still read by
+  `body_server.rs`, `brain.rs` and `converse.rs` in the shell and by the brain's
+  `RpcServerConfig.token`, the ROADMAP's security model still describes a single-user machine, and
+  every runbook that names `CORTEX_SEAM_TOKEN` hands it to the operator's own shell, stack or live
+  check.

@@ -3,7 +3,7 @@
 **Status:** open, waiting for a consumer
 **Area:** repo-checks
 **Origin:** [ADR-0042](../../adr/ADR-0042-cross-tree-constant-registry.md)
-**Verified:** 2026-10-25
+**Verified:** 2026-11-26
 **Trigger:** A decimal pair that needs ordering rather than equality, or one whose far side is a
 Rust literal with its own type suffix.
 
@@ -78,3 +78,7 @@ is a suffix the reducer strips rather than a new form.
   unchanged.
 - 2026-10-25: checked again and not fired: `relation_fault` still orders integers only. The body now
   names the second unsuffixed float constant, `LEVEL_STEPS` in the contract crate.
+- 2026-11-26: checked again and not fired: `relation_fault` still orders integers only, the two
+  `Relation.ORDERED` entries are still the integer capture edge and receive limit pairs, and the
+  body's float constants `LEVEL_STEPS` and `VOLUME_NORM` are still unsuffixed and agree with no
+  Python value.

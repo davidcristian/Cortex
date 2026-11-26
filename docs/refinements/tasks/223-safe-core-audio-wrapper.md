@@ -12,7 +12,7 @@ COM around each call. The candidates are listed by `https://crates.io/api/v1/cra
 and each is read off its source. What such a crate would delete is listed by
 `grep -n unsafe body/crates/os_windows/src/audio.rs`: four `unsafe` blocks, one `unsafe fn`, and the
 module's scoped allow, six sites as of 2026-10-03.
-**Verified:** 2026-10-25
+**Verified:** 2026-11-26
 
 `WindowsAudioControl` uses `unsafe` over the `windows` crate's COM API, authorized by ADR-0023. The
 hotkey backend needs none, because `global-hotkey` wraps the OS calls for it; a crate that did the
@@ -64,7 +64,8 @@ COM conditions: its public `wasapi` module's `get_vol` and `set_vol` are safe, r
 and its per-call `CoInitializeEx` has no matching `CoUninitialize`, the imbalance R-224 records for
 this tree.
 
-`wasapi` 0.26.0, the widely used WASAPI crate, has no `IAudioEndpointVolume` wrapper at all. Two
+`wasapi` 0.27.0, the widely used WASAPI crate, has no `IAudioEndpointVolume` wrapper at all: it
+returns the raw `IMMDevice` for services it does not wrap, and every method on that is `unsafe`. Two
 older crates fail the first condition: `windows-volume-control` 0.1.1 and `winmix` 0.1.3 both
 expose their volume calls as `pub unsafe fn`, and `winmix` sets per-application session volume
 rather than the endpoint's.
@@ -100,3 +101,7 @@ the result checked on a Windows desktop the way the backend itself was.
   unchanged.
 - 2026-10-25: checked again and not fired: `audio.rs` still initializes COM on each call. `wasapi`
   is now 0.26.0 and still has no endpoint volume wrapper, and the body names that version.
+- 2026-11-26: checked again and not fired. Task 224's dedicated COM thread is not built, `audio.rs`
+  is still 98 lines with the same six sites and still initializes COM on each call, and on crates.io
+  `volumecontrol-windows` is still 0.1.2 and `cpvc` 0.6.0. `wasapi` is now 0.27.0 and still wraps no
+  endpoint volume, and the body names that version.

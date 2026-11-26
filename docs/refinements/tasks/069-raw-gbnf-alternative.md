@@ -4,7 +4,7 @@
 **Area:** untrusted-content
 **Origin:** [ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)
 **Trigger:** a task file or ADR asks for a constrained reply whose shape JSON Schema cannot express. None does: `grep -rn 'schema=' brain/packages/*/src` finds two values a caller sets, `REPLY_ENVELOPE` and `ORDER_ENVELOPE`, both JSON objects.
-**Verified:** 2026-10-28
+**Verified:** 2026-11-26
 
 Left behind by [R-068](068-grammar-constrained-subagent-output.md): a raw GBNF `grammar` as an
 alternative to the JSON envelope. The ADR defers it until a caller needs a shape JSON cannot
@@ -63,3 +63,6 @@ else ([subagent_reply.py:45](../../../brain/packages/core/src/cortex_core/subage
   parameter is at `ports.py:78` and `unwrap_envelope` at `subagent_reply.py:45`.
 - 2026-10-28: checked again and not fired: `schema=` still sets only `REPLY_ENVELOPE` and
   `ORDER_ENVELOPE`; every other hit passes a caller's schema through.
+- 2026-11-26: checked again and not fired: `schema=` still sets only `REPLY_ENVELOPE` and
+  `ORDER_ENVELOPE`, the new hit in `load_wait.py` passes a caller's schema through, and no task file
+  or ADR beyond ADR-0028 and R-068 names a raw grammar.

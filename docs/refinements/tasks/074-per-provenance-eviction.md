@@ -4,26 +4,31 @@
 **Area:** untrusted-content
 **Origin:** [ADR-0019](../../adr/ADR-0019-tainted-memory-recording.md)
 **Trigger:** a source found hostile after the fact, whose derived memories must be forgotten by where they came from rather than by the scope they were stored in.
-**Verified:** 2026-10-28
+**Verified:** 2026-11-26
 
 Left behind by [R-072](072-tainted-memory-recording.md): removing memories by the source they came
 from.
 
-Both halves of it are missing. A `MemoryRecord` has `id`, `text`, `embedding`, `at`, `scope` and
-`tainted` ([memory.py](../../../brain/packages/core/src/cortex_core/memory.py)), the Postgres
-table has those same columns behind a single `memories_scope_idx`
+Both halves of it are missing. A `MemoryRecord` has `id`, `text`, `embedding`, `at`, `scope`,
+`tainted` and `session_id`, the chat that wrote it
+([memory.py](../../../brain/packages/core/src/cortex_core/memory.py)), the Postgres table has
+those same columns behind `memories_scope_idx` and `memories_session_idx`
 ([init.sql](../../../docker/postgres/init.sql)), and `Provenance` lives entirely in the pure core,
 on the turn-local `TaintLedger`
 ([untrusted.py](../../../brain/packages/core/src/cortex_core/untrusted.py)), surviving a store
 only on the mid-turn `HandoffRecord` that expires in an hour. And there is no verb to filter with.
-The port has two removals
+The port has four removals
 ([ports_stores.py](../../../brain/packages/core/src/cortex_core/ports_stores.py)):
-`delete_scope`, string equality on one namespace, called only by the session-delete cascade
-([memory_cascade.py](../../../brain/packages/core/src/cortex_core/memory_cascade.py)); and
+`delete_written_by`, every row one chat wrote, and `delete_scope`, string equality on one
+namespace, both called only by the session-delete cascade
+([memory_cascade.py](../../../brain/packages/core/src/cortex_core/memory_cascade.py));
 `delete_tainted(*, scopes)`, which removes every tainted row in the scopes a chat reads, called
 only by the `forget_untrusted_memories` built-in
-([memory_forget.py](../../../brain/packages/core/src/cortex_core/memory_forget.py)). Neither
-selects by source, since the row has no source to select on. So the origin's heading that this
+([memory_forget.py](../../../brain/packages/core/src/cortex_core/memory_forget.py)); and
+`delete_ids`, which removes rows by id, for a forget of chosen memories and for a memory written
+while its chat was being deleted. None selects by source,
+since the row has no source to select on: `session_id` names the chat a memory came from, not the
+email or page read inside it. So the origin's heading that this
 sits behind the unchanged `MemoryStore` port does not hold: a delete by provenance is a port
 change, as [R-085](085-per-scope-retention-eviction.md) found from the memory side.
 
@@ -81,3 +86,6 @@ provenance yet.
   changes since add a partial count and recalled ids but select no row by source.
 - 2026-10-28: checked again and not fired: the memory port gained `count_tainted`, a count by taint
   that decides whether the forget tool is offered, and still has no removal by source.
+- 2026-11-26: checked again and not fired, and the body corrected. A memory now records the chat
+  that wrote it, in an indexed `session_id`, and the port has two more removals, `delete_written_by`
+  and `delete_ids`. None selects by source: a writing chat is not the email or page read inside it.

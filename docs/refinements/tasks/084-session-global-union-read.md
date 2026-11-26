@@ -6,7 +6,7 @@
 **Trigger:** Something writes durable global facts under scoping, or a deployment that recorded
 under `CORTEX_MEMORY_SCOPE=global` switches to `session` and its operator asks for the memories
 recorded before the switch to be recalled again.
-**Verified:** 2026-10-25
+**Verified:** 2026-11-26
 
 A read policy that returns hits from the session scope and the global scope at once. It was one
 of three refinements left behind the `MemoryScope` port when per-session scoping shipped
@@ -52,3 +52,8 @@ of three refinements left behind the `MemoryScope` port when per-session scoping
   operator asked for.
 - 2026-10-25: checked again and not fired: `memory_scope_from_name` still builds only a session or a
   global scope, and the forget added since writes no global fact.
+- 2026-11-26: checked again and not fired: `memory_scope_from_name` still builds only a session or a
+  global scope, and `MemoryRecaller.record` is still the only writer of a memory. One caution above
+  no longer holds: the session-delete cascade now first removes every row a chat wrote, in any
+  scope, through `delete_written_by`, so a policy that also wrote globally would leave behind only
+  rows stored before a memory recorded its writing chat.
