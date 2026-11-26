@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-24
+**Verified:** 2026-11-26
 
 Over the rows `Ține minte că codul de la dulap este 4242.`, `Ține minte că cardul meu este 4111
 1111 1111 4242.` and `Ține minte că telefonul meu este 0721 555 4242.`, with the call text `4242`,
@@ -38,3 +38,12 @@ locker it asks to keep, and `Uită cardul 4242 mai puțin codul de la sală.` li
 - 2026-11-24: still open. In unit calls at the tree that reads a later clause in a message
   lacking the value, `Uită dulapul 4242.` and `Uită 4242, păstrează dulapul.` with the call text
   `4242` keep all three rows, and `Uită dulapul.` with the call text `dulap` deletes the locker.
+- 2026-11-26: still open. `Uită dulapul 4242.` with the call text `4242` keeps the locker
+  through the check in `kept_rows` (`forget_inside.py`) that keeps a row holding the value whole
+  when no word of the message is a row word. Reading the article `ul` in that check alone
+  deletes the locker and 49 rows asked to delete over the generator, but lists 6 rows not asked
+  for over the word pairs, as a locker of another language holding `4242` for `Forget my
+  dulapul 4242.`, and 10 generator rows marked neither way beside `all` or `everywhere`, so it
+  was not built.
+  `Uită 4242, păstrează dulapul.` keeps every row through `unnamed` (`forget_unnamed.py`). The
+  replay is in `~/.cache/cortex-run/2026-11-26/f4/` (tree `c5`).
