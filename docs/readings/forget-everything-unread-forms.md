@@ -133,3 +133,36 @@ to keep were listed when the negated verb counted as the first forget clause, an
 no row is newly listed and no row asked to delete is newly kept over those cases or the five sets
 above. The test literal `Wipe everything, the card stays, don't delete the phone.` now keeps the
 locker for the call `locker code` as well. Cases and counts: `~/.cache/cortex-run/2026-11-25/a1/gen/`.
+
+## The head clause read, 2026-11-26
+
+The rule built (`_head_run` in `forget_permit.py`): in the first clause holding a forget verb
+outside a keep clause, or the first clause of a message with none, the words after its forget verb
+and after the first word there, when no reader reads that word (a word for all as `everything`,
+`alles` or `tot`, or the verb of a head with no forget verb, as `wipe`), are read as one more run
+after a value, and a stored row the run names in a role no reader reads is kept. It reads nothing
+in a clause holding a value, when that first word (past one topic word, as `about` of `Forget about
+everything`) is a word for the or my (`Forget my old card.`), a placing word, a word for and or a
+word saying which row, when a topic word stands before the row, or when a placing word follows that
+first word (`Forget everything on my card please.`, `Vergiss alles von der Karte.`). No word was
+added to a list. Replayed over the same six sets, the tree before the change against the tree after
+it:
+
+| Case set | Cases | Keep rows listed before | After | Rows newly listed | Rows asked to delete newly kept |
+| --- | --- | --- | --- | --- | --- |
+| family | 3,864 | 222 | 0 | 0 | 16, in 9 near misses |
+| generator | 71,332 | 0 | 0 | 0 | 10, and 85 the generator marks neither way |
+| mixed, pairs, valued, negated | 31,404 | 0 | 0 | 0 | 0 |
+
+The 16 are the rows of `Forget everything the card holds.` and its phone and locker forms, and
+of `Uită tot despre card.` and `Uită totul despre card.` with their phone and locker forms:
+`holds` and `despre` are words no reader reads, so these read as `Forget everything the card
+stays.` does. The 10 are the rows of `Forget all tulip but the card.` and `Forget all card but
+the phone.` for a value written as a word. The 85 are rows of 20 test literals the generator
+does not mark, most of them asking to delete, as `Forget all my card numbers but quickly.`, `Get
+my phone number out of there.`, `Can you delte my phone number?` and forget verbs no reader
+reads, as `Dimentica il mio numero di telefono.`. Against the rule that reads the forget verb's
+whole clause (1,411 rows asked to delete over the generator and 92 in the near misses), this rule
+keeps every row asked to keep in the family at 16 near miss rows and 95 generator rows. Scripts:
+`replay.sh`, `cmp.py` and `ecount2.py` in `~/.cache/cortex-run/2026-11-26/f1/`, with the
+candidate rules `cand/c1.py` to `cand/c6.py` there.

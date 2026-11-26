@@ -11,6 +11,7 @@ from cortex_core.forget_clauses import (
     FORGET,
     LIMIT,
     NOT,
+    WHICH,
     WHOSE,
     beside,
     clauses,
@@ -31,6 +32,7 @@ from cortex_core.tools import ToolCall
 
 Listing = Callable[[ToolCall], Awaitable[tuple[str, ...] | str]]
 _PLACE = forms.words(forms.PLACE)
+_READ = WHOSE | _PLACE | AND | WHICH
 _TOKEN = re.compile(r"[^\W_]+")
 _REPLY = "\nAssistant: "
 # Clauses joined behind a forget verb read as the runs after a value, from their first word.
@@ -219,17 +221,31 @@ def _forgets(clause: list[str]) -> bool:
     )
 
 
+def _head_run(clause: list[str], named: frozenset[str]) -> list[str]:
+    """The words of ``clause`` after its forget verb and an unread first word, as ``the card stays``
+    of ``Forget everything the card stays``: none with a value, with no word of ``named`` after
+    that word, a topic word before one or a word for on or of next to it."""
+    start = next((at + 1 for at, word in enumerate(clause) if FORGET.fullmatch(word)), 0)
+    rest = clause[start + (not TOPIC.isdisjoint(clause[start : start + 1])) :]
+    first = next((at for at, word in enumerate(rest) if word in named), 0)
+    if not first or any(char.isdigit() for char in "".join(clause)) or rest[0] in _READ:
+        return []
+    return [] if rest[1] in _PLACE or not TOPIC.isdisjoint(rest[:first]) else rest[1:]
+
+
 async def _kept_later(
     store: MemoryStore, scope: MemoryScope, call: ToolCall, seen: Sequence[MemoryRecord]
 ) -> frozenset[str]:
-    """The ids of the stored rows a clause after the first holding a forget verb outside a keep
-    clause, or after the first clause of a message with none, names in a run no reader reads."""
+    """The ids of the stored rows a run no reader reads names: in a clause after the first holding
+    a forget verb outside a keep clause, or the first clause of a message with none, or the
+    ``_head_run`` of that clause."""
     split = clauses(call.stamp.query)
     first = next((at for at, clause in enumerate(split) if _forgets(clause)), 0)
-    if first + 1 >= len(split):
-        return frozenset()
     rows, named = await _store_named(store, scope, call, seen)
-    later = ", ".join([_VERB, *(" ".join(clause) for clause in split[first + 1 :])])
+    head = _head_run(split[first], named) if split else []
+    if first + 1 >= len(split) and not head:
+        return frozenset()
+    later = ", ".join([_VERB, " ".join(head), *(" ".join(clause) for clause in split[first + 1 :])])
     return frozenset(row for word in kept_again(later, _VERB, named) for row in rows.get(word, ()))
 
 

@@ -152,7 +152,7 @@ WHOSE = _OWNER | frozenset(
     {"your", "our", "el", "los", "las", "mi", "mis", "tu", "tus", "su", "ton", "ta", "tes"}
 )
 # A word saying which row the value is, as in "4242, that is my card" or "4242, only the card".
-_WHICH = frozenset({"it", "that", "which", "this", "is", "was", "i", "mean"}) | forms.words(
+WHICH = frozenset({"it", "that", "which", "this", "is", "was", "i", "mean"}) | forms.words(
     forms.ONLY
 )
 
@@ -183,7 +183,7 @@ def after_value(query: str, value: str, named: frozenset[str]) -> list[str]:
     """The words of ``query`` after ``value`` that may ask to keep the rows they name: of each run
     to a clause mark or forget verb, those from the first word no reader reads before a word of
     ``named``, or all before a negation; none of a run adding a row or holding a keep clause."""
-    read = named | _PLACE | WHOSE | _WHICH | AND
+    read = named | _PLACE | WHOSE | WHICH | AND
     found: list[str] = []
     for run, keeps in _runs(query, value):
         last = max((at for at, word in enumerate(run) if word in named), default=0)
@@ -209,7 +209,7 @@ def _role(run: list[str], named: frozenset[str]) -> str:
     core = body[head : len(body) - tail]
     core = core[: len(core) - len(_ONE.intersection(core[-1:]))]
     excepts = run[0] in _CONTRAST and not adds
-    read = named | WHOSE | AND | (frozenset[str]() if excepts else _PLACE | _WHICH)
+    read = named | WHOSE | AND | (frozenset[str]() if excepts else _PLACE | WHICH)
     if not all(word in read or word.isdigit() for word in core):
         return UNREAD
     return ADDITION if adds else EXCEPTION if excepts else LIMIT
@@ -222,7 +222,7 @@ def beside(
     run, ``UNREAD`` when a later run naming no row holds a word no reader reads: none of a run
     with a keep clause, a negation or a word of ``minus``, no limit or addition before a clause."""
     found: dict[str, set[str]] = {LIMIT: set(), ADDITION: set(), EXCEPTION: set(), UNREAD: set()}
-    read = _PLACE | WHOSE | _WHICH | AND | _ADD
+    read = _PLACE | WHOSE | WHICH | AND | _ADD
     for run, keeps in _runs(query, value):
         words = named.intersection(run)
         if words and not keeps and (NOT | minus).isdisjoint(run):

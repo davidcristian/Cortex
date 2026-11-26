@@ -1,9 +1,8 @@
 # A forget of everything with no clause mark before the kept row lists that row
 
-**Status:** open, actionable
+**Status:** done 2026-11-26
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-25
 
 A forget of everything that keeps a row with no clause mark before it lists that row:
 `Forget everything the card stays.`, `Wipe everything the card stays.` and `Vergiss alles bis
@@ -31,3 +30,9 @@ The same forms with a clause mark are read by `_kept_later` in `forget_permit.py
 
 - 2026-11-25: filed from [task 1230](1230-a-forget-of-everything-in-a-form-the-card-does-not-take-as-one-lists-a-row-its-message-keeps.md),
   whose forms with a clause mark before the kept row are now read.
+- 2026-11-26: done. `_head_run` in `forget_permit.py` reads the words after the forget verb and an
+  unread first word as one more run, in a clause holding no value, with no topic word before the
+  row and no placing word next. The family lists none of the 222 rows; 16 near miss rows, 10
+  generator rows and 85 rows of 20 unmarked test literals asked to delete are now kept, against
+  1,411 and 92 for the rule reading the whole clause
+  ([readings](../../readings/forget-everything-unread-forms.md#the-head-clause-read-2026-11-26)).

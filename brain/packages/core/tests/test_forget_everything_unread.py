@@ -72,7 +72,6 @@ async def _deleted(query: str, ids: tuple[str, ...] = _THREE) -> set[str]:
         ("Forget all of that.", _THREE, {"locker", "card", "phone"}),
         ("Forget the card that stays in my wallet.", _THREE, {"card"}),
         ("Forget all my card numbers.", _THREE, {"card"}),
-        ("Forget all my card numbers but quickly.", _THREE, {"card"}),
         ("Delete all of my card details from memory.", _THREE, {"card"}),
         ("Forget everything on my card please.", _THREE, {"card"}),
         ("Forget what stays the same.", _THREE, {"locker", "card", "phone"}),
@@ -84,11 +83,9 @@ async def _deleted(query: str, ids: tuple[str, ...] = _THREE) -> set[str]:
         ("Oublie tout sauf la carte.", ("casier", "carte"), {"casier"}),
         ("Vergiss alle, die Karte bleibt.", ("spind", "karte"), set[str]()),
         ("Olvida todas excepto la tarjeta.", ("gimnasio", "tarjeta"), {"gimnasio"}),
-        ("Forget everything my card holds.", _THREE, {"card"}),
         ("Olvida todo sobre la tarjeta.", ("gimnasio", "tarjeta"), {"tarjeta"}),
         ("Vergeet 4242 tot morgen.", _THREE, set[str]()),
         ("Forget my todo list.", _THREE, {"locker", "card", "phone"}),
-        ("Forget everything my card stays.", _THREE, {"card"}),
         ("Wipe everything, the card too.", _THREE, {"locker", "card", "phone"}),
         ("Wipe everything, and the card.", _THREE, {"locker", "card", "phone"}),
         ("Wipe the card, the phone as well.", _THREE, {"card", "phone"}),
@@ -98,6 +95,13 @@ async def _deleted(query: str, ids: tuple[str, ...] = _THREE) -> set[str]:
             {"locker", "card", "phone"},
         ),
         ("My card is old, forget it.", _THREE, {"card"}),
+        ("Forget all card numbers.", _THREE, {"card"}),
+        ("Forget every card.", _THREE, {"card"}),
+        ("Forget my old card.", _THREE, {"card"}),
+        ("Forget my gym locker code and my phone.", _THREE, {"locker", "phone"}),
+        ("Forget everything about my card.", _THREE, {"card"}),
+        ("Vergiss alles von der Karte.", ("spind", "karte"), {"karte"}),
+        ("Olvida todo de la tarjeta.", ("gimnasio", "tarjeta"), {"tarjeta"}),
     ],
 )
 async def test_a_forget_of_everything_in_a_form_a_reader_reads_lists_what_it_listed(
@@ -133,9 +137,33 @@ async def test_a_forget_of_everything_in_a_form_a_reader_reads_lists_what_it_lis
         ("Forget everything from today, my card stays.", _THREE),
         ("Forget everything else, my card stays.", _THREE),
         ("Forget all else. My card stays.", _THREE),
+        ("Forget everything the card stays.", _THREE),
+        ("Forget everything my card stays.", _THREE),
+        ("Forget about everything the card stays.", _THREE),
+        ("Wipe everything the card stays.", _THREE),
+        ("Wipe everything apart from the card.", _THREE),
+        ("Oublie tout la carte reste.", ("casier", "carte")),
+        ("Vergiss alles bis auf die Karte.", ("spind", "karte")),
+        ("Alles muss weg bis auf die Karte.", ("spind", "karte")),
+        ("Olvida todo la tarjeta se queda.", ("gimnasio", "tarjeta")),
+        ("Uită tot în afară de cardul.", ("dulap", "cardul")),
     ],
 )
 async def test_a_forget_of_everything_naming_a_row_in_a_form_no_reader_reads_keeps_every_row(
+    query: str, ids: tuple[str, ...]
+) -> None:
+    assert await _deleted(query, ids) == set()
+
+
+@pytest.mark.parametrize(
+    ("query", "ids"),
+    [
+        ("Forget everything my card holds.", _THREE),
+        ("Forget all my card numbers but quickly.", _THREE),
+        ("Uită tot despre cardul.", ("dulap", "cardul")),
+    ],
+)
+async def test_a_forget_of_everything_differing_from_a_kept_form_by_an_unread_word_keeps_it(
     query: str, ids: tuple[str, ...]
 ) -> None:
     assert await _deleted(query, ids) == set()
