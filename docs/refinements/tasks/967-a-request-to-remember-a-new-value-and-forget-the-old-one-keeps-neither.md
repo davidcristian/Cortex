@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-05
+**Verified:** 2026-11-26
 
 `Note that my phone number is now 0699000000, and delete the old one.` usually shows a card. The
 approved card deletes the old row and the turn stays out of memory, so no row holds either number. No
@@ -42,8 +42,10 @@ turn holds, and the person is the one reader who knows which value is old.
 
 ## What to do
 
-1. For the second card, write the clause reader, near misses first: cut at the first retraction clause,
-   and keep the words after it when the retraction comes first.
+1. The card's text is `words_to_keep` (`retraction.py`), which has no caller yet: the words up to the
+   first English retraction clause, or after it when it comes first, and `None` (no card) when no
+   retraction opens a clause or a forget verb is left in the words. Its cost is a fact holding one of
+   those verbs, as `the dentist will remove my tooth`, which shows no card.
 2. Call `Confirmer` outside `ToolDispatcher`. `ConfirmationRequest` names a tool call today, and the
    overlay's `ConfirmCard` shows `tool_name` as the card's title and each argument as a row, so the
    card is a request with a name and one `text` argument holding the person's words. Proposed name,
@@ -70,3 +72,9 @@ turn holds, and the person is the one reader who knows which value is old.
   old row, `memory_withheld` (`memory_claim.py`) kept each turn out, no row held either number, and
   every reply ended with the note. A typed rule over the forget's text still covers only the value
   texts, so the second card stays the design; step 2 now holds the proposed name.
+- 2026-11-26: built the clause reader of step 1 as a pure core function with no caller, its near
+  misses written as tests first, each check of it shown to fail by a mutation. The store tool of
+  [R-995](995-a-request-to-remember-spends-its-thinking-looking-for-a-tool-to-store-the-fact.md) does
+  not cover the second card: it stores nothing itself and is offered only on turns memory will
+  store, while this card serves a turn memory withholds. Steps 2 to 4 stay open; the card's name is
+  the user's pick.
