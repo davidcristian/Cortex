@@ -90,6 +90,11 @@ def keeping(clause: list[str]) -> list[bool]:
     return flags
 
 
+def contracted(tokens: list[str]) -> set[int]:
+    """The places in ``tokens`` of each word just before a negation of one letter, as ``don't``."""
+    return {at for at, after in enumerate(tokens[1:]) if after in NOT and len(after) == 1}
+
+
 def parts(query: str) -> tuple[list[str], list[str]]:
     """The tokens of ``query`` outside a clause asking to keep, and those inside one. A clause
     with no forget verb joins a keep clause that ends before it, as in ``keep the card, my gym``."""
@@ -100,6 +105,8 @@ def parts(query: str) -> tuple[list[str], list[str]]:
         unforgot = not any(FORGET.fullmatch(token) for token in clause)
         joined = kept and unforgot
         flags = [True] * len(clause) if joined else keeping(clause)
+        leads = {at for at in contracted(clause) if flags[at + 1]}
+        flags = [inside or at in leads for at, inside in enumerate(flags)]
         for token, inside in zip(clause, flags, strict=True):
             (keep if inside else forget).append(token)
         kept = flags[-1]

@@ -11,6 +11,7 @@ from cortex_core.forget_clauses import (
     KEEP,
     WHOSE,
     clauses,
+    contracted,
     keeping,
     parts,
 )
@@ -158,15 +159,14 @@ def _all_else(query: str, keep: set[str]) -> bool:
 
 
 def _split(query: str, language: str) -> tuple[set[str], set[str], set[str] | None, bool]:
-    """The words of ``query`` read in ``language`` naming a fact to forget, those only of a clause
-    asking to keep, the words naming the rows to delete beside one, and whether it has a compound.
-    """
+    """The words of ``query`` read in ``language`` naming a fact to forget, those only of a keep
+    clause, the words naming the rows to delete beside one, and whether it has a compound."""
     forget_tokens, keep_tokens = parts(query)
     forget, keep = " ".join(forget_tokens), " ".join(keep_tokens)
     function = FUNCTION.get(language, frozenset())
     named = _words(forget, function) | _stems(forget)
     kept = _words(keep) | _stems(keep) | _kinds(keep)
-    kept -= named | _kinds(forget) | EXCEPT
+    kept -= named | _kinds(forget) | EXCEPT | {keep_tokens[at] for at in contracted(keep_tokens)}
     kept = {word for word in kept if not (KEEP.fullmatch(word) or FORGET.fullmatch(word))}
     listed = (named or _kinds(forget)) if keep_tokens else None
     return named, kept, listed, bool(_stems(forget))

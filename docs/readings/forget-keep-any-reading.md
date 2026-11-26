@@ -236,3 +236,13 @@ don't delete the locker.` reads `don` in the part asking to forget and keeps eve
 ([R-1342](../refinements/tasks/1342-a-forget-of-every-value-beside-a-french-or-english-negated-keep-clause-keeps-every-row.md)).
 The scripts and listings are in `~/.cache/cortex-run/2026-11-25/f2/`.
 
+## A contracted negation, 2026-11-26
+
+`parts` (`forget_clauses.py`) now reads the word just before a negation of one letter, as `don`
+of `don't`, inside the keep clause it opens, and `_split` reads no fact in it, as `do` of
+`do not` names none. No word was added to a list. Replayed tree against tree: no row asked to keep
+is newly listed over the generator, the family, the mixed messages, the word pairs, the valued
+cases, the negated messages or the 13,827 mixed builder cases; 312 rows asked to delete are now
+deleted in 288 English negated messages, as the phone and the locker of `Forget all 4242, don't
+delete the card.`, and 30 in the mixed builder cases. Scripts: `replay.sh`, `m25.sh` and `cmp.py`
+in `~/.cache/cortex-run/2026-11-26/f1/`.

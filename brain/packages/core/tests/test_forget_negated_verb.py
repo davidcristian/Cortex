@@ -107,12 +107,36 @@ async def test_a_forget_of_every_value_reads_a_negated_forget_verb_as_a_keep_cla
         ("Vergiss alle 4242, lösch nicht.", _GERMAN),
         ("Oublie tous les 4242, n'efface pas le casier.", _FRENCH),
         ("Oublie tous les 4242, pas le casier.", _FRENCH),
+        ("Forget all 4242, not the locker.", _ENGLISH),
+        ("Forget all 4242, don't delete the locker.", _ENGLISH),
+        ("Vergiss alle 4242, nicht den Spind.", _GERMAN),
     ],
 )
-async def test_a_forget_of_every_value_beside_a_keep_clause_naming_no_row_keeps_every_row(
+async def test_a_forget_of_every_value_beside_a_keep_clause_naming_no_card_or_phone_keeps_all(
     query: str, ids: tuple[str, ...]
 ) -> None:
     assert await _left(query, ids) == sorted(ids)
+
+
+@pytest.mark.parametrize(
+    ("query", "left"),
+    [
+        ("Forget all 4242, don't delete the card.", ["card"]),
+        ("Forget all 4242, don't delete the phone.", ["phone"]),
+        ("Forget all 4242. Don't remove the card.", ["card"]),
+        ("Forget all 4242 but don't erase the card.", ["card"]),
+        ("Don't forget the card, forget all 4242.", ["card"]),
+        ("Forget all 4242, not the card.", ["card"]),
+        ("Forget all 4242, do not forget the card.", ["card"]),
+        ("Forget all 4242, the card isn't needed.", ["locker", "phone"]),
+        ("Forget all 4242, I don't need the card.", ["card", "locker", "phone"]),
+        ("Forget all 4242, won't delete the card.", ["card"]),
+    ],
+)
+async def test_a_forget_of_every_value_reads_the_word_before_a_contracted_negation_in_its_clause(
+    query: str, left: list[str]
+) -> None:
+    assert await _left(query, _ENGLISH) == left
 
 
 @pytest.mark.parametrize(
@@ -134,6 +158,8 @@ async def test_a_negation_after_the_row_in_a_later_remark_still_deletes_the_row(
         ("Vergiss 4242 und die Karte nicht.", "vergiss 4242", "und die karte nicht"),
         ("Vergiss 4242, die Karte nicht löschen.", "vergiss 4242", "die karte nicht löschen"),
         ("Forget all 4242 though not the card.", "forget all 4242 though", "not the card"),
+        ("Forget all 4242, don't delete the card.", "forget all 4242", "don t delete the card"),
+        ("Forget all 4242, the card isn't needed.", "forget all 4242 the card", "isn t needed"),
         ("Vergiss nicht, die Karte zu löschen.", "die karte zu löschen", "vergiss nicht"),
         (
             "Lösche 4242 von der Karte die ich nicht mehr brauche.",
