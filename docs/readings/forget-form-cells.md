@@ -153,3 +153,42 @@ too: `todo de eso`, `tot de pe el` and `tot dulapul`
 ([task 1366](../refinements/tasks/1366-a-spanish-or-romanian-head-before-a-kept-row-lists-that-row.md)).
 The change is not yet drawn live with the rows seeded
 ([task 1369](../refinements/tasks/1369-draw-the-head-read-after-another-forget-clause-with-the-rows-seeded.md)).
+
+## Mixed messages of the third audit, 2026-11-26
+
+A generator of 780 messages in five languages, from the rows' own words, writes the forms the word
+for only after a forget of everything and the head after another forget clause changed: a word for
+only after a forget of everything, alone, before a keep verb and after another forget clause; a
+forget of everything except a row, and a head before a kept row, after another forget clause, with a
+full stop or a comma, and with a third forget clause after it; and plain deletions that must still
+delete, in two forget clauses (`Forget my card. Forget everything about my phone.`), of a row's
+details (`Delete all of my card details from memory.`) and of everything on a row. That is 3,120
+cases with the call texts `4242`, the named row's word, another row's word, and the named row's word
+beside the value (`gen.py`, `replay.sh`, `recount.py` and `byform.py` in
+`~/.cache/cortex-run/2026-11-26/a3/replay/`). Each tree against the one before it:
+
+| Tree | Rows asked to keep deleted | Rows not asked for deleted | Rows asked to delete kept |
+| --- | --- | --- | --- |
+| the second audit's commit `1c7c329cf` | 488 | 0 | 3,504 |
+| a word for only over every stored row, and the placing scope | 476 | 0 | 3,488 |
+| a word for only after a forget of everything | 414 | 0 | 3,488 |
+| the head after another forget clause | 26 | 0 | 3,520 |
+
+No step deletes a row asked to keep or a row not asked for that the tree before it kept. The first
+step deletes 28 rows asked to delete that the tree before kept, the English deletions of a row's
+details and of everything on a row, and keeps 12: the row the first clause of `Forget the phone.
+Forget everything, only the card.` names. The last step keeps 32 rows asked to delete, all
+Romanian: `Uită cardul meu. Uită tot despre telefonul meu.` keeps the phone, as its second clause
+alone does at every tree, since `tot` is no word for all and the words after it are read as a head.
+
+The 26 rows asked to keep still deleted are all Romanian: 16 after `Uită tot dulapul rămâne.`
+following another forget clause, with the call text `dulap`
+([task 1366](../refinements/tasks/1366-a-spanish-or-romanian-head-before-a-kept-row-lists-that-row.md)),
+6 after `Uită tot, doar dulapul.` with the call text `cardul`
+([task 1367](../refinements/tasks/1367-a-word-for-only-after-a-forget-of-everything-no-reader-reads-lists-a-row.md)),
+and 4 after `Uită cardul meu. Uită tot în afară de dulapul.` with the call text `dulap`, which its
+second clause alone lists at every tree
+([task 1370](../refinements/tasks/1370-a-romanian-forget-of-everything-except-a-row-named-with-its-article-lists-it.md)).
+With the call text `4242`, a deletion of a row's details keeps the row in all 24 cases in French,
+German, Spanish and Romanian at every tree, where English deletes it in all 6
+([task 1371](../refinements/tasks/1371-a-deletion-of-a-rows-details-keeps-the-row-outside-english.md)).
