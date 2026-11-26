@@ -130,8 +130,8 @@ compares the two, so retune both or neither. `RosterError` is a boot-time miscon
   tier's size is the one it was measured at ([ADR-0059](../adr/ADR-0059-prompt-cache-per-tier.md),
   readings in [prompt cache](../readings/prompt-cache.md)): `8192` on the cortex, where a cached
   conversation costs 1349 MiB and every return was restored at 1.9 s a request; `0` on the deep
-  tier, where a conversation costs 3526 MiB and the engine's own ceiling holds two of three; `0` on
-  the GPU-placed subagent tier, whose subtasks are one-shot.
+  tier, whose server serves one handoff's turn and is stopped, so no deep request was ever one the
+  cache could restore; `0` on the GPU-placed subagent tier, whose subtasks are one-shot.
 - A tier's multi-token-prediction drafter is two settings, its file and its draft length
   ([ADR-0077](../adr/ADR-0077-model-card-settings.md) decisions 7 and 8, ADR-0004 decision 14).
   `drafter_flags` in `tiers.py` builds `--model-draft PATH --spec-type draft-mtp --spec-draft-n-max N`

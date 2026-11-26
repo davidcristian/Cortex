@@ -1,9 +1,8 @@
 # The deep pick's prompt cache restores every returning conversation
 
-**Status:** open, actionable
+**Status:** declined 2026-11-26
 **Area:** inference-model-manager
 **Origin:** [ADR-0059](../../adr/ADR-0059-prompt-cache-per-tier.md)
-**Verified:** 2026-11-24
 
 The deep tier runs `--cache-ram 0` (`_NO_PROMPT_CACHE` in
 `brain/packages/model_manager/src/cortex_model_manager/config.py`) because on gemma-4-31B a cached
@@ -34,6 +33,15 @@ returning requests save.
 - 2026-11-24: counted off the model host logs of nine recorded handoffs to the pick on build
   b12375: twelve deep requests, nine the first of their server, three the second with the slot
   holding the first, none a possible return
-  ([counts](../../readings/prompt-cache.md#deep-requests-in-recorded-handoffs)). No deep turn in
+  ([counts](../../readings/prompt-cache.md#deep-requests-in-handoffs)). No deep turn in
   them called a tool and none took the stop or resume path, so by the rule written before the
   count the task stays open until a live handoff draws those two.
+- 2026-11-26: declined. Four live handoffs to the pick on build b12375, on compose defaults with
+  memory and escalation on: one whose deep model called `forget_memories`, one stopped 20 s into
+  the deep phase, the same request asked for again, and one asking for tools the defaults leave
+  off. Nine deep requests: four first, four new, one held, no possible return
+  ([counts](../../readings/prompt-cache.md#deep-requests-in-handoffs)). A stop ends the server,
+  so the request asked for again started on an empty slot. By the rule written before the draw,
+  ADR-0059 decision 4 is restated on that ground and `--cache-ram 0` stays. The draw also showed
+  a forget request worded as a use of the tool being refused, filed as
+  [R-1353](1353-a-request-to-use-the-forget-tool-reads-as-no-forget.md).

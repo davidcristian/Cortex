@@ -86,25 +86,58 @@ three fit under the 8192 MiB limit and every return was restored from it, its `t
 Method: `~/.cache/cortex-run/2026-11-23/s4/cram.py`, whose rows are in `logs/cram-on.out` and
 `logs/cram-off.out` beside it.
 
-## Deep requests in recorded handoffs
+## Deep requests in handoffs
 
-**2026-11-24**, counted off the model host logs of nine handoffs to the deep pick that a brain
-drove, on build `b12375` at the deep tier's argv with `--cache-ram 0` (runs of 2026-11-21 and
-2026-11-23). A handoff stops the deep server when it swaps back, and `--cache-ram` is host RAM of
-that process, so the cache can restore a request only from an earlier request of the same server
-that another request pushed out of its one slot: a third or later request the slot does not match.
+A handoff stops the deep server when it swaps back, and `--cache-ram` is host RAM of that
+process, so the cache can restore a request only from an earlier request of the same server that
+another request pushed out of its one slot: a third or later request the slot does not match. The
+counts are read off the model host's log (`count.py`): each request's slot pick and its prompt
+evaluation, on build `b12375` at the deep tier's argv with `--cache-ram 0`.
 
-| class | what it is | requests |
-| --- | --- | --- |
-| first | the first request of its server, the slot empty | 9 |
-| held | the slot matched its prefix (`selected slot by LCP similarity`) | 0 |
-| new | the second request of its server, the slot holding the first | 3 |
-| possible return | a third or later request, the slot holding another prompt | 0 |
+| class | what it is | recorded, 2026-11-24 | live, 2026-11-26 |
+| --- | --- | --- | --- |
+| first | the first request of its server, the slot empty | 9 | 4 |
+| held | the slot matched its prefix (`selected slot by LCP similarity`) | 0 | 1 |
+| new | the second request of its server, the slot holding the first | 3 | 4 |
+| possible return | a third or later request, the slot holding another prompt | 0 | 0 |
 
-Six handoffs sent the deep tier one request each and the three with memory recall two each. No
-deep turn among them called a tool, and none took the stop or resume path. Method: `python3 -I
-r1308/count.py <host logs>` in `~/.cache/cortex-run/2026-11-24/s2/`, whose `notes.md` lists the
-logs counted.
+**2026-11-24**, nine recorded handoffs to the pick that a brain drove (runs of 2026-11-21 and
+2026-11-23). Six sent the deep tier one request each and the three with memory recall two each.
+No deep turn among them called a tool, and none was stopped or asked for again. Method: `python3
+-I r1308/count.py <host logs>` in `~/.cache/cortex-run/2026-11-24/s2/`, whose `notes.md` lists
+the logs counted.
+
+**2026-11-26**, four live handoffs on the stack's compose files with memory, escalation on, the
+supervisor backend and the pick named, every other setting on its default. The model host wrote
+`-ngl 99 --ctx-size 16384 --parallel 1 --jinja --cache-ram 0 --cache-type-k q8_0 --cache-type-v
+q8_0`, no drafter, and the brain sent the effort `medium` as a request field. A recording proxy in
+front of the deep tier kept every request's body and timings.
+
+| handoff | request | class | prompt tokens evaluated, of the prompt |
+| --- | --- | --- | --- |
+| a turn asking for the schedule tools, which defaults leave off | recall's judge | first | 159 of 159 |
+| | the tool loop, a reply | new | 1208 of 1208 |
+| a turn the person stopped 20 s into the deep phase | recall's judge | first | 336 of 336 |
+| | the tool loop, running at the stop | new | not reported |
+| the same request asked for again in the next turn | recall's judge | first | 413 of 413 |
+| | the tool loop, a reply | new | 1387 of 1387 |
+| a turn whose deep model called `forget_memories` | recall's judge | first | 149 of 149 |
+| | the tool loop, the call | new | 1178 of 1178 |
+| | the tool loop after the result | held | 136 of 1310 |
+
+- **Recall's judge comes first and shares nothing with the tool loop.** Its prompt is the
+  person's message alone, so the loop's first request found no prefix in the slot (`cache_n` 0).
+  A round after a tool result extends the prompt the slot holds and is read from it.
+- **A stop ends the server.** The driver sent `Cancel` 20 s after the brain reported the deep
+  model working; the turn was torn down, the swap back stopped the deep server with the loop's
+  request still running (`cancel task` at exit), and the handoff ended `failed`. The next turn's
+  loop repeated most of that prompt, but only the stopped process had evaluated it, so its new
+  server started with the slot empty.
+- The card's highest reading was 15,957 and 15,959 MiB above the floor in the two runs.
+
+Method: `run.sh` and `run2.sh` with `turn.py` (a `--cancel-turn` option), `count.py` and `prox.py`
+in `~/.cache/cortex-run/2026-11-26/s1/`; host logs, brain logs and the proxy's records are in
+`logs/draw/` and `logs/draw2/` beside them, and `notes.md` has the rule written before the draw.
 
 ## The prompt cache and a repeated request
 
