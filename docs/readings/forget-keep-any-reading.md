@@ -238,11 +238,13 @@ The scripts and listings are in `~/.cache/cortex-run/2026-11-25/f2/`.
 
 ## A contracted negation, 2026-11-26
 
-`parts` (`forget_clauses.py`) now reads the word just before a negation of one letter, as `don`
-of `don't`, inside the keep clause it opens, and `_split` reads no fact in it, as `do` of
-`do not` names none. No word was added to a list. Replayed tree against tree: no row asked to keep
-is newly listed over the generator, the family, the mixed messages, the word pairs, the valued
-cases, the negated messages or the 13,827 mixed builder cases; 312 rows asked to delete are now
-deleted in 288 English negated messages, as the phone and the locker of `Forget all 4242, don't
-delete the card.`, and 30 in the mixed builder cases. Scripts: `replay.sh`, `m25.sh` and `cmp.py`
-in `~/.cache/cortex-run/2026-11-26/f1/`.
+`parts` (`forget_clauses.py`) now reads the word just before a negation of one letter, as `don` of
+`don't`, inside the keep clause it opens, and `_split` reads no fact in it, as `do` of `do not`
+names none. No word was added to a list. Replayed tree against tree: no row asked to keep is newly
+listed over the generator, the family, the mixed messages, the word pairs, the valued cases, the
+negated messages or the 13,827 mixed builder cases; 312 rows asked to delete are now deleted in 288
+English negated messages, as the phone and the locker of `Forget all 4242, don't delete the card.`,
+and 30 in the mixed builder cases. Scripts: `replay.sh`, `m25.sh` and `cmp.py` in
+`~/.cache/cortex-run/2026-11-26/f1/`. `held` (`forget_inside.py`) reads no fact in it either: 10
+more rows asked to delete are deleted in the 44 `Don` cases, as Don's row of `Forget Don, don't
+remove the card.`, and no row asked to keep is newly listed (`~/.cache/cortex-run/2026-11-26/x1/`).

@@ -16,6 +16,7 @@ from cortex_core.forget_clauses import (
     before_value,
     beside,
     clauses,
+    contracted,
     kept_again,
     parts,
 )
@@ -248,7 +249,10 @@ def may_keep(
     stems = [row - _FUNCTION for row in (*asked.values(), *inner)]
     wide = {word for word in content(query) if any(extends(word, row) for row in stems)}
     roles, broad = beside(query, text, known, MINUS), beside(query, text, known | wide, MINUS)
-    held = content(query, " ".join(w for w in parts(query)[1] if not KEEP.fullmatch(w))) - EXCEPT
+    keep = parts(query)[1]
+    lead = contracted(keep)
+    kept_words = (w for at, w in enumerate(keep) if at not in lead and not KEEP.fullmatch(w))
+    held = content(query, " ".join(kept_words)) - EXCEPT
     keeps = held | content(query, " ".join(after)) | broad[EXCEPTION]
     keeps |= kept_again(query, text, known)
     kept = frozenset(keeps | kept_again(query, text, frozenset(known | wide)))

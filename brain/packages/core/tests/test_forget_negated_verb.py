@@ -24,6 +24,7 @@ _ROWS = {
     "spind": "User: Merke dir, der Code vom Spind ist 4242.\nAssistant: Notiert.",
     "karte": "User: Merke dir, meine Karte ist 4111 1111 1111 4242.\nAssistant: Notiert.",
     "handy": "User: Merke dir, mein Handy ist 0721 555 4242.\nAssistant: Notiert.",
+    "don": "User: Remember that Don's phone is 0744 555 4242.\nAssistant: Noted.",
 }
 _ENGLISH = ("card", "phone", "locker")
 _FRENCH = ("carte", "telephone", "casier")
@@ -137,6 +138,22 @@ async def test_a_forget_of_every_value_reads_the_word_before_a_contracted_negati
     query: str, left: list[str]
 ) -> None:
     assert await _left(query, _ENGLISH) == left
+
+
+@pytest.mark.parametrize(
+    ("query", "left"),
+    [
+        ("Forget Don, don't remove the card.", ["card", "phone"]),
+        ("Forget Don don't remove the card.", ["card", "phone"]),
+        ("Forget the card, don't forget Don.", ["don", "phone"]),
+        ("Forget the card but don't forget Don.", ["don", "phone"]),
+        ("Don't forget Don, forget the card.", ["don", "phone"]),
+    ],
+)
+async def test_a_forget_naming_a_row_by_the_word_before_a_contracted_negation_reads_that_row(
+    query: str, left: list[str]
+) -> None:
+    assert await _left(query, ("card", "phone", "don")) == left
 
 
 @pytest.mark.parametrize(
