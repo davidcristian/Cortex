@@ -214,6 +214,54 @@ async def test_a_row_a_later_clause_names_in_a_role_no_reader_reads_is_kept(
     assert await _deleted(query, ids) == gone
 
 
+@pytest.mark.parametrize(
+    ("query", "ids", "kept"),
+    [
+        ("Forget the card. Forget everything the phone stays.", _THREE, "phone"),
+        ("Forget my old card. Forget all of it the phone stays.", _THREE, "phone"),
+        ("Forget the phone, forget all of it the card stays.", _THREE, "card"),
+        ("Delete the locker. Delete it all the card stays.", _THREE, "card"),
+        ("Wipe the card; forget everything the locker stays.", _THREE, "locker"),
+        ("Oublie le casier, oublie tout la carte reste.", ("casier", "carte"), "carte"),
+        ("Vergiss den Spind. Vergiss alles die Karte bleibt.", ("spind", "karte"), "karte"),
+        ("Borra el gimnasio, olvida todo la tarjeta se queda.", ("gimnasio", "tarjeta"), "tarjeta"),
+        ("Uită dulapul. Uită tot cardul rămâne.", ("dulap", "cardul"), "cardul"),
+    ],
+)
+async def test_a_row_kept_after_a_forget_of_everything_behind_another_forget_clause_is_kept(
+    query: str, ids: tuple[str, ...], kept: str
+) -> None:
+    assert kept not in await _deleted(query, ids)
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Forget everything the card stays. Delete the phone.",
+        "Forget it all the card stays, wipe 4242.",
+    ],
+)
+async def test_a_row_kept_after_a_forget_of_everything_before_another_forget_clause_is_kept(
+    query: str,
+) -> None:
+    assert "card" not in await _deleted(query)
+
+
+@pytest.mark.parametrize(
+    ("query", "gone"),
+    [
+        ("Forget the card. Forget everything.", {"locker", "card", "phone"}),
+        ("Forget the card, then forget everything on my phone.", {"card", "phone"}),
+        ("Forget the card. Forget everything, the phone stays.", set[str]()),
+        ("Forget the card. Forget the phone.", {"card", "phone"}),
+    ],
+)
+async def test_a_forget_of_everything_behind_another_forget_clause_lists_what_it_listed(
+    query: str, gone: set[str]
+) -> None:
+    assert await _deleted(query) == gone
+
+
 async def test_a_forget_of_everything_keeping_every_row_says_each_was_kept() -> None:
     gone, said = await _forget("Forget everything, my card stays.", "card", _THREE)
     assert (gone, said) == (set(), f"{KEPT_ALL}.")

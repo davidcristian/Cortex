@@ -12,6 +12,10 @@ list a row asked to keep, at the tree before the night's head rules and after th
 ([readings](../../readings/forget-everything-unread-forms.md#heads-of-more-than-one-word-2026-11-26)).
 `_head_run` (`forget_permit.py`) reads the words after `todo` and `tot` as one more run, and that
 run still names the row in a role a reader reads.
+`Uită tot dulapul rămâne.` lists the locker for the call text `dulap`, and each of these heads lists
+its row after another forget clause as well (`Olvida el teléfono. Olvida todo de eso la tarjeta se
+queda.`): 96 rows over the two generators of the head after another forget clause
+([readings](../../readings/forget-form-cells.md#a-head-after-another-forget-clause-2026-11-26)).
 
 ## What to do
 
@@ -23,3 +27,5 @@ run still names the row in a role a reader reads.
 ## History
 
 - 2026-11-26: filed from the replay of the placing word after a word for all.
+- 2026-11-26: the head read after another forget clause found the same heads there, and `tot
+  dulapul`.

@@ -251,23 +251,23 @@ async def _kept_later(
 ) -> frozenset[str]:
     """The ids of ``seen`` a word for only after a forget of everything keeps or a run it limits
     past the call's value leaves out, and of the stored rows named by a run no reader reads: in a
-    clause after the first with a forget verb outside a keep clause (or the first), or its head."""
+    clause after any with a forget verb outside a keep clause (or the first), or in its head."""
     split = clauses(call.stamp.query)
-    first = next((at for at, clause in enumerate(split) if _forgets(clause)), 0)
     rows, named = await _store_named(store, scope, call, seen)
     values, text = whole_values(call.stamp.query), call_text(call)
     held = sorted(whole_values(text).keys() & values.keys())
     only = alone(call.stamp.query, values[held[0]] if held else text, named)
-    place = everything(" ".join(split[first])) if split else None
     every = everything(call.stamp.query)
     tail = {word for clause in split[every[0] + 1 :] for word in clause} if every else set[str]()
     whole = not ONLY.isdisjoint(tail) and not named.isdisjoint(tail)
     left = {row.id for row in seen if whole or (only and not names(only, request(row)))}
-    head = _head_run(split[first], rows, named, place and place[1]) if split else []
-    if first + 1 >= len(split) and not head:
-        return frozenset(left)
-    later = ", ".join([_VERB, " ".join(head), *(" ".join(clause) for clause in split[first + 1 :])])
-    unread = kept_again(later, _VERB, named)
+    unread = set[str]()
+    starts = [index for index, clause in enumerate(split) if _forgets(clause)]
+    for at in starts or ([0] if split else []):
+        place = everything(" ".join(split[at]))
+        head = _head_run(split[at], rows, named, place and place[1])
+        later = [_VERB, " ".join(head), *(" ".join(clause) for clause in split[at + 1 :])]
+        unread |= kept_again(", ".join(later), _VERB, named)
     return frozenset(left | {row for word in unread for row in rows.get(word, ())})
 
 

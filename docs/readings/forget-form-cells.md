@@ -119,7 +119,7 @@ forget of everything in five languages, 3,000 cases with four call texts each (`
 
 No tree lists a row an earlier tree keeps. The change keeps 36 rows, each a row a reading keeps,
 and lists none. Of the 142 left, 92 follow another forget clause
-([task 1361](../refinements/tasks/1361-a-forget-of-everything-after-another-forget-clause-lists-the-kept-row.md)),
+([a head after another forget clause](#a-head-after-another-forget-clause-2026-11-26)),
 24 follow a Spanish or Romanian head
 ([task 1366](../refinements/tasks/1366-a-spanish-or-romanian-head-before-a-kept-row-lists-that-row.md))
 and 26 follow `Wipe` or a Romanian row named with its article
@@ -128,3 +128,28 @@ Over every set of the replay above, no row is newly listed; the generator keeps 
 to delete, as the card of `Forget all tulip, only the card.`, whose value holds no digit, 4 rows not
 asked for and 8 rows it marks neither way, all in that form or the card's. `Forget all 4242, only the card.` still deletes the card
 ([task 1368](../refinements/tasks/1368-a-word-for-only-after-a-value-of-all-deletes-the-row-a-reading-keeps.md)).
+
+## A head after another forget clause, 2026-11-26
+
+`Forget the card. Forget everything the phone stays.` deleted the phone, which the same head keeps
+in a first clause. `_kept_later` (`forget_permit.py`) read a head only in the first clause holding
+a forget verb outside a keep clause, and a run of the clauses after it ends at the next forget
+verb, so no reader read the words after a later forget verb. It now reads the head, and the clauses
+after it, from each clause holding a forget verb outside a keep clause, and keeps a row that any of
+those readings keeps. No word was added to a list. A generator of the form writes 252 messages in
+five languages: a forget clause naming a row, then a full stop, a comma or a semicolon, then a
+forget of everything with no clause mark before the kept row, 1,008 cases with the four call texts
+of the set above (`stopgen.py`, `extra.sh`, `replay.sh` and `cmpx.py` in the `x2` scratch
+directory of the 2026-11-26 run). The tree before the change against the tree after it:
+
+| Case set | Cases | Rows asked to keep listed before | After | Rows newly listed | Rows asked to delete newly kept |
+| --- | --- | --- | --- | --- | --- |
+| the audit generator above | 3,000 | 142 | 94 | 0 | 0 |
+| this form | 1,008 | 348 | 52 | 0 | 0 |
+| the generator, word pairs, valued, negated, mixed and every other set of the replays above | 143,620 | 336 | 336 | 0 | 0 |
+
+Every row still listed after another forget clause follows a head that lists it in a first clause
+too: `todo de eso`, `tot de pe el` and `tot dulapul`
+([task 1366](../refinements/tasks/1366-a-spanish-or-romanian-head-before-a-kept-row-lists-that-row.md)).
+The change is not yet drawn live with the rows seeded
+([task 1369](../refinements/tasks/1369-draw-the-head-read-after-another-forget-clause-with-the-rows-seeded.md)).

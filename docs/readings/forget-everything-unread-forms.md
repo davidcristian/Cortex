@@ -136,7 +136,7 @@ locker for the call `locker code` as well. Cases and counts: `~/.cache/cortex-ru
 
 ## The head clause read, 2026-11-26
 
-The rule built (`_head_run` in `forget_permit.py`): in the first clause holding a forget verb
+The rule built (`_head_run` in `forget_permit.py`): in each clause holding a forget verb
 outside a keep clause, or the first clause of a message with none, the words after its forget verb
 and after the first word there, when no reader reads that word (a word for all as `everything`,
 `alles` or `tot`, or the verb of a head with no forget verb, as `wipe`), are read as one more run
@@ -185,7 +185,7 @@ all`, a comma after the head, and the four other languages' heads tried (`Oublie
 `Vergiss das alles`, `Olvida todo eso`, `Uită tot asta`). Cases and counts: `gen.py`, `probe.py`,
 `replay.sh` and `cmp.py` in `~/.cache/cortex-run/2026-11-26/a1/`.
 
-The rule built for these heads: when `everything` reads a forget of everything in the first
+The rule built for these heads: when `everything` reads a forget of everything in a
 clause holding a forget verb, the words of that clause after its word for all are read as one more
 run after a value, whatever stands before that word, and a stored row the run names in a role no
 reader reads is kept. A placing word right after the word for all that leads, past words for the
@@ -210,6 +210,5 @@ todo de eso` and `Uită tot de pe el`
 ([task 1366](../refinements/tasks/1366-a-spanish-or-romanian-head-before-a-kept-row-lists-that-row.md)).
 The 2 still listed are `Forget the lot the card
 stays.` for both call texts: `lot` is no word for all, so `everything` reads no forget of
-everything there. A forget of everything in a clause after another forget clause lists the kept
-row at both trees, for a head of one word too: `Forget the card. Forget everything the phone
-stays.` deletes the phone.
+everything there. A head in a clause after another forget clause is read the same way
+([readings](forget-form-cells.md#a-head-after-another-forget-clause-2026-11-26)).
