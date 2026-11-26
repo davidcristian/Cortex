@@ -1,9 +1,8 @@
 # A Romanian plural row word in a forget message names no row
 
-**Status:** open, actionable
+**Status:** done 2026-11-26
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-24
 
 Over the Romanian rows `Ține minte că codul de la dulap este 4242.`, `Ține minte că cardul meu
 este 4111 1111 1111 4242.` and `Ține minte că telefonul meu este 0721 555 4242.`, in unit calls
@@ -27,3 +26,11 @@ article `ul`.
 
 - 2026-11-23: filed from the close of
   [R-1286](1286-a-forget-naming-a-code-deletes-another-row-after-a-word-for-all-or-for-a-code-word-in-another-number.md).
+- 2026-11-26: done. `grows` (`forget_kinds.py`) reads a word of a forget verb's clause three or
+  more letters longer than a request word or code word that it starts with, or with it less its
+  last letter, in `forget_named` when no other word names a row and in `_coded`. Over the plural
+  set the rows not asked for listed fell from 128 to 64, and no row was newly listed in any case
+  set ([readings](../../readings/forget-romanian-plural.md)). The forms left are [task
+  1355](1355-a-romanian-plural-that-changes-its-stem-or-adds-one-letter-names-no-row.md), and a
+  defect of `extends` the probe found is [task
+  1356](1356-a-forget-word-two-letters-longer-than-remember-names-every-row.md).

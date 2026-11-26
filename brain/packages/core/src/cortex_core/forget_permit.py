@@ -21,7 +21,7 @@ from cortex_core.forget_clauses import (
 )
 from cortex_core.forget_inside import bounded, content, may_keep, request
 from cortex_core.forget_keep_named import forget_named, forget_words
-from cortex_core.forget_kinds import MINUS, extends, names, shorter, verbed
+from cortex_core.forget_kinds import MINUS, extends, grows, names, prefixes, shorter, verbed
 from cortex_core.forget_results import ALREADY_DELETED, FORGET_CHOSEN_LIMIT, NONE_FOUND
 from cortex_core.forget_unnamed import TOPIC, just_said
 from cortex_core.memory import MemoryRecord
@@ -87,9 +87,9 @@ async def _coded(
     *,
     apart: bool,
 ) -> frozenset[str] | None:
-    """The ids a message naming no row of ``told`` nor ``_every`` row permits a call: each row,
-    stored or of ``seen``, whose request holds or ``extends`` a code word it asks to forget, and for
-    a text holding a digit the row ``just_said`` reads. ``None`` if none does or both hold one."""
+    """The ids a message naming no row of ``told`` nor ``_every`` row permits: each row whose
+    request holds a code word it asks to forget, or one such a word ``extends`` or ``grows`` from,
+    and for a text holding a digit the row ``just_said`` reads. ``None`` if none does or both do."""
     tokens = parts(call.stamp.query)[0]
     codes = {token for token in tokens if code_word(token)}
     valued = _digit(call_text(call))
@@ -108,13 +108,17 @@ async def _coded(
         for code in codes & verbed(call.stamp.query)
         if all(code not in _asked(row) for row in rows)
     }
-    for word in sorted(stem for code in unread for stem in shorter(code)):
+    grown = {token for token in verbed(call.stamp.query) & set(tokens) if not code_word(token)}
+    starts = {stem for code in unread for stem in shorter(code)}
+    for word in sorted(starts | {stem for token in grown for stem in prefixes(token)}):
         rows += await store.find_text(word, limit=FORGET_CHOSEN_LIMIT + 1, scopes=scopes)
     asked = {row.id: _asked(row) for row in rows}
     held = {
         row
         for row, words in asked.items()
-        if not codes.isdisjoint(words) or any(extends(code, words) for code in unread)
+        if not codes.isdisjoint(words)
+        or any(extends(code, words) for code in unread)
+        or any(grows(token, set(filter(code_word, words))) for token in grown)
     }
     said = just_said(list(seen), call.stamp.session_id) if valued else None
     if not held:

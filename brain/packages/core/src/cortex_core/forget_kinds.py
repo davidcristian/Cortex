@@ -14,6 +14,8 @@ _KINDS = (
 _KIND = {word: kind for kind, words in enumerate(_KINDS) for word in words.split()}
 MINUS = frozenset({"minus", "less", "moins", "menos", "weniger", "puțin", "puţin"})
 _SHORTEST = 3
+_STEM = 4
+_GROWN = 3
 
 
 def kinds(words: Iterable[str]) -> set[int]:
@@ -55,6 +57,22 @@ def extends(word: str, row: set[str]) -> bool:
     """Whether ``word`` is a word of ``row`` with one or two letters added, as ``codes`` of
     ``code`` or ``Spinde`` of ``spind``, the way a word in another number is formed."""
     return not row.isdisjoint(shorter(word))
+
+
+def grows(word: str, row: set[str]) -> bool:
+    """Whether ``word`` is three or more letters longer than a word of ``row`` and starts with it or
+    with it less its last letter, four letters at least, as ``cardurile`` of ``cardul``."""
+    return any(
+        len(word) - len(name) >= _GROWN and word.startswith(stem)
+        for name in row
+        for stem in (name, name[:-1])
+        if len(stem) >= _STEM
+    )
+
+
+def prefixes(word: str) -> list[str]:
+    """The starts of ``word`` a word ``word`` ``grows`` from starts with."""
+    return [word[:end] for end in range(_STEM, len(word) - _GROWN + 1)]
 
 
 def reads(words: set[str], row: set[str], stems: set[str]) -> bool:

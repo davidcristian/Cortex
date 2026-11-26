@@ -4,7 +4,7 @@ from collections.abc import Sequence
 
 from cortex_core.forget_clauses import AND, EVERY, clauses, parts
 from cortex_core.forget_inside import content, request
-from cortex_core.forget_kinds import extends, names, read_kinds, shorter, verbed
+from cortex_core.forget_kinds import extends, grows, names, prefixes, read_kinds, shorter, verbed
 from cortex_core.forget_languages import FUNCTION
 from cortex_core.forget_unnamed import asks_to_keep, keep_words, row_names
 from cortex_core.memory import MemoryRecord
@@ -48,7 +48,8 @@ async def forget_named(
     store: MemoryStore, scope: MemoryScope, call: ToolCall, limit: int, gone: Sequence[MemoryRecord]
 ) -> list[MemoryRecord]:
     """The stored rows the chat can read, and those of ``gone``, the rows the turn deleted, whose
-    request a word of ``forget_words`` names or, in a forget verb's clause, ``extends``."""
+    request a word of ``forget_words`` names or, in a forget verb's clause, ``extends``, else each
+    such a word ``grows`` from."""
     query = call.stamp.query
     words = forget_words(query)
     scopes = scope.read_scopes(call.stamp.session_id)
@@ -57,11 +58,13 @@ async def forget_named(
         rows += await store.find_text(word, limit=limit, scopes=scopes)
     told = words & verbed(query)
     unread = {word for word in told if not any(names({word}, request(row)) for row in rows)}
-    for stem in sorted(stem for word in unread for stem in shorter(word)):
+    for stem in sorted({stem for word in unread for stem in (*shorter(word), *prefixes(word))}):
         rows += await store.find_text(stem, limit=limit, scopes=scopes)
-    return [
+    named = [
         row
         for row in rows
         if names(words, request(row))
         or any(extends(word, request(row) - _FUNCTION) for word in unread)
     ]
+    grown = [row for row in rows if any(grows(word, request(row) - _FUNCTION) for word in unread)]
+    return named or grown
