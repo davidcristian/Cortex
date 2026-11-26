@@ -94,3 +94,29 @@ after the word for all that leads to the one row the clause names as the forget'
 tells these forms from `Forget all of it the card stays.`
 ([replay](forget-everything-unread-forms.md#heads-of-more-than-one-word-2026-11-26)).
 Rows in `logs/rows-k1.jsonl`, `rows-k2.jsonl`, `rows-o1.jsonl` and `rows-o2.jsonl`.
+
+## The two readers widened after these draws
+
+The reader of the word for only now reads rows over the store and the head rule reads a placing
+word after the word for all as the forget's scope. Both drawn on a brain built from that tree, the
+same stack and argv, the English rows seeded, the pass rule above, 8 draws each; the last row ran
+on the tree's `cortex_core` with a word for only after a forget of everything keeping every row,
+bound over the image (rules in `notes.md`, rows in `logs/rows-p1.jsonl` to `rows-p5.jsonl` and
+`rows-c1.jsonl`, in `~/.cache/cortex-run/2026-11-26/a2/`):
+
+| Message | Asked to delete | Draws with a call | Calls | Refused | Cards | Asked rows deleted | Draws listing or deleting another row |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `Delete all of my card details from memory.` | card | 8 of 8 | 8 | 0 | 8 | 8 of 8 | 0 of 8 |
+| `Forget everything on my card please.` | card | 8 of 8 | 8 | 0 | 8 | 8 of 8 | 0 of 8 |
+| `Forget all of it the card stays.` | locker, phone | 0 of 8 | 0 | 0 | 0 | 0 of 16 | 0 of 8 |
+| `Forget 4242, the card too, only the phone.` | phone | 8 of 8 | 40 | 1 | 0 | 0 of 8 | 0 of 8 |
+| `Forget all 4242, only the card.` | card | 7 of 8 | 39 | 0 | 1 | 1 of 8 | 0 of 8 |
+| `Forget everything, only the card.` (tree's core) | none | 0 of 8 | 0 | 0 | 0 | | 0 of 8 |
+
+**Result: every form passes.** No card listed a row asked to keep. The two plain requests to
+delete the card deleted it in all 16 draws, each call `4111 1111 1111 4242`, where the head rule
+before the scope kept it in all 16. The call texts naming the locker beside the value, which
+deleted the locker in 2 of 8 draws above, now return that the message was not read as meaning it;
+the phone the first word for only form asks to delete stayed stored in all 8, a cost. The model
+made no forget call on `Forget all of it the card stays.` or `Forget everything, only the card.`,
+so those two rows test no reader; the replays cover them.

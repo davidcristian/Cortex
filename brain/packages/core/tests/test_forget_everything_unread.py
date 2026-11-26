@@ -64,7 +64,6 @@ async def _deleted(query: str, ids: tuple[str, ...] = _THREE) -> set[str]:
         ("Forget everything except my card.", _THREE, {"locker", "phone"}),
         ("Forget everything, also the card.", _THREE, {"locker", "card", "phone"}),
         ("Forget everything, my card too.", _THREE, {"locker", "card", "phone"}),
-        ("Forget everything, only the card.", _THREE, {"card"}),
         ("Forget everything on my card.", _THREE, {"card"}),
         ("Forget everything about my gym.", ("gym", "card"), {"gym"}),
         ("Forget everything about my stay.", _THREE, {"locker", "card", "phone"}),
@@ -162,6 +161,11 @@ async def test_a_forget_of_everything_in_a_form_a_reader_reads_lists_what_it_lis
         ("Forget everything on it the card stays.", _THREE),
         ("Forget everything card stays.", _THREE),
         ("Forget all of my card the phone stays.", _THREE),
+        ("Forget everything, only the card.", _THREE),
+        ("Forget everything, just the phone.", _THREE),
+        ("Delete all of it, only the locker.", _THREE),
+        ("Oublie tout, seulement la carte.", ("casier", "carte")),
+        ("Forget the card, forget everything, only the phone.", _THREE),
     ],
 )
 async def test_a_forget_of_everything_naming_a_row_in_a_form_no_reader_reads_keeps_every_row(

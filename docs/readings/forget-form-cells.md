@@ -94,8 +94,37 @@ with the value as the call text and three call texts per row (`onlygen.py`).
 The other sets are the generator's 71,332 messages, the forgets of every value, both mixed sets,
 both word pair sets, the valued and negated messages, and every set of the a1 and x1 slots. The
 120 rows no longer listed are all English. The 3 rows newly kept are the phone rows of `Forget
-everything, only the card.`, which the reading "only the card" keeps. The 324 left are 300 in the
+everything, only the card.`, which the reading "only the card" keeps
+([the card row](#a-word-for-only-after-a-forget-of-everything-2026-11-26)). The 324 left are 300 in the
 four languages whose cell for only is empty and 24 English rows in `Forget 4242 and only the
 phone.` and `Forget only the phone 4242.`
 ([task 1365](../refinements/tasks/1365-a-word-for-only-the-card-leaves-unread-lists-a-row-asked-to-keep.md)).
 Scripts `onlygen.py`, `replay.sh`, `both.sh` and `cmp.py` in `~/.cache/cortex-run/2026-11-26/f5/`.
+
+## A word for only after a forget of everything, 2026-11-26
+
+`Forget everything, only the card.` has two readings: "only the card" keeps the other rows, and
+"everything goes, only the card stays" keeps the card. A clause after a forget of everything
+(`everything` in `forget_permit.py`) holding a word for only and a word naming a stored row now
+keeps every row (`_kept_later`). The audit generator writes 750 messages aimed at the head of a
+forget of everything in five languages, 3,000 cases with four call texts each (`mixgen.py`,
+`count.py` and `diff.py` in the `a2` scratch directory of the 2026-11-26 run):
+
+| Tree | Rows a reading keeps, listed |
+| --- | --- |
+| the run's start commit `7c1985793` | 434 |
+| the first audit's commit `9da97cdad` | 304 |
+| HEAD before this change | 178 |
+| HEAD with this change | 142 |
+
+No tree lists a row an earlier tree keeps. The change keeps 36 rows, each a row a reading keeps,
+and lists none. Of the 142 left, 92 follow another forget clause
+([task 1361](../refinements/tasks/1361-a-forget-of-everything-after-another-forget-clause-lists-the-kept-row.md)),
+24 follow a Spanish or Romanian head
+([task 1366](../refinements/tasks/1366-a-spanish-or-romanian-head-before-a-kept-row-lists-that-row.md))
+and 26 follow `Wipe` or a Romanian row named with its article
+([task 1367](../refinements/tasks/1367-a-word-for-only-after-a-forget-of-everything-no-reader-reads-lists-a-row.md)).
+Over every set of the replay above, no row is newly listed; the generator keeps 12 more rows asked
+to delete, as the card of `Forget all tulip, only the card.`, whose value holds no digit, 4 rows not
+asked for and 8 rows it marks neither way, all in that form or the card's. `Forget all 4242, only the card.` still deletes the card
+([task 1368](../refinements/tasks/1368-a-word-for-only-after-a-value-of-all-deletes-the-row-a-reading-keeps.md)).

@@ -22,7 +22,7 @@ from cortex_core.forget_clauses import (
 from cortex_core.forget_inside import bounded, content, may_keep, request
 from cortex_core.forget_keep_named import forget_named, forget_words
 from cortex_core.forget_kinds import MINUS, extends, grows, names, prefixes, shorter, verbed
-from cortex_core.forget_only import alone
+from cortex_core.forget_only import ONLY, alone
 from cortex_core.forget_results import ALREADY_DELETED, FORGET_CHOSEN_LIMIT, NONE_FOUND
 from cortex_core.forget_unnamed import TOPIC, just_said
 from cortex_core.memory import MemoryRecord
@@ -249,17 +249,20 @@ def _head_run(
 async def _kept_later(
     store: MemoryStore, scope: MemoryScope, call: ToolCall, seen: Sequence[MemoryRecord]
 ) -> frozenset[str]:
-    """The ids of the rows of ``seen`` a run limited by a word for only after the message's value
-    the call holds leaves out, and of the stored rows a run no reader reads names: in a clause
-    after the first with a forget verb outside a keep clause (or the first of none), or its head."""
+    """The ids of ``seen`` a word for only after a forget of everything keeps or a run it limits
+    past the call's value leaves out, and of the stored rows named by a run no reader reads: in a
+    clause after the first with a forget verb outside a keep clause (or the first), or its head."""
     split = clauses(call.stamp.query)
     first = next((at for at, clause in enumerate(split) if _forgets(clause)), 0)
     rows, named = await _store_named(store, scope, call, seen)
     values, text = whole_values(call.stamp.query), call_text(call)
     held = sorted(whole_values(text).keys() & values.keys())
     only = alone(call.stamp.query, values[held[0]] if held else text, named)
-    left = {row.id for row in seen if only and not names(only, request(row))}
     place = everything(" ".join(split[first])) if split else None
+    every = everything(call.stamp.query)
+    tail = {word for clause in split[every[0] + 1 :] for word in clause} if every else set[str]()
+    whole = not ONLY.isdisjoint(tail) and not named.isdisjoint(tail)
+    left = {row.id for row in seen if whole or (only and not names(only, request(row)))}
     head = _head_run(split[first], rows, named, place and place[1]) if split else []
     if first + 1 >= len(split) and not head:
         return frozenset(left)
