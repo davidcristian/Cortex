@@ -200,6 +200,22 @@ class TaintLedger:
         self.forget_asked |= calls > 0
         self.forget_calls += calls
 
+    def note_forget(self, result: ToolResult) -> None:
+        """Record what a ``forget_memories`` result deleted, kept, matched or left."""
+        self.forget_unmatched += int(result.matched_nothing)
+        self.forget_deleted += result.forgot
+        self.forget_gone += result.gone
+        if result.numbers_left is not None:
+            self.forget_numbers_left = result.numbers_left
+        if result.kept is not None:
+            self.forget_kept = result.kept
+        if result.spared is not None:
+            self.forget_spared = result.spared
+        if result.inside is not None:
+            self.forget_inside = result.inside
+        if result.longer is not None:
+            self.forget_longer = result.longer
+
     def mark(self, trust: Trust) -> None:
         """Flip the ledger tainted once any untrusted result is observed."""
         if trust is Trust.UNTRUSTED:

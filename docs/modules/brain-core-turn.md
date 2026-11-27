@@ -85,8 +85,8 @@ after the window, one saying a handoff's deep reply is not stored (`tool_replay.
   turn** (ADR-0008 decision 12): only `EmbedderError` and `MemoryStoreError` are caught; a failed
   read logs a warning and one `StatusUpdate`, a failed write, or one past `memory_write_timeout_s`
   (`MEMORY_WRITE_TIMEOUT_S`, 10 s, so a frozen embedder cannot hold a finished turn), an error only.
-- `record_tainted_memory` (ADR-0019) governs writing only: with it on, a tainted turn is stored
-  with `tainted=True` instead of being dropped, and a stored tainted memory is fenced either way.
+- `record_tainted_memory` (ADR-0019) governs writing: with it on, a tainted turn is stored
+  with `tainted=True` instead of being dropped, and a stored tainted memory is fenced either way. The tool loop copies it into each call's `TurnStamp`, with the ledger's `opaque`, so a forget result says nothing is kept only on a turn memory does not store at the call (`keeps_unmatched`).
 - `tools` (a `ToolDispatcher`, ADR-0009) adds `SECURITY_PREAMBLE` and runs the shared tool loop
   with a fresh `TaintLedger`; the loop's messages are not persisted. `window` (a `HistoryWindow`,
   ADR-0014) selects what part of the stored history one turn sends, leaving persistence untouched.

@@ -1,6 +1,10 @@
+from collections.abc import AsyncIterator, Mapping, Sequence
 from dataclasses import replace
+from datetime import UTC, datetime
 
 import pytest
+import swap_harness as harness
+from swap_harness import TickingClock
 
 from cortex_core import (
     FORGET_CHOSEN_TOOL_NAME,
@@ -10,25 +14,36 @@ from cortex_core import (
     CompositeToolRegistry,
     DispatchPolicy,
     ForgetChosenTool,
+    GenerationBounds,
     HashEmbedder,
+    ImagePart,
+    InferenceEvent,
     InMemoryMemoryStore,
     InMemorySessionStore,
+    InMemoryToolRegistry,
+    JsonSchema,
     MemoryRecaller,
+    Message,
     RecordingAuditSink,
     RecordingConfirmer,
     SystemClock,
     TaintLedger,
+    TextChunk,
     ToolCall,
     ToolDispatcher,
     ToolResult,
     ToolRun,
+    ToolSpec,
     TurnCapabilities,
+    TurnEngine,
     memory_withheld,
 )
+from cortex_core.brain_phase import BrainPhase
 from cortex_core.closing_notes import limit_notes
+from cortex_core.dispatch import DispatchRefusal
 from cortex_core.forget_opened_earlier import keeps_unmatched, opened_earlier
 from cortex_core.stops import StopLedger
-from cortex_core.tools import TurnStamp
+from cortex_core.tools import UNSTAMPED, TurnStamp
 from cortex_core.turn_output import record_exchange
 
 _ALARM = "User: Remember that my alarm code is 4242.\nAssistant: I've noted your alarm code 4242."
@@ -84,7 +99,7 @@ def test_only_an_unmatched_forget_on_a_message_opened_earlier_keeps_the_turn(
     *, matched_nothing: bool, query: str, kept: bool
 ) -> None:
     result = ToolResult(call_id="f", content="nothing.", matched_nothing=matched_nothing)
-    assert keeps_unmatched(result, query) is kept
+    assert keeps_unmatched(result, TurnStamp(query=query)) is kept
 
 
 def _caps() -> TurnCapabilities:
@@ -200,3 +215,149 @@ async def test_an_unmatched_forget_result_says_nothing_is_kept_only_when_that_ma
     result = await dispatcher.dispatch(call, stamp=stamp, confirm_required=True)
     assert result.matched_nothing
     assert (FORGET_NOT_KEPT_NOTE in result.content) is noted
+
+
+@pytest.mark.parametrize(
+    ("tainted", "recorded", "opaque"),
+    [
+        (False, False, False),
+        (False, True, False),
+        (True, False, False),
+        (True, True, False),
+        (True, False, True),
+        (True, True, True),
+    ],
+)
+async def test_an_unmatched_forget_result_says_nothing_is_kept_exactly_when_nothing_is_stored(
+    *, tainted: bool, recorded: bool, opaque: bool
+) -> None:
+    forget = ForgetChosenTool(InMemoryMemoryStore(), GLOBAL_MEMORY_SCOPE)
+    dispatcher = ToolDispatcher(
+        CompositeToolRegistry([forget]),
+        RecordingAuditSink(),
+        SystemClock(),
+        confirmer=RecordingConfirmer(answer=True),
+        policy=DispatchPolicy(
+            record_cards={FORGET_CHOSEN_TOOL_NAME: forget}, notes={FORGET_CHOSEN_TOOL_NAME: forget}
+        ),
+    )
+    call = ToolCall(id="f", name=FORGET_CHOSEN_TOOL_NAME, arguments={"text": "5528"})
+    stamp = TurnStamp(
+        session_id="s",
+        query=_STATED,
+        tainted=tainted,
+        opaque=opaque,
+        record_tainted_memory=recorded,
+    )
+    result = await dispatcher.dispatch(call, stamp=stamp, confirm_required=True)
+    caps = replace(_caps(), record_tainted_memory=recorded)
+    taint = replace(_unmatched(), tainted=tainted, opaque=opaque)
+    withheld = memory_withheld(caps, taint, (_RAN,), query=_STATED, reply=_NOTED)
+    noted = FORGET_NOT_KEPT_NOTE in result.content
+    assert noted is withheld is ((tainted and not recorded) or opaque)
+
+
+@pytest.mark.parametrize(
+    ("tainted", "recorded", "opaque", "shown"),
+    [
+        (True, False, False, True),
+        (True, True, False, False),
+        (True, False, True, True),
+        (True, True, True, True),
+        (False, False, False, False),
+    ],
+)
+def test_a_noted_claim_after_a_later_taint_or_picture_ends_with_the_unkept_note(
+    *, tainted: bool, recorded: bool, opaque: bool, shown: bool
+) -> None:
+    parts = [_NOTED]
+    caps = replace(_caps(), record_tainted_memory=recorded)
+    taint = replace(_unmatched(), tainted=tainted, opaque=opaque)
+    list(limit_notes(StopLedger(), (_RAN,), parts, caps=caps, taint=taint, query=_STATED))
+    assert (UNKEPT_CLAIM_NOTE in "".join(parts)) is shown
+
+
+class _OneCall:
+    def __init__(self) -> None:
+        self._calls = [ToolCall(id="c", name="read", arguments={})]
+
+    async def stream(
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
+    ) -> AsyncIterator[InferenceEvent]:
+        del model, messages, tools, schema, bounds
+        calls, self._calls = self._calls, []
+        for call in calls:
+            yield call
+        if not calls:
+            yield TextChunk("Done.")
+
+
+class _StampedDispatcher(ToolDispatcher):
+    def __init__(self) -> None:
+        async def read(arguments: Mapping[str, object]) -> str:
+            del arguments
+            return "notes"
+
+        spec = ToolSpec(name="read", description="", parameters={})
+        registry = InMemoryToolRegistry({"read": (spec, read)})
+        super().__init__(registry, RecordingAuditSink(), TickingClock())
+        self.stamps: list[TurnStamp] = []
+
+    async def dispatch(
+        self,
+        call: ToolCall,
+        *,
+        stamp: TurnStamp = UNSTAMPED,
+        confirm_required: bool = False,
+        refusal: DispatchRefusal | None = None,
+    ) -> ToolResult:
+        self.stamps.append(stamp)
+        return await super().dispatch(
+            call, stamp=stamp, confirm_required=confirm_required, refusal=refusal
+        )
+
+
+@pytest.mark.parametrize("recorded", [False, True])
+async def test_both_phases_stamp_each_call_with_the_policy_for_a_tainted_turn(
+    *, recorded: bool
+) -> None:
+    cortex, deep = _StampedDispatcher(), _StampedDispatcher()
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        _OneCall(),
+        TickingClock(),
+        capabilities=TurnCapabilities(tools=cortex, record_tainted_memory=recorded),
+    )
+    _ = [event async for event in engine.handle_turn("s", "What is in my notes?", turn_id="t")]
+    caps = TurnCapabilities(tools=deep, record_tainted_memory=recorded)
+    phase = BrainPhase(InMemorySessionStore(), _OneCall(), TickingClock(), "brain", caps)
+    record = harness.prepared_slot().snapshot(
+        turn_id=harness.TURN, session_id=harness.SESSION, requested_at=datetime.now(UTC)
+    )
+    _ = [event async for event in phase.run(record)]
+    stamps = [*cortex.stamps, *deep.stamps]
+    assert [stamp.record_tainted_memory for stamp in stamps] == [recorded, recorded]
+
+
+@pytest.mark.parametrize("attached", [False, True])
+async def test_a_turn_holding_an_attached_picture_stamps_each_call_opaque(
+    *, attached: bool
+) -> None:
+    tools = _StampedDispatcher()
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        _OneCall(),
+        TickingClock(),
+        capabilities=TurnCapabilities(tools=tools),
+    )
+    picture = ImagePart(data=b"\x89PNG", mime_type="image/png", width=8, height=8)
+    images = (picture,) if attached else ()
+    turn = engine.handle_turn("s", "What is in my notes?", turn_id="t", images=images)
+    _ = [event async for event in turn]
+    assert [stamp.opaque for stamp in tools.stamps] == [attached]

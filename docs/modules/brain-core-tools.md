@@ -17,8 +17,8 @@ spawned subtask or a model swap is in [brain-core-residency.md](brain-core-resid
 - `ToolResult(call_id, content, is_error=False, trust=UNTRUSTED, source=None, images=(), matched_nothing=False)` is the
   outcome fed back to the model. `source` is what the result declared for its own content, and
   `images` (ADR-0029) travel beside `content`, which alone is audited, scanned and fenced. `matched_nothing` says the call ran and found nothing its arguments name, and `was_once` says an `edit_scheduled` call that ran found a one-time item. `cancelled` is the stored text of the item a `cancel_scheduled` call deleted, or its id when the text cannot be read or came from untrusted content.
-- `TurnStamp(session_id, turn_id, task_id, item_id, tainted, recalled_only, forgotten, sources,
-  query, budget, progress, escalation)` is what the dispatching turn gives the call (ADR-0027); `live_taint` is
+- `TurnStamp(session_id, turn_id, task_id, item_id, tainted, opaque, recalled_only, forgotten,
+  record_tainted_memory, sources, query, budget, progress, escalation)` is what the dispatching turn gives the call (ADR-0027), `opaque` copied from the `TaintLedger` (the turn holds a picture) and `record_tainted_memory` from the turn's `TurnCapabilities` through `ToolLoopContext`; `live_taint` is
   `tainted and not recalled_only` (ADR-0019 decision 8). The four ids are the work the call was
   made for, `""` when none (ADR-0009 decision 16). `query` is the person's message, `""` outside a turn loop. Equality skips the three live handles.
 - `ToolInvocation(name, arguments, ok, detail, at, trust, call_id, session_id, turn_id, task_id,
@@ -67,7 +67,7 @@ spends and whether it is worth running. The dispatcher is stateless; the loop dr
 offers={}, private_names=(), notes={})` (`dispatch.py`, default `DEFAULT_DISPATCH_POLICY`) states the confirmed tools,
 the prices, the salience rule, the card text (`confirm_reasons[name]` or a `RecordCard`'s `card(call)`, whose `None` runs
 the call unasked), the `ToolOffer`s `withheld(session_id)` reads, the tools audited with `<redacted>` values, and the
-`ResultNote`s whose `result_note` `dispatch` appends to every result their calls get, run or not, after the audit line, except a call refused as unasked and a forget that matched nothing on a message `opened_earlier` reads (`keeps_unmatched`, `forget_opened_earlier.py`), since both leave the turn recorded.
+`ResultNote`s whose `result_note` `dispatch` appends to every result their calls get, run or not, after the audit line, except a call refused as unasked and a forget that matched nothing on a message `opened_earlier` reads (`keeps_unmatched`, `forget_opened_earlier.py`) on a turn memory stores, one holding no picture (`TurnStamp.opaque`) that is untainted or has `TurnStamp.record_tainted_memory` set, since both leave the turn recorded. On a tainted turn under the default policy, or one holding a picture, memory stores nothing, so that result keeps the note. A taint or a picture a later result brings is read only at the reply's close (`UNKEPT_CLAIM_NOTE`).
 
 - `RepeatSalience(limit=MAX_IDENTICAL_DISPATCHES)` (`tool_salience.py`, the default
   `REPEAT_SALIENCE`, limit 2) refuses a call identical to one already made in this round, or made

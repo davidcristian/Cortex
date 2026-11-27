@@ -80,6 +80,8 @@ class ToolLoopContext:
     weekly_refused: tuple[ToolCall, ...] = ()
     # The person's zone, in which a refusal counts the date it names from today.
     zone: DisplayZone = UTC_DISPLAY
+    # Whether memory stores a tainted turn, so a forget result note says only what is true.
+    record_tainted_memory: bool = False
 
     @property
     def unit_id(self) -> str:
@@ -188,31 +190,16 @@ def _stamp(context: ToolLoopContext) -> TurnStamp:
         task_id=context.task_id,
         item_id=context.item_id,
         tainted=context.taint.tainted,
+        opaque=context.taint.opaque,
         recalled_only=context.taint.recalled_only,
         forgotten=context.taint.forgotten,
+        record_tainted_memory=context.record_tainted_memory,
         sources=context.taint.sources,
         query=context.query,
         budget=context.budget,
         progress=context.progress,
         escalation=context.escalation,
     )
-
-
-def _note_forget(taint: TaintLedger, result: ToolResult) -> None:
-    """Record in ``taint`` what a ``forget_memories`` result deleted, kept, matched or left."""
-    taint.forget_unmatched += int(result.matched_nothing)
-    taint.forget_deleted += result.forgot
-    taint.forget_gone += result.gone
-    if result.numbers_left is not None:
-        taint.forget_numbers_left = result.numbers_left
-    if result.kept is not None:
-        taint.forget_kept = result.kept
-    if result.spared is not None:
-        taint.forget_spared = result.spared
-    if result.inside is not None:
-        taint.forget_inside = result.inside
-    if result.longer is not None:
-        taint.forget_longer = result.longer
 
 
 async def run_round(
@@ -281,7 +268,7 @@ async def run_round(
         context.taint.weekly_stored = weekly_after(call, result, context.taint.weekly_stored)
         context.taint.cancelled = cancelled_after(result, context.taint.cancelled)
         if call.name == FORGET_CHOSEN_TOOL_NAME:
-            _note_forget(context.taint, result)
+            context.taint.note_forget(result)
         context.taint.observe(
             result, source=as_source(SourceKind.TOOL, None if spec is None else spec.name)
         )

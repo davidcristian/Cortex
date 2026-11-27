@@ -2,7 +2,7 @@
 
 from cortex_core.forget_unrequested import asks_question, forget_unrequested
 from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
-from cortex_core.tools import ToolResult
+from cortex_core.tools import ToolResult, TurnStamp
 
 
 def opened_earlier(query: str) -> bool:
@@ -13,6 +13,9 @@ def opened_earlier(query: str) -> bool:
     return FORGET_CHOSEN_TOOL_NAME in forget_unrequested(query) and not asks_question(query)
 
 
-def keeps_unmatched(result: ToolResult, query: str) -> bool:
-    """Whether a forget ``result`` that matched nothing leaves the turn asking ``query`` stored."""
-    return result.matched_nothing and opened_earlier(query)
+def keeps_unmatched(result: ToolResult, stamp: TurnStamp) -> bool:
+    """Whether a forget ``result`` that matched nothing leaves the turn ``stamp`` names stored."""
+    # A taint or a picture a later result of the turn brings cannot be read here; the reply's
+    # closing note covers a claim made after it.
+    stored = not stamp.opaque and (stamp.record_tainted_memory or not stamp.tainted)
+    return result.matched_nothing and stored and opened_earlier(stamp.query)

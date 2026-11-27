@@ -211,9 +211,9 @@ class ToolDispatcher:
             await self._audited(call, cut)
             raise
         noted = self._policy.notes.get(call.name)
-        # A call refused as unasked, or a forget matching nothing on a message that asks to forget
-        # nothing, leaves the turn kept, so a note saying otherwise would be false.
-        if noted is None or refusal in _KEPT_TURN or keeps_unmatched(result, call.stamp.query):
+        # A call refused as unasked, or a forget matching nothing on a turn memory stores whose
+        # message asks to forget nothing, leaves the turn kept, so a note saying otherwise is false.
+        if noted is None or refusal in _KEPT_TURN or keeps_unmatched(result, call.stamp):
             return result
         return replace(result, content=f"{result.content} {noted.result_note}")
 

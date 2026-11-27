@@ -84,8 +84,8 @@ never a reading of what the tree does now.
 - **[R-1315](tasks/1315-nobody-has-looked-at-a-chat-a-restart-ended-in-the-overlay.md)** Choose which copy of a restart's record the overlay shows (body-overlay). Its claim was checked against the code on 2026-11-24.
 - **[R-1317](tasks/1317-the-alternate-deep-model-has-no-rate-row-with-one-layer-in-ram.md)** The alternate deep model has no rate row with one layer in RAM (inference-model-manager). Its claim was checked against the code on 2026-11-24.
 - **[R-1375](tasks/1375-a-short-french-request-to-remember-gets-its-notes-in-english.md)** A short French request to remember gets its notes in English (memory). Its claim was checked against the code on 2026-11-27.
-- **[R-1376](tasks/1376-an-unmatched-forget-result-drops-its-not-kept-note-on-a-tainted-turn.md)** An unmatched forget result drops its not kept note on a tainted turn (memory). Its claim was checked against the code on 2026-11-27.
 - **[R-1377](tasks/1377-the-judge-prompt-with-the-question-after-the-notes-is-undrawn-on-the-deep-tier.md)** The judge prompt with the question after the notes is undrawn on the deep tier (memory). Its claim was checked against the code on 2026-11-27.
+- **[R-1381](tasks/1381-a-forget-result-left-without-its-not-kept-note-stays-without-it-after-a-later-taint.md)** A forget result left without its not kept note stays without it after a later taint (memory). Its claim was checked against the code on 2026-11-27.
 
 ### Actionable, once a port changes (1)
 
@@ -730,8 +730,8 @@ never a reading of what the tree does now.
 - [R-1342](tasks/1342-a-forget-of-every-value-beside-a-french-or-english-negated-keep-clause-keeps-every-row.md) A forget of every value beside a French or English negated keep clause keeps every row. done 2026-11-26.
 - [R-1372](tasks/1372-a-forget-message-the-readers-do-not-read-in-full-could-let-the-person-pick-the-rows.md) A forget message the readers do not read in full could let the person pick the rows. open, waiting for its trigger.
 - [R-1375](tasks/1375-a-short-french-request-to-remember-gets-its-notes-in-english.md) A short French request to remember gets its notes in English. open, actionable.
-- [R-1376](tasks/1376-an-unmatched-forget-result-drops-its-not-kept-note-on-a-tainted-turn.md) An unmatched forget result drops its not kept note on a tainted turn. open, actionable.
 - [R-1377](tasks/1377-the-judge-prompt-with-the-question-after-the-notes-is-undrawn-on-the-deep-tier.md) The judge prompt with the question after the notes is undrawn on the deep tier. open, actionable.
+- [R-1381](tasks/1381-a-forget-result-left-without-its-not-kept-note-stays-without-it-after-a-later-taint.md) A forget result left without its not kept note stays without it after a later taint. open, actionable.
 
 ### orchestrator
 

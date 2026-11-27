@@ -152,7 +152,7 @@ that removes exactly those rows and holds against a turn in flight. This record 
    (`forget_unmatched`). The handoff record keeps both counts, so a deep phase reads the cortex's
    calls the same way. So every result a call to it gets ends with
    `FORGET_NOT_KEPT_NOTE`, whether the call ran or was declined, expired or refused other than by
-   that reader, except a call that matched nothing on a message `opened_earlier` reads (`keeps_unmatched`), whose turn is recorded: nothing in
+   that reader, except a call that matched nothing on a message `opened_earlier` reads on a turn holding no picture that is untainted or runs under the policy that records a tainted one (`keeps_unmatched`), since that turn is recorded; a taint or a picture that a later result of the turn brings cannot be read at the call, so that result has no note, and a reply on such a turn saying the fact was noted ends with `UNKEPT_CLAIM_NOTE`. The note says nothing in
    the message is kept, the reply must not say anything in it was noted, and anything else it
    asked to be remembered must be sent again in its own message, because a model given no note
    told the person a new fact in the same message was kept. The tool is a `ResultNote`, and the

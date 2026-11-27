@@ -159,6 +159,7 @@ class TurnEngine:
             escalation=self._caps.escalation,
             query=text,
             zone=self._caps.zone,
+            record_tainted_memory=self._caps.record_tainted_memory,
         )
         working = attach_images(
             await assemble_inference_messages(text, history, self._caps, context, self._clock),

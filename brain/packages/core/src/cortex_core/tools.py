@@ -55,8 +55,10 @@ class TurnStamp:
     task_id: str = ""
     item_id: str = ""
     tainted: bool = False
+    opaque: bool = False
     recalled_only: bool = False
     forgotten: bool = False
+    record_tainted_memory: bool = False
     sources: tuple[Provenance, ...] = ()
     query: str = ""
     budget: DispatchBudget | None = field(default=None, compare=False)
