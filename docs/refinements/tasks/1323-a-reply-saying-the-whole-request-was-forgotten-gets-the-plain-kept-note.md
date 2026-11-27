@@ -1,9 +1,8 @@
 # A reply saying the whole request was forgotten gets the plain kept note
 
-**Status:** open, actionable
+**Status:** done 2026-11-27
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-26
 
 `false_sentence` (`forget_kept_sentence.py`) marks a reply sentence only when it names a kept row
 by a word both sides of the row say or by its digits. A sentence that names the whole request by a
@@ -33,3 +32,10 @@ needs the message for.
   requested information`, `those`). Not built inside the slot's time box; the remedy above is
   written down.
 - 2026-11-26: meets the bar of the freeze of the forget message readers ([ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md) decision 7): it rests on the recorded replies of live draws, 5 of the 6 on `Forget the locker 4242 including the phone.`, and its remedy is a reply check that reads the message through `forget_words` as it stands, with no list of reference words.
+- 2026-11-27: done. `unnamed_sentence` (`forget_kept_sentence.py`) marks a removal in a done form
+  when no sentence of the reply names a kept or deleted row and `forget_words` names a kept row,
+  read only in a clause holding a forget verb and not opened by a word that denies, keeps,
+  contrasts or supposes, since `forget_words` reads `but leave the card number` as part of the
+  request. It marks 5 of the 6 recorded claims and no true reply over the recorded and live
+  replies, 29,430 generated true sentences and 5,016 true replies after the forget tool ran
+  ([readings](../../readings/forget-result-texts.md#a-removal-naming-no-row-2026-11-27)).

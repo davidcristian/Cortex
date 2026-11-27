@@ -123,7 +123,7 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
     )
     unsearched = unsearched_files_claim(taint, reply)
     language = message_language(query)
-    untrue = kept_claim(reply, taint, made)
+    untrue = kept_claim(reply, taint, made, query)
     marked_kept = None if untrue is None else kept_claim_note(untrue, taint.forget_kept, language)
     said_in = partial(in_language, language=language)
     yield from cap_note(stops, parts, language)

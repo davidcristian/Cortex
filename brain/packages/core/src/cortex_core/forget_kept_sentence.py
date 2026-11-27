@@ -5,6 +5,8 @@ from collections.abc import Iterable, Sequence
 
 from cortex_core.conversation import ToolRun
 from cortex_core.forget_forms import AND, FORMS
+from cortex_core.forget_keep_named import forget_words
+from cortex_core.forget_kinds import verbed
 from cortex_core.forget_unnamed import row_words
 from cortex_core.memory_forget import FORGET_UNTRUSTED_TOOL_NAME
 from cortex_core.memory_values import digit_runs
@@ -110,12 +112,39 @@ def false_sentence(reply: str, kept: Iterable[str], gone: Iterable[str]) -> str 
     return None
 
 
-def kept_claim(reply: str, taint: TaintLedger, runs: Sequence[ToolRun]) -> str | None:
+def unnamed_sentence(
+    reply: str, kept: Sequence[str], gone: Sequence[str], query: str
+) -> str | None:
+    """The first sentence of ``reply`` stating a removal, when ``reply`` holds no word or digit
+    run of a kept or deleted row and a word ``_asked`` reads in the message ``query`` names a
+    kept row."""
+    taken = set[str]().union(*map(_names, gone))
+    named = set[str]().union(*map(_fact, kept)) - taken
+    rows = taken.union(*map(_names, kept))
+    if named.isdisjoint(_asked(query)) or not rows.isdisjoint(_names(reply)):
+        return None
+    for sentence in _SENTENCE_END.split(reply):
+        clauses = _BREAK.split(sentence)
+        stated = any(_GONE.search(part) and not _UNSTATED.match(part) for part in clauses)
+        if stated and not sentence.rstrip().endswith("?"):
+            return sentence.strip()
+    return None
+
+
+def _asked(query: str) -> set[str]:
+    """The words of ``forget_words`` in a clause of ``query`` holding a forget verb and not opened
+    by a word that denies, keeps, contrasts or supposes."""
+    told = (verbed(part) for part in _BREAK.split(query) if not _UNSTATED.match(part))
+    return forget_words(query) & row_words(" ".join(set[str]().union(*told)))
+
+
+def kept_claim(reply: str, taint: TaintLedger, runs: Sequence[ToolRun], query: str) -> str | None:
     """The sentence of ``reply`` a kept note marks, ``None`` while a deleted row is unknown."""
     untrusted = any(run.ok and run.name == FORGET_UNTRUSTED_TOOL_NAME for run in runs)
     if untrusted or len(taint.forget_gone) < taint.forget_deleted:
         return None
-    return false_sentence(reply, taint.forget_kept, taint.forget_gone)
+    kept, gone = taint.forget_kept, taint.forget_gone
+    return false_sentence(reply, kept, gone) or unnamed_sentence(reply, kept, gone, query)
 
 
 def kept_claim_note(sentence: str, kept: Iterable[str], language: str = ENGLISH) -> str:

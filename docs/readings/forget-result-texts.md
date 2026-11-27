@@ -188,3 +188,37 @@ keep the plain note, which names every kept row: 6 go on past the list with `fro
 comma, 3 name the phone after `and the` or `and your`, 1 after `references to`, and 1 in the subject
 of a passive form after `and`. Telling `and phone number from my memory.` from `and card number in
 memory stays.` needs a list of verbs or of place words, which the reader does not hold.
+
+## A removal naming no row, 2026-11-27
+
+`unnamed_sentence` (`forget_kept_sentence.py`) marks the first sentence of a reply stating a
+removal in a done form when no word or digit run of a kept or deleted row is anywhere in the reply,
+and a word of `forget_words` (`forget_keep_named.py`) names a kept row. That word counts only in a
+clause of the message holding a forget verb and not opened by a word that denies, keeps, contrasts
+or supposes (the clause rule). The check holds no reference word: `those details` and `the requested
+information` count only because they name no row, and `I've deleted those details from my memory,
+except the phone.` names the phone, so it is not marked.
+
+Replayed offline before and after the check (`replay2.py`, `truegen2.py` and `toolgen.py` in
+`~/.cache/cortex-run/2026-11-27/c2/`). `truegen2.py` runs the true sentences of `truegen.py`, 10
+English replies naming no row and 2 more in the message's language after 38 messages in five languages that ask to forget one row and keep the
+others. `toolgen.py` runs the forget tool itself on the three seeded rows for each of those
+messages and four call texts, then reads the replies naming no row against the rows it kept and
+deleted; such a reply is true when every row the message asks to forget is deleted.
+
+| Set | Replies | Marked before | Marked after | Whole request claims marked | True replies newly marked |
+| --- | --- | --- | --- | --- | --- |
+| recorded replies of 2026-11-24 | 32 | 7 | 12 | 5 of 6 | 0 |
+| live draws of 2026-11-24 | 32 | 9 | 15 | 6, each false | 0 |
+| true sentences, five languages (`truegen2.py`) | 29,430 | 0 | 0 | none in the set | 0 |
+| replies after the forget tool ran (`toolgen.py`) | 5,136 | 0 | 0 | 0 of 120 false | 0 of 5,016 |
+
+The recorded claim left unmarked is `I have kept the card number but removed the other information
+associated with the sequence "4242" from my memory.`, which names the kept card row. The 6 newly
+marked live replies follow `Forget the locker 4242 including the phone.` on draws that kept the
+phone row. The 120 false replies after the tool ran all follow `Forget everything except ...`, for
+which `forget_words` names no row, so they keep the plain note. Without the clause rule the check
+marked 120 of the generated true sentences and 30 of the 5,016 true replies after the tool ran, all
+after a keep clause the frozen forget reader reads as part of the request: `Delete the locker code
+but leave the card number.`, `Erase my locker code, I still need my card number.`, `Please forget
+the locker code; the card number stays.` and the Romanian `mai puțin`. With it, none.
