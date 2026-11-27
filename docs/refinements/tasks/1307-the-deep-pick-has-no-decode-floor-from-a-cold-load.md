@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** resource-governance
 **Origin:** [ADR-0055](../../adr/ADR-0055-co-residency-and-spill-watch.md)
-**Verified:** 2026-11-23
+**Verified:** 2026-11-27
 
 `CORTEX_SWAP_BRAIN_DECODE_TPS` is the spill watch's minimum: a deep reply decoding below it is
 reported as a spill. For gemma-4-31B it was set from a cold load onto a clear card
@@ -26,3 +26,6 @@ clear card, with the floor's rule written before the draw, and the two figures i
   [R-741](741-a-qwen38-27b-deep-tier-has-no-measured-fit-figure-or-decode-floor.md) closed with
   the fit figure and the prompt cache row drawn; the night's power limit read above the
   baseline's, so no rate was drawn.
+- 2026-11-27: `CORTEX_SWAP_BRAIN_DECODE_TPS` still defaults to 0 and the runbook still asks for
+  the drafting draw. The floor is a rate and waits, since the card's power limit read 175, not the
+  baseline's 155.

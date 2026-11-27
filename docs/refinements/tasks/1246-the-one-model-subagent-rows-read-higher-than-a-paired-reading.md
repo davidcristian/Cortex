@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** inference-model-manager
 **Origin:** [ADR-0018](../../adr/ADR-0018-heterogeneous-subagents.md)
-**Verified:** 2026-11-18
+**Verified:** 2026-11-27
 
 Two readings of 2026-11-18 give one GPU subagent server of gemma-4-E4B at 8K and one slot, with no
 drafter, two different sizes on the same build and the same compose settings:
@@ -40,3 +40,6 @@ moment, and replace the rows and the two quotes with what that draw reads.
   ([readings](../../readings/tier-drafters.md#the-default-stack-through-tool-turns-a-handoff-and-filled-contexts)):
   one filled request raised a drafting subagent server by 14 MiB, so the request still covers it.
   The rows this task asks for were not drawn.
+- 2026-11-27: the two quotes of 3338 to 3410 MiB are still in `config_subagents.py` and the
+  module doc. The three shapes are memory rows, not rates, and need the model host on the card;
+  they did not fit this slot beside the driver fixes.

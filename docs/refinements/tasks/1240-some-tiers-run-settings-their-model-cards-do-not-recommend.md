@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** inference
 **Origin:** [ADR-0077](../../adr/ADR-0077-model-card-settings.md)
-**Verified:** 2026-11-26
+**Verified:** 2026-11-27
 
 A tier's sampler is the one its model file sets, with the engine's default for the rest
 ([ADR-0077](../../adr/ADR-0077-model-card-settings.md) decision 1). The Qwen3.5 entries were drawn
@@ -56,3 +56,7 @@ sampler rows only if one becomes a tier's, drawn as the deep pick's were.
   obeyed 0 of 100 framed draws against 0 at 0.05 (two-sided Fisher p 1) and stopped on 11 of 12
   against 11, so the tier keeps 0.05 and decision 6 has the counts. Flash attention and the
   Qwen3.6 presence penalty stay open.
+- 2026-11-27: no tier names a flash attention flag
+  (`test_no_tier_names_a_flash_attention_setting_so_an_8_bit_cache_is_never_refused`), and no
+  tier names Qwen3.8-Flash-Next or Qwen3.6-35B-A3B, so the premise holds. The flash attention rows
+  wait on rate rows, since the card's power limit read 175, not the baseline's 155.

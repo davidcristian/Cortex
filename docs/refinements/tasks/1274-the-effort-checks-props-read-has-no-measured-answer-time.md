@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** inference-model-manager
 **Origin:** [ADR-0049](../../adr/ADR-0049-thinking-switch-and-trace-budget.md)
-**Verified:** 2026-11-21
+**Verified:** 2026-11-27
 
 A request that names a reasoning effort reads `GET /props` of the leased server inside the lease,
 with the whole answer bounded by `EFFORT_PROBE_TIMEOUT_S`, 2.0 s (`effort_probe.py`, ADR-0049
@@ -33,3 +33,6 @@ ADR-0049 decision 18 would then state.
   ([R-738](738-the-deep-tier-cannot-set-a-templates-reasoning-effort-or-preserve-flag.md)).
 - 2026-11-21: `medium` became the deep tier's default effort, so every deep completion of a
   default deployment makes this read, and not only one whose deployment wrote a level.
+- 2026-11-27: `EFFORT_PROBE_TIMEOUT_S` is still 2.0 in `effort_probe.py`, read before each
+  completion. The 240 reads are times on the deep server beside a generation, so they wait for a
+  night drawn at the baseline's power limit; the card's limit read 175, not 155.

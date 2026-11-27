@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** inference-model-manager
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-11-24
+**Verified:** 2026-11-27
 
 The [model swap runbook](../../runbooks/model-swap.md) gives a deployment that names the alternate
 deep model, gemma-4-31B's `UD-Q4_K_XL` file, and must stay inside the model budget at 16K the
@@ -32,3 +32,6 @@ split costs more than the rule allows.
   [R-1264](1264-gemma-4-31b-at-16k-is-over-the-model-budget-with-every-layer-on-the-card.md)
   closed with `CORTEX_NGL_BRAIN=60` in the runbook on memory rows alone, since no rate row was
   drawn that night.
+- 2026-11-27: the runbook still gives `CORTEX_NGL_BRAIN=60` for the alternate at a rate not yet
+  drawn. Both rows are rates and wait, since the card's power limit read 175, not the baseline's
+  155.
