@@ -1,6 +1,6 @@
 import pytest
 
-from cortex_core.note_language import ENGLISH, in_language, message_language
+from cortex_core.note_language import ENGLISH, forget_language, in_language, message_language
 
 
 @pytest.mark.parametrize(
@@ -20,7 +20,6 @@ from cortex_core.note_language import ENGLISH, in_language, message_language
         "Dinner at Señor Muñoz's with María on Friday",
         "Remind me: Straße, Größe, Fußgänger at 9",
         "Remind me to visit Ștefan și Țuțu at 9",
-        "Fiesta mañana at 9",
         "Call Jürgen",
         "Book the Champs-Élysées crème brûlée place",
     ],
@@ -155,3 +154,41 @@ def test_short_words_or_one_long_word_in_capitals_keep_english(message: str) -> 
 
 def test_a_lowercase_letter_keeps_words_in_capitals_skipped() -> None:
     assert message_language("RAPPELLE-MOI DEMAIN, ok") == ENGLISH
+
+
+@pytest.mark.parametrize(
+    ("message", "language"),
+    [
+        ("Retiens que ce code est périmé.", "fr"),
+        ("Am uitat să te întreb", "ro"),
+        ("nu am găsit", "ro"),
+        ("Ține minte ce am spus.", "ro"),
+        ("Recuerda que este código está caducado.", "es"),
+        ("Der Hund des Benutzers heißt Bello.", "de"),
+        ("Fiesta mañana at 9", "es"),
+    ],
+)
+def test_a_tie_goes_to_the_language_whose_letters_the_message_holds(
+    message: str, language: str
+) -> None:
+    assert message_language(message) == language
+
+
+@pytest.mark.parametrize(
+    "message", ["Ce am programat?", "Was ist geplant?", "Ce am, José?", "Ce am, Jürgen?"]
+)
+def test_a_tie_with_no_letter_of_a_tied_language_stays_english(message: str) -> None:
+    assert message_language(message) == ENGLISH
+
+
+@pytest.mark.parametrize(
+    ("message", "language"),
+    [
+        ("Retiens que ce code est périmé.", ENGLISH),
+        ("Am uitat să te întreb", ENGLISH),
+        ("Uită ce am spus.", "ro"),
+        ("Oublie mon code.", "fr"),
+    ],
+)
+def test_the_forget_readers_read_no_letters(message: str, language: str) -> None:
+    assert forget_language(message) == language

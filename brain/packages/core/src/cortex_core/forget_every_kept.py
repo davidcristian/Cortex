@@ -11,7 +11,7 @@ from cortex_core.forget_results import FORGET_CHOSEN_LIMIT
 from cortex_core.forget_unnamed import asks_to_forget_keeping
 from cortex_core.memory import MemoryRecord
 from cortex_core.memory_forget import FORGET_UNTRUSTED_TOOL_NAME
-from cortex_core.note_language import ENGLISH, in_language, message_language
+from cortex_core.note_language import ENGLISH, forget_language, in_language
 from cortex_core.turn_context import TurnCapabilities
 from cortex_core.untrusted import TaintLedger
 
@@ -31,7 +31,7 @@ _BUT = {ENGLISH: "but", "fr": "sauf"}
 def keeping_form(query: str, words: Collection[str]) -> str:
     """The forget of everything in the words of ``query`` that keeps the one word of ``words`` and
     that the card reads so; empty when there is no such form."""
-    but, place = _BUT.get(message_language(query)), everything(query)
+    but, place = _BUT.get(forget_language(query)), everything(query)
     if but is None or place is None or len(words) != 1:
         return ""
     (word,) = words

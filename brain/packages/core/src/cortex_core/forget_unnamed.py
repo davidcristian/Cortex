@@ -20,7 +20,7 @@ from cortex_core.forget_languages import FUNCTION, readings
 from cortex_core.forget_value_added import adds_to_value
 from cortex_core.memory import MemoryRecord
 from cortex_core.memory_values import code_stem, code_word, digit_runs, kind_word, whole_values
-from cortex_core.note_language import ENGLISH, in_language, message_language
+from cortex_core.note_language import ENGLISH, forget_language, in_language
 
 _WORD = re.compile(r"[^\W\d_]{3,}")
 _GROUP = re.compile(r"[^\W_]+")
@@ -174,7 +174,7 @@ def _split(query: str, language: str) -> tuple[set[str], set[str], set[str] | No
 
 def keep_words(query: str) -> set[str]:
     """The words naming a fact that only a clause of ``query`` asking to keep holds."""
-    return _split(query, message_language(query))[1]
+    return _split(query, forget_language(query))[1]
 
 
 def asks_to_forget_keeping(query: str) -> bool:

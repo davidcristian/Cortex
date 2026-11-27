@@ -13,8 +13,8 @@ The 7 draws of 2026-11-26 with a refused call were replayed through `hold_stored
 `limit_notes` of the tree: the seeded row, each draw's message, reply and call texts, nothing else
 set (`reach.py` and `reach.log` in the run directory). Every call named `5528` (6 draws) or
 `Code 5528` (1 draw), which the seeded row holds whole, so **the note reaches 7 of 7**. The French
-message `Retiens que ce code est périmé.` gets the English note, since `message_language` reads it
-as English; `Retiens que le code de la porte est périmé.` reads as French.
+message `Retiens que ce code est périmé.` gets the French note: its `est` and `ce` tie French with
+Romanian, and its `é` breaks the tie ([note-language-letter-tie.md](note-language-letter-tie.md)).
 
 ## The live draw, 2026-11-27
 

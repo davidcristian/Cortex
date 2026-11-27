@@ -94,7 +94,7 @@ that removes exactly those rows and holds against a turn in flight. This record 
    the card under `KEPT_LINE` and kept (`unnamed`, `forget_unnamed.py`), because a first call of
    the value deleted a second fact sharing the number in every such draw. A word here has three or
    more letters and is no code word such as `number` or `code` and no common word: an English one,
-   or an article, preposition or pronoun of the language `message_language` reads, and a row is
+   or an article, preposition or pronoun of the language `forget_language` reads, and a row is
    read without its `User:` and `Assistant:` labels, so `user` can name a fact. The part of a
    compound code word before its code word (`door` of `doorcode`, `fahrrad` of `Fahrradcode`)
    names each row word it starts, and a row's own compound gives that part as a row word, since

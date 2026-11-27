@@ -32,17 +32,24 @@ Three ways to write the note in the right language were compared.
 1. **A closing note is written in the language `message_language(query)` picks**
    (`cortex_core/note_language.py`): the one of English, French, German, Spanish and Romanian
    whose word list the message matches most, plus the Spanish marks ¿ and ¡. A word two of the
-   languages share does not count ("la", "de", "que"). Letters are not read, because a name such
-   as Jürgen or María has them in a message of any language. A word in capitals (`EU`, `EST`) and
+   languages share does not count ("la", "de", "que"). Letters only break a tie: of the languages
+   tied for the most words, the one whose own letters (`_LETTERS`: é, ä, ñ, ș and the like) the
+   message holds most is picked, so `Retiens que ce code est périmé.` (French `est`, Romanian
+   `ce`) is French. Letters decide nothing else, because a name such as Jürgen or María has them
+   in a message of any language, and a letter of a language outside the tie counts for none
+   ([readings](../readings/note-language-letter-tie.md)). A word in capitals (`EU`, `EST`) and
    a capitalized word beside another inside a sentence (`Las Vegas`) are names and do not count,
    except a word German capitalizes anywhere (`Uhr`, `Morgen`, the polite `Sie`), so
    `Termin Montag 9 Uhr` stays German. The `am` of a clock figure such as `9am` counts as English.
    A message with no lowercase letter also counts its words of four letters or more when two of
    them are in one language's list, so `RAPPELLE-MOI DEMAIN` is French, while a word of three
    letters or fewer stays an abbreviation and `CALL BOB MON 9 EST` stays English.
-2. **English is the fallback.** A message with no match, or a tie between two languages, gets the
-   English note. English is what every note was before, so a wrong or missing pick shows today's
-   text and never a third language.
+2. **English is the fallback.** A message with no match, or a tie the letters do not break, gets
+   the English note. English is what every note was before, so a missing pick shows today's text.
+   A message in a sixth language can get a third one: `Meu código mudou para 4862.` ties Spanish
+   with Romanian and its `ó` picks Spanish. The forget readers read a message's language with
+   `forget_language`, the same pick without letters, because they are frozen
+   ([ADR-0075](ADR-0075-forget-chosen-memories.md) decision 7).
 3. **Each translated note keeps its English constant** and adds a mapping from language to text
    beside it (`STORED_TIME_NOTES` beside `STORED_TIME_NOTE`); `in_language(english, others,
    language)` returns the English text for a language the mapping does not have. The readers that

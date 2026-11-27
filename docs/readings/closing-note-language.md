@@ -239,3 +239,8 @@ with and without a forget call. Two results changed, both a readings line quotin
 with more words after it, and both now show the note. No recorded reply in another language keeps
 a stored row (`names_spared_other` holds on 0 strings). Script `replay.py` in
 the `slot10` scratch directory of the 2026-11-10 run.
+
+## A tie broken by letters, 2026-11-27
+
+A tie between two languages is now broken by the letters of the message; the replay is in
+[note-language-letter-tie.md](note-language-letter-tie.md).

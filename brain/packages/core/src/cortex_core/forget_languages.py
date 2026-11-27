@@ -2,7 +2,7 @@
 
 import re
 
-from cortex_core.note_language import message_language
+from cortex_core.note_language import forget_language
 
 _WORD = re.compile(r"[^\W\d_]{3,}")
 _VERBS = {
@@ -39,7 +39,7 @@ FUNCTION = {
 
 
 def readings(query: str) -> set[str]:
-    """The language ``message_language`` picks for ``query`` and each whose forget verb it uses."""
+    """The language ``forget_language`` picks for ``query`` and each whose forget verb it uses."""
     words = {word.lower() for word in _WORD.findall(query)}
     found = {language for language, verbs in VERBS.items() if not verbs.isdisjoint(words)}
-    return {message_language(query), *found}
+    return {forget_language(query), *found}
