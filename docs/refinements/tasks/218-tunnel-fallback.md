@@ -7,7 +7,7 @@
 `host.docker.internal:<port>` failing while a `python3 -m http.server` bound to `0.0.0.0` on this
 host listens on that port, which `ss -ltn` confirms before the dial. The same reach to the
 Windows-side body is observed by host task 002, not here.
-**Verified:** 2026-11-10
+**Verified:** 2026-11-27
 
 The brain dials the body directly, at `CORTEX_BODY_ENDPOINT` through `GrpcBodyGateway.connect`. If
 `host.docker.internal` proves unreliable on WSL2, tunnelling body-directed calls over a
@@ -64,3 +64,7 @@ part, a `BrainService` handler that hands the stream to that adapter and a third
   answered a `wget` from `alpine:latest` on the default bridge network at
   `host.docker.internal:23999`. The cached `alpine:latest` is a `linux/arm64` image, which Docker
   ran under emulation.
+- 2026-11-27: checked again and not fired: with `ss -ltn` showing a `python3 -m http.server` on
+  `0.0.0.0:23999`, a `wget` from `busybox:latest` on the default bridge network fetched its page at
+  `host.docker.internal:23999`, `busybox:latest` being used because `alpine:latest` is no longer
+  cached.

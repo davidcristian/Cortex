@@ -8,7 +8,7 @@ which is the change a two-variable fallback exists to cover. Checkable with
 the embedder's and the projector's model-file renames of 2026-08-30 are the only two so far, both
 taken without a fallback
 **Origin:** [ADR-0063](../../adr/ADR-0063-compose-checks.md)
-**Verified:** 2026-11-07
+**Verified:** 2026-11-27
 
 `scripts/composedefaults.py` raises `SubstitutionReadError` on a nested expansion. Compose does
 expand it: `${A:-${B:-x}}` resolves to `B`'s value and then to `x` on compose v2.39.1, measured
@@ -93,3 +93,8 @@ are already different callers, so the middle option is a real choice.
 - 2026-11-07: checked again and not fired. The three compose commits since 2026-10-17 rename no
   variable: they add `CORTEX_SUBAGENT_CTX_SIZE`, `CORTEX_SUBAGENTS_PARALLEL` and two tool settings,
   and send the file sidecar's stdout to `/dev/null`.
+- 2026-11-27: checked again and not fired: of the 14 compose commits since 2026-11-07, the one that
+  removes a variable while adding another moves the GPU subagent server in `docker-compose.gpu.yml`
+  from `CORTEX_SUBAGENTS_PARALLEL` to its own `CORTEX_SUBAGENTS_GPU_PARALLEL`, which is a split
+  rather than a rename, since the old variable still sets the CPU server's slots and a fallback to
+  it would give the GPU server whatever slot count a deployment set for the CPU server.

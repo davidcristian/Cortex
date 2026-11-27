@@ -10,7 +10,7 @@ then read `available_devices` and that property. The guest decides first whether
 taking: while `find /usr/lib/wsl/drivers -ipath '*npu*' -name '*.so*'` prints nothing, the vendor
 half below is unmet and no container has a driver to enumerate the NPU through. This entry's
 history records what each was when last read, and the body records which half is already met.
-**Verified:** 2026-11-10
+**Verified:** 2026-11-27
 
 An OpenVINO `InferenceBackend` adapter and a third `PlacementTarget` would use the otherwise idle
 NPU for tiny subagents or embeddings, which serves the same goal as the subagent container limits
@@ -103,3 +103,6 @@ placer rule for when a spawn goes to the NPU, and an `ngl` moved off the enum.
 - 2026-11-10: checked again and not fired: `find /usr/lib/wsl/drivers -ipath '*npu*' -name '*.so*'`
   still prints nothing, so the container run was not taken, and the kernel is still
   6.18.54.1-microsoft-standard-WSL2.
+- 2026-11-27: checked again and not fired: the `find` over `/usr/lib/wsl/drivers` for an NPU library
+  still prints nothing, so the container run was not taken, and the kernel is now
+  6.18.58.1-microsoft-standard-WSL2.

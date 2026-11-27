@@ -1,7 +1,7 @@
 # A fact with a second verb phrase keeps the reminder and sound tools
 
 **Status:** open, waiting for its trigger
-**Verified:** 2026-11-10
+**Verified:** 2026-11-27
 **Trigger:** a recorded draw of a request to remember a fact alone that calls `schedule_task` or
 `set_volume` on a turn where `actions_asked` read a clause of the fact.
 **Area:** memory
@@ -35,3 +35,7 @@ for comes back.
 - 2026-11-08: filed by the night's audit slot, from a unit probe and a count over the readings.
 - 2026-11-10: checked and not fired: every `schedule_task` call recorded in `docs/readings/` since
   2026-11-08 answers a request that asked for a reminder, and no recorded draw calls `set_volume`.
+- 2026-11-27: checked again and not fired: the four draws since 2026-11-10 that called `set_volume`,
+  all on `Save my phone number 0721 555 019.` in `store-request-unasked-tools.md`, ran on builds
+  without the store verb fix that record describes, and on today's tree `actions_asked` finds no
+  action in that message's fact and `unasked_tools` refuses both tools for it.

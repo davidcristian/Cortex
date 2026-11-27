@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** vision
 **Origin:** [ADR-0041](../../adr/ADR-0041-injection-image-variant.md)
-**Verified:** 2026-11-07
+**Verified:** 2026-11-27
 **Trigger:** a figure from one of the harnesses below, a turn-cost interval or a decode rate, is
 published in `docs/` with a date after 2026-09-17 and no card reading beside it. The added lines
 of `git log -p --since=<the last check> -- docs/` that match `tok/s`, `test_turn_cost_live` or
@@ -55,3 +55,7 @@ two above are the ones that publish a time or a rate taken on the card.
   `tok/s`, `test_turn_cost_live` or `test_decode_cadence_live`.
 - 2026-11-07: checked again and not fired. No line added under `docs/` since 2026-10-17 matches
   `tok/s`, `test_turn_cost_live` or `test_decode_cadence_live`.
+- 2026-11-27: checked again and not fired: the one `tok/s` line added under `docs/` since 2026-11-07
+  renames the subject of the gemma-4-31B decode figure in `deep-candidates.md`, first published on
+  2026-09-26 with the SM clock and power ceiling beside each rate, and the two lines naming
+  `test_decode_cadence_live` are task prose.

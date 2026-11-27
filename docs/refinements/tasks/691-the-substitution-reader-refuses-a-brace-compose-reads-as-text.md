@@ -9,7 +9,7 @@ roster's endpoint list in `docker/docker-compose.subagents-roster.yml` and the t
 `enable_thinking` template arguments, all literal
 **Area:** repo-checks
 **Origin:** [ADR-0063](../../adr/ADR-0063-compose-checks.md)
-**Verified:** 2026-11-07
+**Verified:** 2026-11-27
 
 `scripts/composedefaults.py` raises `SubstitutionReadError` on any substitution whose body contains
 a `{`, and a bare `{` in an argument now gets its own message: `${A:-{x}} carries a brace in its
@@ -48,3 +48,6 @@ confirm `bindcheck.py`, whose own pattern reduces a bind source, is unaffected.
 - 2026-11-07: checked again and not fired. No compose change since 2026-10-17 replaces a JSON
   literal with a substitution: the three since add variables and send a sidecar's stdout to
   `/dev/null`.
+- 2026-11-27: checked again and not fired: no compose change since 2026-11-07 removes a line whose
+  value opens with `{`, and the roster's endpoint list and the two `enable_thinking` arguments are
+  still literal.

@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0045](../../adr/ADR-0045-documented-log-lines.md)
-**Verified:** 2026-11-07
+**Verified:** 2026-11-27
 **Trigger:** a registry mention whose template is the name and a comma alone, which is what a
 wrapped call takes. Countable by reading `crosscheck.CONSTANTS` for mentions with a `name` whose
 template renders nothing but `{name},`, and, for each, counting the bounded matches of the rendered
@@ -65,3 +65,5 @@ registry has no form for.
 - 2026-11-07: checked again and not fired. None of the 25 mentions with a name in
   `crosscheck.CONSTANTS` has the name and a comma alone as its template; the nearest, in
   `trailcouplings.py`, still opens with `_logger.info(`.
+- 2026-11-27: checked again and not fired: none of the 25 mentions with a name in
+  `crosscheck.CONSTANTS` has the name and a comma alone as its template.

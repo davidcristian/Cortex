@@ -8,7 +8,7 @@ against the store that held hoisted chats under `cortex:sessions:pinned`, so
 `redis-cli EXISTS cortex:sessions:pinned` answers 0 there, or that store no longer exists. The
 development machine's store cannot answer it: on 2026-10-03 its append-only file has no `SADD`, so
 it never held a hoisted chat under either key, and the store the move was written for is elsewhere.
-**Verified:** 2026-11-07
+**Verified:** 2026-11-27
 
 `RedisSessionStore` in `brain/packages/session/src/cortex_session/store.py` runs
 `_move_old_hoisted` once per store, before `delete`, `set_hoisted` or `list_sessions` first touches
@@ -49,3 +49,6 @@ the move and close this `declined` with that reason.
   the `cortex:sessions:pinned` key alone.
 - 2026-11-07: checked again and not fired. The three store changes since 2026-10-17 record and
   expire deleted chats and leave the move of `cortex:sessions:pinned` alone (`store.py:205-206`).
+- 2026-11-27: checked again and not fired: `store.py` has no commit since 2026-11-07 and still moves
+  `cortex:sessions:pinned` at lines 205 and 206, and no record names a brain on that build against
+  the store the move was written for.

@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-11-06
+**Verified:** 2026-11-27
 **Trigger:** the file sidecar is seen to exit or restart for a reason other than a compose recreate, or a turn is seen served without the file tools while it restarts.
 
 The filesystem sidecar in `docker/docker-compose.tools.yml` runs `npm install -g` for
@@ -31,3 +31,6 @@ build it, and measure the restart again against the readings above.
 - 2026-11-06: Not fired. The sidecar still runs `npm install -g` at start, with no commit to
   `docker-compose.tools.yml` since 2026-10-16, and no reading or stack note since names an exit or
   restart of it outside a compose recreate or a deliberate outage flow.
+- 2026-11-27: checked again and not fired: `docker-compose.tools.yml` has no commit since 2026-11-06
+  and still runs `npm install -g` at start, and no reading or runbook added since names an exit or
+  restart of the file sidecar outside a compose recreate or a deliberate outage flow.

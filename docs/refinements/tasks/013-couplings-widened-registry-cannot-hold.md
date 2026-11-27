@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0042](../../adr/ADR-0042-cross-tree-constant-registry.md)
-**Verified:** 2026-11-10
+**Verified:** 2026-11-27
 **Trigger:** A third value on the capture-target enum, a reader for declarations in the `.proto`
 arriving in the scan for another reason, any module outside the body's rpc crate and the brain's
 body client that has to name one of the two gRPC status codes, or either side of that pair gaining
@@ -142,3 +142,7 @@ not also retune.
 - 2026-11-10: checked again and not fired: the proto still declares two capture targets,
   `crosscheck.DECLARATIONS` still reads `.py`, `.rs` and `.ts` only, and the two codes are still
   written in `screen.rs`, `server.rs` and `failures.py`.
+- 2026-11-27: checked again and not fired: the proto still declares two capture targets, the two
+  codes are still written in `screen.rs`, `server.rs` and `failures.py`, and
+  `crosscheck.DECLARATIONS` reads `.py`, `.rs`, `.ts` and, since 2026-11-25, `.toml`, a reader added
+  for the Python version files and not for the `.proto`.
