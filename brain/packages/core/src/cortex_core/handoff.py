@@ -56,6 +56,7 @@ class HandoffRecord:
     forget_calls: int = 0
     forget_unmatched: int = 0
     forget_refused: bool = False
+    forget_refused_texts: tuple[str, ...] = ()
     forget_declined: bool = False
     forget_numbers_left: bool = False
     forget_kept: tuple[str, ...] = ()
@@ -97,6 +98,7 @@ class HandoffRecord:
             forget_calls=self.forget_calls,
             forget_unmatched=self.forget_unmatched,
             forget_refused=self.forget_refused,
+            forget_refused_texts=self.forget_refused_texts,
             forget_declined=self.forget_declined,
             forget_numbers_left=self.forget_numbers_left,
             forget_kept=self.forget_kept,
@@ -185,6 +187,7 @@ class EscalationSlot:
             forget_calls=self.refs.taint.forget_calls,
             forget_unmatched=self.refs.taint.forget_unmatched,
             forget_refused=self.refs.taint.forget_refused,
+            forget_refused_texts=self.refs.taint.forget_refused_texts,
             forget_declined=self.refs.taint.forget_declined,
             forget_numbers_left=self.refs.taint.forget_numbers_left,
             forget_kept=self.refs.taint.forget_kept,

@@ -230,9 +230,7 @@ async def _never_run(arguments: Mapping[str, object]) -> str:
     raise AssertionError(arguments)
 
 
-async def test_a_deep_phase_refused_call_naming_a_stored_value_closes_its_reply_with_the_note() -> (
-    None
-):
+async def _deep(calls: Sequence[ToolCall], taint: TaintLedger | None = None) -> str:
     store = await _seeded(_SEED)
     sessions = InMemorySessionStore()
     at = datetime(2026, 11, 27, tzinfo=UTC)
@@ -244,12 +242,22 @@ async def test_a_deep_phase_refused_call_naming_a_stored_value_closes_its_reply_
     tools = ToolDispatcher(registry, RecordingAuditSink(), TickingClock())
     memory = MemoryRecaller(store, HashEmbedder(), SystemClock())
     caps = TurnCapabilities(memory=memory, tools=tools)
-    backend = _Backend(_REPLY, [_call("5528")])
-    phase = BrainPhase(sessions, backend, TickingClock(), "brain", caps)
-    record = harness.prepared_slot().snapshot(
+    phase = BrainPhase(sessions, _Backend(_REPLY, calls), TickingClock(), "brain", caps)
+    record = harness.prepared_slot(taint=taint).snapshot(
         turn_id=harness.TURN, session_id=harness.SESSION, requested_at=at
     )
-    shown = "".join(
+    return "".join(
         [event.text async for event in phase.run(record) if isinstance(event, TextDelta)]
     )
-    assert shown == _REPLY + REFUSED_HELD_NOTES["de"]
+
+
+async def test_a_deep_phase_refused_call_naming_a_stored_value_closes_its_reply_with_the_note() -> (
+    None
+):
+    assert await _deep([_call("5528")]) == _REPLY + REFUSED_HELD_NOTES["de"]
+
+
+async def test_a_call_the_cortex_had_refused_before_the_handoff_closes_the_deep_reply() -> None:
+    cortex = TaintLedger(forget_refused_texts=("Code 5528",))
+    assert await _deep([], cortex) == _REPLY + REFUSED_HELD_NOTES["de"]
+    assert await _deep([], TaintLedger(forget_refused_texts=("4417",))) == _REPLY
