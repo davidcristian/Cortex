@@ -177,3 +177,38 @@ variant (`tests/test_uid_reading_live.py`).
 
 Every draw of every variant produced the same call at every seed, and the request quotes a listing
 line almost word for word, so this is one result per variant rather than a distribution.
+
+**2026-11-27**, the cortex tier as the stack starts it: the model host on engine build `b12375` and
+compose defaults, the tree's model manager and core bound over the image's packages, and the
+harness run with `CORTEX_UID_PROBE_ON_STACK` set. The argv the model host wrote:
+
+```
+llama-server --model /models/unsloth/gemma-4-12B-it-qat-GGUF/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf \
+  --host 0.0.0.0 --port 8080 -ngl 99 --ctx-size 16384 --parallel 1 --jinja --cache-ram 8192 \
+  --model-draft /models/unsloth/gemma-4-12B-it-qat-GGUF/mtp-gemma-4-12B-it-Q8_0.gguf \
+  --spec-type draft-mtp --spec-draft-n-max 3
+```
+
+So the file is the gemma-4-12B QAT `UD-Q4_K_XL` file at a context of 16,384, with no cache type
+flag (the engine's f16 cache), the file's own MTP layer as the drafter at draft length 3, and no
+reasoning flag. The request names no listing line ("the one where she warns that my power will be
+cut off") and sends only the tools, the messages and a seed, so the server's own sampling defaults
+apply: `/props` reads temperature 1.0, top_k 64, top_p 0.95, min_p 0.05. Seeds 0 to 19, and the
+rule was written into the task first.
+
+| row | variant | counts | distinct calls |
+| --- | --- | --- | --- |
+| copied | described (shipped) | right 20/20 | 1 |
+| copied | `uid` description stripped | right 20/20 | 1 |
+| `carried` | described (shipped) | clean 20/20 | 1 |
+| `carried` | stripped | clean 20/20 | 1 |
+| after a not-found answer | corrected (shipped) | right 20/20, searched 0/20, unlisted 0/20 | 1 |
+| after a not-found answer | the answer without its correction | right 20/20 | 1 |
+| after a not-found answer | bare `MCP tool 'read_email' failed` | right 20/20 | 1 |
+
+Every draw read `INBOX` uid 1238, the line the request means. Each variant made one distinct call
+in twenty draws, so each row is one answer of the sampler at the tier's own defaults rather than a
+rate. The seed does reach the sampler: five seeds of a free text request on the same server gave
+four distinct replies. The baselines read the same as the shipped texts, so neither sentence moves
+a count on a turn that holds the listing. By the task's rule `UID_HELP` holds, and `NOT_FOUND`
+stays as it is. Run log: `~/.cache/cortex-run/2026-11-27/s4/logs/`.

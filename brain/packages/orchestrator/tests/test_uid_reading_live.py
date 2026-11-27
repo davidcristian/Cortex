@@ -72,7 +72,14 @@ def _await_health() -> None:
 
 @contextmanager
 def _server() -> Generator[None, None, None]:
-    """Bring the cortex tier up on the GPU for the block, then tear it down."""
+    """Bring the cortex tier up on the GPU for the block, then tear it down.
+
+    With CORTEX_UID_PROBE_ON_STACK set, draw on the cortex tier a running model host serves.
+    """
+    if os.environ.get("CORTEX_UID_PROBE_ON_STACK"):
+        _await_health()
+        yield
+        return
     subprocess.run(["docker", "rm", "-f", _CONTAINER], capture_output=True, check=False)  # noqa: S603, S607
     _docker(
         "run", "-d", "--name", _CONTAINER, "--gpus", "all",
@@ -104,6 +111,14 @@ _SUBJECTS = (
 )
 # Between two listed uids and on neither, which is the mistake the uid description warns about.
 MISSING_UID = "1224"
+MEANT_UID = LISTED_UIDS[_SUBJECTS.index("Electricity bill, final notice")]
+
+
+def named_subject_words(ask: str) -> set[str]:
+    """The words of four letters or more that ``ask`` shares with a subject on the listing."""
+    asked = {word.strip(",.:'").lower() for word in ask.split()}
+    listed = {word.strip(",.:").lower() for subject in _SUBJECTS for word in subject.split()}
+    return {word for word in asked & listed if len(word) >= 4}
 
 
 def _message(index: int) -> bytes:
@@ -193,9 +208,12 @@ _READ_ID = "c2"
 _LIMIT = 20
 
 _QUERY = 'FROM "ann.weaver@example.com"'
-_READ_ASK = "Find what Ann Weaver sent me and read me her message about the electricity bill."
+_READ_ASK = (
+    "Find what Ann Weaver sent me and read me the one where she warns that my power will be "
+    "cut off."
+)
 _ARCHIVE_ASK = (
-    "Find Ann Weaver's message about the electricity bill and read it to me. "
+    "Find the one where Ann Weaver warns that my power will be cut off and read it to me. "
     "Look in my Archive folder as well as the inbox."
 )
 
@@ -244,6 +262,8 @@ class Step:
 
 def turn_messages(ask: str, steps: Sequence[Step]) -> list[Message]:
     """The turn as the brain composes it: the security preamble, the user's ask, then each step."""
+    named = named_subject_words(ask)
+    assert not named, f"the request names a listing line by {sorted(named)}"
     messages = [
         security_preamble_message(_AT, _TURN),
         Message(role=Role.USER, text=ask, at=_AT, turn_id=_TURN),
@@ -295,17 +315,17 @@ def _emitted(call: Mapping[str, Any]) -> Emitted:
     return Emitted(name=str(function["name"]), arguments=arguments)
 
 
-LISTED = "listed"
+RIGHT = "right"
+OTHER_LINE = "other-line"
 UNLISTED = "unlisted"
 NO_READ = "no-read"
 CARRIED = "carried"
 CLEAN = "clean"
 SEARCHED = "searched"
-RETRIED = "retried"
 OTHER = "other"
-SOURCE_OUTCOMES = (LISTED, UNLISTED, NO_READ)
+SOURCE_OUTCOMES = (RIGHT, OTHER_LINE, UNLISTED, NO_READ)
 CARRY_OUTCOMES = (CARRIED, CLEAN, OTHER)
-NEXT_OUTCOMES = (SEARCHED, RETRIED, OTHER)
+NEXT_OUTCOMES = (SEARCHED, RIGHT, OTHER_LINE, UNLISTED, OTHER)
 
 
 def _tally(outcomes: Sequence[str], names: Sequence[str]) -> str:
@@ -318,15 +338,31 @@ def _report(
 ) -> None:
     silent = sum(1 for reply in replies if reply.silent)
     cut = sum(1 for reply in replies if reply.finish_reason == "length")
-    print(f"  --> {label}: {_tally(outcomes, names)}  (silent={silent} cut={cut})")  # noqa: T201
+    distinct = len({_calls_key(reply) for reply in replies})
+    tally = _tally(outcomes, names)
+    print(f"  --> {label}: {tally}  (silent={silent} cut={cut} distinct={distinct})")  # noqa: T201
+
+
+def _calls_key(reply: Reply) -> str:
+    """Every call the reply made, names and arguments, as one comparable string."""
+    return json.dumps([[call.name, call.arguments] for call in reply.calls], sort_keys=True)
+
+
+def _uid_outcome(call: Emitted) -> str:
+    """Whether a read named the line the request means, another listed line, or no line."""
+    uid = call.text_argument("uid")
+    if uid not in LISTED_UIDS:
+        return UNLISTED
+    folder = call.text_argument("folder")
+    return RIGHT if uid == MEANT_UID and folder == WITH_MAIL else OTHER_LINE
 
 
 def score_source(reply: Reply) -> str:
-    """Where the uid of the read came from: the listing the model read, or somewhere else."""
+    """Where the uid of the read came from: the line the request means, another, or none."""
     call = reply.first(_READ_TOOL)
     if call is None:
         return NO_READ
-    return LISTED if call.text_argument("uid") in LISTED_UIDS else UNLISTED
+    return _uid_outcome(call)
 
 
 def score_carry(reply: Reply) -> str:
@@ -340,13 +376,13 @@ def score_carry(reply: Reply) -> str:
 
 
 def score_next(reply: Reply) -> str:
-    """What the model did next: search again, read again, or something else."""
+    """What the model did next: search again, read again and with which uid, or something else."""
     if not reply.calls:
         return OTHER
-    made = reply.calls[0].name
-    if made == _SEARCH_TOOL:
+    made = reply.calls[0]
+    if made.name == _SEARCH_TOOL:
         return SEARCHED
-    return RETRIED if made == _READ_TOOL else OTHER
+    return _uid_outcome(made) if made.name == _READ_TOOL else OTHER
 
 
 @dataclass(frozen=True)
@@ -397,7 +433,7 @@ async def test_where_the_uid_of_the_read_comes_from() -> None:
                     call = reply.first(_READ_TOOL)
                     wrote = "" if call is None else f"{call.text_argument('uid')!r}"
                     made = reply.calls[0].name if reply.calls else "(no call)"
-                    print(f"  {variant.label:21s} seed={seed:<3d} {outcome:9s} {made} {wrote}")  # noqa: T201
+                    print(f"  {variant.label:21s} seed={seed:<3d} {outcome:10s} {made} {wrote}")  # noqa: T201
                 _report(f"copied {variant.label}", replies, outcomes, SOURCE_OUTCOMES)
                 emitted[variant.label] = sum(1 for reply in replies if reply.calls)
     mute = [label for label, calls in emitted.items() if calls == 0]
@@ -430,7 +466,7 @@ async def test_whether_a_uid_is_taken_into_the_folder_holding_none() -> None:
                         else f"{call.text_argument('folder')}/{call.text_argument('uid')}"
                     )
                     made = reply.calls[0].name if reply.calls else "(no call)"
-                    print(f"  {variant.label:21s} seed={seed:<3d} {outcome:9s} {made} {wrote}")  # noqa: T201
+                    print(f"  {variant.label:21s} seed={seed:<3d} {outcome:10s} {made} {wrote}")  # noqa: T201
                 _report(f"carried {variant.label}", replies, outcomes, CARRY_OUTCOMES)
                 emitted[variant.label] = sum(1 for reply in replies if reply.calls)
     mute = [label for label, calls in emitted.items() if calls == 0]
@@ -462,7 +498,7 @@ async def test_what_the_cortex_does_after_a_not_found_answer() -> None:
                 for seed, (reply, outcome) in enumerate(zip(replies, outcomes, strict=True)):
                     made = reply.calls[0].name if reply.calls else "(no call)"
                     wrote = _written(reply)
-                    print(f"  {label:23s} seed={seed:<3d} {outcome:9s} {made} {wrote}")  # noqa: T201
+                    print(f"  {label:23s} seed={seed:<3d} {outcome:10s} {made} {wrote}")  # noqa: T201
                 _report(f"after-not-found {label}", replies, outcomes, NEXT_OUTCOMES)
                 emitted[label] = sum(1 for reply in replies if reply.calls)
     mute = [label for label, calls in emitted.items() if calls == 0]

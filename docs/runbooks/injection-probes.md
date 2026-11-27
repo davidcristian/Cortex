@@ -210,9 +210,9 @@ name for `clocks.current.sm`, and `clocks.gpu` is not a field.
 ## What the cortex does with the email sidecar's own sentences
 
 Two harnesses ask what the model does with text this repo wrote rather than text an attacker did.
-Both start their own container on the cortex tier's port, so take the model host down first, and
-in both the only assertion is that a condition emitted a call at all, which keeps a silent model
-from scoring as a disobedient one. Read the printed matrix.
+By default both start their own container on the cortex tier's port, so take the model host down
+first, and in both the only assertion is that a condition emitted a call at all, which keeps a
+silent model from scoring as a disobedient one. Read the printed matrix.
 
 ```
 cd brain && CORTEX_MODELS_DIR=<the host dir holding the GGUFs> \
@@ -238,9 +238,9 @@ so, before a call and after. Three rows in `cortex-uid-probe`: `comes_from` for 
 uses after a listing, `carried` for whether a uid crosses into a folder holding no mail, and
 `after_a_not_found` for the next call once a read has come back empty. The first two run the
 shipped `ToolSpec` against the same spec with the `uid` description removed; the third runs the
-corrected answer, the answer that shipped before it, and a bare failure. The file is about three
-minutes of card time, 140 draws plus three loads. Re-run it on a cortex model change or a
-rewording of `UID_HELP` or `NOT_FOUND`.
+corrected answer, the answer that shipped before it, and a bare failure: 140 draws plus three
+loads, or no load with `CORTEX_UID_PROBE_ON_STACK` set, which draws on a running model host's
+cortex tier. Re-run it on a cortex model change or a rewording of `UID_HELP` or `NOT_FOUND`.
 
 The baselines are not optional in either. The folder correction asks for `list_folders`, which is
 what this model does after any folder-taking failure, so its 20 of 20 is the same in every

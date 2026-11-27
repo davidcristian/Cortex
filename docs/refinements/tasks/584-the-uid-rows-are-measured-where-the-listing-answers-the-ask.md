@@ -1,9 +1,8 @@
 # The uid rows are measured where the listing already answers the request
 
-**Status:** open, actionable
+**Status:** done 2026-11-27
 **Area:** email
 **Origin:** [ADR-0056](../../adr/ADR-0056-email-reader-answers.md)
-**Verified:** 2026-11-27
 
 Two limits on the 2026-09-06 session, both in the harness rather than in the finding. The user's
 request names the subject of one listing line almost word for word, "her message about the
@@ -21,6 +20,35 @@ the listing is gone, and this tier's own recovery is the one for when it is not.
 Closing it means a session whose request does not name a listing line, a reading that says what the
 draws are draws of, and a decision on whether the correction names the listing as well as the
 search.
+
+## The rule for the second run
+
+Written 2026-11-27, before the first launch.
+
+- **The request.** Both requests say "the one where she warns that my power will be cut off". The
+  request shares no word of four letters or more with any subject on the listing, and the sender
+  is on every line, so only the meaning of the request picks "Electricity bill, final notice"
+  (uid 1238). The harness fails a request that names a subject word.
+- **The draws.** The cortex tier as the stack starts it: the model host on compose defaults, the
+  tree's model manager and core bound over the image's packages. A request sends the tools, the
+  messages and a seed, nothing else, so the tier's own sampling defaults apply; seeds 0 to 19,
+  twenty draws a variant. The server's sampling defaults are read from `/props` and the argv from
+  the running process, and both go into the readings. Each variant also reports how many distinct
+  calls its twenty draws made: a variant with one distinct call is one answer, not a rate.
+- **Reading the uid right.** The first `read_email` call names `INBOX` and uid `1238` copied digit
+  for digit: `right`. A listed uid of another line is `other-line`, a uid not on the listing
+  (the missing `1224` included) is `unlisted`.
+- **`UID_HELP` holds** when the described variant of the copied row shows `unlisted` at most 1/20,
+  and the described variant of the `carried` row shows `carried` at most 1/20. A count of 2/20 or
+  more on either files a task with the draws; `UID_HELP` does not change on this run.
+- **The decision on `NOT_FOUND`**, over the shipped variant of the after not found row. The
+  correction names the listing in the turn as well as the search when `unlisted` is 2/20 or more
+  (the sentence does not keep the retry on the listing) or `searched` is 10/20 or more (the model
+  follows the sentence and spends a call the listing already answers). Before that change ships,
+  seeds 20 to 39 must meet the same threshold, and the new text is drawn once and must show
+  `unlisted` at most 1/20. Otherwise, with `unlisted` at most 1/20 and `searched` at most 9/20,
+  `NOT_FOUND` stays as it is: this tier's own recovery reads the listing, and the search is the
+  correction for a turn that holds none.
 
 ## History
 
@@ -71,3 +99,10 @@ search.
   ([R-1238](1238-the-lineups-readings-were-drawn-on-files-the-mount-no-longer-holds.md)), so the
   2026-09-06 counts describe a file that no longer ships. `UID_HELP` and `NOT_FOUND` are unchanged,
   and no second live run is recorded. The work is a count slot on the cortex tier and draws no rate.
+- 2026-11-27: done on the rule above. The cortex tier as the stack starts it drew 20/20 `right`
+  in every variant of all three rows, each variant one distinct call, so each row is one answer at
+  the tier's own sampling defaults; five seeds of a free text request gave four distinct replies,
+  so the seed reaches the sampler. `UID_HELP` holds, and with `unlisted` 0/20 and `searched` 0/20
+  `NOT_FOUND` stays as it is ([imap server answers](../../readings/imap-server-answers.md)). The
+  turn that holds no listing went to
+  [1382](1382-the-not-found-correction-is-undrawn-on-a-turn-that-holds-no-listing.md).
