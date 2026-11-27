@@ -6,6 +6,7 @@ from dataclasses import dataclass, field, replace
 from cortex_core.cadence import CadenceWatch
 from cortex_core.conversation import Message
 from cortex_core.dispatch import DispatchRefusal, ToolDispatcher
+from cortex_core.forget_permit import call_text
 from cortex_core.forget_unsaid import forget_unsaid
 from cortex_core.forget_value_unasked import value_unasked
 from cortex_core.handoff import EscalationSlot
@@ -37,6 +38,8 @@ from cortex_core.tool_tail import tail_count
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust, TurnStamp
 from cortex_core.untrusted import TaintLedger, says_declined
 from cortex_core.waits import GENERATING, TOOL_RUNNING, Wait
+
+_UNASKED = frozenset({DispatchRefusal.UNASKED, DispatchRefusal.FORGET_UNREQUESTED})
 
 
 @dataclass(frozen=True, slots=True)
@@ -249,8 +252,9 @@ async def run_round(
             yield StepOutcome(tool_name=spec.name, ok=not result.is_error)
         if spec is not None and spec.name == FORGET_UNTRUSTED_TOOL_NAME and not result.is_error:
             context.taint.forgotten = True
-        if call.name == FORGET_CHOSEN_TOOL_NAME and refusal is DispatchRefusal.UNASKED:
-            context.taint.forget_refused = True
+        if call.name == FORGET_CHOSEN_TOOL_NAME and refusal in _UNASKED:
+            context.taint.forget_refused |= refusal is DispatchRefusal.UNASKED
+            context.taint.forget_refused_texts += (call_text(call),)
         context.taint.sidecar_refused |= (
             refusal is DispatchRefusal.UNASKED
             and spec is not None

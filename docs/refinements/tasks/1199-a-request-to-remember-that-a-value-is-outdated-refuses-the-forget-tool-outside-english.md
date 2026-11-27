@@ -1,9 +1,8 @@
 # A request to remember that a value is outdated refuses the forget tool outside English
 
-**Status:** open, actionable
+**Status:** done 2026-11-27
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-26
 
 `forget_unrequested` keeps the forget tool when a word of `RETRACT_WORDS` can retract a stored
 fact. English reads `outdated`, `obsolete`, `stale` and `wrong`, so `Remember that the number is
@@ -31,7 +30,13 @@ with the old value stored an unasked forget call then deleted the old row
    tests first. `forget_unrequested` is not widened and no word list of words that mean outdated
    is added.
 3. Draw the note with the old value stored, and decline with the count if it cannot reach the
-   draws.
+   draws. Replayed through the note's code, the 7 recorded draws with a refused call all reach it:
+   each call named `5528` or `Code 5528`, which the seeded row holds whole. **Pass rule**, written
+   before the draw: the German and Spanish messages, 8 draws each, the old value seeded. The note
+   passes when every draw with a refused call naming `5528` shows it, no other draw shows it, no
+   old row is deleted and the new message is stored in every draw. A refused call without the note,
+   or the note on a draw without one, fails it. No refused call in 16 draws is a null result: the
+   replay stands and this step stays open.
 
 ## History
 
@@ -47,3 +52,12 @@ with the old value stored an unasked forget call then deleted the old row
   stored in all 24, no note shown. By the rule written before the draw the cost is real on the
   German and Spanish messages, and step 2 is next.
 - 2026-11-26: meets the bar of the freeze of the forget message readers ([ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md) decision 7): it rests on seeded live draws of messages a person types, 7 of 24 with a refused call, and its remedy is a note shown on a refused call; the fallback that kept the tool on these messages widened a reader and is removed from step 2.
+- 2026-11-27: done. A refused forget call naming a whole value a stored row still holds now ends
+  the reply with `REFUSED_HELD_NOTE` (`forget_refused_held.py`) in the message's language; the
+  refusal and `forget_unrequested` are unchanged. The note reached 7 of the 7 recorded draws in a
+  replay and, drawn live with the old value seeded, all 3 of 16 draws with a refused call, with no
+  note elsewhere and no old row deleted
+  ([readings](../../readings/forget-refused-held-note.md)). A call the cortex made before a
+  handoff gives no note, since the handoff record does not keep the call texts, and
+  `Retiens que ce code est périmé.` gets the English note, since `message_language` reads it as
+  English.

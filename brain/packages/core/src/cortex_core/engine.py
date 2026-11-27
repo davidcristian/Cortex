@@ -19,10 +19,10 @@ from cortex_core.errors import (
     SessionDeletedError,
 )
 from cortex_core.events import TurnCompleted, TurnEvent
+from cortex_core.forget_refused_held import hold_stored_values
 from cortex_core.handoff import EscalationRefs
 from cortex_core.handoff_wait import wait_out_handoff
 from cortex_core.images import ImagePart
-from cortex_core.memory_old_value import hold_old_value
 from cortex_core.output_channels import open_output_channels
 from cortex_core.ports import Clock, InferenceBackend, SessionStore
 from cortex_core.routing import RoutingHints, Tier, route_turn
@@ -206,7 +206,9 @@ class TurnEngine:
         # whole reply and what is saved is what was shown.
         if not overflowed:
             reply = "".join(parts)
-            await hold_old_value(self._caps, taint, query=text, reply=reply, session_id=session_id)
+            await hold_stored_values(
+                self._caps, taint, query=text, reply=reply, session_id=session_id
+            )
             notes = limit_notes(
                 stops,
                 log.runs,

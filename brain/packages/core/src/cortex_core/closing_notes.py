@@ -26,6 +26,7 @@ from cortex_core.forget_count_note import forgot_count_note, forgot_note_due
 from cortex_core.forget_inside import inside_note
 from cortex_core.forget_kept_sentence import kept_claim, kept_claim_note
 from cortex_core.forget_longer import longer_note
+from cortex_core.forget_refused_held import REFUSED_HELD_NOTE, REFUSED_HELD_NOTES
 from cortex_core.forget_uncalled import uncalled_note, uncalled_note_due
 from cortex_core.forget_unfound_claim import (
     DECLINED_FORGET_NOTE,
@@ -113,6 +114,7 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
     )
     unfound = unfound_claim(made, reply, unmatched=taint.forget_unmatched)
     uncalled = not unforgotten and not taint.old_value and uncalled_note_due(query, made)
+    refused_held = taint.forget_refused_held and not unforgotten and not taint.old_value
     missed = unmatched_note_due(
         made, unmatched=taint.forget_unmatched, deleted=taint.forget_deleted
     )
@@ -164,6 +166,7 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
         (bool(taint.forget_inside), inside_note(taint.forget_inside, language)),
         (bool(taint.forget_longer), longer_note(taint.forget_longer, language)),
         (bool(taint.old_value), old_value_note(taint.old_value, language)),
+        (refused_held, said_in(REFUSED_HELD_NOTE, REFUSED_HELD_NOTES)),
         (unfound, said_in(DELETED_UNFOUND_NOTE, DELETED_UNFOUND_NOTES)),
         (missed, unmatched_note(runs, language)),
         (

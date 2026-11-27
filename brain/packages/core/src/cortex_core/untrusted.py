@@ -141,6 +141,10 @@ class TaintLedger:
     forget_unmatched: int = 0
     # Whether a ``forget_memories`` call was refused as unasked, which leaves no run and no count.
     forget_refused: bool = False
+    # The texts of the calls refused as unasked or unrequested, and whether a stored row holds a
+    # whole value one of them names.
+    forget_refused_texts: tuple[str, ...] = ()
+    forget_refused_held: bool = False
     # Whether the person pressed Deny on a ``forget_memories`` card, so its rows are kept.
     forget_declined: bool = False
     # Whether the last delete by ``forget_memories`` left rows holding a number a row it or an

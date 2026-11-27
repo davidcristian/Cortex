@@ -27,6 +27,7 @@ from cortex_core.forget_claim import (
     UNFORGOTTEN_CLAIM_NOTE,
     UNFORGOTTEN_CLAIM_NOTES,
 )
+from cortex_core.forget_refused_held import REFUSED_HELD_NOTE, REFUSED_HELD_NOTES
 from cortex_core.forget_unfound_claim import (
     DELETED_UNFOUND_NOTE,
     DELETED_UNFOUND_NOTES,
@@ -161,6 +162,13 @@ _CASES = {
         (_FORGOT, _HANDED),
         TaintLedger(forget_asked=True, forget_calls=1, forget_unmatched=1),
         memory=True,
+    ),
+    "refused-held": _Case(
+        REFUSED_HELD_NOTE,
+        REFUSED_HELD_NOTES,
+        "Noted.",
+        (),
+        TaintLedger(forget_refused_held=True),
     ),
     "unread": _Case(
         UNREAD_FOLDERS_NOTE,

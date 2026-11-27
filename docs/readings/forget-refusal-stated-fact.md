@@ -243,3 +243,4 @@ refused call said the code was noted as outdated, which the stored message holds
 messages the person ended up with the old code stored beside the new message and was not told it
 is still held. On the French message 1 of 8 draws refused a call, under the rule's 2. No old row
 was deleted in any draw.
+The note that answers this cost is counted in [forget-refused-held-note.md](forget-refused-held-note.md).
