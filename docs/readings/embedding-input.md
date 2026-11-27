@@ -78,6 +78,34 @@ relevance floor parts the populations under any of the forms. Method: `draw.py` 
 `~/.cache/cortex-run/2026-11-24/s4/`, with the rows of each question in `rows-N.jsonl`,
 `rows-P.jsonl`, `rows-M.jsonl`, `rows-W.jsonl` and `rows-W2.jsonl`.
 
+## The task prefix over near-miss notes
+
+**2026-11-27.** The image, build, file, argv and calls of the section above. The set is
+`near_miss_corpus.py` in `brain/packages/inference/tests/`: 44 answerable questions over 92
+notes, each question with one gold note and one or two near-miss notes that share its words or its
+subject and do not answer it, written before any vector was drawn. Each question is ranked by
+cosine over every note of that set. All 272 vectors came back identical when drawn a second time.
+`/tokenize` counts `search_query: ` and `search_document: ` at 4 tokens each, so a prefixed text of
+1800 characters stays 242 tokens under the 2046 a text may take.
+
+| stored rows | query | first | top 3 | top 5 | top 20 | MRR at `k` 3 |
+| --- | --- | --- | --- | --- | --- | --- |
+| no prefix | no prefix | 43 | 44 | 44 | 44 | 0.989 |
+| prefix | prefix | 43 | 44 | 44 | 44 | 0.989 |
+| no prefix | prefix | 43 | 44 | 44 | 44 | 0.989 |
+| gold with none, every other row with the prefix | prefix | 42 | 44 | 44 | 44 | 0.977 |
+
+The first three forms put every gold note at the same rank. The one gold note not first under any
+of them answers how much notice to give: the superseded contract note comes first and the current
+one second. In the last form the rent question's gold row falls from first to second, behind a
+prefixed note of another question. The rule of
+[R-1321](../refinements/tasks/1321-the-embedder-prefixes-need-a-pass-that-embeds-stored-rows-again.md),
+written before the rows, reads the first and top 5 counts: the query prefix alone ties both
+prefixes and no prefix on each, so it is the form that ships, with no pass. With 43 of 44 first
+under no prefix, this set leaves almost no room to separate the forms; the 22 questions above are
+the rows where they differ. Method: `draw.py` in `~/.cache/cortex-run/2026-11-27/c1/`, with the
+rows of each question in `rows-N.jsonl`, `rows-P.jsonl`, `rows-M.jsonl` and `rows-W.jsonl`.
+
 ## A long exchange, recorded and recalled
 
 **2026-10-07**, a scratch stack (compose project `cortexs15`, its own volumes) built at the bound
