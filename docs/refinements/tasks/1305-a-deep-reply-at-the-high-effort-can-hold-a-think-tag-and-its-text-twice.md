@@ -4,7 +4,7 @@
 **Area:** inference
 **Origin:** [ADR-0049](../../adr/ADR-0049-thinking-switch-and-trace-budget.md)
 **Trigger:** the default of CORTEX_REASONING_EFFORT_BRAIN leaves medium, or a framed row at medium has a reply with the tag.
-**Verified:** 2026-11-23
+**Verified:** 2026-11-27
 
 At the `high` level, which the brain sends as `xhigh`, and with no level sent, which the Qwen3.8
 template renders as its own `xhigh`, the deep pick sometimes writes its reply, a line holding only
@@ -47,3 +47,6 @@ deltas) and replayed over the recorded replies; or a decline that states the rat
 - 2026-11-23: filed by
   [R-1273](1273-a-deep-reply-can-hold-a-literal-think-tag-and-its-text-twice.md), which closed on
   the rate at the default level.
+- 2026-11-27: checked again and not fired: `CORTEX_REASONING_EFFORT_BRAIN` still defaults to
+  `medium` in `config_swap.py`, and no deep reply in the readings committed since 2026-11-23 holds a
+  literal `</think>`.

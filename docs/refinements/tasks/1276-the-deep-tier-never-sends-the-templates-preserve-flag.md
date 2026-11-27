@@ -4,7 +4,7 @@
 **Area:** inference-model-manager
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
 **Trigger:** a multi-turn row on the deep pick in which the empty earlier thoughts change a deep reply.
-**Verified:** 2026-11-21
+**Verified:** 2026-11-27
 
 The Qwen3.8 template reads `preserve_thinking`, on by default
 ([thinking-switch readings](../../readings/thinking-switch.md#the-effort-and-preserve-settings)).
@@ -30,3 +30,6 @@ stating it, or a decline that states the row.
 - 2026-11-21: moved here from
   [R-738](738-the-deep-tier-cannot-set-a-templates-reasoning-effort-or-preserve-flag.md),
   which closed on the effort level and left the flag where it was.
+- 2026-11-27: checked again and not fired: no reading committed since 2026-11-21 draws a multi-turn
+  row on the empty earlier thoughts, and no file under `brain/packages` or `docker` names
+  `--no-reasoning-preserve`.

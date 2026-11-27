@@ -4,7 +4,7 @@
 **Area:** brain
 **Origin:** [ADR-0069](../../adr/ADR-0069-turn-heartbeat.md) decision 7
 **Trigger:** a shipped client runs a cortex turn beside the overlay's, such as a fired reminder that runs a model turn or a second body
-**Verified:** 2026-11-10
+**Verified:** 2026-11-27
 
 The cortex runs with `--parallel 1`, so a turn whose chat is not first waits inside llama-server
 for another chat's generation to end. That wait sits inside the turn's own `thinking` hold (the
@@ -38,3 +38,5 @@ has not fired; the reproduction above needs a second test client.
   `SessionTurnLocks.hold` is unchanged; the change since added the status that clears the chip.
 - 2026-11-10: checked again and not fired: no second client runs cortex turns, and
   `session_turns.py` has no commit since 2026-10-25.
+- 2026-11-27: checked again and not fired: no second client runs cortex turns, the last commit to
+  `session_turns.py` is still 2026-10-17, and `ticker.py` has none since 2026-10-28.

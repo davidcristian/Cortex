@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** scheduling
 **Origin:** [ADR-0074](../../adr/ADR-0074-replayed-tool-runs.md)
-**Verified:** 2026-11-10
+**Verified:** 2026-11-27
 **Trigger:** a third turn of the R-834 rows whose reminder call succeeded and whose reply says the task was scheduled
 
 The reply check ([ADR-0074](../../adr/ADR-0074-replayed-tool-runs.md) decision 7) reads a turn's
@@ -33,3 +33,5 @@ under the earlier refusal text, 1 of 3 such turns made the reminder call
   only `name` and `ok`.
 - 2026-11-10: checked again and not fired: `task-claimed-without-call.md` has no commit since
   2026-10-25, and `ToolRun` still has only `name` and `ok`.
+- 2026-11-27: checked again and not fired: the last commit to `task-claimed-without-call.md` is
+  still 2026-10-15, and `ToolRun` still has only `name` and `ok`.

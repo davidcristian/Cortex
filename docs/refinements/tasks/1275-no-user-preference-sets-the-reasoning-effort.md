@@ -4,7 +4,7 @@
 **Area:** inference-model-manager
 **Origin:** [ADR-0049](../../adr/ADR-0049-thinking-switch-and-trace-budget.md)
 **Trigger:** a History line in this file recording the maintainer's pick of the three level names and the key.
-**Verified:** 2026-11-21
+**Verified:** 2026-11-27
 
 The deep reply names one reasoning effort on every turn: `medium`, unless the deployment's
 `CORTEX_REASONING_EFFORT_BRAIN` names another level or is empty (ADR-0049 decision 20). The person
@@ -29,3 +29,5 @@ recorded here.
   [R-738](738-the-deep-tier-cannot-set-a-templates-reasoning-effort-or-preserve-flag.md),
   whose first step, the deployment's default level, is built. It was that task's optional second
   step, and nothing of it is built.
+- 2026-11-27: checked again and not fired: no pick is recorded, and no code under `brain/packages`,
+  `body` or `proto` names `reply.effort`.

@@ -4,7 +4,7 @@
 **Area:** body-overlay
 **Origin:** [ADR-0036](../../adr/ADR-0036-window-edge.md) decision 11
 **Trigger:** a History line in this file recording the maintainer's pick of tint A, B or C.
-**Verified:** 2026-11-10
+**Verified:** 2026-11-27
 
 A turn that fails while the overlay is minimized raises the preview, which shows the error, has no
 countdown bar and stays until it is clicked or dismissed (`previewStays` in
@@ -39,3 +39,5 @@ the class follows the error.
 - 2026-10-25: checked again and not fired: no pick is recorded and `previewStays` is unchanged; the
   change since touched the chip only.
 - 2026-11-10: checked again and not fired: no pick is recorded.
+- 2026-11-27: checked again and not fired: no pick is recorded, and no rule in `overlay.css` tints a
+  failed turn's preview.
