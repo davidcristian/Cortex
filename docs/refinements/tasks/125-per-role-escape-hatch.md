@@ -4,7 +4,7 @@
 **Area:** subagents
 **Origin:** [ADR-0018](../../adr/ADR-0018-heterogeneous-subagents.md)
 **Trigger:** a readings record shows a role on a tainted or tools-enabled spawn reading higher on a non-default roster entry, with the reason that entry is safe there. None does: `docs/readings/role-sentences.md` is the only roles record, and `grep -ci 'taint' docs/readings/role-sentences.md` returns 0.
-**Verified:** 2026-10-28
+**Verified:** 2026-11-27
 
 If a subagent role ever needed a cheap model on a tainted or tool path for a reason proven safe, it
 would be a per-role override inside `SubagentRoster.resolve`
@@ -57,3 +57,6 @@ resolves the role ([runner.py:76](../../../brain/packages/core/src/cortex_core/r
   `runner.py:76`.
 - 2026-10-28: checked again and not fired: `grep -ci 'taint' docs/readings/role-sentences.md` still
   returns 0.
+- 2026-11-27: checked again and not fired: `role-sentences.md` still names no taint, the one
+  readings record added since with role in its name is about the forget card, and `roster.py`,
+  `roles.py` and `runner.py` have no commit since 2026-10-28.

@@ -3,7 +3,7 @@
 **Status:** open, waiting for a consumer
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-10-28
+**Verified:** 2026-11-27
 **Trigger:** Something has to read a picture after its turn ends: a reopened chat showing what the
 assistant saw, a question about a capture answered from the audit trail, or the deep tier in R-266.
 
@@ -57,3 +57,6 @@ the assistant's reply or the session record gains a tool step.
   `escalate.py` still sets `confirm_required=True`.
 - 2026-10-28: checked again and not fired: nothing reads a picture after its turn; the overlay
   changes since keep a picture and its note per chat until the turn sends them.
+- 2026-11-27: checked again and not fired: R-266 is still waiting for its trigger, a handoff
+  record still refuses a message with images (`handoff.py`), and the picture changes since
+  concern the text note beside a picture.

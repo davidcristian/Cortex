@@ -3,7 +3,7 @@
 **Status:** open, waiting for a consumer
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-11-06
+**Verified:** 2026-11-27
 **Trigger:** A capture that has to go ahead with part of the screen removed rather than be refused,
 over a window or a region Cortex does not own, since the body's own windows are the OS's to exclude
 on Windows, the X11 capture's own fill on X11, and a refusal while the overlay is shown on Wayland.
@@ -57,3 +57,6 @@ source for where another program's window is, which the portal does not give.
   `exclude.rs` in `os_linux`, the `body_core` screen modules or the Windows `screen.rs`; the eleven
   body commits since are clipboard, paste, hotkey and reminder card work, and nothing asks for a
   capture with another program's window or a region removed.
+- 2026-11-27: checked again and not fired: the one body commit since 2026-11-06 bounds the
+  capture time in the body server's test, and nothing asks for a capture with another program's
+  window or a region removed.

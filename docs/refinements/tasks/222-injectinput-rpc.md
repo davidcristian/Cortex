@@ -4,7 +4,7 @@
 **Area:** body-gateway
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)
 **Trigger:** A tool, surface or task that types text or presses a key combination on the host, so that `InjectInput` or `inject_input` is named outside `proto/`, the generated stubs, `cortex_seam`'s exports, the unimplemented handler in `body/crates/rpc/src/server.rs` and its test. It is then built as one slice, not as a wired handler.
-**Verified:** 2026-10-28
+**Verified:** 2026-11-27
 
 `InjectInput` is the only one of the five RPCs `BodyService` declares that is not built. It is
 unbuilt at every tier: the RPC and its `TypeText` and `KeyChord` messages are forward-looking
@@ -54,3 +54,6 @@ can be checked here against an Xvfb server.
   so, and the trigger now names something a grep decides.
 - 2026-10-28: checked again and not fired: `InjectInput` and `inject_input` are still named only in
   the proto, the stubs, `cortex_seam`, the body server's handler and its test.
+- 2026-11-27: checked again and not fired: outside `docs/`, the proto and the generated stubs,
+  `InjectInput` and `inject_input` are still named only in `cortex_seam`'s exports, the body
+  server's handler and its test.

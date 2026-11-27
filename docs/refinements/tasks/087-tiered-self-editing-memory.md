@@ -6,7 +6,7 @@
 **Trigger:** A turn handed a superseded fact beside its correction answers with the superseded one,
 though recalled memories show their ages. Read it on rows like those of the recall memory age
 readings: a fact changed in separate chats, then asked in a new one.
-**Verified:** 2026-10-28
+**Verified:** 2026-11-27
 
 Letta's ideas about memory tiers and a model that edits its own memories, adoptable later without
 the framework (ADR-0008 decision 1). This is not behind an unchanged port: tiering (promote,
@@ -21,10 +21,11 @@ the `scope` (`SessionMemoryScope` writes `scope == session_id`), and it takes on
 with no wildcard so a namespace is dropped only when named. Port, contract test, fake and
 pgvector adapter, covered at 100% in CI; the real DELETE was tested against pgvector on the host
 (rows 3 to 0, count 3, other scopes untouched, an unmatched scope returns 0). No tool call can
-reach it, and the `MemoryRecaller` a turn is handed exposes only record and recall. Since
-2026-10-14 one built-in does delete memories: `forget_untrusted_memories`, a confirmed record
-card, calls the second removal, `delete_tainted`, over the scopes the chat reads. It removes by the
-`tainted` flag alone and edits nothing, so it is not the self-editing this entry describes.
+reach it. Two built-ins delete memories: `forget_untrusted_memories`, a confirmed record card,
+calls `delete_tainted` over the scopes the chat reads, and `forget_memories` deletes the rows a
+person chose through `delete_ids`. `MemoryRecaller` adds find, nearest and discard methods to
+record and recall. None of them rewrites a record, so none is the self-editing this entry
+describes.
 
 Still deferred, each for want of a consumer rather than a missing verb: update in place, tiered
 promote, demote and expire, write salience
@@ -84,3 +85,6 @@ record stores only the `tainted` flag and not the ADR-0027 structured provenance
   harm that would remain for update in place, and it has not fired.
 - 2026-10-28: checked again and not fired: the 48 rows the recall age readings added on 2026-10-26,
   with each memory on one line, all named the newest value.
+- 2026-11-27: checked again and not fired: no recall readings record changed since 2026-10-28.
+  The body was stale: `forget_memories` also deletes memories now, by id, and `MemoryRecaller`
+  has gained find, nearest and discard methods; none rewrites a record, and the body says so.

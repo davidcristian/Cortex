@@ -4,7 +4,7 @@
 **Area:** repo-checks
 **Trigger:** a Dockerfile in this tree is built `FROM` an image this repo builds
 **Origin:** [ADR-0067](../../adr/ADR-0067-image-volume-record.md)
-**Verified:** 2026-10-28
+**Verified:** 2026-11-27
 
 A base's row now has two dimensions, and the second is read by the rule comparing a built row with
 what its base would declare into it. Every base that dimension is read from is a pulled reference
@@ -53,3 +53,5 @@ whose row cannot be refreshed, and saying so is a two-line failure.
 - 2026-10-25: checked again and not fired: both Dockerfiles still build from pulled images only,
   with no `ONBUILD`.
 - 2026-10-28: checked again and not fired: both Dockerfiles still build `FROM` upstream images.
+- 2026-11-27: checked again and not fired: `brain/Dockerfile` and `brain/Dockerfile.modelhost`
+  still build `FROM` upstream images, with no `ONBUILD`.

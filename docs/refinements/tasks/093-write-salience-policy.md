@@ -5,19 +5,21 @@
 **Origin:** [ADR-0008](../../adr/ADR-0008-memory-v1.md)
 **Trigger:** A memory-compaction or self-editing feature (R-087) needs a record-time salience
 decision.
-**Verified:** 2026-10-28
+**Verified:** 2026-11-27
 
 v1 records the raw exchange text on every turn. Deciding at record time what is worth remembering
 is a later policy (ADR-0008). Its summarization half sits next to the tiered-memory entry
 ([R-087](087-tiered-self-editing-memory.md)).
 
 The decision whether to record at all already lives in the caller. `record_exchange` in
-`turn_output.py` is the only call site of `MemoryRecaller.record` in the brain, and it already
-skips three kinds of write: an opaque turn always, a tainted turn that ran
-`forget_untrusted_memories`, and a tainted turn unless `record_tainted_memory`
-is set, and `MemoryRecaller.record` stores nothing and returns None when a memory the turn recalled
-is gone. A salience filter is a fourth condition there, or a policy injected beside them, rather
-than a port change.
+`turn_output.py` is the only call site of `MemoryRecaller.record` in the brain, and it first asks
+`memory_withheld` (`memory_claim.py`), which skips six kinds of write: an opaque turn, a tainted
+turn that ran `forget_untrusted_memories`, a turn that asked to forget a text unless
+`_unmatched_keep` or `_forget_storable` accepts it, a query `asks_not_kept` reads, a tainted turn
+unless `record_tainted_memory` is set, and an untainted turn whose query `asks_files` reads.
+`record_exchange` also skips a deleted chat, and `MemoryRecaller.record` stores nothing and
+returns None when a memory the turn recalled is gone. A salience filter is one more condition in
+`memory_withheld`, or a policy injected beside them, rather than a port change.
 
 Naming note for whoever builds it: `SaliencePolicy` is already taken by the tool loop's port in
 `tool_salience.py`, which decides whether a call is worth dispatching.
@@ -56,3 +58,6 @@ Naming note for whoever builds it: `SaliencePolicy` is already taken by the tool
   recalled memory is gone.
 - 2026-10-28: checked again and not fired: R-087 is still open, so no compaction or self-editing
   feature asks for a salience decision.
+- 2026-11-27: checked again and not fired: R-087 is still open. The body named three skipped
+  writes in `record_exchange`, which now asks `memory_withheld` first; it names that function
+  and its six conditions.

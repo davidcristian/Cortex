@@ -4,7 +4,7 @@
 **Area:** scheduling
 **Origin:** [ADR-0066](../../adr/ADR-0066-reminder-toast-and-card.md)
 **Trigger:** a second consumer of toast interaction, such as snooze from the toast.
-**Verified:** 2026-10-28
+**Verified:** 2026-11-27
 
 Clicking a shown toast does nothing, while the overlay's reminder card offers "open the
 conversation this came from". Fixing that needs a change to the gRPC boundary: `NotifyRequest`
@@ -87,3 +87,6 @@ That code would be in `os_linux`, which the coverage run measures.
   the body mentions snooze.
 - 2026-10-28: checked again and not fired: `NotifyRequest` still has no `session_id`; the ticker's
   change since adds a late fire's due time to the toast title.
+- 2026-11-27: checked again and not fired: `NotifyRequest` still has no `session_id`, no commit
+  since 2026-10-28 touched either notify backend, `ticker.py` or `activation.ts`, and nothing
+  under `body/` or in the proto mentions snooze.

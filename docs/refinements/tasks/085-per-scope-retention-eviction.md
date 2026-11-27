@@ -3,10 +3,9 @@
 **Status:** open, waiting for a consumer
 **Area:** memory
 **Origin:** [ADR-0008](../../adr/ADR-0008-memory-v1.md)
-**Trigger:** R-087 adds a verb that expires or deletes some records of a scope, or a store's
-`memories` table reaches 20,000 rows (`SELECT count(*) FROM memories`), the smallest table the
-ranked recall readings measured search over.
-**Verified:** 2026-10-28
+**Trigger:** a store's `memories` table reaches 20,000 rows (`SELECT count(*) FROM memories`),
+the smallest table the ranked recall readings measured search over.
+**Verified:** 2026-11-27
 
 A policy that decides which memories to drop and when. The eviction verb exists; the policy and
 whatever would run it do not.
@@ -19,7 +18,9 @@ Per-provenance eviction ([R-074](074-per-provenance-eviction.md)) is a different
 needs a different filter: a memory record stores
 only the `tainted` flag, not the ADR-0027 structured provenance, so `delete_scope` does not serve
 it. The second removal, `delete_tainted(*, scopes)` (2026-10-14), selects by that flag alone, so
-it serves neither entry: it cannot pick rows by age or by rank.
+it serves neither entry: it cannot pick rows by age or by rank. The third removal,
+`delete_ids(ids)` (2026-10-28), deletes the rows it is given and keeps the rest of their scope,
+so a policy that has chosen rows by age or by rank can delete them.
 
 ## History
 
@@ -67,3 +68,7 @@ it serves neither entry: it cannot pick rows by age or by rank.
   selects by the tainted flag only.
 - 2026-10-28: checked again and not fired: R-087 is still open and adds no verb, and the ticker's
   changes since only word a late fire's due time.
+- 2026-11-27: corrected. The verb the trigger's first half waited for exists: `delete_ids`,
+  added on 2026-10-28 for the forget of chosen memories rather than by R-087, deletes some rows
+  of a scope and keeps the rest. The trigger now names the store size alone, which this check
+  did not read.

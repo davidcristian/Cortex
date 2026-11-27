@@ -3,7 +3,7 @@
 **Status:** open, waiting for a consumer
 **Area:** resource-governance
 **Origin:** [ADR-0010](../../adr/ADR-0010-subagents.md)
-**Verified:** 2026-10-28
+**Verified:** 2026-11-27
 **Trigger:** a request identity on the body/brain interface, meaning a request id on `UserTurn` or
 `ClientEvent` in `proto/body.proto` (`grep -ni request_id proto/body.proto` has no hit), which is
 what both the `Converse` reconnect entry (R-023) and the crashed-handoff resume entry (R-112) wait
@@ -82,3 +82,6 @@ task ids it spawned, and a new decision on the 3600 s record life.
   `SwapConductor._drain` still fails the handoff on a timeout.
 - 2026-10-28: checked again and not fired: the `request_id|idempotency` grep over the proto and the
   brain still finds nothing.
+- 2026-11-27: checked again and not fired: the `request_id|idempotency` grep over the proto and
+  the brain still finds nothing, and `get_result` is still defined only by the port, the fake
+  and the Redis adapter, with no caller.
