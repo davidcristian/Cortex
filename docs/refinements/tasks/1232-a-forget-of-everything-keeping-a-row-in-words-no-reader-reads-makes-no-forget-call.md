@@ -1,9 +1,8 @@
 # A forget of everything keeping a row in words no reader reads makes no forget call
 
-**Status:** open, actionable
+**Status:** done 2026-11-27
 **Area:** memory
 **Origin:** [ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md)
-**Verified:** 2026-11-26
 
 Drawn on the stack brain over four stored rows
 ([readings](../../readings/forget-everything-unread-role.md#drawn-after-the-card-changes-2026-11-15)):
@@ -45,3 +44,13 @@ message, and for the Romanian one a call naming `card` lists the card, since `to
   fresh start or a cleared context. The 3 rows asked to delete stayed stored in each draw, and
   the card too. The premise holds, so step 2 is the next step. Left open.
 - 2026-11-26: meets the bar of the freeze of the forget message readers ([ADR-0075](../../adr/ADR-0075-forget-chosen-memories.md) decision 7): it rests on 8 live draws of `Forget everything, my card stays.` and `Uită tot în afară de card.` on the stack brain, and its remedy is a note true on every turn it reaches, built on the readers as they stand.
+- 2026-11-27: done. `EVERY_KEPT_NOTE` (`forget_every_kept.py`) closes the reply when one word
+  after the word for all names a stored row in a role no reader reads and no forget of the turn
+  deleted a row. It says nothing was deleted and names a form built from the message's own words,
+  as `Forget everything but my card.`, in place of `UNFORGOTTEN_CLAIM_NOTE`,
+  `UNCALLED_FORGET_NOTE`, `REFUSED_HELD_NOTE` and `UNMATCHED_FORGET_NOTE`, so no note gives the
+  advice that repeats the turn. Through `ForgetChosenTool` the form keeps the card and deletes
+  each other row in English and French; in German, Spanish and Romanian it keeps every row, so
+  the note is written in English and French only
+  ([readings](../../readings/forget-everything-unread-forms.md#the-note-naming-a-form-the-card-reads-2026-11-27)).
+  A message whose unread words name two rows gets the older notes. No reader was widened.

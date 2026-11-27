@@ -14,6 +14,7 @@ from cortex_core.forget_claim import (
     UNFORGOTTEN_CLAIM_NOTES,
 )
 from cortex_core.forget_count_note import FORGOT_COUNT_NOTE, FORGOT_COUNT_NOTES
+from cortex_core.forget_every_kept import EVERY_KEPT_NOTE, EVERY_KEPT_NOTES
 from cortex_core.forget_inside import INSIDE_NOTE, INSIDE_NOTES
 from cortex_core.forget_kept_sentence import KEPT_CLAIM_NOTE, KEPT_CLAIM_NOTES
 from cortex_core.forget_longer import LONGER_NOTE, LONGER_NOTES
@@ -100,6 +101,7 @@ REPLY_NOTES: tuple[str, ...] = (
     *_forms(UNREAD_FOLDERS_NOTE, UNREAD_FOLDERS_NOTES),
     *_forms(HANDED_CLAIM_NOTE, HANDED_CLAIM_NOTES),
     *_forms(UNFORGOTTEN_CLAIM_NOTE, UNFORGOTTEN_CLAIM_NOTES),
+    *_forms(EVERY_KEPT_NOTE, EVERY_KEPT_NOTES),
     *_forms(FORGOT_COUNT_NOTE, FORGOT_COUNT_NOTES),
     *_forms(INSIDE_NOTE, INSIDE_NOTES),
     *_forms(LONGER_NOTE, LONGER_NOTES),
@@ -170,6 +172,7 @@ _NOTE_AT_END = _at_end(REPLY_NOTES)
 _CLAIM_AT_END = _at_end(
     (
         *_forms(UNFORGOTTEN_CLAIM_NOTE, UNFORGOTTEN_CLAIM_NOTES),
+        *_forms(EVERY_KEPT_NOTE, EVERY_KEPT_NOTES),
         *_forms(HANDED_CLAIM_NOTE, HANDED_CLAIM_NOTES),
     )
 )

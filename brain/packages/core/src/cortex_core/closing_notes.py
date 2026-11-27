@@ -23,6 +23,7 @@ from cortex_core.file_claim import (
 from cortex_core.file_claim_other import unread_folders_claim_other
 from cortex_core.forget_claim import names_removal, unforgotten_claim, unforgotten_note
 from cortex_core.forget_count_note import forgot_count_note, forgot_note_due
+from cortex_core.forget_every_kept import every_kept_due, every_kept_note
 from cortex_core.forget_inside import inside_note
 from cortex_core.forget_kept_sentence import kept_claim, kept_claim_note
 from cortex_core.forget_longer import longer_note
@@ -118,6 +119,10 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
     missed = unmatched_note_due(
         made, unmatched=taint.forget_unmatched, deleted=taint.forget_deleted
     )
+    # It says nothing was deleted and names a form the card reads, in place of asking again.
+    every_kept = every_kept_due(taint, made, runs)
+    unforgotten, uncalled = unforgotten and not every_kept, uncalled and not every_kept
+    refused_held, missed = refused_held and not every_kept, missed and not every_kept
     counted = forgot_note_due(taint.forget_deleted, reply) and not unfound
     held = numbers_left_claim(reply, left=taint.forget_numbers_left, counted=counted)
     unread = unread_folders_claim(taint, query, reply) or unread_folders_claim_other(
@@ -158,6 +163,7 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
     for due, note in (
         (unkept, said_in(UNKEPT_CLAIM_NOTE, UNKEPT_CLAIM_NOTES)),
         (stored, said_in(KEPT_BEYOND_CHAT_NOTE, KEPT_BEYOND_CHAT_NOTES)),
+        (every_kept, every_kept_note(taint.forget_every_kept, language)),
         (unforgotten, unforgotten_note(runs, language)),
         (uncalled, uncalled_note(runs, language)),
         (counted, forgot_count_note(taint.forget_deleted, language)),

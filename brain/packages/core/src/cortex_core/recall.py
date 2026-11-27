@@ -80,6 +80,11 @@ class MemoryRecaller:
         scopes = self._scope.read_scopes(session_id)
         return await self._store.find_value(value, limit=limit, scopes=scopes)
 
+    async def find_text(self, text: str, *, session_id: str, limit: int) -> Sequence[MemoryRecord]:
+        """The first ``limit`` memories the chat can recall whose text contains ``text``."""
+        scopes = self._scope.read_scopes(session_id)
+        return await self._store.find_text(text, limit=limit, scopes=scopes)
+
     async def nearest(self, query: str, *, session_id: str, limit: int) -> Sequence[MemoryRecord]:
         """The ``limit`` memories nearest ``query`` that the chat can recall, unranked."""
         embedding = await self._embedder.embed(embedding_input(query), role=EmbedRole.QUERY)

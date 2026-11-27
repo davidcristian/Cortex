@@ -160,6 +160,7 @@ def test_the_recaller_deletes_only_a_memory_it_was_handed_so_no_turn_can_choose_
         "recall",
         "nearest",
         "discard",
+        "find_text",
         "find_value",
         "recalls_across_chats",
     }

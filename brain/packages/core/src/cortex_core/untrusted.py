@@ -145,6 +145,9 @@ class TaintLedger:
     # whole value one of them names.
     forget_refused_texts: tuple[str, ...] = ()
     forget_refused_held: bool = False
+    # The forget of everything the card reads that keeps the one stored row a forget of everything
+    # in this message keeps in words no reader reads, else empty.
+    forget_every_kept: str = ""
     # Whether the person pressed Deny on a ``forget_memories`` card, so its rows are kept.
     forget_declined: bool = False
     # Whether the last delete by ``forget_memories`` left rows holding a number a row it or an

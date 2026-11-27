@@ -1,6 +1,7 @@
 """Close a reply on a turn that refused a forget call naming a value a stored row still holds."""
 
 from cortex_core.errors import MemoryStoreError
+from cortex_core.forget_every_kept import hold_every_kept
 from cortex_core.memory_old_value import hold_old_value
 from cortex_core.memory_values import short_groups, whole_values
 from cortex_core.turn_context import TurnCapabilities
@@ -58,3 +59,4 @@ async def hold_stored_values(
     """Record the values stored rows still hold that the closing notes name or point to."""
     await hold_old_value(caps, taint, query=query, reply=reply, session_id=session_id)
     await hold_refused_value(caps, taint, session_id=session_id)
+    await hold_every_kept(caps, taint, query=query, session_id=session_id)

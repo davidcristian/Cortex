@@ -1,11 +1,12 @@
 # Readings: a forget of everything in a form the card does not read as one
 
 How the forget card treats a message that asks to forget every row and to keep one, in a form
-that `everything` (`forget_permit.py`) does not read: no clause mark before the kept row, no
+that `everything` (`forget_every.py`) does not read: no clause mark before the kept row, no
 forget verb, or a word for all that no cell of the table of forms (`forget_forms.py`) holds. The
 decision is [ADR-0075](../adr/ADR-0075-forget-chosen-memories.md)'s. The forms the card does read
 are in [forget-everything-unread-role.md](forget-everything-unread-role.md). The last
-section counts what the model does with two such messages on the stack.
+sections count what the model does with two such messages on the stack and what the card does
+with the form the note on such a turn names.
 
 ## The generated family, 2026-11-24
 
@@ -212,3 +213,25 @@ The 2 still listed are `Forget the lot the card
 stays.` for both call texts: `lot` is no word for all, so `everything` reads no forget of
 everything there. A head in a clause after another forget clause is read the same way
 ([readings](forget-form-cells.md#a-head-after-another-forget-clause-2026-11-26)).
+
+## The note naming a form the card reads, 2026-11-27
+
+`EVERY_KEPT_NOTE` (`forget_every_kept.py`) names a forget of everything built from the message's
+own words, as `Forget everything but my card.` for `Forget everything, my card stays.`. Run
+through `ForgetChosenTool` on the tree of this date over three rows in each language (a card, a
+phone and a locker code, each holding `4242`), one call per text, the rows each form deletes:
+
+| Language | Form | Card text | Locker text | Phone text | `4242` | Word for all |
+| --- | --- | --- | --- | --- | --- | --- |
+| English | `Forget everything but my card.` | none | locker | phone | locker | none |
+| French | `Oublie tout sauf ma carte.` | none | locker | phone | locker | none |
+| German | `Vergiss alles außer meiner Karte.` | none | none | none | none | none |
+| Spanish | `Olvida todo excepto mi tarjeta.` | none | none | none | none | none |
+| Romanian | `Uită totul în afară de cardul meu.` | none | none | none | none | none |
+
+No form deletes the card. In English and French each other row is deleted by a text naming it,
+so the note is written in those two languages only. In the other three the card keeps every row,
+and `everything` reads none of `Vergiss alles, meine Karte bleibt.`, `Olvida todo, mi tarjeta se
+queda.` or `Uită tot în afară de card.`, so the note never reaches them. The tests in
+`test_forget_every_kept.py` run the same rows and texts, and fail when a language left out starts
+to delete a row under its form.

@@ -10,7 +10,6 @@ from cortex_core.forget_clauses import (
     EVERY,
     FORGET,
     LIMIT,
-    NOT,
     WHICH,
     WHOSE,
     beside,
@@ -19,7 +18,8 @@ from cortex_core.forget_clauses import (
     kept_again,
     parts,
 )
-from cortex_core.forget_inside import bounded, content, may_keep, request
+from cortex_core.forget_every import everything, store_named, unread_after_every
+from cortex_core.forget_inside import bounded, may_keep, request
 from cortex_core.forget_keep_named import forget_named, forget_words
 from cortex_core.forget_kinds import MINUS, extends, grows, names, prefixes, shorter, verbed
 from cortex_core.forget_only import ONLY, alone
@@ -154,22 +154,6 @@ async def permitted(
     return frozenset(ids)
 
 
-def everything(query: str) -> tuple[int, int] | None:
-    """The clause of ``query`` and the place in it of the first word for all after a forget verb,
-    with no negation before it, no value after it in the clause and no topic word next, unless
-    that word ends the clause."""
-    for index, clause in enumerate(clauses(query)):
-        verb = next((at for at, token in enumerate(clause) if FORGET.fullmatch(token)), None)
-        for at, token in enumerate(clause):
-            rest = clause[at + 1 :]
-            plain = verb is not None and verb < at and NOT.isdisjoint(clause[:at])
-            valued = any(char.isdigit() for char in "".join(rest))
-            topic = len(rest) > 1 and not TOPIC.isdisjoint(rest[:1])
-            if plain and token in EVERY and not valued and not topic:
-                return index, at
-    return None
-
-
 def _apart(call: ToolCall) -> bool:
     """Whether a message that is no forget of ``everything`` holds a digit and shares no whole
     value with a call text holding one, or holds a whole value beside a text holding none."""
@@ -184,15 +168,13 @@ def _apart(call: ToolCall) -> bool:
 async def _store_named(
     store: MemoryStore, scope: MemoryScope, call: ToolCall, seen: Sequence[MemoryRecord]
 ) -> tuple[dict[str, set[str]], frozenset[str]]:
-    """The ids of the rows, of ``seen`` or stored, each word of the call's message names, and the
-    words that name one, with each code word of the message."""
-    query, scopes = call.stamp.query, scope.read_scopes(call.stamp.session_id)
-    rows: dict[str, set[str]] = {}
-    for word in sorted(content(query)):
-        found = await store.find_text(word, limit=FORGET_CHOSEN_LIMIT + 1, scopes=scopes)
-        rows[word] = {row.id for row in (*seen, *found) if names({word}, request(row))}
-    codes = {word for clause in clauses(query) for word in clause if code_word(word)}
-    return rows, frozenset({word for word, ids in rows.items() if ids} | codes)
+    """The rows ``store_named`` reads for the call's message, found in the call's scopes."""
+    scopes = scope.read_scopes(call.stamp.session_id)
+
+    async def find(word: str) -> Sequence[MemoryRecord]:
+        return await store.find_text(word, limit=FORGET_CHOSEN_LIMIT + 1, scopes=scopes)
+
+    return await store_named(call.stamp.query, find, seen)
 
 
 async def _beyond_every(
@@ -205,12 +187,7 @@ async def _beyond_every(
     if place is None:
         return None
     rows, named = await _store_named(store, scope, call, seen)
-    split, (index, at) = clauses(query), place
-    every = split[index][at]
-    # Words opening as a limit does, as in "all my card numbers", are left to the limit readers.
-    if not (WHOSE | _PLACE | named).isdisjoint(split[index][at + 1 : at + 2]):
-        split[index] = split[index][: at + 1]
-    unread = kept_again(", ".join(" ".join(clause) for clause in split), every, named)
+    every, unread = unread_after_every(query, place, named)
     if not unread:
         return None
     limit = beside(query, every, named, MINUS)[LIMIT]

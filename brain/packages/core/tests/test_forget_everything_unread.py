@@ -10,7 +10,7 @@ from cortex_core import (
     MemoryRecord,
     ToolCall,
 )
-from cortex_core.forget_permit import everything
+from cortex_core.forget_every import everything
 from cortex_core.forget_unnamed import KEPT_ALL
 from cortex_core.tools import TurnStamp
 
