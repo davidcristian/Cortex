@@ -123,6 +123,28 @@ MRR 1.000 in every answerable category with the gold first on all 22, `ABSENT` r
 of 4, no fallback. The unchanged judge drew the same column in the same session. C3 is the judge's
 prompt from this date. Logs and notes: `~/.cache/cortex-run/2026-11-27/s2/`.
 
+**2026-11-27, C3 on the deep model.** Both tests against Qwen3.8-27B (`UD-Q4_K_M`), the deep pick,
+alone on the card, counted by the measure of the 2026-09-28 reading. The model host started it on
+compose defaults; the argv read off the container: that file, context 16,384, `--parallel 1`,
+`--cache-ram 0`, the `q8_0` cache type, no drafter, no reasoning flag, on engine build b12375.
+Each rank request sends thinking off, and the server log shows each of the 46 decoding 6 to 32
+tokens. The rule, written before the draw: C3 reads apart from 24 of 26 at 20 or fewer
+(two-sided Fisher, p below 0.05). Against 24 of 26 the p falls below 0.05 only at 17 or fewer, so
+the two halves disagree from 18 to 20. Predictions are in parentheses.
+
+| reading | old prompt, 2026-09-28 | C3 |
+| --- | --- | --- |
+| judge correct, of 26 | 24 | 24 (25, 22 to 26) |
+| gold first of 22; `ABSENT` returned nothing of 4 | 22; 2 | 22; 2 |
+| fell back, of 26 | 0 | 0 |
+| exchanges: the asked note held, of 20 | not drawn | 19 (16, 8 to 20) |
+
+C3 does not read apart (p 1.0) and holds the code note in 19 of 20 draws (first in 19, one empty
+order), so on the deep tier it keeps the old count and passes the case. The parking permit
+question missed under both prompts; the car insurance one under the old, the airline one under C3,
+which returned the two flight notes. The 2026-09-28 column ran at context 8,192 on another image.
+Logs and notes: `~/.cache/cortex-run/2026-11-27/s3/`.
+
 ## Whole turns, judge against raw
 
 **2026-08-09.** Three blocks in A/B/A order (`raw`, `judge`, `raw`) through `just turn-cost`: six
