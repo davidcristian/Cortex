@@ -10,7 +10,7 @@ through each formatter twice, as a field and as a message, and through `durable_
 both trail files apply, which is six results and not one. The history below records what the shipped URLs
 and each form answered when that was last run.
 **Origin:** [ADR-0051](../../adr/ADR-0051-log-line-rendering.md)
-**Verified:** 2026-11-10
+**Verified:** 2026-11-27
 
 `_USERINFO` is `(?<=://)[^/\s@]*@`, and it does not match three kinds of credential:
 
@@ -115,3 +115,5 @@ line.
   only compose URL with a credential.
 - 2026-11-10: checked again and not fired: `_USERINFO` has no change since 2026-10-25, and the
   memory DSN is still the only compose URL with a credential.
+- 2026-11-27: checked again and not fired: `_USERINFO` in `log_fields.py` has no commit since
+  2026-11-10, and the memory DSN is still the only compose URL with a credential.

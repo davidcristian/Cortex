@@ -11,7 +11,7 @@ patch releases with no commit, so the middle part is read by comparing a rebuilt
 connection and comes back as `SearchRefusedError`, sending a model to rewrite a query that was never
 the problem.
 **Origin:** [ADR-0056](../../adr/ADR-0056-email-reader-answers.md)
-**Verified:** 2026-11-10
+**Verified:** 2026-11-27
 
 `_search_failure` in `brain/packages/email/src/cortex_email/imap.py` reads the type of what imaplib
 raised. A plain `IMAP4.error` is the server refusing to parse the query, which crosses the port as
@@ -84,3 +84,6 @@ published port and a second address for `just email-folder-probe` to find.
 - 2026-11-10: not fired, with one reading moved: the brain image now runs Python 3.12.16, and its
   `imaplib.py` is identical to the 3.12.15 copy in the cached `cortex-brain` image. imap-tools is
   still 1.13.0.
+- 2026-11-27: checked again and not fired: `brain/Dockerfile` still starts from
+  `python:3.12-slim-trixie`, whose amd64 image on the registry still sets `PYTHON_VERSION=3.12.16`,
+  and imap-tools is still 1.13.0 in `brain/uv.lock`.

@@ -13,7 +13,7 @@ runbook sentence can wrap the variable and its file onto two lines; and count th
 aliased to a `CORTEX_MODEL_FILE_SUBAGENT` variable. Neither half reads a host's shell or `.env`,
 where a deployment would really write the second file.
 **Origin:** [ADR-0018](../../adr/ADR-0018-heterogeneous-subagents.md)
-**Verified:** 2026-11-10
+**Verified:** 2026-11-27
 
 `_entry_profile` in `cortex_orchestrator.subagent_builders` gives the default entry two backends,
 one per `PlacementTarget`, over `CORTEX_SUBAGENTS_GPU_ENDPOINT` and `CORTEX_SUBAGENTS_ENDPOINT`.
@@ -103,3 +103,9 @@ stored.
 - 2026-11-10: checked again and not fired: the shipped files name the same gemma-4-E4B file under
   both variables, the GPU variable defaulting to empty in `docker-compose.gpu.yml`, and
   `subagent_gpu_file` is still the only field aliased to a subagent file variable.
+- 2026-11-27: checked again and not fired: the CPU server's default, the wrapped sentence in
+  `docs/runbooks/subagents-cpu.md` and the validation runbook all name
+  `unsloth/gemma-4-E4B-it-qat-GGUF/gemma-4-E4B-it-qat-UD-Q4_K_XL.gguf`, and the GPU variable still
+  defaults to empty. The hosted tier now starts `CORTEX_SUBAGENTS_GPU_SERVERS` servers of that one
+  file, which is not a second pick, and the new `subagent_gpu_draft_file` field names a drafter
+  rather than a tier's artifact.

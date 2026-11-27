@@ -6,7 +6,7 @@
 names another format than its bytes; llama.cpp build 10680 reads all four such pairs tried by
 their bytes.
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-11-10
+**Verified:** 2026-11-27
 
 `blocks.py` builds an `ImagePart` from two values it reads independently: the mime type the MCP
 block declares, which is checked only against the core's `ALLOWED_MIME_TYPES`, and the size, which
@@ -83,3 +83,7 @@ that a newer engine build needs the four pairs tried again.
 - 2026-11-10: checked again and not fired: `_image_part` still types from the declared MIME type,
   and the model host is still built on the cached `server-cuda` image of build 10680, though the
   registry tag now names build 12242.
+- 2026-11-27: checked again and not fired: `_image_part` in `cortex_tools/blocks.py` still types
+  from the declared MIME type, and no record names a refused or misread picture. The four pairs were
+  tried on build 10680 only, and the model host's engine is now build 12375; trying them there
+  needs the cortex tier on the card.

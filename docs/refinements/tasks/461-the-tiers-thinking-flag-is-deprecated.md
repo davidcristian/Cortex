@@ -10,7 +10,7 @@ which `:server-cuda` names too. Neither image is in the tree. To decide it, read
 run its `llama-server` with the pair against a missing model file under `docker run --network none`:
 it has not fired while the first error is the missing model. On 2026-11-10 both tags name build
 12242.
-**Verified:** 2026-11-10
+**Verified:** 2026-11-27
 
 `ghcr.io/ggml-org/llama.cpp:server` prints this on every subagent boot:
 
@@ -94,3 +94,7 @@ subagents-cpu and injection-probes runbooks, and the brain-inference-live module
   and removed after, starts `llama-server` with the pair under `--network none`, prints the
   deprecation warning and fails first on the missing model file. The pair is now listed in
   `scripts/subagentflags.py`.
+- 2026-11-27: not fired. Both tags' amd64 labels now name build 12808. That image, pulled by digest
+  under an empty client config and removed after, starts `llama-server` with the pair under
+  `--network none`, prints the deprecation warning and fails first on the missing model file, and
+  its `--help` still lists `--chat-template-kwargs`, `--reasoning` and `--reasoning-budget`.

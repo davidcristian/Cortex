@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** subagents
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-11-10
+**Verified:** 2026-11-27
 **Trigger:** a deployment that names a `CORTEX_MODEL_FILE_SUBAGENT` or
 `CORTEX_MODEL_FILE_SUBAGENT_QWEN` artifact larger than about 5.6 GB, or that raises
 `CORTEX_SUBAGENTS_MAX_TOKENS` or `CORTEX_SUBAGENT_CTX_SIZE` above their shipped defaults, on a
@@ -65,3 +65,8 @@ deployment rather than shipped, which is the memory-cap change's to revise.
   servers' shipped default of 8192, and neither file variable nor the token cap moved.
 - 2026-11-10: checked again and not fired: the compose changes since 2026-10-28 touched none of the
   four variables; the memory cap still defaults to 8 and the context to 8192.
+- 2026-11-27: checked again and not fired: the compose changes since 2026-11-10 touched none of the
+  four variables but the two file defaults, which moved on 2026-11-16 to smaller files: the
+  gemma-4-E4B pick is now 4,215,695,776 bytes and the Qwen alternate 1,329,851,808. The cgroup
+  reading above was drawn on the earlier file, and redrawing it is a line of
+  [R-1238](1238-the-lineups-readings-were-drawn-on-files-the-mount-no-longer-holds.md).

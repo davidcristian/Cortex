@@ -7,7 +7,7 @@
 vector, which no service here does today. That is countable by reading the command of every
 service the compose files start and listing the flags it uses
 **Origin:** [ADR-0043](../../adr/ADR-0043-subagent-server-flags.md)
-**Verified:** 2026-11-10
+**Verified:** 2026-11-27
 
 `artifactnames.spends` reads the item after either entry of `ARTIFACT_FLAGS`, which names `--model`
 and `--mmproj`. Those are the two file flags every server this tree starts uses, and llama.cpp
@@ -61,3 +61,6 @@ whatever flag precedes it, which needs a name for which mount is the models moun
 - 2026-11-10: checked again and not fired: `ARTIFACT_FLAGS` is unchanged, and the one
   `--model-draft` in the compose files is a comment on `CORTEX_MODEL_FILE_BRAIN_DRAFT`, which the
   model host turns into the flag; no service command uses it.
+- 2026-11-27: checked again and not fired: `ARTIFACT_FLAGS` is unchanged, and no service command in
+  the compose files names `--model-draft`, `--lora` or a control vector. The drafters added since
+  2026-11-10 are flags the model host builds from its own settings, which is the hosted side.

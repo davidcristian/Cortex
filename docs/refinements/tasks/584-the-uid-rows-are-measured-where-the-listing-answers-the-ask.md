@@ -1,14 +1,9 @@
 # The uid rows are measured where the listing already answers the request
 
-**Status:** open, waiting for its trigger
+**Status:** open, actionable
 **Area:** email
 **Origin:** [ADR-0056](../../adr/ADR-0056-email-reader-answers.md)
-**Verified:** 2026-11-10
-**Trigger:** `UID_HELP` or `NOT_FOUND` in `brain/packages/email/src/cortex_email/values.py` is
-reworded, the shipped cortex pick changes (`DEFAULT_CORTEX_FILE` in
-`brain/packages/model_manager/src/cortex_model_manager/config.py`), or a second run of
-`test_uid_reading_live.py` happens. Each is a moment the 2026-09-06 counts are read as evidence
-about what ships; the first two are read with `git log` on those two files.
+**Verified:** 2026-11-27
 
 Two limits on the 2026-09-06 session, both in the harness rather than in the finding. The user's
 request names the subject of one listing line almost word for word, "her message about the
@@ -70,3 +65,9 @@ search.
   cortex file default is unchanged.
 - 2026-11-10: checked again and not fired: neither `values.py` nor the model host's `config.py` has
   a commit since 2026-10-25, and no second live run is recorded.
+- 2026-11-27: the trigger fired. `DEFAULT_CORTEX_FILE` moved on 2026-11-16 from
+  `google/gemma-4-12B-it-qat-q4_0-gguf/gemma-4-12b-it-qat-q4_0.gguf` to
+  `unsloth/gemma-4-12B-it-qat-GGUF/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf`, whose chat template differs
+  ([R-1238](1238-the-lineups-readings-were-drawn-on-files-the-mount-no-longer-holds.md)), so the
+  2026-09-06 counts describe a file that no longer ships. `UID_HELP` and `NOT_FOUND` are unchanged,
+  and no second live run is recorded. The work is a count slot on the cortex tier and draws no rate.

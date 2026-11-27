@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** subagents
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-11-10
+**Verified:** 2026-11-27
 **Trigger:** a delegated run on the CPU server ended by the stall ceiling or the run deadline
 while a peer queues behind it, a spawn refused at the admission wait, or any retune of `CORTEX_SUBAGENTS_STALL_TIMEOUT_S`, `CORTEX_SUBAGENTS_RUN_TIMEOUT_S` or
 `CORTEX_SUBAGENTS_ADMISSION_WAIT_S`.
@@ -93,3 +93,5 @@ from them by the rules [ADR-0048](../../adr/ADR-0048-generation-bounds.md) wrote
   since size a loop's result room and stop re-running a request the server refused.
 - 2026-11-10: checked again and not fired: none of the three settings has a compose value or a
   changed default, and no record since 2026-10-28 names a run ended by a ceiling or a refused spawn.
+- 2026-11-27: checked again and not fired: none of the three settings has a compose value or a
+  changed default, and no record since 2026-11-10 names a run ended by a ceiling or a refused spawn.
