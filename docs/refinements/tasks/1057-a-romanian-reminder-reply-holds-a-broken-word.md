@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-11-25
+**Verified:** 2026-11-27
 
 One live turn of `Amintește-mi la ora 18 să scot gunoiul pentru colectarea de luni.` on the stack
 cortex (gemma-4-12B, text only) replied `Am programat unKy memore pentru astăzi, la ora 18:00`,
@@ -30,11 +30,23 @@ those rows drawn before a tier's sampler moves.
 
 ## What to do
 
-1. Write a rule for a typed check of a reminder's `text` against the words of the person's
-   message, with near-miss rows first: `Scot`, `Scoate`, `Să scot`, `Sună`, `Suna` and
-   `Plătește` are right, `Scote` and `Scoat` are not. Replay every item recorded on 2026-11-23 and
-   2026-11-25 through it before any draw, counting items flagged that are right.
-2. Leave the sampler as the file sets it unless a later row on another form calls for one.
+1. **The item.** A typed check of the item's `text` against the words of the person's message, by
+   the rule written first in
+   [the readings](../../readings/cortex-sampling-broken-words.md#a-typed-check-of-the-item-replayed-2026-11-27),
+   flags all 18 broken items of the 167 recorded and 1 right one, the second person `Să scoți`, so
+   it is not built. A rule that passes it reads every person and mood of the message's verb, which
+   is a conjugation reader for each language. Write that rule with `Să scoți` among its near-miss
+   rows and count it on items drawn after it is written, since a replay of the items it was
+   written from shows nothing.
+2. **The reply**, which is this task's defect. A check of the item reaches a reply only when the
+   reply quotes the item, 8 of the 20 recorded replies with a word that is not Romanian, and only
+   when the check runs before the reply is written. The other 14 hold the cortex's own word for a
+   reminder, which neither the item nor the message holds, so no check against the message's
+   words reaches them. A search for a letter outside the alphabet of the message's language finds
+   6 of the 168 recorded replies, all among those 14, and no right reply; the other 8 are written
+   in Romanian letters, as is the first draw's `unKy memore`. Write a rule for that letter check,
+   tested over true sentences generated in five languages, before building a note on it.
+3. Leave the sampler as the file sets it unless a later row on another form calls for one.
 
 ## History
 
@@ -45,3 +57,7 @@ those rows drawn before a tier's sampler moves.
 - 2026-11-25: drew the 24 messages twice at the server's settings, at temperature 0.5 and at
   `min_p` 0.2. No setting passed the rule; the broken items are one M1 form that no setting
   removed, so the next step is a typed check of the item text.
+- 2026-11-27: replayed the 167 recorded items through a typed check of the item written first: it
+  flags all 18 broken items and the right `Să scoți`, so it is not built. A check of the item
+  reaches 8 of the 20 broken replies, the ones quoting it, so step 2 now names the reply's own
+  remedy.

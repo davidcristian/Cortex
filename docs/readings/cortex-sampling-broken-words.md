@@ -108,3 +108,37 @@ Method: `all.sh`, `draw1057.sh` and the proxy in `proxy/` draw; `count1057.py <c
 cell, and the hand reading of every draw is `logs/hand1057.md`; all in
 `~/.cache/cortex-run/2026-11-25/s1/`, with the rows in `logs/r1057-<cell>.jsonl` and the items in
 `logs/r1057-<cell>-items.txt`. The project was removed after the draws.
+
+## A typed check of the item, replayed 2026-11-27
+
+The rule, written before the replay. Fold case and the Romanian diacritics (`ă` and `â` to `a`,
+`î` to `i`, `ș` to `s`, `ț` to `t`). An item word passes when it equals a word of the message, or
+when it is the third person singular or the imperative of a first person singular verb of the
+message: `-esc` becomes `-este`, `-ez` becomes `-eaza`, and a stem ending in a consonant takes `-a`
+or `-e`, its last vowel `o` becoming `oa` (`scot` to `scoate`). An item is flagged when one of its
+words does not pass. The near misses read as written: `Scot`, `Scoate`, `Să scot`, `Sună`, `Suna`
+and `Plătește` pass, `Scote` and `Scoat` are flagged. The check is built only when no right item
+is flagged.
+
+The replay covers all 167 items stored by the draws above and those of 2026-11-23: 24 from
+2026-11-23 and 143 from 2026-11-25, where one draw asked a question and stored none.
+
+| item text | items | flagged | right |
+| --- | --- | --- | --- |
+| `Scote gunoiul pentru colectarea de luni` | 17 | yes | no |
+| `Scoat gunoiul pentru colectarea de luni` | 1 | yes | no |
+| `Să scoți gunoiul pentru colectarea de luni` | 1 | yes | yes |
+| the other 12 texts | 148 | no | yes |
+
+The rule flags all 18 broken items and 1 right one: `Să scoți` (that you take out), a second
+person form, from the base cell's fourth M1 draw on 2026-11-25. So the check is not built.
+
+The replies, counted over the same 168 draws: 20 hold a word that is not Romanian, 8 on 2026-11-23
+and 12 on 2026-11-25. 8 of them quote the item's `Scote` or `Scoat`, and 6 of those 8 hold no
+other such word. The other 14 hold the cortex's own word for a reminder (`hatırlatıcı`,
+`amânterea`, `o reaminte`), which neither the item nor the message holds. A search for a letter
+outside the Romanian alphabet finds 6 of the 168 replies, all among those 14, and no right reply;
+the other 8 are written in Romanian letters.
+
+Method: `items.py` reads the items, `check.py` replays the rule, and `replies.py` and `letters.py`
+count the replies, with their logs, in `~/.cache/cortex-run/2026-11-27/c5/`.
