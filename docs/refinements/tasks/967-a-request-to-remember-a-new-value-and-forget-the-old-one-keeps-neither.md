@@ -92,3 +92,8 @@ turn holds, and the person is the one reader who knows which value is old.
   request to remember that opens them, with the forms of step 1 and eight near misses that keep
   their words as tests, each check of the rule shown to fail by a mutation. Step 2 waits on the
   user's pick of the card's name, so the status now names that pick as its trigger.
+- 2026-11-27: replayed `words_to_keep` before and after the rule of step 1 over 3,784 generated
+  English messages with a retraction. No card that held a fact before is gone, 521 cards of a
+  request alone are gone, and 54 remain, for the request forms `REMEMBER` does not read: `Note`
+  with nothing after it and `Write it down`. A French, German, Spanish or Romanian message gets
+  no card before or after, since the retraction is read in English only.

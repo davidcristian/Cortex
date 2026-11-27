@@ -48,3 +48,30 @@ place of the English one; Portuguese is none of the five languages. The one chan
 recorded reply, the Spanish exchange, now matches its reply's language, so the rule of the first
 replay (no message given a language other than its reply's) still passes. In the unit tests
 `Fiesta mañana at 9` moved from English to Spanish.
+
+## The live draw, 2026-11-27
+
+The brain built from the tree with the change, project `cortexn32`, the model host on compose
+defaults (the argv read off the container: `gemma-4-12B-it-qat-UD-Q4_K_XL.gguf`, context 16,384,
+the default cache type, the MTP drafter at a draft length of 3, no reasoning flag, build b12375).
+Each label seeds one old row from its own new chat, put back before every draw; each draw is one
+turn in a new chat, every card approved. All three messages tie under `forget_language`.
+
+**The rule, written before the first launch.** It passes when every closing note of every draw is
+in the message's language and the seeded row is present and unchanged after every draw. No
+closing note on any draw is a null result for the language half.
+
+| label | seed | message | draws with a note | notes in the message's language | seeded row unchanged |
+| --- | --- | --- | --- | --- | --- |
+| q1 | `Retiens que mon code est 5528.` | `Retiens que ce code est périmé.` | 2 of 8 | 2 of 2 | 8 of 8 |
+| q2 | the same | `Retiens que ce numéro est faux.` | 0 of 8 | none | 8 of 8 |
+| q3 | `Ține minte că codul meu este 5528.` | `Reține că am schimbat codul.` | 0 of 8 | none | 8 of 8 |
+
+The rule passes, and its language half rests on q1 alone: both notes are the French
+`REFUSED_HELD_NOTES` text, after a forget call naming `5528` that `FORGET_UNREQUESTED` refused.
+No draw showed a card. On q2, 4 of 8 draws made the same call and `FORGET_UNSAID` refused it, a
+refusal the note does not cover, so those replies say the number was noted as wrong while the
+row still holds it
+([R-1379](../refinements/tasks/1379-a-forget-call-refused-for-words-a-request-to-remember-lacks-gets-no-held-note.md)).
+On q3 the cortex made no forget call and asked for the new code. Logs and notes:
+`~/.cache/cortex-run/2026-11-27/a2/`.
