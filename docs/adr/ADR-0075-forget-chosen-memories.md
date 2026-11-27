@@ -146,13 +146,13 @@ that removes exactly those rows and holds against a turn in flight. This record 
    `asks_not_kept`. The cortex calls the tool with the fact as the text on about one request to
    remember in four, and that turn has nothing to forget
    ([readings](../readings/forget-no-match-on-remember.md)). A forget request naming a value
-   never stored matches nothing too, which is why the message decides. The tool sets
+   never stored matches nothing too, which is why the message decides. Two more turns are recorded when the message read alone asks to forget nothing and asks no question (`opened_earlier`, `forget_opened_earlier.py`: `forget_unrequested` refuses the tool on it, so only an earlier exchange opened the forget, and a question such as `What about my PIN 4821?` can ask to forget the value it names): one whose every call matched nothing, and one whose runs all succeeded, kept no row and deleted rows the turn knows, each holding a whole value that neither the message nor the reply holds and no word that can name a fact beyond the message's own, while the reply says it noted the message, since after a forget asked in other words the statement of the new value was not stored in 12 of 24 draws ([readings](../readings/forget-open-from-earlier-turns.md#a-forget-in-other-words-then-a-new-value-2026-11-27)). The tool sets
    `ToolResult.matched_nothing` on that run, and `TaintLedger` counts the calls named
    (`forget_calls`, an unreadable one included) and the runs that matched nothing
    (`forget_unmatched`). The handoff record keeps both counts, so a deep phase reads the cortex's
    calls the same way. So every result a call to it gets ends with
    `FORGET_NOT_KEPT_NOTE`, whether the call ran or was declined, expired or refused other than by
-   that reader: nothing in
+   that reader, except a call that matched nothing on a message `opened_earlier` reads (`keeps_unmatched`), whose turn is recorded: nothing in
    the message is kept, the reply must not say anything in it was noted, and anything else it
    asked to be remembered must be sent again in its own message, because a model given no note
    told the person a new fact in the same message was kept. The tool is a `ResultNote`, and the

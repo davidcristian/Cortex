@@ -147,11 +147,12 @@ across turns (a recalled memory).
    person to forget them again. The handoff record does not keep `forgotten`, since a
    recall-tainted turn cannot escalate: `escalate_to_brain` has no record card.
 10. **A reply that says something was noted on a turn memory does not store ends with a note.**
-   One check, `memory_withheld(caps, taint, runs, *, query)` (`memory_claim.py`), says whether
+   One check, `memory_withheld(caps, taint, runs, *, query, reply)` (`memory_claim.py`), says whether
    memory is on and stores nothing of a turn: an opaque turn (decision 6), a tainted turn whose
    `forget_untrusted_memories` ran (decision 9), a turn that named `forget_memories`, unless
-   every call matched nothing on a request to remember, or whose message asks not to keep
-   something ([ADR-0075](ADR-0075-forget-chosen-memories.md)), a
+   every call matched nothing on a request to remember or the forget of a message asking no
+   question was opened only by an earlier exchange and the turn restates nothing it deleted, or
+   whose message asks not to keep something ([ADR-0075](ADR-0075-forget-chosen-memories.md)), a
    tainted turn under `skip` (decision 3), and an untainted turn whose message asks about files
    or folders (`asks_files`, `file_request.py`) and does not ask to remember. Such a turn read
    no tool output, so its reply names folders the cortex wrote itself, and a stored row would

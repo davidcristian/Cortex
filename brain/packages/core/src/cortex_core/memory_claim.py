@@ -6,13 +6,14 @@ from collections.abc import Sequence
 from cortex_core.conversation import ToolRun
 from cortex_core.fact_request import stores_fact
 from cortex_core.file_request import asks_files
+from cortex_core.forget_opened_earlier import opened_earlier
 from cortex_core.forget_unnamed import row_words
 from cortex_core.memory_claim_other import claims_kept_other, keeps_held, names_spared_other
 from cortex_core.memory_claim_update import claims_updated
 from cortex_core.memory_forget import FORGET_UNTRUSTED_TOOL_NAME
 from cortex_core.memory_forget_chosen import FORGET_CHOSEN_TOOL_NAME
 from cortex_core.memory_request import asks_kept, asks_not_kept
-from cortex_core.memory_values import digit_runs
+from cortex_core.memory_values import digit_runs, joined, whole_values
 from cortex_core.turn_context import TurnCapabilities
 from cortex_core.untrusted import TaintLedger
 
@@ -190,8 +191,46 @@ def _unmatched_keep(taint: TaintLedger, forgets: int, query: str) -> bool:
     return 0 < forgets == taint.forget_unmatched == taint.forget_calls and asks_kept(query)
 
 
+def _restates_nothing(taint: TaintLedger, runs: Sequence[ToolRun], query: str, reply: str) -> bool:
+    """Whether the deleted rows hold only the message's words and values it names none of."""
+    gone = taint.forget_gone
+    if (
+        not taint.forget_deleted
+        or len(gone) < taint.forget_deleted
+        or taint.forget_declined
+        or taint.forget_spared
+        or not all(run.ok for run in runs if run.name == FORGET_CHOSEN_TOOL_NAME)
+    ):
+        return False
+    said = joined(f"{query} {reply}")
+    values = [whole_values(text) for text in gone]
+    words = {word for text in gone for word in _named(text)}
+    return (
+        all(values)
+        and not any(key in said for held in values for key in held)
+        and words <= _named(query)
+        and claims_kept(reply)
+    )
+
+
+def _forget_storable(
+    taint: TaintLedger, runs: Sequence[ToolRun], forgets: int, query: str, reply: str
+) -> bool:
+    """Whether a turn opened to forget only by an earlier exchange keeps nothing it deleted."""
+    if not forgets or not opened_earlier(query):
+        return False
+    return forgets == taint.forget_unmatched == taint.forget_calls or _restates_nothing(
+        taint, runs, query, reply
+    )
+
+
 def memory_withheld(
-    caps: TurnCapabilities, taint: TaintLedger, runs: Sequence[ToolRun], *, query: str
+    caps: TurnCapabilities,
+    taint: TaintLedger,
+    runs: Sequence[ToolRun],
+    *,
+    query: str,
+    reply: str = "",
 ) -> bool:
     """Whether memory is on and stores nothing of a turn that asked ``query`` and made ``runs``."""
     if caps.memory is None:
@@ -205,7 +244,10 @@ def memory_withheld(
         return True
     # A turn that asked to forget a text may name that text in its query or reply.
     forgets = sum(run.name == FORGET_CHOSEN_TOOL_NAME for run in runs)
-    if (taint.forget_asked or forgets) and not _unmatched_keep(taint, forgets, query):
+    if (taint.forget_asked or forgets) and not (
+        _unmatched_keep(taint, forgets, query)
+        or _forget_storable(taint, runs, forgets, query, reply)
+    ):
         return True
     # The model can answer such a request without the call, and the query names the value.
     if asks_not_kept(query):

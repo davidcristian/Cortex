@@ -92,9 +92,14 @@ def _states_in_english(query: str) -> bool:
     return all(_STATEMENT.fullmatch(s) for s in _SENTENCE_END.split(query.strip()))
 
 
+def asks_question(query: str) -> bool:
+    """Whether ``query`` holds a question mark or a sentence opened by an English question word."""
+    return _QUESTION.search(query) is not None
+
+
 def _asks_in_english(query: str) -> bool:
     """Whether ``query`` asks to remember or store, asks a question or states a fact, in English."""
-    question = _QUESTION.search(query) is not None and _ENGLISH.search(query) is not None
+    question = asks_question(query) and _ENGLISH.search(query) is not None
     return question or asks_kept(query) or stores_fact(query) or _states_in_english(query)
 
 

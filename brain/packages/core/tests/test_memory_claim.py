@@ -418,7 +418,7 @@ def _forgot(calls: int, unmatched: int) -> TaintLedger:
         (_forgot(1, 1), (_UNMATCHED,), REMEMBER[8], False),
         (_forgot(1, 1), (_UNMATCHED,), NOTE[0], False),
         (_forgot(1, 1), (_UNMATCHED,), DISCARD[5], True),
-        (_forgot(1, 1), (_UNMATCHED,), "My locker code is 7319.", True),
+        (_forgot(1, 1), (_UNMATCHED,), "My locker code is 7319.", False),
         (_forgot(1, 1), (_UNMATCHED,), "Vergeet alsjeblieft mijn pincode 5521.", True),
         (_forgot(1, 1), (_UNMATCHED,), "Remember my PIN 1234. Actually, forget it.", True),
         (_forgot(1, 1), (_UNMATCHED,), "Mon code est 5937, retiens-le.", False),
@@ -438,7 +438,7 @@ def _forgot(calls: int, unmatched: int) -> TaintLedger:
         (TaintLedger(forget_asked=True), (), REMEMBER[0], True),
     ],
 )
-def test_a_forget_that_matched_nothing_is_kept_only_on_a_request_to_remember(
+def test_a_forget_that_matched_nothing_is_kept_on_a_request_to_remember_or_a_statement(
     *, taint: TaintLedger, runs: tuple[ToolRun, ...], query: str, withheld: bool
 ) -> None:
     assert memory_withheld(_caps(), taint, runs, query=query) is withheld

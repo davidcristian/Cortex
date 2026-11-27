@@ -100,7 +100,7 @@ def limit_notes(  # noqa: PLR0913 -- each claim note reads its own part of the t
     reply = "".join(parts)
     made = (*earlier, *runs)
     claimed = unscheduled_claim(made, reply, said)
-    withheld = memory_withheld(caps, taint, made, query=query)
+    withheld = memory_withheld(caps, taint, made, query=query, reply=reply)
     unkept = withheld and (
         unkept_note_due(query, reply, taint.forget_spared, forget_called=taint.forget_calls > 0)
         or (stops.out_of_rounds and states_value(query))

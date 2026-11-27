@@ -67,7 +67,7 @@ spends and whether it is worth running. The dispatcher is stateless; the loop dr
 offers={}, private_names=(), notes={})` (`dispatch.py`, default `DEFAULT_DISPATCH_POLICY`) states the confirmed tools,
 the prices, the salience rule, the card text (`confirm_reasons[name]` or a `RecordCard`'s `card(call)`, whose `None` runs
 the call unasked), the `ToolOffer`s `withheld(session_id)` reads, the tools audited with `<redacted>` values, and the
-`ResultNote`s whose `result_note` `dispatch` appends to every result their calls get, run or not, after the audit line.
+`ResultNote`s whose `result_note` `dispatch` appends to every result their calls get, run or not, after the audit line, except a call refused as unasked and a forget that matched nothing on a message `opened_earlier` reads (`keeps_unmatched`, `forget_opened_earlier.py`), since both leave the turn recorded.
 
 - `RepeatSalience(limit=MAX_IDENTICAL_DISPATCHES)` (`tool_salience.py`, the default
   `REPEAT_SALIENCE`, limit 2) refuses a call identical to one already made in this round, or made

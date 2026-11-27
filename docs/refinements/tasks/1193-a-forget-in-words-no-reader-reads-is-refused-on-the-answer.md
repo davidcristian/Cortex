@@ -49,4 +49,5 @@ row still stored. Step 2 is then started on that message; on fewer than 2 it is 
   under the rule's bar of 2 on every message, and that reply already ended with the old value note
   saying a remembered exchange still holds the code
   ([readings](../../readings/forget-open-from-earlier-turns.md#a-forget-in-other-words-then-a-new-value-2026-11-27)).
-  The new value lost in 12 of the draws is task 1373.
+  The new value was not stored in 12 of the draws; the rule that stores it is in the
+  [readings](../../readings/forget-open-from-earlier-turns.md#a-statement-after-a-forget-stored-2026-11-27).

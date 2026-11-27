@@ -168,5 +168,82 @@ discarding, so the next turn kept the tool, and it wrote a call in 1.
 The new value was not stored in 12 of 24, each after a forget call ran in the statement's own
 turn. In 6 that call deleted the old row; in the other 6 its text was the new value or the whole
 statement, it matched nothing, and the turn still stored nothing
-([task 1373](../refinements/tasks/1373-a-statement-after-a-forget-turn-is-not-stored-when-its-forget-call-runs.md)).
+([the rule that stores it](#a-statement-after-a-forget-stored-2026-11-27)).
 Logs: `~/.cache/cortex-run/2026-11-27/s1/`, labels `b1` to `b3`.
+
+## A statement after a forget, stored, 2026-11-27
+
+The pass rule was written before the first draw. `memory_withheld` (`memory_claim.py`) records a
+turn with `forget_memories` runs when its message, read alone, asks no question and is one
+`forget_unrequested` refuses the tool on (`opened_earlier`, `forget_opened_earlier.py`), so only an earlier exchange opened the
+forget, and either every call matched nothing, or every run succeeded, kept no row and was not
+denied, the turn knows each deleted row's text, each such row holds a whole value, the message and
+the reply hold none of those values, those rows name no word for a fact beyond the message's own,
+and the reply says it noted the message. A call that matched nothing on such a message gets no
+`FORGET_NOT_KEPT_NOTE`. Pass: the new value stored in every draw whose statement turn ran calls
+that all matched nothing (0 of 6 on the draws above); no stored row holding a value a call of the
+same draw deleted; no stored turn showing `(Nothing in this message was kept in memory. ...)`.
+
+The draws above were repeated, 8 per message with the old row seeded, on a brain built from the
+candidate and the same model host: `gemma-4-12B-it-qat-UD-Q4_K_XL.gguf`, engine build b12375,
+context 16,384, the default cache type, the MTP drafter at a draft length of 3, no reasoning flag.
+Each count is over the statement turn of the 8 draws.
+
+| first message | matched nothing: stored | deleted the old row: stored | no call run: stored | new value stored | rows holding a deleted value | stored turns with the not kept note |
+| --- | --- | --- | --- | --- | --- | --- |
+| `Cancel the code I gave you.` | 2 of 2 | 0 of 0 | 6 of 6 | 8 | 0 | 0 |
+| `Get my phone number out of there.` | 1 of 1 | 4 of 4 | 3 of 3 | 8 | 0 | 0 |
+| `Scrap the code.` | 0 of 0 | 0 of 0 | 8 of 8 | 8 | 0 | 0 |
+
+The rule passes. The new value was stored in 24 of 24 draws, against 12 of 24 before. The not kept
+note showed on none of the 48 turns, and no result of a call that matched nothing included
+`FORGET_NOT_KEPT_NOTE`. The old row was kept in 16 draws, each statement turn of them showing the
+old value note. One stored reply said the code would not be stored; that turn ran no forget call,
+and its reply ended with the note that the exchange is stored in memory. The first turn deleted
+the old row in 4 `Cancel` draws, and none of those turns was recorded, since no reply said it noted
+anything. The statement turn wrote a forget call in 3 of the 8 `Cancel` draws, against 8 of 8
+above; the model reads nothing different before its first call of either turn, so that count
+moved between the two draws on its own.
+
+The drawn brain also required `asks_to_forget` to be false and compared the reply's words, not the
+message's, with the deleted rows' words. None of the 9,445 strings in the core tests is read by
+`asks_to_forget` or `asks_to_forget_keeping` while `forget_unrequested` refuses the tool on it, so
+the committed check drops that condition. The stored reply includes the brain's notes, which the
+note check does not see, so a check on the reply's words can differ between the two reads of one
+turn. The committed check reads the rows' words against the message, and gives the same result on
+every turn of the draws: the four deleted rows of the phone draws name only `phone`, which the
+message holds, and the four first turns that deleted a row were withheld on their replies. A
+forget of a value never stored, in an English statement `forget_unrequested` refuses the tool on
+(`My PIN is 4821 too.`), is now recorded with that value. Logs:
+`~/.cache/cortex-run/2026-11-27/c4b/`, labels `b1` to `b3`.
+
+A question is not read. Over 1,744 turns generated from 52 forms typed after a forget, in English,
+French, German, Spanish and Romanian, each naming a value, with a call that matched nothing or
+deleted the row holding it, a check that also read questions stored 80 turns that the tree before
+it withheld. Each was an English question that names the value it asks to forget (`Can you do the
+same with my PIN 4821?`, `What about my PIN 4821?`, `And the PIN, 4821?`), with a call that
+matched nothing. With the question condition the check stores none of the 1,744. Logs:
+`~/.cache/cortex-run/2026-11-27/a1/` (`gen0.py`).
+
+The forms were then drawn with the old row seeded, 8 draws each, on the model host as the stack
+starts it: `gemma-4-12B-it-qat-UD-Q4_K_XL.gguf`, `--ctx-size 16384`, the MTP drafter at
+`--spec-draft-n-max 3`, the default cache type, no reasoning flag, engine build b12375. The pass
+rule, written before any row was read: the new value stored in every draw whose statement turn ran
+calls that all matched nothing; no stored row holding a value a call of the draw deleted; no stored
+row holding `4821`; no stored turn showing the not kept note. The last message was drawn on a
+brain without the question condition and again on one with it.
+
+| first message, then second | matched nothing: stored | deleted the old row: stored | other: stored | rows holding a deleted value | rows holding `4821` |
+| --- | --- | --- | --- | --- | --- |
+| `Cancel the code I gave you.`, `My alarm code is 5528.` | 3 of 3 | 2 of 2 | 3 of 3 | 0 | 0 |
+| `Get my phone number out of there.`, `My phone number is 0721 555 9876.` | 1 of 1 | 3 of 3 | 4 of 4 | 0 | 0 |
+| `Scrap the code.`, `My alarm code is 5528.` | 2 of 2 | 0 of 0 | 6 of 6 | 0 | 0 |
+| `Forget my alarm code.`, `Can you do the same with my PIN 4821?`, no question condition | 8 of 8 | 0 of 0 | 0 of 0 | 0 | 8 |
+| the same, with the question condition | 0 of 8 | 0 of 0 | 0 of 0 | 0 | 0 |
+
+The new value was stored in all 24 draws of the first three messages, and the not kept note showed
+on none of the 80 turns. Without the question condition the exchange naming `4821` was stored in
+all 8 draws, each after a call for `4821` matched nothing and the reply said nothing was found, so
+the rule failed there. With it none was stored and each such call's result ended with
+`FORGET_NOT_KEPT_NOTE`. The first turn deleted the alarm row in all 16 draws of the last message.
+Logs: `~/.cache/cortex-run/2026-11-27/a1/`, labels `b1` to `b4` and `f4`.
