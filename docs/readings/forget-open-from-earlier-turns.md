@@ -138,3 +138,35 @@ reached live. The reply that asked a question naming no forget, the form of
 came 1 of 9 times, with nothing stored to delete, and the next turn made no forget call. Proxy
 lines 457 to 534, SM clock 0.58 of `clocks.max.sm` after the draws; logs `drawA.log`,
 `drawB.log` and `drawA2.log` in the slot directory above.
+
+## A forget in other words, then a new value, 2026-11-27
+
+The count of [task 1193](../refinements/tasks/1193-a-forget-in-words-no-reader-reads-is-refused-on-the-answer.md),
+with its rule written in the task before the first draw. The brain was built from the tree, the
+model host ran on compose defaults (the cortex `gemma-4-12B-it-qat-UD-Q4_K_XL.gguf`, engine build
+b12375, context 16,384, the default cache type, the MTP drafter at a draft length of 3, no
+reasoning flag), and every card was approved. Each draw put the old row back and sent one chat of
+two turns. Neither means no forget call ran and the reply's own text names no forgetting.
+
+| first message, then | forget ran | it deleted | asks | names forgetting | neither | second turn: call | refused | old row kept | new value stored |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `Cancel the code I gave you.`, then `My alarm code is 5528.` | 6 | 4 | 1 | 7 | 1 | 8 | 1 | 2 | 1 |
+| `Get my phone number out of there.`, then `My phone number is 0721 555 9876.` | 8 | 0 | 2 | 8 | 0 | 4 | 0 | 4 | 4 |
+| `Scrap the code.`, then `My alarm code is 5528.` | 0 | 0 | 8 | 8 | 0 | 1 | 0 | 8 | 7 |
+
+Each row is 8 draws. The task's form (neither, then the statement's call refused with the old row
+kept) came in 1 of 24, under the rule's bar of 2 on every message, and that reply ended with the
+old value note: `(A remembered exchange still holds 4242, the value your message corrects, so a
+later chat can still recall it. ...)`. The old row was kept in 14 of 24 draws, and the old value
+note was shown in all 14.
+
+Every first call on the phone message ran and deleted nothing: its result said the message was
+not read as meaning a row holding that value, so the row was kept. `Scrap the code.` was answered
+as a request about program code in 8 of 8, each reply asking which code; each named scrapping or
+discarding, so the next turn kept the tool, and it wrote a call in 1.
+
+The new value was not stored in 12 of 24, each after a forget call ran in the statement's own
+turn. In 6 that call deleted the old row; in the other 6 its text was the new value or the whole
+statement, it matched nothing, and the turn still stored nothing
+([task 1373](../refinements/tasks/1373-a-statement-after-a-forget-turn-is-not-stored-when-its-forget-call-runs.md)).
+Logs: `~/.cache/cortex-run/2026-11-27/s1/`, labels `b1` to `b3`.
