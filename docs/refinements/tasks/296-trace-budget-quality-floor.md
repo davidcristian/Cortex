@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** inference-model-manager
 **Origin:** [ADR-0049](../../adr/ADR-0049-thinking-switch-and-trace-budget.md)
-**Verified:** 2026-10-28
+**Verified:** 2026-11-27
 **Trigger:** a `CORTEX_REASONING_BUDGET` or `CORTEX_REASONING_BUDGET_BRAIN` default in
 `docker/docker-compose.gpu.yml` other than `-1`, or `CORTEX_REPLY_TRACE_TOKENS` given a value by
 any compose file, recipe or env file in this tree, or a recorded run in this repo where the cortex
@@ -90,3 +90,6 @@ user reads and treat anything lower as a trade, is the placeholder until this ex
   a bounded budget.
 - 2026-10-28: checked again and not fired: both budget defaults are still `-1`, and
   `CORTEX_REPLY_TRACE_TOKENS` is still a bare key with no value.
+- 2026-11-27: checked again and not fired: both budget defaults are still `-1`,
+  `CORTEX_REPLY_TRACE_TOKENS` is still a bare key with no value, and the only zero budget runs in
+  the readings are subagent probes.

@@ -7,10 +7,10 @@
 a deployment configuring escalation without a deep artifact for long enough that the card becomes a
 nuisance. Both happen outside this repo. What the tree can answer is whether any stack it ships can
 reach the state: that needs `CORTEX_ESCALATION` set while `CORTEX_MODEL_FILE_BRAIN` keeps its empty
-default (`docker/docker-compose.gpu.yml:72`). The gpu overlay passes the switch through by name,
+default in `docker/docker-compose.gpu.yml`. The gpu overlay passes the switch through by name,
 so a host `.env` can reach the state, and `grep -rnE 'CORTEX_ESCALATION: *[^ ]' docker/` finding
 nothing says no shipped file does.
-**Verified:** 2026-10-28
+**Verified:** 2026-11-27
 
 Opened 2026-08-16 by the close that refuses an impossible handoff before the drain
 ([R-203](203-escalation-fault-not-remembered.md)), which moved the refusal from after the stall to
@@ -104,3 +104,6 @@ is the visibility trade rather than the cost.
   2026-10-16, and the trigger now names that line.
 - 2026-10-28: checked again and not fired: `grep -rnE 'CORTEX_ESCALATION: *[^ ]' docker/` still
   finds nothing.
+- 2026-11-27: checked again and not fired: `grep -rnE 'CORTEX_ESCALATION: *[^ ]' docker/` still
+  finds nothing, and `CORTEX_MODEL_FILE_BRAIN` still has its empty default. The trigger no longer
+  names that default's line number, which moves with the file.

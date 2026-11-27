@@ -14,7 +14,7 @@ finds across every tracked file, each read as
 `host_of(normalize_url(match.group(), confusables=False))`, the expression
 `_UrlRedactingFilter._flagged` uses for the lookalike rule; it stood at 12 on 2026-09-08,
 2026-09-11 and 2026-09-17, and at 10 on 2026-09-24 and 2026-10-03.
-**Verified:** 2026-10-28
+**Verified:** 2026-11-27
 
 The pass that added the third `OutputGuardrail` policy shipped the answer without imposing it:
 `CORTEX_OUTPUT_GUARDRAIL` still defaults to `redact`, so the gap that pass closed is closed only
@@ -88,4 +88,6 @@ phishing link harms the user.
 - 2026-10-25: checked again and not fired: the shipped default is still `redact` and no deployment
   reading exists; the config changes since read log settings only.
 - 2026-10-28: checked again and not fired: `output_guardrail` still defaults to `redact`. The corpus
+  count was not taken again.
+- 2026-11-27: checked again and not fired: `output_guardrail` still defaults to `redact`. The corpus
   count was not taken again.

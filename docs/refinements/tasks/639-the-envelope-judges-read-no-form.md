@@ -7,7 +7,7 @@ whole interval lies under the floor, or lower a published cell's delivered rate 
 interval quoted beside it.
 **Area:** subagents
 **Origin:** [ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)
-**Verified:** 2026-10-28
+**Verified:** 2026-11-27
 
 The rules in `scripts/envelopejudges.py` read a reply's letters, digits and calendar instances. Two
 kinds of wrong answer contain nothing those rules read.
@@ -75,3 +75,5 @@ and shortened by a tenth sits under the copy line by that change's decision and 
   neither kind has a reader in the tree.
 - 2026-10-28: checked again and not fired: `role-sentences.md` changed since only in writing clocks
   as ratios, and no seeded review was added.
+- 2026-11-27: checked again and not fired: `role-sentences.md` and `scripts/envelopejudges.py` have
+  no commit since, and no seeded review counting the two kinds by hand was added.

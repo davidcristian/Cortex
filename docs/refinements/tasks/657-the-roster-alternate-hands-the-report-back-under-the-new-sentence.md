@@ -6,7 +6,7 @@
 **Trigger:** a deployment runs the roster alternate, as the `qwen` entry the roster overlay adds or
 as the default `CORTEX_MODEL_FILE_SUBAGENT` names, and a delegated summarization comes back as the
 report body it was given.
-**Verified:** 2026-10-28
+**Verified:** 2026-11-27
 
 The reworded `REPLY_INSTRUCTION` names the input as well as the answer, which removes the copy on
 the default pick, 14 of 32 to none. It does not remove it on the roster alternate: on the
@@ -64,3 +64,6 @@ finds its own report in it.
 - 2026-10-28: checked again and not fired: no record shows a deployment running the roster
   alternate; the change since to `subagent_reply.py` reports a subagent that spends every round as
   unanswered.
+- 2026-11-27: checked again and not fired: `CORTEX_MODEL_FILE_SUBAGENT` still defaults to the E4B,
+  and the roster server rows of 2026-11-25 that drew the alternate handing the body back are a
+  measurement, not a deployment.

@@ -7,7 +7,7 @@ commit. The event this entry is about, a widened passage containing no extra nam
 so the registry diff is the reading a review can take.
 **Area:** repo-checks
 **Origin:** [ADR-0044](../../adr/ADR-0044-document-rosters.md)
-**Verified:** 2026-10-28
+**Verified:** 2026-11-27
 
 `scripts/rosters.py` bounds each passage with two phrases the document contains. A phrase that
 stops appearing, or starts appearing twice, is a reported fault. A phrase that moved is not a fault
@@ -82,3 +82,8 @@ its nearest name.
   `prosereaders.py`, `proseliterals.py`, `slashcomments.py`), so a widened passage is not the only
   way the check can count a member whose own entry is gone.
 - 2026-10-28: checked again and not fired: `scripts/rosters.py` has no commit since 2026-10-07.
+- 2026-11-27: the trigger fired and the review it asks for was taken. On 2026-11-23 the scans list's
+  `opens` phrase changed from `**What they all share.**` to `the exit codes every scan shares are
+  in`, which opens the passage in the introduction two lines above the first heading, so it still
+  bounds the fourteen scan headings and nothing else. `rostercheck` passes over 10 lists in 7
+  documents naming 189 members, and the task waits for the next phrase change.

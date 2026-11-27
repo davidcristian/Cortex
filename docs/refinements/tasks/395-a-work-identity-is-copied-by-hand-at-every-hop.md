@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-10-28
+**Verified:** 2026-11-27
 **Trigger:** a fifth work identity arriving on `TurnStamp`, or a step found dropping one of the
 four that are there.
 
@@ -90,4 +90,6 @@ nobody wrote a case for.
 - 2026-10-17: checked again and not fired. `TurnStamp` still holds the four work identities, and its
   change on 2026-10-14 added the `forgotten` flag, not an identity.
 - 2026-10-28: checked again and not fired: `TurnStamp` still has four work identities: `session_id`,
+  `turn_id`, `task_id` and `item_id`.
+- 2026-11-27: checked again and not fired: `TurnStamp` still has four work identities: `session_id`,
   `turn_id`, `task_id` and `item_id`.

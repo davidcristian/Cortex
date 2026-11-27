@@ -8,7 +8,7 @@ after the body was reachable again until the overlay was next opened, late enoug
 says it mattered. The brain's `push failed; pull will deliver` line marks each fire that fell to
 the pull path; nothing on either side logs when the overlay pulled it, so how late it was is the
 user's own report.
-**Verified:** 2026-10-28
+**Verified:** 2026-11-27
 
 The only retry today is the deliverable-until-acked pull. A proactive re-push would deliver twice,
 because `NotifyRequest.reminder_id` is the item id, which is stable across a recurring item's
@@ -85,3 +85,5 @@ its own.
   has no stamp.
 - 2026-10-28: checked again and not fired: the delivery changes since keep a fire's due time and a
   task's run start beside `deliverable_since`, and `NotifyRequest` still has `reminder_id` alone.
+- 2026-11-27: checked again and not fired: `NotifyRequest` now has `reminder_id` and `tainted` and
+  still no delivery time, and the trigger is the user's own report, which the tree cannot record.

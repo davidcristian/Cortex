@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0039](../../adr/ADR-0039-backlog-per-task.md)
-**Verified:** 2026-10-28
+**Verified:** 2026-11-27
 **Trigger:** a heading with a pair of brackets in prose, which the heading rule refuses whatever
 follows them and which a code span cannot express, monospace being wrong for prose, recorded where
 the tree keeps it: a History line in this file or a commit body naming a heading that was reworded
@@ -65,3 +65,5 @@ escape is the interesting one, since it makes the source say what it means.
   heading reworded for its brackets.
 - 2026-10-28: checked again and not fired: `git log -i --grep=bracket` lists no commit since
   2026-10-07.
+- 2026-11-27: checked again and not fired: the two commits since that `git log -i --grep=bracket`
+  lists are forget reader fixes, and neither body names a heading.

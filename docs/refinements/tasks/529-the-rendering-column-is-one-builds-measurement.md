@@ -1,13 +1,9 @@
 # The rendering column is one build's measurement, and an engine bump reopens every row of it
 
-**Status:** open, waiting for its trigger
+**Status:** open, actionable
 **Area:** inference
-**Trigger:** an engine bump under this stack, meaning the GPU runbook's `docker image inspect`
-label command reporting a llama.cpp build other than b11913 for `cortex-model-host` (the three GPU
-tiers) or other than b10680 for the cached `server` tag (both CPU subagent overrides). Nothing fixes
-a digest, so a pull or a rebuild is the bump.
 **Origin:** [ADR-0050](../../adr/ADR-0050-live-probe-records.md)
-**Verified:** 2026-10-28
+**Verified:** 2026-11-27
 
 Every row of the lineup section's rendering column stands on a sample the reader published, and
 every one was drawn on one build. The rule the column states, that a template rendering the thought
@@ -247,3 +243,8 @@ task waits for the next build. Samples under `measurements/sitting-2026-10-28/52
   d7bd3bfca`. Drawn with `just switch-lineup`, the E4B at `-ngl 0` on CPU cores 12 to 23, every
   probe exited 0 and the reader agreed on all twelve samples, each repeating its `b11552` row, so
   all twelve rows hold on `b11913` and the task waits for the next build again.
+- 2026-11-27: the trigger fired. The runbook's label command reads `b12375 9d25e0014` on
+  `cortex-model-host`, while the cached `:server` tag still reads `b10680`, so all twelve rows are
+  owed on `b12375` through `just switch-lineup`, whose draw also gives
+  [R-1238](1238-the-lineups-readings-were-drawn-on-files-the-mount-no-longer-holds.md) its switched
+  tails on the files the mount holds. The trigger line is gone and the task is actionable.

@@ -4,12 +4,12 @@
 **Area:** memory
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
 **Trigger:** a reading in `docs/readings/ranked-recall.md` taken over memories nobody wrote for the
-measurement (neither the ten notes inline in `test_rerank_judge_live.py` nor the 41 in
-`recall_corpus.py`) in which the judge drops an answerable note the cosine kept or ranks it lower;
-or a first-token or whole-turn latency bound, in an ADR decision or a setting, that the judge's
-recorded cost exceeds: a rank at `k` 5 over a pool of 20 costs 0.877 s, and a judged turn's first
-token comes 0.539 s after a raw one's.
-**Verified:** 2026-10-28
+measurement (neither the ten notes inline in `test_rerank_judge_live.py` nor the 41 `MEMORIES`
+and the `EXCHANGES` entries in `recall_corpus.py`) in which the judge drops an answerable note the
+cosine kept or ranks it lower; or a first-token or whole-turn latency bound, in an ADR decision or
+a setting, that the judge's recorded cost exceeds: a rank at `k` 5 over a pool of 20 costs 0.877 s,
+and a judged turn's first token comes 0.539 s after a raw one's.
+**Verified:** 2026-11-27
 
 The other form of a model reranker: a model that scores a query and a memory as a pair, rather than
 a chat completion that orders a numbered list. It was opened by the ranked-recall close
@@ -84,3 +84,6 @@ the deep phase's judge asks the deep model, where a recall cost 0.89 s at `k` 3 
 - 2026-10-28: checked again and not fired: `docs/readings/ranked-recall.md` has no commit since
   2026-10-25, and no ADR or setting adds a latency bound; the judge's changes since show each
   memory's age on one line.
+- 2026-11-27: checked again and not fired: the judge's one recorded miss since is over an
+  `EXCHANGES` entry that a measurement's live turn stored, which the judge prompt of that day holds
+  in 17 and 18 of 20 draws, and no ADR or setting adds a latency bound.

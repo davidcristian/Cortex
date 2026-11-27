@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-10-28
+**Verified:** 2026-11-27
 **Trigger:** A legitimate call on one sidecar that a bound sized for another cuts, or a deployment
 that wants a tight bound on the fast sidecar without loosening the slow one. Neither has happened:
 the only two sidecars this repo ships are a filesystem server measured at 154 ms a call and an
@@ -82,3 +82,6 @@ boot. The refusal text and the fields `_pairing` logs (`call_timeout_s`,
 - 2026-10-28: checked again and not fired: the sidecar bounds since gained a listing bound and a
   rest after an overrun, each still one value for every sidecar, and no record shows a legitimate
   call cut by one.
+- 2026-11-27: checked again and not fired: `call_timeout_s` is still one field for every sidecar,
+  the repo still ships the filesystem and email sidecars, and no record shows a legitimate call cut
+  by the bound.
