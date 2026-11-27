@@ -79,6 +79,28 @@ question on Qwen3.8-27B alone. The server logs show every rank decoding 7 to 25 
 trace ran. Method: `judge_row.py` in `measurements/sitting-2026-09-28/drivers/`, logs `740q38.log`
 and `740q36.log` with the server logs beside them.
 
+## A number asked to keep, over stored exchanges
+
+**2026-11-27.** The judge request of a live turn of 2026-11-23, sent unchanged 20 times to the
+cortex: the question `Reply with only the number: which number did I ask you to keep?` over note 0,
+the exchange storing `my gym locker code is 5819`, and note 1, the exchange storing `my car is a
+blue Fiat`, both `(just now)`, at `k` 5, thinking off. The server ran
+`gemma-4-12B-it-qat-UD-Q4_K_XL.gguf` on engine build b12375, context 16,384, the default cache
+type, the MTP drafter `mtp-gemma-4-12B-it-Q8_0.gguf` at a draft length of 3, no reasoning flag,
+and its sampling defaults (temperature 1.0, `top_k` 64, `top_p` 0.95, a random seed).
+
+The code note was in 0 of 20 orders: `[1]` in 18 and `[]` in 2. The same case through
+`JudgeRecallPolicy` in `test_rerank_judge_exchanges_live.py` drew 0 of 20 again, 2 empty, none
+fell back. With the 5 draws of 2026-11-23 the miss held in 45 of 45, so it is constant rather than
+draw to draw. The car note holds the question's word `keep`; the code note does not. The case is
+the first entry of `EXCHANGES` in `recall_corpus.py`, kept apart from `MEMORIES` and `QUESTIONS` so
+the wide corpus numbers above stay comparable. Logs: `~/.cache/cortex-run/2026-11-27/s1/`.
+
+**Rule for a change to the judge.** A change to the judge's instruction, bounds or note format is
+kept only when, at the cortex's own sampling defaults, `test_rerank_judge_exchanges_live.py` holds
+the asked note in at least 10 of 20 draws for every `EXCHANGES` entry, and the wide corpus keeps
+the judge column of the newest cortex reading in this file. No change has passed it yet.
+
 ## Whole turns, judge against raw
 
 **2026-08-09.** Three blocks in A/B/A order (`raw`, `judge`, `raw`) through `just turn-cost`: six

@@ -123,3 +123,18 @@ UNRELATED: tuple[str, ...] = (
     "what does a semicolon do in a for loop?",
     "why do cats knead blankets?",
 )
+
+# A fourth population, kept out of `MEMORIES` for the same reason: questions asked over stored
+# exchanges as the brain writes them, each with its own notes and the index of the one it asks for.
+EXCHANGES: tuple[tuple[str, tuple[str, ...], int], ...] = (
+    (
+        "Reply with only the number: which number did I ask you to keep?",
+        (
+            "User: Remember that my gym locker code is 5819. "
+            "Assistant: I've noted that your gym locker code is 5819.",
+            "User: Keep in mind that my car is a blue Fiat. "
+            "Assistant: Got it. I'll keep in mind that your car is a blue Fiat.",
+        ),
+        0,
+    ),
+)

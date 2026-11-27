@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** memory
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
-**Verified:** 2026-11-23
+**Verified:** 2026-11-27
 
 On 2026-11-23 the store held two exchanges, `Keep in mind that my car is a blue Fiat.` and
 `Remember that my gym locker code is 5819.`, and a new chat asked `Reply with only the number:
@@ -16,14 +16,16 @@ chat can recall a row saying no number was kept
 
 ## What to do
 
-1. Send the recorded judge request (line 14 of
-   `~/.cache/cortex-run/2026-11-23/s5/proxy/log/requests.jsonl`) to the cortex 20 times at the
-   judge's own settings, and count the orders that hold the code note, to tell a constant miss from
-   a draw-to-draw one.
-2. If the code note is picked in fewer than half, add the two notes and the question to the judge's
-   quality corpus (`recall_corpus.py`) and write a rule in
-   [ranked recall](../../readings/ranked-recall.md) before any change to the judge's prompt.
+1. The recorded judge request, sent 20 times on 2026-11-27, held the code note in 0 of 20 orders,
+   and the same case through `JudgeRecallPolicy` in 0 of 20
+   ([readings](../../readings/ranked-recall.md#a-number-asked-to-keep-over-stored-exchanges)), so
+   the miss is constant. The case is the first `EXCHANGES` entry of `recall_corpus.py`. Draft a
+   change to the judge's instruction or note format that picks the code note, and keep it only
+   when it passes the rule in that section: the asked note in at least 10 of 20 draws of
+   `test_rerank_judge_exchanges_live.py`, and the wide corpus's judge column kept.
 
 ## History
 
 - 2026-11-23: filed from the recount of task 1005, whose loop and invented value did not recur.
+- 2026-11-27: the count and the corpus entry done (0 of 20 orders held the code note on the
+  replay), the rule written in the ranked recall readings; narrowed to the judge change.
