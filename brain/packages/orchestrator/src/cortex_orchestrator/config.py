@@ -6,6 +6,7 @@ from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from cortex_core import DEFAULT_CORTEX_MODEL
+from cortex_embedding import DEFAULT_QUERY_PREFIX
 from cortex_orchestrator.converse import DEFAULT_CONFIRM_TIMEOUT_S, DEFAULT_MAX_BUFFERED_EVENTS
 from cortex_orchestrator.dsn import authority_is_readable
 from cortex_session import DEFAULT_REDIS_URL
@@ -126,6 +127,7 @@ class MemoryConfig(BaseSettings):
     dsn: str = ""
     embedder_endpoint: str = ""
     embedder_model: str = "embedding"
+    embedder_query_prefix: str = DEFAULT_QUERY_PREFIX
     scope: MemoryScopeName = "global"
     on_tainted: MemoryTaintPolicyName = "skip"
     recall: MemoryRecallName = "judge"

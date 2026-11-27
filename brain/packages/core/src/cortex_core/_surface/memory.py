@@ -6,7 +6,12 @@ from cortex_core.chat_cleanup import (
     CleanupRepeater,
     finish_cleanup,
 )
-from cortex_core.embed_input import EMBED_INPUT_CHARS, EMBEDDER_CONTEXT_TOKENS, embedding_input
+from cortex_core.embed_input import (
+    EMBED_INPUT_CHARS,
+    EMBEDDER_CONTEXT_TOKENS,
+    EmbedRole,
+    embedding_input,
+)
 from cortex_core.forget_claim import UNFORGOTTEN_CLAIM_NOTE, claims_forgotten, unforgotten_claim
 from cortex_core.forget_results import FORGET_CHOSEN_LIMIT, FORGET_NOT_KEPT_NOTE
 from cortex_core.memory import GLOBAL_SCOPE, MemoryRecord, ScoredMemory
@@ -71,6 +76,7 @@ __all__ = [
     "CleanupRepeater",
     "DroppedCandidate",
     "DroppedCandidates",
+    "EmbedRole",
     "ForgetChosenTool",
     "ForgetUntrustedTool",
     "GlobalMemoryScope",

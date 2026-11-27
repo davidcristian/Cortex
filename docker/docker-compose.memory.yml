@@ -13,6 +13,7 @@ services:
       # shipped default stays declared in that one class. The rule is every field this file does
       # not set itself, so a setting the runbook documents always reaches the container.
       CORTEX_MEMORY_EMBEDDER_MODEL:
+      CORTEX_MEMORY_EMBEDDER_QUERY_PREFIX:
       CORTEX_MEMORY_SCOPE:
       CORTEX_MEMORY_ON_TAINTED:
       CORTEX_MEMORY_RECALL:

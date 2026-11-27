@@ -34,6 +34,7 @@ from cortex_core import (
     DecodeStop,
     DispatchBudget,
     DispatchPolicy,
+    EmbedRole,
     GenerationBounds,
     ImagePart,
     InferenceError,
@@ -838,8 +839,8 @@ async def _recorded(recaller: MemoryRecaller) -> list[MemoryRecord]:
 
 
 class _Embedder:
-    async def embed(self, text: str) -> Sequence[float]:
-        del text
+    async def embed(self, text: str, *, role: EmbedRole = EmbedRole.DOCUMENT) -> Sequence[float]:
+        del text, role
         return (1.0, 0.0)
 
 

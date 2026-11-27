@@ -4,7 +4,7 @@ import hashlib
 import math
 from collections.abc import Sequence
 
-from cortex_core.embed_input import EMBED_INPUT_CHARS
+from cortex_core.embed_input import EMBED_INPUT_CHARS, EmbedRole
 from cortex_core.errors import EmbedderError, MemoryStoreError
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.memory_values import joined
@@ -25,8 +25,9 @@ class HashEmbedder:
         self._max_chars = max_chars
         self._failure: EmbedderError | None = None
 
-    async def embed(self, text: str) -> Sequence[float]:
-        """Return the deterministic pseudo-embedding of ``text``, or the scripted failure."""
+    async def embed(self, text: str, *, role: EmbedRole = EmbedRole.DOCUMENT) -> Sequence[float]:
+        """Return the pseudo-embedding of ``text`` in either role, or the scripted failure."""
+        del role
         if self._failure is not None:
             raise self._failure
         if len(text) > self._max_chars:

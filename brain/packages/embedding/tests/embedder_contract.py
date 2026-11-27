@@ -3,7 +3,13 @@
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 
-from cortex_core import EMBED_INPUT_CHARS, EMBEDDER_CONTEXT_TOKENS, Embedder, EmbedderError
+from cortex_core import (
+    EMBED_INPUT_CHARS,
+    EMBEDDER_CONTEXT_TOKENS,
+    Embedder,
+    EmbedderError,
+    EmbedRole,
+)
 
 _TEXT = "the sky is blue"
 _OTHER = "a fact worth remembering"
@@ -31,11 +37,12 @@ async def text_embeds_to_a_vector_of_real_numbers(under_test: EmbedderUnderTest)
 
 
 async def every_text_embeds_at_one_width(under_test: EmbedderUnderTest) -> None:
-    """The width belongs to the deployment's model, never to the text that was embedded."""
+    """The width belongs to the deployment's model, never to the text or the role it embeds."""
     widths = {
         len(await under_test.embedder.embed(_TEXT)),
         len(await under_test.embedder.embed(_OTHER)),
         len(await under_test.embedder.embed("")),
+        len(await under_test.embedder.embed(_TEXT, role=EmbedRole.QUERY)),
     }
     assert len(widths) == 1
 
@@ -62,19 +69,21 @@ async def a_backend_that_cannot_answer_raises_embedder_error(
 
 async def a_text_at_the_input_bound_embeds(under_test: EmbedderUnderTest) -> None:
     """The core sends at most `EMBED_INPUT_CHARS` characters, and every embedder takes them."""
-    assert len(await under_test.embedder.embed(_DENSEST * EMBED_INPUT_CHARS)) > 0
+    for role in EmbedRole:
+        assert len(await under_test.embedder.embed(_DENSEST * EMBED_INPUT_CHARS, role=role)) > 0
 
 
 async def a_text_longer_than_the_context_raises_embedder_error(
     under_test: EmbedderUnderTest,
 ) -> None:
     """A text the model cannot hold raises `EmbedderError`, the one error the core catches."""
-    try:
-        await under_test.embedder.embed(_DENSEST * EMBEDDER_CONTEXT_TOKENS)
-    except EmbedderError:
-        return
-    msg = "a text longer than the context embedded anyway"
-    raise AssertionError(msg)
+    for role in EmbedRole:
+        try:
+            await under_test.embedder.embed(_DENSEST * EMBEDDER_CONTEXT_TOKENS, role=role)
+        except EmbedderError:
+            continue
+        msg = f"a text longer than the context embedded anyway as a {role}"
+        raise AssertionError(msg)
 
 
 BOUND_CHECKS: Sequence[Check] = (

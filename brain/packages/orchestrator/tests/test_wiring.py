@@ -452,10 +452,14 @@ async def test_build_memory_selects_pgvector_and_returns_a_closer(
         return FakeStore()
 
     seen_timeouts: list[httpx.Timeout] = []
+    seen_prefixes: list[str] = []
 
-    def timed_embedder(client: httpx.AsyncClient, endpoint: str, *, model: str) -> HashEmbedder:
+    def timed_embedder(
+        client: httpx.AsyncClient, endpoint: str, *, model: str, query_prefix: str
+    ) -> HashEmbedder:
         del endpoint, model
         seen_timeouts.append(client.timeout)
+        seen_prefixes.append(query_prefix)
         return HashEmbedder()
 
     monkeypatch.setattr(PgVectorMemoryStore, "connect", fake_connect)
@@ -464,6 +468,7 @@ async def test_build_memory_selects_pgvector_and_returns_a_closer(
         backend="pgvector",
         dsn="postgresql://cortex@db/cortex",
         embedder_endpoint="http://llama-embed:8081",
+        embedder_query_prefix="query: ",
     )
     memory, cascade, forget, chosen, close = await build_memory(config, SystemClock())
     assert memory is not None
@@ -473,6 +478,7 @@ async def test_build_memory_selects_pgvector_and_returns_a_closer(
     assert isinstance(chosen, ForgetChosenTool)
     assert seen_dsn == [("postgresql://cortex@db/cortex", 10.0)]
     assert seen_timeouts == [httpx.Timeout(10.0)]
+    assert seen_prefixes == ["query: "]
     await close()
     assert closed == ["store"]
 
@@ -610,8 +616,10 @@ async def test_the_judge_asks_the_tier_the_deployment_named_to_rank(
         del dsn, timeout_s
         return PoolStore()
 
-    def hash_embedder(client: httpx.AsyncClient, endpoint: str, *, model: str) -> HashEmbedder:
-        del client, endpoint, model
+    def hash_embedder(
+        client: httpx.AsyncClient, endpoint: str, *, model: str, query_prefix: str
+    ) -> HashEmbedder:
+        del client, endpoint, model, query_prefix
         return HashEmbedder()
 
     monkeypatch.setattr(PgVectorMemoryStore, "connect", connect_pool)

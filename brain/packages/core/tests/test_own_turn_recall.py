@@ -7,6 +7,7 @@ from swap_harness import ScriptedBrainBackend, TickingClock
 
 from cortex_core import (
     BrainPhase,
+    EmbedRole,
     HashEmbedder,
     InMemoryMemoryStore,
     InMemorySessionStore,
@@ -28,8 +29,8 @@ _ROW_TEXT = f"User: {harness.USER_TEXT}\nAssistant: {harness.CORTEX_TEXT}"
 
 
 class _Embedder:
-    async def embed(self, text: str) -> Sequence[float]:
-        del text
+    async def embed(self, text: str, *, role: EmbedRole = EmbedRole.DOCUMENT) -> Sequence[float]:
+        del text, role
         return (1.0, 0.0)
 
 

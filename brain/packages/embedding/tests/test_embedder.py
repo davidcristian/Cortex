@@ -4,17 +4,27 @@ from collections.abc import Callable
 import httpx
 import pytest
 
-from cortex_core import EmbedderError
-from cortex_embedding import LlamaCppEmbedder
+from cortex_core import EmbedderError, EmbedRole
+from cortex_embedding import DEFAULT_QUERY_PREFIX, LlamaCppEmbedder
 
 _ENDPOINT = "http://llama-embed:8081"
 
 _Handler = Callable[[httpx.Request], httpx.Response]
 
 
-def _embedder(handler: _Handler, *, model: str = "embedding") -> LlamaCppEmbedder:
+def _embedder(
+    handler: _Handler, *, model: str = "embedding", query_prefix: str = DEFAULT_QUERY_PREFIX
+) -> LlamaCppEmbedder:
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
-    return LlamaCppEmbedder(client, _ENDPOINT, model=model)
+    return LlamaCppEmbedder(client, _ENDPOINT, model=model, query_prefix=query_prefix)
+
+
+def _inputs(sent: list[str]) -> _Handler:
+    def handler(request: httpx.Request) -> httpx.Response:
+        sent.append(json.loads(request.content)["input"])
+        return httpx.Response(200, json={"data": [{"embedding": [0.5]}]})
+
+    return handler
 
 
 async def test_embeds_text_and_returns_the_vector() -> None:
@@ -73,3 +83,24 @@ async def test_non_numeric_vector_element_wraps_into_embedder_error() -> None:
 
     with pytest.raises(EmbedderError, match="malformed embedding response"):
         await _embedder(handler).embed("x")
+
+
+async def test_a_query_is_sent_after_the_cards_query_prefix() -> None:
+    sent: list[str] = []
+    await _embedder(_inputs(sent)).embed("when is the dentist?", role=EmbedRole.QUERY)
+    assert sent == ["search_query: when is the dentist?"]
+
+
+async def test_a_document_is_sent_with_no_prefix() -> None:
+    sent: list[str] = []
+    embedder = _embedder(_inputs(sent), query_prefix="query: ")
+    await embedder.embed("the dentist is on the fourteenth", role=EmbedRole.DOCUMENT)
+    await embedder.embed("the dentist moved")
+    assert sent == ["the dentist is on the fourteenth", "the dentist moved"]
+
+
+async def test_a_query_takes_the_prefix_it_is_given() -> None:
+    sent: list[str] = []
+    await _embedder(_inputs(sent), query_prefix="query: ").embed("x", role=EmbedRole.QUERY)
+    await _embedder(_inputs(sent), query_prefix="").embed("y", role=EmbedRole.QUERY)
+    assert sent == ["query: x", "y"]

@@ -9,9 +9,10 @@ depends only on `Embedder`. Unlike the inference adapter it is **not** routed th
 
 **Public contract** (everything importable from `cortex_embedding`; `__all__` is the API):
 
-- `LlamaCppEmbedder(http_client: httpx.AsyncClient, endpoint: str, *, model="embedding")` is an
-  `Embedder`. `embed(text)`:
-  1. POSTs `{model, input: text}` to `{endpoint}/v1/embeddings`.
+- `LlamaCppEmbedder(http_client: httpx.AsyncClient, endpoint: str, *, model="embedding",
+  query_prefix=DEFAULT_QUERY_PREFIX)` is an `Embedder`. `embed(text, *, role=EmbedRole.DOCUMENT)`:
+  1. POSTs `{model, input}` to `{endpoint}/v1/embeddings`, where `input` is `query_prefix + text`
+     for `EmbedRole.QUERY` and `text` for `EmbedRole.DOCUMENT`.
   2. Returns `data[0].embedding` as a `list[float]` (integer elements are coerced to float).
   - `model` is the logical id sent in the body; `llama-server` embeds with whatever model it was
     started with and ignores the value, but the OpenAI schema requires the field.
@@ -21,19 +22,22 @@ depends only on `Embedder`. Unlike the inference adapter it is **not** routed th
 **The server's input bound.** `llama-server` refuses an embedding input longer than its
 micro-batch with a 500, so `docker/docker-compose.memory.yml` starts it with
 `--batch-size 2048 --ubatch-size 2048`, the context of `nomic-embed-text-v1.5`, whose two framing
-tokens leave 2046 for the text. The adapter sends whatever it is given; the core's `MemoryRecaller`
+tokens leave 2046 for the text. The adapter sends what it is given, a query after its prefix; the core's `MemoryRecaller`
 embeds at most the first `EMBED_INPUT_CHARS` characters of a text
 ([brain-core-memory.md](brain-core-memory.md)), and a longer input reaching the adapter fails as
 `EmbedderError`. The ratio that bound rests on is in
 [embedding-input.md](../readings/embedding-input.md).
 
-**No task prefix.** The adapter sends the text with no `search_document: ` or `search_query: `
-prefix, though the card of `nomic-embed-text-v1.5` asks for them. Either prefix changes every
-vector, and a row with the document prefix scores above the same row without it against a prefixed
-query, so a store holding both forms ranks its old rows low
-([embedding-input.md](../readings/embedding-input.md#the-task-prefix)). The prefixes wait on a pass
-that embeds stored rows again, or on a reading showing a query prefix alone is enough
-([R-1321](../refinements/tasks/1321-the-embedder-prefixes-need-a-pass-that-embeds-stored-rows-again.md)).
+**The query prefix.** The card of `nomic-embed-text-v1.5` asks for `search_query: ` before a query
+and `search_document: ` before a stored text. The adapter sends the first and not the second.
+`DEFAULT_QUERY_PREFIX` is `search_query: `, and `CORTEX_MEMORY_EMBEDDER_QUERY_PREFIX` sets another
+for the model `CORTEX_MODEL_FILE_EMBED` names; empty sends a query as it is. Quote a value set in an
+env file, since its trailing space is part of it. The prefix is 4 tokens, inside the 246 the
+1800 character cut leaves spare. A stored text has no prefix because a document prefix changes
+every stored vector, and a store holding rows of both forms ranks its old rows low. A query
+prefix changes no stored vector. Over 22 recall questions it found one more gold note first than
+no prefix, and over 44 questions with near-miss notes it tied both forms on every count
+([embedding-input.md](../readings/embedding-input.md#the-task-prefix-over-near-miss-notes)).
 
 **Error contract.** Every failure crosses the `Embedder` port as `EmbedderError` with the cause
 chained:
@@ -47,10 +51,11 @@ chained:
 implementation must pass and `tests/test_embedder_contract.py` drives them over both: the core's
 `HashEmbedder` and this adapter over a `MockTransport` whose stand-in server answers the digest
 bytes of the text it was given, as JSON integers. The checks are that an embedding is a non-empty
-sequence of real floats, that every text embeds at one width, that one text always embeds to one
-vector with an embedding in between changing nothing, that a backend which cannot answer raises
-`EmbedderError`, that a text of `EMBED_INPUT_CHARS` characters embeds, and that a text of
-`EMBEDDER_CONTEXT_TOKENS` characters raises `EmbedderError`. Those two use a character the model
+sequence of real floats, that every text in either role embeds at one width, that one text always
+embeds to one vector with an embedding in between changing nothing, that a backend which cannot
+answer raises `EmbedderError`, that a text of `EMBED_INPUT_CHARS` characters embeds in either role,
+and that a text of `EMBEDDER_CONTEXT_TOKENS` characters raises `EmbedderError` in either role. The
+query role sends the adapter's default prefix, so the bound holds with it. Those two use a character the model
 counts as one token, the densest text measured, and the stand-in server refuses past 2046
 characters as the real one refuses past 2046 tokens; `tests/test_embedder_live.py` runs the same
 two against a real server. Two differences the list deliberately leaves alone: the fake answers a `tuple` and
@@ -60,13 +65,13 @@ other rather than with a number.
 
 **Invariants.**
 - Stateless per call: nothing about a request outlives `embed`; the adapter holds only its injected
-  client, endpoint, and model id.
+  client, endpoint, model id and query prefix.
 - Real network I/O lives here, never in the core.
 - Fully typed, pyright strict clean; 100% line+branch via `httpx.MockTransport`. No model, no
   network. A live call against a real CPU `llama-server` is the `integration`-marked test in
   `tests/test_embedder_live.py` (excluded from CI + coverage; `CORTEX_EMBEDDING_ENDPOINT` /
   `CORTEX_EMBEDDING_MODEL`).
 
-**Dependencies.** cortex-core (the `Embedder` port and `EmbedderError`), httpx. The composition root
+**Dependencies.** cortex-core (the `Embedder` port, `EmbedRole` and `EmbedderError`), httpx. The composition root
 (`cortex_orchestrator.wiring`) injects the `httpx.AsyncClient` and endpoint when memory is wired to
 a durable backend (the pgvector increment).

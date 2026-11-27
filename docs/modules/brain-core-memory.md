@@ -9,10 +9,10 @@ pool down to the hits one turn sees. The turn that calls it is in
 
 ## Ports and values
 
-- `Embedder` provides `async embed(text) -> Sequence[float]`: one stateless call, text to vector,
-  whose dimension is fixed by the deployment's model and assumed nowhere here. Fake:
-  `HashEmbedder(dimension=16, *, max_chars=EMBED_INPUT_CHARS)`, deterministic and I/O free, never
-  returning an all-zero vector, and raising `EmbedderError` on a text over `max_chars`.
+- `Embedder` provides `async embed(text, *, role=EmbedRole.DOCUMENT) -> Sequence[float]`: one stateless call, text to
+  vector, whose dimension the deployment's model fixes. `EmbedRole` is `QUERY`, a text searched against stored ones, or
+  `DOCUMENT`, a text to store and the default, so a call naming no role never embeds a stored text as a query. Fake:
+  `HashEmbedder(dimension=16, *, max_chars=EMBED_INPUT_CHARS)`, deterministic, I/O free, alike in both roles, never returning an all-zero vector, and raising `EmbedderError` on a text over `max_chars`.
 - `embedding_input(text)` (`embed_input.py`) returns the first `EMBED_INPUT_CHARS` characters of a
   text, which is 1800, or all of a shorter one. `EMBEDDER_CONTEXT_TOKENS` is 2048, the input bound
   of the shipped embedder; the model's tokenizer measured at most one token per character
@@ -37,7 +37,7 @@ pool down to the hits one turn sees. The turn that calls it is in
   cosine similarity**, never the key a policy ranked by, so no caller can infer an order from it.
 - `MemoryRecaller(store, embedder, clock, *, scope=GLOBAL_MEMORY_SCOPE, policy=RAW_RECALL_POLICY,
   id_factory=<uuid4>)` is the use case (ADR-0008). `record(text, *, session_id, tainted=False,
-  recalled=())` embeds `embedding_input(text)`, persists the whole text and returns a
+  recalled=())` embeds `embedding_input(text)` as a document, persists the whole text and returns a
   `MemoryRecord`, or `None` when a memory in `recalled` is gone. `discard(memory)` deletes one
   record `record` returned, which `record_exchange` does when the chat was deleted meanwhile, under
   the write's bound. A `SessionStoreError` from that `deleted` read, or a failed or overrun
@@ -45,7 +45,7 @@ pool down to the hits one turn sees. The turn that calls it is in
   at `error` with `session_id` and `memory_id`; the turn completes. `recalls_across_chats` is true
   when a memory one chat writes can be recalled in another: under the global scope, and not under
   `SessionMemoryScope`. `record_exchange` adds the id of the row `record` stored to the turn's `TaintLedger.written_ids`, and the turn's recall leaves those rows out; only a deep phase recalls after its turn stored one, the cortex's row of the same turn, which the handoff record keeps ([ADR-0030](../adr/ADR-0030-brain-handoff.md) step 4). The id goes through the record rather than a turn id on each row, which would change the `memories` table and every `MemoryStore` adapter for this one rule; a later turn and another chat still recall the row.
-  `nearest(query, *, session_id, limit)` embeds the query and returns the `limit` records the store's search finds within the read scopes, with no policy, for `with_forget_reach` (`forget_reach.py`). `recall(query, *, k, session_id, turn_id, leave_out=())` embeds `embedding_input(query)`, fetches `policy.candidate_k(k)` hits within `policy.read_scopes(session_id)`, after dropping the rows `leave_out` names from a search that many rows wider, and
+  `nearest(query, *, session_id, limit)` embeds the query as a query and returns the `limit` records the store's search finds within the read scopes, with no policy, for `with_forget_reach` (`forget_reach.py`). `recall(query, *, k, session_id, turn_id, leave_out=())` embeds `embedding_input(query)` as a query, fetches `policy.candidate_k(k)` hits within `policy.read_scopes(session_id)`, after dropping the rows `leave_out` names from a search that many rows wider, and
   awaits `policy.select(...)`, returning that ranking's memories cut to `k`; an empty ranking is no
   hits and is never refilled from the pool. An optional `audit: RecallAuditSink` gets one
   `RecallAudit` per recall, built inside an `is not None` check so an unaudited recall issues no

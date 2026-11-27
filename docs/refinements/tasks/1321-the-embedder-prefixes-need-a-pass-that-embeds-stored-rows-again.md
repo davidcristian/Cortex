@@ -1,9 +1,8 @@
 # The embedder prefixes need a pass that embeds stored rows again
 
-**Status:** open, actionable
+**Status:** done 2026-11-27
 **Area:** memory
 **Origin:** [ADR-0008](../../adr/ADR-0008-memory-v1.md)
-**Verified:** 2026-11-24
 
 The card of `nomic-embed-text-v1.5` asks for `search_document: ` before a stored text and
 `search_query: ` before a query, and the brain sends neither. Over the recall corpus, both
@@ -35,3 +34,10 @@ top 5. The store keeps no record of the form a row was embedded in.
 
 - 2026-11-24: filed while closing
   [task 1241](1241-the-embedder-is-sent-no-task-prefix.md).
+- 2026-11-27: done. Over 44 questions with near-miss notes (`near_miss_corpus.py`), no prefix,
+  both prefixes and the query prefix alone each put 43 gold notes first and 44 in the top 5, so
+  the rule's first clause ships the query prefix alone with no pass
+  ([readings](../../readings/embedding-input.md#the-task-prefix-over-near-miss-notes)). The
+  `Embedder` port takes an `EmbedRole`; recall and the forget reach embed a query as a query, and
+  the adapter sends it after `CORTEX_MEMORY_EMBEDDER_QUERY_PREFIX`, default `search_query: `, 4
+  tokens. Step 3 is not called for: no stored row changes form.

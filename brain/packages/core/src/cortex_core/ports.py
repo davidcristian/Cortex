@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Protocol
 
 from cortex_core.conversation import Message
+from cortex_core.embed_input import EmbedRole
 from cortex_core.events import TurnEvent
 from cortex_core.images import ImagePart
 from cortex_core.inference import GenerationBounds, InferenceEvent, JsonSchema
@@ -89,7 +90,9 @@ class ModelManager(Protocol):
 class Embedder(Protocol):
     """Turns text into the vector retrieval ranks on (one stateless call, no I/O state)."""
 
-    async def embed(self, text: str) -> Sequence[float]: ...
+    async def embed(
+        self, text: str, *, role: EmbedRole = EmbedRole.DOCUMENT
+    ) -> Sequence[float]: ...
 
 
 class Clock(Protocol):

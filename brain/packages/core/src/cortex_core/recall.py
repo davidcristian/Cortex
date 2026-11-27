@@ -3,7 +3,7 @@
 from collections.abc import Callable, Collection, Sequence
 from uuid import uuid4
 
-from cortex_core.embed_input import embedding_input
+from cortex_core.embed_input import EmbedRole, embedding_input
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.ports import Clock, Embedder, MemoryStore, RecallAuditSink
 from cortex_core.ranking import RecallAudit, dropped_candidates
@@ -53,7 +53,9 @@ class MemoryRecaller:
         recalled: Sequence[str] = (),
     ) -> MemoryRecord | None:
         """Embed and store ``text`` in the turn's write-scope; None when a recalled id is gone."""
-        embedding = tuple(await self._embedder.embed(embedding_input(text)))
+        embedding = tuple(
+            await self._embedder.embed(embedding_input(text), role=EmbedRole.DOCUMENT)
+        )
         record = MemoryRecord(
             id=self._id_factory(),
             text=text,
@@ -80,7 +82,7 @@ class MemoryRecaller:
 
     async def nearest(self, query: str, *, session_id: str, limit: int) -> Sequence[MemoryRecord]:
         """The ``limit`` memories nearest ``query`` that the chat can recall, unranked."""
-        embedding = await self._embedder.embed(embedding_input(query))
+        embedding = await self._embedder.embed(embedding_input(query), role=EmbedRole.QUERY)
         scopes = self._scope.read_scopes(session_id)
         return [hit.record for hit in await self._store.search(embedding, k=limit, scopes=scopes)]
 
@@ -98,7 +100,7 @@ class MemoryRecaller:
 
         The rows ``leave_out`` names are dropped before ranking; the next nearest fill the pool.
         """
-        embedding = await self._embedder.embed(embedding_input(query))
+        embedding = await self._embedder.embed(embedding_input(query), role=EmbedRole.QUERY)
         scopes = self._scope.read_scopes(session_id)
         size = self._policy.candidate_k(k)
         pool = await self._store.search(embedding, k=size + len(leave_out), scopes=scopes)

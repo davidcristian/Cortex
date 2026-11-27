@@ -50,6 +50,7 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "CORTEX_MEMORY_DSN",
         "CORTEX_MEMORY_EMBEDDER_ENDPOINT",
         "CORTEX_MEMORY_EMBEDDER_MODEL",
+        "CORTEX_MEMORY_EMBEDDER_QUERY_PREFIX",
         "CORTEX_TOOLS_BACKEND",
         "CORTEX_TOOLS_ENDPOINT",
         "CORTEX_TOOLS_ON_UNAVAILABLE",
@@ -410,6 +411,13 @@ def test_memory_defaults_to_disabled() -> None:
     assert config.scope == "global"
     assert config.on_tainted == "skip"
     assert config.recall == "judge"
+    assert config.embedder_query_prefix == "search_query: "
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_an_empty_query_prefix_sends_queries_as_they_are(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_MEMORY_EMBEDDER_QUERY_PREFIX", "")
+    assert MemoryConfig().embedder_query_prefix == ""
 
 
 @pytest.mark.usefixtures("clean_env")

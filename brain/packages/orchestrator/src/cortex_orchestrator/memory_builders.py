@@ -99,7 +99,12 @@ async def build_memory(config: MemoryConfig, clock: Clock) -> MemoryParts:
     """Pick the memory backend: a recaller per model, the cascade, the forget, and a closer."""
     if config.backend == "pgvector":
         client = httpx.AsyncClient(timeout=httpx.Timeout(_EMBEDDER_TIMEOUT_S))
-        embedder = LlamaCppEmbedder(client, config.embedder_endpoint, model=config.embedder_model)
+        embedder = LlamaCppEmbedder(
+            client,
+            config.embedder_endpoint,
+            model=config.embedder_model,
+            query_prefix=config.embedder_query_prefix,
+        )
         store = await PgVectorMemoryStore.connect(config.dsn, timeout_s=_STORE_TIMEOUT_S)
 
         async def close_memory() -> None:

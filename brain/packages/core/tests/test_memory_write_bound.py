@@ -6,6 +6,7 @@ import pytest
 
 from cortex_core import (
     EchoInferenceBackend,
+    EmbedRole,
     HashEmbedder,
     InMemoryMemoryStore,
     InMemorySessionStore,
@@ -26,11 +27,11 @@ class StallingEmbedder:
         self._answered = answered
         self.calls = 0
 
-    async def embed(self, text: str) -> Sequence[float]:
+    async def embed(self, text: str, *, role: EmbedRole = EmbedRole.DOCUMENT) -> Sequence[float]:
         self.calls += 1
         if self.calls > self._answered:
             await asyncio.Event().wait()
-        return await self._inner.embed(text)
+        return await self._inner.embed(text, role=role)
 
 
 async def _collect(events: AsyncIterator[TurnEvent]) -> list[TurnEvent]:
