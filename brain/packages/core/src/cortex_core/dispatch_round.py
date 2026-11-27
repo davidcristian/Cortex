@@ -39,7 +39,9 @@ from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust, TurnStamp
 from cortex_core.untrusted import TaintLedger, says_declined
 from cortex_core.waits import GENERATING, TOOL_RUNNING, Wait
 
-_UNASKED = frozenset({DispatchRefusal.UNASKED, DispatchRefusal.FORGET_UNREQUESTED})
+_MESSAGE_REFUSALS = frozenset(
+    {DispatchRefusal.UNASKED, DispatchRefusal.FORGET_UNREQUESTED, DispatchRefusal.FORGET_UNSAID}
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -239,7 +241,7 @@ async def run_round(
             yield StepOutcome(tool_name=spec.name, ok=not result.is_error)
         if spec is not None and spec.name == FORGET_UNTRUSTED_TOOL_NAME and not result.is_error:
             context.taint.forgotten = True
-        if call.name == FORGET_CHOSEN_TOOL_NAME and refusal in _UNASKED:
+        if call.name == FORGET_CHOSEN_TOOL_NAME and refusal in _MESSAGE_REFUSALS:
             context.taint.forget_refused |= refusal is DispatchRefusal.UNASKED
             context.taint.forget_refused_texts += (call_text(call),)
         context.taint.sidecar_refused |= (

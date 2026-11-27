@@ -38,6 +38,7 @@ from cortex_core.forget_refused_held import (
     hold_refused_value,
 )
 from cortex_core.forget_unrequested import FORGET_UNREQUESTED_MSG
+from cortex_core.forget_unsaid import FORGET_UNSAID_MSG
 from cortex_core.memory_old_value import old_value_note
 
 _SEED = "User: Merk dir, dass mein Code 5528 ist.\nAssistant: Notiert."
@@ -142,6 +143,21 @@ async def test_the_note_is_written_in_the_language_of_the_message(
     store = await _seeded("User: Mon code est 5528.\nAssistant: Noté.")
     _ran, _details, shown = await _turn(query, reply, [_call("5528")], store)
     assert shown == reply + REFUSED_HELD_NOTES[language]
+
+
+@pytest.mark.parametrize(
+    ("named", "noted"),
+    [("5528", True), ("ancien code 5528", True), ("ancien code", False), ("4417", False)],
+)
+async def test_a_call_naming_words_a_request_to_remember_lacks_gets_the_note_on_a_held_value(
+    *, named: str, noted: bool
+) -> None:
+    store = await _seeded("User: Retiens que mon code est 5528.\nAssistant: C'est noté.")
+    query, reply = "Retiens que ce numéro est faux.", "C'est noté, ce numéro est faux."
+    ran, details, shown = await _turn(query, reply, [_call(named)], store)
+    assert (ran, details) == ([], [FORGET_UNSAID_MSG])
+    assert shown == reply + (REFUSED_HELD_NOTES["fr"] if noted else "")
+    assert len(await store.find_value("5528", limit=5)) == 1
 
 
 async def test_an_english_message_gets_the_english_note() -> None:

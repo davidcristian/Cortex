@@ -69,9 +69,10 @@ closing note on any draw is a null result for the language half.
 
 The rule passes, and its language half rests on q1 alone: both notes are the French
 `REFUSED_HELD_NOTES` text, after a forget call naming `5528` that `FORGET_UNREQUESTED` refused.
-No draw showed a card. On q2, 4 of 8 draws made the same call and `FORGET_UNSAID` refused it, a
-refusal the note does not cover, so those replies say the number was noted as wrong while the
-row still holds it
-([R-1379](../refinements/tasks/1379-a-forget-call-refused-for-words-a-request-to-remember-lacks-gets-no-held-note.md)).
+No draw showed a card. On q2, 4 of 8 draws made the same call and `FORGET_UNSAID` refused it.
+The turn kept no call text for that refusal when these draws were taken, so those replies say the
+number was noted as wrong while the row still holds it, with no note. It keeps the text now, and
+the q2 call replayed through the tree ends with the French note
+(`test_forget_refused_held.py`).
 On q3 the cortex made no forget call and asked for the new code. Logs and notes:
 `~/.cache/cortex-run/2026-11-27/a2/`.

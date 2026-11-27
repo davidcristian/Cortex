@@ -10,7 +10,7 @@ spawned subtask or a model swap is in [brain-core-residency.md](brain-core-resid
 
 - `ToolSpec(name, description, parameters, confirm_required=False, private_arguments=False, sidecar=False, calls_sidecar=False)` is what a tool
   advertises. `parameters` is the JSON Schema the model fills, never interpreted here; `confirm_required` marks
-  an action that needs confirmation, `private_arguments` arguments the audit and a handoff record's loop tail keep only as `<redacted>` (the record keeps the text of a forget call refused as unasked or unrequested, which deleted nothing, in `forget_refused_texts`), `sidecar` a tool an MCP sidecar serves, and `calls_sidecar` a tool that calls sidecar tools itself, which `spawn_subagents` sets when subagents have tools.
+  an action that needs confirmation, `private_arguments` arguments the audit and a handoff record's loop tail keep only as `<redacted>` (the record keeps the text of a forget call refused as unasked, as unrequested or for words the message lacks, which deleted nothing, in `forget_refused_texts`), `sidecar` a tool an MCP sidecar serves, and `calls_sidecar` a tool that calls sidecar tools itself, which `spawn_subagents` sets when subagents have tools.
 - `ToolCall(id, name, arguments, stamp=UNSTAMPED)` is a model's request to run one tool; `id`
   matches it to its `ToolResult`. The dispatcher overwrites `stamp` at dispatch time, so a stamp
   the model wrote never reaches a tool (ADR-0018, ADR-0027).

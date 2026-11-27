@@ -1,8 +1,8 @@
 # Readings: the note on a refused forget call naming a stored value
 
 These readings count `REFUSED_HELD_NOTE` (`forget_refused_held.py`): a reply on a turn whose
-forget call was refused as unasked or unrequested ends with it when a stored row still holds,
-whole, a value the call named. The refusal is unchanged. The decision is
+forget call was refused as unasked, as unrequested or for words a request to remember lacks ends
+with it when a stored row still holds, whole, a value the call named. The refusal is unchanged. The decision is
 [ADR-0075](../adr/ADR-0075-forget-chosen-memories.md); the cost the note answers is drawn in
 [forget-refusal-stated-fact.md](forget-refusal-stated-fact.md#a-value-said-to-be-outdated-the-old-value-stored-2026-11-26).
 The rules were written before the first launch, in `notes.md` of `~/.cache/cortex-run/2026-11-27/c3/`.
