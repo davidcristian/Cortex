@@ -50,7 +50,9 @@ All are `integration`-marked, excluded from CI and coverage, and run per
 - `tests/test_rerank_judge_live.py`, `tests/test_rerank_judge_wide_live.py` and
   `tests/test_recall_floor_live.py` measure recall ranking through the memory override's embedder
   (method and numbers in [ranked recall](../readings/ranked-recall.md)). Each prints the embedder's
-  engine build first, read off its `GET /props` by `served_build` in `tests/served_build.py`. Each
+  engine build first, read off its `GET /props` by `served_build` in `tests/served_build.py`.
+  `tests/test_rerank_judge_exchanges_live.py` counts the judge over 20 draws of each stored
+  exchange case and prints the cortex's build the same way. Each
   row of `tests/test_injection_defense_live.py` prints its server's build the same way, through
   `served_build_sync`, once the server is healthy.
 - **`tests/test_system_join_live.py` checks the join of leading system messages** (ADR-0071)

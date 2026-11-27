@@ -217,11 +217,11 @@ pool down to the hits one turn sees. The turn that calls it is in
   blend). `JudgeRecallPolicy(backend, model, *, pool_factor, fallback=RAW_RECALL_POLICY)`
   (`rerank_judge.py`) asks the resident model to order the pool, each note on one line after its age
   (`memory_age.py`, "(age unknown)" for a date after now, which a clock that ran ahead wrote, so it
-  never reads as the newest), under a JSON-schema-constrained request using `rank_bounds(k)`
-  (`max_tokens=24 + 8k`, thinking off, trace budget zero) and falls back on any failure; an
-  **empty** order is the model declining the pool and returns an empty ranking on the `DEMUR` basis
-  without the fallback (ADR-0038 decision 11). A similarity floor was calibrated and **declined**
-  (ADR-0038 decision 12).
+  never reads as the newest) and the question after the notes, under a JSON-schema-constrained
+  request using `rank_bounds(k)` (`max_tokens=24 + 8k`, thinking off, trace budget zero) and falls
+  back on any failure; an **empty** order is the model declining the pool and returns an empty
+  ranking on the `DEMUR` basis without the fallback (ADR-0038 decision 11). A similarity floor was
+  calibrated and **declined** (ADR-0038 decision 12).
 - `Ranking`, `RankedMemory` and `RankBasis` (`ranking.py`) are what `select` returns.
   `RankedMemory` pairs a kept hit with the `key` its policy ordered by, and `Ranking` adds the
   `basis` naming that quantity: `ECHO` (raw cosine), `EMBER` (recency blend), `SPREAD` (MMR over

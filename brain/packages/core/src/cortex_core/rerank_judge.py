@@ -28,6 +28,9 @@ ORDER_ENVELOPE: JsonSchema = {
 
 _INSTRUCTION = (
     "You are ranking remembered notes for how well each one helps answer a question. "
+    "First work out what the question asks for. A note helps only when it holds that "
+    "answer or a fact the answer needs; a note that shares words with the question but "
+    "does not hold what it asks for does not help. "
     "Reply with the numbers of the notes that help, best first, and leave out the ones "
     "that do not help at all. Each note starts with how long ago it was written; when two "
     "notes disagree, the newer one is current."
@@ -56,12 +59,12 @@ def rank_bounds(k: int) -> GenerationBounds:
 def build_rank_messages(
     query: str, hits: Sequence[ScoredMemory], *, k: int, at: datetime
 ) -> list[Message]:
-    """The one-message ranking prompt: the instruction, the question, then the numbered notes."""
+    """The one-message ranking prompt: the instruction, the numbered notes, then the question."""
     listed = "\n".join(
         f"{index}. {aged(one_line(hit.record.text)[:CANDIDATE_CHARS], hit.record.at, at)}"
         for index, hit in enumerate(hits)
     )
-    body = f"{_INSTRUCTION}\n\nQuestion: {query}\n\nNotes:\n{listed}\n\nReply with at most {k}."
+    body = f"{_INSTRUCTION}\n\nNotes:\n{listed}\n\nQuestion: {query}\n\nReply with at most {k}."
     return [Message(role=Role.USER, text=body, at=at, turn_id=_RANK_TURN_ID)]
 
 

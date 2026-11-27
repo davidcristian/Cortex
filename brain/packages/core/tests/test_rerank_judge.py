@@ -132,14 +132,24 @@ async def test_the_judge_lifts_the_answer_over_the_higher_cosine_noise() -> None
     assert [ranked.key for ranked in ranking.hits] == [1.0, 0.5]
 
 
-async def test_the_judge_sends_the_question_the_numbered_notes_and_the_envelope() -> None:
+async def test_the_judge_sends_the_numbered_notes_then_the_question_and_the_envelope() -> None:
     policy, backend = _judge(json.dumps({"order": [0]}))
     await policy.select(_pool(), query="where does state live?", now=_NOW, k=1)
     (prompt,) = backend.prompts
-    assert "where does state live?" in prompt
-    assert "0. (just now) the office coffee machine" in prompt
-    assert "Reply with at most 1." in prompt
+    first = prompt.index("\n0. (just now) the office coffee machine")
+    last = prompt.index("\n2. (just now) a note about coffee filters\n")
+    question = prompt.index("\n\nQuestion: where does state live?\n\n")
+    assert first < last < question < prompt.index("Reply with at most 1.")
     assert backend.schemas == [ORDER_ENVELOPE]
+
+
+def test_the_instruction_says_a_note_sharing_the_question_s_words_alone_does_not_help() -> None:
+    (message,) = build_rank_messages("q", [_hit("a", "x", 0.5)], k=1, at=_NOW)
+    assert "First work out what the question asks for." in message.text
+    assert (
+        "a note that shares words with the question but does not hold what it asks for does not"
+        " help" in message.text
+    )
 
 
 async def test_an_unreachable_model_falls_back_and_says_so_in_the_basis() -> None:

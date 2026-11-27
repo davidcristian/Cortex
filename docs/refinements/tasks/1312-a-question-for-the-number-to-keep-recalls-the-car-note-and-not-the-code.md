@@ -1,9 +1,8 @@
 # A question for the number to keep recalls the car note and not the code
 
-**Status:** open, actionable
+**Status:** done 2026-11-27
 **Area:** memory
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
-**Verified:** 2026-11-27
 
 On 2026-11-23 the store held two exchanges, `Keep in mind that my car is a blue Fiat.` and
 `Remember that my gym locker code is 5819.`, and a new chat asked `Reply with only the number:
@@ -29,3 +28,7 @@ chat can recall a row saying no number was kept
 - 2026-11-23: filed from the recount of task 1005, whose loop and invented value did not recur.
 - 2026-11-27: the count and the corpus entry done (0 of 20 orders held the code note on the
   replay), the rule written in the ranked recall readings; narrowed to the judge change.
+- 2026-11-27: done. Of three changes written down before the first draw, the instruction alone
+  held the code note in 0 of 20 draws, the question after the notes in 6, and both in 17 and
+  then 18; the two together kept the wide corpus's judge column and ship. The deep tier's draw is
+  [task 1377](1377-the-judge-prompt-with-the-question-after-the-notes-is-undrawn-on-the-deep-tier.md).

@@ -99,7 +99,29 @@ the wide corpus numbers above stay comparable. Logs: `~/.cache/cortex-run/2026-1
 **Rule for a change to the judge.** A change to the judge's instruction, bounds or note format is
 kept only when, at the cortex's own sampling defaults, `test_rerank_judge_exchanges_live.py` holds
 the asked note in at least 10 of 20 draws for every `EXCHANGES` entry, and the wide corpus keeps
-the judge column of the newest cortex reading in this file. No change has passed it yet.
+the judge column of the newest cortex reading in this file. The third change below passed it.
+
+**2026-11-27, three changes to the judge.** Written down before the first draw, and none names the
+case's words. C1 adds to the instruction: "First work out what the question asks for. A note helps
+only when it holds that answer or a fact the answer needs; a note that shares words with the
+question but does not hold what it asks for does not help." C2 moves the question after the
+numbered notes and keeps the instruction. C3 is both. The server was the one above, started by the
+model host on compose defaults (the argv read off the container: the same file, context 16,384,
+the default cache type, the same drafter at a draft length of 3, no reasoning flag). Each change
+was applied to `rerank_judge.py` and drawn through `test_rerank_judge_exchanges_live.py`, 20 draws.
+
+| change | asked note held, of 20 | asked note first | empty order |
+| --- | --- | --- | --- |
+| C1, the instruction | 0 | 0 | 0 |
+| C2, the question after the notes | 6 | 6 | 0 |
+| C3, both | 17 | 17 | 0 |
+| C3, drawn again before it was kept | 18 | 18 | 0 |
+
+Neither part alone reaches 10; the two together do, and the second draw held. On the wide corpus,
+one pass at `k` 3 over a pool of 12 as the 2026-08-07 reading was drawn, C3 kept the judge column:
+MRR 1.000 in every answerable category with the gold first on all 22, `ABSENT` returning nothing 4
+of 4, no fallback. The unchanged judge drew the same column in the same session. C3 is the judge's
+prompt from this date. Logs and notes: `~/.cache/cortex-run/2026-11-27/s2/`.
 
 ## Whole turns, judge against raw
 
