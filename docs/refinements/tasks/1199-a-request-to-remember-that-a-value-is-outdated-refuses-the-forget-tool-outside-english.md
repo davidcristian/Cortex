@@ -58,6 +58,7 @@ with the old value stored an unasked forget call then deleted the old row
   replay and, drawn live with the old value seeded, all 3 of 16 draws with a refused call, with no
   note elsewhere and no old row deleted
   ([readings](../../readings/forget-refused-held-note.md)). A call the cortex made before a
-  handoff gives no note, since the handoff record does not keep the call texts, and
+  handoff gives no note, since the handoff record does not keep the call texts
+  ([task 1374](1374-a-refused-forget-call-made-before-a-handoff-gives-no-refused-held-note.md)), and
   `Retiens que ce code est périmé.` gets the English note, since `message_language` reads it as
-  English.
+  English ([task 1375](1375-a-short-french-request-to-remember-gets-its-notes-in-english.md)).
