@@ -1,9 +1,8 @@
 # The benchmark driver's cap leaves three CPU cells without a filled pass
 
-**Status:** open, actionable
+**Status:** done 2026-11-27
 **Area:** inference-model-manager
 **Origin:** [ADR-0077](../../adr/ADR-0077-model-card-settings.md)
-**Verified:** 2026-11-20
 
 The model baseline's driver, `tools/bench3.py` under `measurements/model-baseline-2026-11-16/`
 (which git ignores), draws a CPU row in `cpu_model`. It reads the prompt rate from a probe of
@@ -45,3 +44,9 @@ a line there saying why the tier does not need them (the CPU servers ship at 8K)
 - 2026-11-21: the drafted CPU rows that wait for this task are in
   [R-1270](1270-some-cache-type-cells-have-no-row-beside-a-16-bit-row-of-their-own-night.md)
   since R-1243 closed.
+- 2026-11-27: the driver is the git-ignored `tools/bench3.py`, not a file under `scripts/`.
+  `cpu_model` takes `--fill-cap <seconds>` for the cells an invocation names, with 0 for no cap,
+  and `q8-probes/cpurow.py` reads `CPU_FILL_CAP`. The rows are not drawn: the
+  [readings](../../readings/kv-cache-remaining-cells.md#the-cpu-subagent-servers) now say the tier
+  does not need them, since the CPU servers ship at 8K, where each CPU file already fails the
+  cache type rule on its prompt pass.

@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** inference-model-manager
 **Origin:** [ADR-0077](../../adr/ADR-0077-model-card-settings.md)
-**Verified:** 2026-11-21
+**Verified:** 2026-11-27
 
 Every model the baseline of 2026-11-16 drew has rows at `q8_0` beside 16-bit rows of the same
 night, and the cache type rule is applied to each in the readings
@@ -35,10 +35,10 @@ drawn at 16 bits into `bench/q8-ref.jsonl`, without drafting and at one draft le
 2. **The CPU rows with a drafter at 16K and 32K, and the other draft lengths at 8K**: `python3
    bench3.py --models gemma-4-E4B,Qwen3.5-2B,Qwen3.5-0.8B --kind cpu --phase cpu --ctx 16384
    --out q8-ref.jsonl`, then the same with `--kv q8_0 --out q8.jsonl`, and for gemma-4-E4B both
-   again with `--fa on`; then `--ctx 32768`, and no `--ctx` for 8K. Three cells get no filled
-   pass until
-   [R-1262](1262-the-benchmark-drivers-cap-leaves-three-cpu-cells-without-a-filled-pass.md) is
-   done. A CPU server keeps its cache in host RAM, so no row saves card memory.
+   again with `--fa on`; then `--ctx 32768`, and no `--ctx` for 8K. Add `--fill-cap 0` for a
+   filled pass of the three cells
+   [R-1262](1262-the-benchmark-drivers-cap-leaves-three-cpu-cells-without-a-filled-pass.md)
+   names. A CPU server keeps its cache in host RAM, so no row saves card memory.
 3. **The Qwen3.5-0.8B CPU pair at 32K once more**, since 1.242 is one launch each: `python3
    ../q8-probes/cpurow.py Qwen3.5-0.8B 32768 f16 on`, then the same with `q8_0`. Write the pass
    mark first: the second pair inside 0.9 to 1.1 of 1.242.
@@ -59,11 +59,6 @@ drawn at 16 bits into `bench/q8-ref.jsonl`, without drafting and at one draft le
    launches loaded 529 to 742 MiB less than the launch at length 1 with the same flags: add the
    lengths to `CELLS` in `../q8-probes/flashfit.py` and run it. It loads no weights and reads the
    placement the engine's fit ends on at each type.
-7. **The output check, read and not launched.** The clauses that differ at 8 bits for
-   gemma-4-12B, Qwen3.5-9B, Qwen3.5-2B and gemma-4-26B-A4B in the checks of 2026-11-20 are still
-   to be read against the prompt: `python3 q8-output-report.py --texts`. Qwen3.6-35B-A3B and the
-   NVFP4 file of gemma-4-31B have no check, since no row holds them whole, and the CPU files have
-   none on a CPU, since `q8-output.py` launches on the card.
 
 Afterwards `python3 q8-report.py` rebuilds `q8.md`.
 
@@ -77,3 +72,8 @@ closes with the last one.
   [R-1243](1243-every-tier-holds-its-context-in-the-default-16-bit-cache.md) closed on
   Qwen3.8-Flash-Next's rows. Items 1 to 5 and 7 are that task's steps 2 to 7 with their
   commands, and item 6 is what the Flash-Next rows of 2026-11-21 left.
+- 2026-11-27: the output check of the former item 7 was read from the recorded texts, and the
+  [readings](../../readings/kv-cache-remaining-cells.md#whether-the-reply-changes) say the prompt
+  states each clause that differs at 8 bits. Item 2 names the driver's new `--fill-cap` option.
+  Items 1 to 5 and the rows of item 6 wait on rate rows, since the card's power limit read 175,
+  not the baseline's 155. The fit step of item 6 reads no rate and did not fit this slot.

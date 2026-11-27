@@ -175,7 +175,10 @@ drafting. So 8 bits with the flag on, over what the server ships with (16 bits, 
 
 The written rate rises with the context and the prompt pass falls much further. gemma-4-E4B at
 16K and 32K and Qwen3.5-2B at 32K have short prompts only, at 0.98 to 1.01 of the 16-bit rate,
-because the driver's cap on a slow prompt pass draws no filled pass there.
+because the driver's cap on a slow prompt pass draws no filled pass there. The tier does not need
+those filled rows: the CPU servers ship at 8K (`CORTEX_SUBAGENT_CTX_SIZE` 8192), where each CPU
+file already fails condition 3 on its prompt pass, and the prompt pass falls further above 8K. The
+driver's `--fill-cap 0` (or `CPU_FILL_CAP=0` for `cpurow.py`) draws them without the cap.
 
 Method: `python3 bench3.py --models gemma-4-E4B,Qwen3.5-2B,Qwen3.5-0.8B --kind cpu --phase cpu
 --ctx 8192 --out q8-ref.jsonl` and the same with `--kv q8_0 --out q8.jsonl`, with `--fa on` for
@@ -199,8 +202,11 @@ Every reply ends on its own, none is empty and none repeats itself. gemma-4-31B'
 its 16-bit reply. The 8-bit reply of gemma-4-26B-A4B words three clauses differently; the
 measurement notes found each thing it names in the prompt by a word search, and one link (gRPC
 "to ensure statelessness and portability") is the reply's own. The clauses that differ for the
-other three were not read against the prompt this night; the same checks passed on 2026-11-18
-and 2026-11-19. Qwen3.6-35B-A3B and the NVFP4 file of gemma-4-31B have no check, since no row
+other three were read against the prompt on 2026-11-27 from the recorded texts, and the prompt
+states each: Qwen3.5-9B's 8-bit reply has "between the two language boundaries" for "across the
+Python and Rust boundaries", gemma-4-12B's has "live contract tests against real databases" for
+the isolation of live tests from production data (the prompt's own store for live contract runs),
+and Qwen3.5-2B's has Redis and Postgres keeping state across a model swap (its stores decision). Qwen3.6-35B-A3B and the NVFP4 file of gemma-4-31B have no check, since no row
 holds them whole. Method: `python3 tools/q8-output.py <model>`, read with `python3
 tools/q8-output-report.py --texts`.
 

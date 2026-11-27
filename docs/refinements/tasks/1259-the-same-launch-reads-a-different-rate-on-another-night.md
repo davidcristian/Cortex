@@ -1,9 +1,8 @@
 # The same launch reads a different rate on another night
 
-**Status:** open, actionable
+**Status:** done 2026-11-27
 **Area:** inference-model-manager
 **Origin:** [ADR-0077](../../adr/ADR-0077-model-card-settings.md)
-**Verified:** 2026-11-22
 
 A rate row of the model baseline depends on the night it was drawn. On 2026-11-19 the same 16-bit
 launch was drawn again for one cell of each model, and it read 1.06 to 1.23 times the rate of the
@@ -125,8 +124,11 @@ of one date. That stops new ratios across nights. Left:
 1. Find the cause. Keep drawing one fixed launch as the first and the last launch of every
    measurement night into `bench/q8-ref.jsonl` (the drift check's launch, gemma-4-12B at 64K
    without drafting: `python3 q8-probes/drift.py first <name>`); the four nights from 2026-11-19
-   to 2026-11-22 have it. Still to build: the driver records what a row lacks, which is its own revision, the
-   display driver's version and the card's clock readings as absolute values.
+   to 2026-11-22 have it. Since 2026-11-27 each row the driver writes records what earlier rows
+   lack: `driver_rev` (the first twelve hex digits of the SHA-256 of `tools/bench3.py`),
+   `script_rev` (the name of the script that ran it and the same digits of it),
+   `display_driver` (the version `nvidia-smi` reads) and the clock readings as absolute values,
+   `sm_busy` (the median while busy) and `sm_max`.
 2. Check the two records of the fourth bullet above row by row, and search the records for a
    ratio of two baseline rows of different dates.
 
@@ -152,3 +154,12 @@ either drawn again inside one night or marked as dividing two nights.
   drawn at 16K on this one night, so their ratios there no longer divide two nights. No cause is
   found: the driver still records none of the three fields a row lacks. Left open for those
   fields and for step 2.
+- 2026-11-27: closed on the second condition. The driver, the git-ignored
+  `measurements/model-baseline-2026-11-16/tools/bench3.py`, records its revision, the display
+  driver's version and the absolute clock readings in every row, read once on the card without a
+  server. Step 2 was checked row by row: each ratio tier drafters takes from the baseline divides
+  rows one ladder drew minutes apart (gemma-4-E4B at 8K on the card and on the CPU, Qwen3.5-9B at
+  64K from its redraw), and subagent budget's 0.68 and 0.67 divide rows of one slots run. The one
+  baseline ratio across dates that is not one run, Qwen3.8-Flash-Next's lengths 2 and 3 at 32K, is
+  marked in the [baseline rows](../../readings/model-baseline-rows.md). The cause is not found; no
+  fixed launch was drawn, since the card's power limit read 175, not the baseline's 155.

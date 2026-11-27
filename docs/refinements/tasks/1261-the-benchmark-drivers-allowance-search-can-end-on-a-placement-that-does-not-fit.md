@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** inference-model-manager
 **Origin:** [ADR-0077](../../adr/ADR-0077-model-card-settings.md)
-**Verified:** 2026-11-20
+**Verified:** 2026-11-27
 
 The model baseline's driver, `tools/bench3.py` under `measurements/model-baseline-2026-11-16/`
 (which git ignores), draws a split model through the engine's fit. `moe_model` searches for the
@@ -38,15 +38,23 @@ the search aims at 250 to 500: the checks at 1,400 loaded 16,945 and 17,055 MiB,
 
 ## What to do
 
-End the search on the last allowance whose check kept the headroom, and stop when two checks in
-a row return a placement already seen. Start a drafted launch from the allowance the no-draft
-search ended on plus the drafter's measured cost, not from a fixed guess. Then draw the cell
-again through the driver and replace the upper readings
-([R-1270](1270-some-cache-type-cells-have-no-row-beside-a-16-bit-row-of-their-own-night.md)
-has the commands).
+The search is fixed in the driver, which lives in the git-ignored
+`measurements/model-baseline-2026-11-16/tools/bench3.py`, not in `scripts/`. `settle_allowance`
+there ends on the allowance of the kept check (one with at least 250 MiB above the reserve)
+nearest the window when no check falls inside it, and stops once two checks in a row return a
+placement already seen. `moe_model` starts a drafted search from the allowance the no-draft
+search ended on, since the engine's fit counts the drafter itself: on 2026-11-20 the drafted
+checks at 600 and 500 loaded inside the 17,537 to 17,993 MiB the no-draft checks spanned, and the
+two at 1,400 about 800 MiB less than those. `rep.py` in `q8-probes/` calls the same function. On the four
+checks of lines 88 to 91 the search now ends on 502, a placement 632 MiB above the reserve, in
+place of 240.
 
-What would close it: the search changed in `bench3.py` and `rep.py`, and the Qwen3.8-27B cell at
-64K drawn through it with a measured 16-bit row.
+Left: draw the Qwen3.8-27B cell at 64K through the driver and replace the upper readings
+([R-1270](1270-some-cache-type-cells-have-no-row-beside-a-16-bit-row-of-their-own-night.md)
+item 5 has the commands). That row is a rate, drawn only at the baseline's power limit.
+
+What would close it: the Qwen3.8-27B cell at 64K drawn through the search with a measured 16-bit
+row.
 
 ## History
 
@@ -55,3 +63,7 @@ What would close it: the search changed in `bench3.py` and `rep.py`, and the Qwe
 - 2026-11-21: the commands for the cell are in
   [R-1270](1270-some-cache-type-cells-have-no-row-beside-a-16-bit-row-of-their-own-night.md)
   since R-1243 closed.
+- 2026-11-27: the search changed in `bench3.py` and `rep.py`, both git-ignored. Against a fake
+  fit with a 456 MiB step it ended on a kept placement in five shapes, where the old four-check
+  loop ended below the headroom in three. The cell's row waits on a rate, since the card's power
+  limit read 175, not the baseline's 155.
