@@ -15,12 +15,13 @@ _ANY_VERB = re.compile(
 _CLAUSE_END = re.compile(r"[,;:]|[.!?](?:\s|$)")
 _CONNECTOR = re.compile(r"^\W*(?:(?:and|but|then|so|plus)\s+)*", re.IGNORECASE)
 _EDGE = " \t\n,;:.!?"
+_NO_FACT = re.compile(r"(?:\W*\b(?:that|this|these|those|it|down)\b)*", re.IGNORECASE)
 
 
 def words_to_keep(query: str) -> str | None:
     """The words of ``query`` before its first retraction, or after it when the retraction is first.
 
-    None when no retraction opens a clause, or when the words kept hold a forget verb.
+    None when no retraction opens a clause, or the words hold a forget verb or only a request.
     """
     first = RETRACTION.search(query)
     if first is None:
@@ -29,9 +30,15 @@ def words_to_keep(query: str) -> str | None:
     if not kept.strip(_EDGE):
         kept = _after(query, first.end())
     kept = kept.strip(_EDGE)
-    if not kept or _ANY_VERB.search(kept):
+    if not kept or _ANY_VERB.search(kept) or not _holds_fact(kept):
         return None
     return kept
+
+
+def _holds_fact(kept: str) -> bool:
+    """Whether ``kept`` holds a word past the request to remember that opens it."""
+    request = REMEMBER.match(kept)
+    return request is None or _NO_FACT.fullmatch(kept, request.end()) is None
 
 
 def _after(query: str, start: int) -> str:

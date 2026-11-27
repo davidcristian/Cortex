@@ -67,10 +67,9 @@ never a reading of what the tree does now.
 
 172 of these record the day their claims were last checked against the code. On every other task here, that reading is still yours to take.
 
-### Actionable now (19)
+### Actionable now (18)
 
 - **[R-959](tasks/959-a-turn-refused-as-deleted-while-the-overlay-is-away-raises-an-empty-preview.md)** A turn refused as deleted while the overlay is away raises an empty preview (session-read-rpc). Its claim was checked against the code on 2026-11-05.
-- **[R-967](tasks/967-a-request-to-remember-a-new-value-and-forget-the-old-one-keeps-neither.md)** A request to remember a new value and forget the old one keeps neither (memory). Its claim was checked against the code on 2026-11-26.
 - **[R-995](tasks/995-a-request-to-remember-spends-its-thinking-looking-for-a-tool-to-store-the-fact.md)** A request to remember spends its thinking looking for a tool to store the fact (memory). Its claim was checked against the code on 2026-11-25.
 - **[R-1057](tasks/1057-a-romanian-reminder-reply-holds-a-broken-word.md)** A Romanian reminder reply holds a broken word (inference). Its claim was checked against the code on 2026-11-25.
 - **[R-1238](tasks/1238-the-lineups-readings-were-drawn-on-files-the-mount-no-longer-holds.md)** The lineup's readings were drawn on files the mount no longer holds (inference). Its claim was checked against the code on 2026-11-16.
@@ -93,7 +92,7 @@ never a reading of what the tree does now.
 
 - **[R-129](tasks/129-streamed-brain-status.md)** Streamed brain status (body-overlay). Its claim was checked against the code on 2026-10-25.
 
-### Waiting for its trigger (122)
+### Waiting for its trigger (123)
 
 - **[R-011](tasks/011-stylesheet-outside-line-cap.md)** The overlay stylesheet outside the line cap (repo-checks). Reopens when: `find body/app/src -name '*.css'` lists a second file, or `git log --since='<Verified date> 00:00' --oneline -- body/app/src/overlay.css` lists a commit whose diff moves a rule to change which rule applies. A commit that edits only comments does not. Its claim was checked against the code on 2026-11-10.
 - **[R-013](tasks/013-couplings-widened-registry-cannot-hold.md)** The couplings the widened registry cannot cover (repo-checks). Reopens when: A third value on the capture-target enum, a reader for declarations in the `.proto` arriving in the scan for another reason, any module outside the body's rpc crate and the brain's body client that has to name one of the two gRPC status codes, or either side of that pair gaining a declaration whose value the scan can read. Its claim was checked against the code on 2026-11-10.
@@ -211,6 +210,7 @@ never a reading of what the tree does now.
 - **[R-894](tasks/894-name-a-turn-waiting-behind-another-chat.md)** Name a turn waiting behind another chat (brain). Reopens when: a shipped client runs a cortex turn beside the overlay's, such as a fired reminder that runs a model turn or a second body. Its claim was checked against the code on 2026-11-10.
 - **[R-909](tasks/909-a-frozen-brain-blames-llama-server-for-a-lost-reply.md)** A frozen brain blames llama-server for a lost reply (inference). Reopens when: a turn in flight across a real sleep of the host ends in `no reply within` on the overlay, or the brain logs the stall line for a reply the model host finished. Its claim was checked against the code on 2026-10-28.
 - **[R-915](tasks/915-a-long-generation-the-server-holds-back-reads-as-a-stalled-server.md)** A long generation the server holds back reads as a stalled server (inference). Reopens when: a cortex turn ends in `sent nothing for model 'cortex'` while the model host's log shows its slot still decoding. Its claim was checked against the code on 2026-10-28.
+- **[R-967](tasks/967-a-request-to-remember-a-new-value-and-forget-the-old-one-keeps-neither.md)** A request to remember a new value and forget the old one keeps neither (memory). Reopens when: a History line in this file recording the user's pick of the second card's name. Its claim was checked against the code on 2026-11-27.
 - **[R-970](tasks/970-the-unkept-note-shows-on-a-message-with-nothing-to-keep.md)** The unkept note shows on a message with nothing to keep (memory). Reopens when: a person says the note confused them, or a recorded draw or shell flow holds a message of this form outside the row that found it. Its claim was checked against the code on 2026-10-31.
 - **[R-1047](tasks/1047-a-fact-with-a-second-verb-phrase-keeps-the-reminder-and-sound-tools.md)** A fact with a second verb phrase keeps the reminder and sound tools (memory). Reopens when: a recorded draw of a request to remember a fact alone that calls `schedule_task` or `set_volume` on a turn where `actions_asked` read a clause of the fact. Its claim was checked against the code on 2026-11-10.
 - **[R-1275](tasks/1275-no-user-preference-sets-the-reasoning-effort.md)** No user preference sets the reasoning effort (inference-model-manager). Reopens when: a History line in this file recording the maintainer's pick of the three level names and the key. Its claim was checked against the code on 2026-11-21.
@@ -626,7 +626,7 @@ never a reading of what the tree does now.
 - [R-952](tasks/952-withheld-unasked-tools-may-raise-forget-calls-on-a-remember-request.md) Withheld unasked tools may raise forget calls on a remember request. done 2026-10-31.
 - [R-962](tasks/962-a-reply-after-a-refused-file-call-can-say-it-has-no-access.md) A reply after a refused file call can say it has no access. done 2026-11-05.
 - [R-965](tasks/965-the-first-requests-of-two-builds-the-forget-rows-compare-are-not-recorded.md) The first requests of two builds the forget rows compare are not recorded. done 2026-11-05.
-- [R-967](tasks/967-a-request-to-remember-a-new-value-and-forget-the-old-one-keeps-neither.md) A request to remember a new value and forget the old one keeps neither. open, actionable.
+- [R-967](tasks/967-a-request-to-remember-a-new-value-and-forget-the-old-one-keeps-neither.md) A request to remember a new value and forget the old one keeps neither. open, waiting for its trigger.
 - [R-968](tasks/968-a-request-to-remember-holding-a-negation-or-a-full-stop-can-still-show-a-forget-card.md) A request to remember holding a negation or a full stop can still show a forget card. done 2026-11-05.
 - [R-969](tasks/969-a-forget-of-the-old-value-can-match-nothing-and-say-none-is-stored.md) A forget of the old value can match nothing and say none is stored. done 2026-11-10.
 - [R-970](tasks/970-the-unkept-note-shows-on-a-message-with-nothing-to-keep.md) The unkept note shows on a message with nothing to keep. open, waiting for its trigger.
