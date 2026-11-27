@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** body-gateway
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)
-**Verified:** 2026-11-06
+**Verified:** 2026-11-27
 **Trigger:** either of two readings. On a Win32 desktop, the watch item in `docs/host/`: a volume or
 toast call failing with a COM error after a long uptime, or the body process's handle count climbing
 across bursts of OS actions spaced further apart than tokio's blocking thread keep-alive (10 s by
@@ -88,3 +88,6 @@ So the exposure grew by one handler, not by one apartment.
 - 2026-11-06: Not fired. The grep reports the same two `CoInitializeEx` calls (`audio.rs:28`,
   `notify.rs:37`) and no `CoUninitialize`, the four `off_worker` call sites are as named, and no
   commit since 2026-10-17 touched `body/crates/os_windows`, `server.rs`, `screen.rs` or H-009.
+- 2026-11-27: checked again and not fired: the grep reports the same two `CoInitializeEx` calls
+  (`audio.rs:28`, `notify.rs:37`) and no `CoUninitialize`, and no commit since 2026-11-06 touched
+  `body/crates/os_windows`.

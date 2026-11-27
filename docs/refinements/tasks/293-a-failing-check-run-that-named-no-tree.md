@@ -1,10 +1,8 @@
 # A failing check run that named no tree
 
-**Status:** open, waiting for its trigger
+**Status:** satisfied 2026-11-27
 **Area:** repo-checks
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
-**Trigger:** the next failing `just check` whose whole output is kept, which names its tree in a `=== check-<tree>: FAILED ===` marker and its seed in the failing suite's own header, that being the one form of this failure a later pass can reproduce from.
-**Verified:** 2026-11-06
 
 Twice on 2026-08-17, `just check` run by the pre-commit hook exited 1 on a tree that passed on both
 sides of it with nothing changed in between. The first was on the commit that taught the backlog
@@ -75,3 +73,9 @@ measured; they are the first two places to look.
 - 2026-11-06: Checked, not triggered. Of the 35 `just check` logs kept in full from the night of
   2026-11-05 and this one, none names a tree as `FAILED`. The recipe and the four seeds are
   unchanged since 2026-10-16.
+- 2026-11-27: satisfied. The trigger fired on 2026-11-25: a kept `just check` log of a commit named
+  `check-body` as `FAILED` on `capture_screen_returns_a_real_downscaled_png_with_its_source_size`,
+  whose capture time fell outside the readings taken before and after the call because the wall
+  clock stepped back. That assertion dates from 2026-07-18, so it is a candidate cause of the two
+  failures of 2026-08-17, and the test now bounds the capture time by the reading after the call.
+  The failing suite was the unshuffled `cargo test`, and a clock step needs no seed to explain.

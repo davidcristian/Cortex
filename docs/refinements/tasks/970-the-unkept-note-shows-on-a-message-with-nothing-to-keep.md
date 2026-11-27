@@ -5,7 +5,7 @@
 **Origin:** [ADR-0019](../../adr/ADR-0019-tainted-memory-recording.md)
 **Trigger:** a person says the note confused them, or a recorded draw or shell flow holds a message of
 this form outside the row that found it.
-**Verified:** 2026-10-31
+**Verified:** 2026-11-27
 
 `asks_kept` reads `Remember to read notes.txt and tell me what it says.`, a to-do for this turn, as a
 request to remember. The turn reads the file, stays out of memory, and ends with `UNKEPT_CLAIM_NOTE`
@@ -23,3 +23,6 @@ replays every recorded message.
 ## History
 
 - 2026-10-31: filed from the rows of the note on every withheld request to remember.
+- 2026-11-27: checked again and not fired: no reading, host page or runbook added since 2026-10-31
+  records a `Remember to` message asking for work in the same turn, and what a person said about the
+  note is not something the tree records.

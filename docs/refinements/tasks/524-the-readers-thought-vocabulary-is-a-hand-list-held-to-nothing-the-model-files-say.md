@@ -3,15 +3,12 @@
 **Status:** open, waiting for its trigger
 **Area:** inference
 **Origin:** [ADR-0050](../../adr/ADR-0050-live-probe-records.md)
-**Verified:** 2026-11-06
+**Verified:** 2026-11-27
 **Trigger:** a pick entering the lineup whose chat template writes a thought marker
 `scripts/switchtail.py` does not list, or a model file of a listed family whose template changes
 the marker it writes. Both are countable by the struct walk over each GGUF header's
 `tokenizer.chat_template` that opened this entry: count the chat templates on the mount and the
 markers they write, and compare each file's markers with the pair `MARKERS` lists for its family.
-One file on the mount would fire the first clause if the tree named it:
-`unsloth/Muse-Glimmer-30B-GGUF/Muse-Glimmer-30B-UD-Q4_K_XL.gguf`, whose template writes neither
-pair, and `git grep -i glimmer` finds nothing today.
 
 `MARKERS` in `scripts/switchtail.py` is two pairs typed by hand, `<think>`/`</think>` and
 `<|channel>thought`/`<channel|>`, and nothing compares them with the lineup. The templates that
@@ -75,3 +72,8 @@ derivable from the template's own syntax.
 - 2026-11-06: Not fired. `MARKERS` in `scripts/switchtail.py` is the same two pairs with no commit
   since 2026-10-03, the mount holds the same 73 `*.gguf` files with none written since that date,
   and `git grep -i glimmer` still finds nothing outside this backlog.
+- 2026-11-27: checked again and not fired, and corrected: the walk over the mount, leaving out the
+  folder ruled out for every tier, reads 52 files, 29 with a chat template, and each writes the pair
+  `MARKERS` lists for its family, the two NVFP4 files included. The Muse-Glimmer-30B file the
+  trigger named is no longer on the mount, so its sentence is removed, and `MARKERS` has no commit
+  since 2026-11-06.

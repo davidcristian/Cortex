@@ -9,7 +9,7 @@ count that drops in the commit that changes an exclusion: each has happened whil
 read the whole tree.
 **Area:** repo-checks
 **Origin:** [ADR-0042](../../adr/ADR-0042-cross-tree-constant-registry.md)
-**Verified:** 2026-11-06
+**Verified:** 2026-11-27
 
 `linecap.MIN_FILES` and `dashcheck.MIN_FILES` are both 1, `composefiles.py` raises on a walk that
 found no compose file, and since 2026-09-17 `settingscheck.MIN_CLASSES` is 1, raising when no
@@ -131,3 +131,7 @@ all, every test in both building a temporary tree instead.
   `dashcheck OK: 2255 text file(s)`, so every file count rose. The compose walks still read 10
   files, at 11 bind mounts, 8 variables used more than once, 4 declared volume paths over 11 service
   definitions and 3 subagent servers, and `settingscheck` reads 142 fields of 14 classes.
+- 2026-11-27: not fired. `linecap OK: 628 non-test source file(s)` and `1335 markdown file(s)`,
+  `dashcheck OK: 2703 text file(s)`, so every file count rose. The compose walks still read 10
+  files, at 11 bind mounts, 10 variables written twice or more, 4 declared volume paths over 11
+  service definitions and 3 subagent servers, and `settingscheck` reads 155 fields of 14 classes.

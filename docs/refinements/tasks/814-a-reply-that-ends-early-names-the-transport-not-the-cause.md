@@ -5,7 +5,7 @@
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md) decision 2
 **Trigger:** a History line in this file recording the maintainer's pick of the wording and of the
 stopped reply's look.
-**Verified:** 2026-10-28
+**Verified:** 2026-11-27
 
 Four replies that end before the brain finishes show text that does not tell a person what
 happened ([readings](../../readings/overlay-turn-flows.md)):
@@ -48,3 +48,4 @@ happened ([readings](../../readings/overlay-turn-flows.md)):
 - 2026-10-16: Not fired, and corrected: a refused store write shows the same `{code}: {message}`
   form with the chat's id, found with Redis at its memory limit during a handoff.
 - 2026-10-28: checked again and not fired: no pick is recorded in this file's History.
+- 2026-11-27: checked again and not fired: no pick is recorded in this file's History.

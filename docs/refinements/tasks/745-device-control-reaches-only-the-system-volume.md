@@ -5,7 +5,7 @@
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)
 **Trigger:** a History line in this file recording the maintainer's pick: route one with the
 native actions its first slice builds, or route two.
-**Verified:** 2026-10-28
+**Verified:** 2026-11-27
 
 The assistant changes one thing on its machine, the system volume, through the cortex-only built-ins
 `get_volume` and `set_volume` over `BodyGateway`. `notify` and `capture_screen` use the same port but
@@ -81,3 +81,5 @@ the maintainer to pick an action group, which is then built. Declined if neither
 - 2026-10-25: checked again and not fired: no pick is recorded, and `streamable_http_session` still
   sends no headers.
 - 2026-10-28: checked again and not fired: no pick is recorded in this file's History.
+- 2026-11-27: checked again and not fired: no pick is recorded in this file's History, and
+  `streamable_http_session` in `registry.py` still takes a URL alone and sends no headers.

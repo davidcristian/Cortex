@@ -6,7 +6,7 @@
 [ADR-0066](../../adr/ADR-0066-reminder-toast-and-card.md) decision 6
 **Trigger:** a History line in this file recording the maintainer's pick of what shows a waiting
 card over a chat with messages, from the options in the proposal.
-**Verified:** 2026-10-28
+**Verified:** 2026-11-27
 
 The reminder stack is the empty chat's aside (ADR-0035 decision 29): `ChatView` opens its
 `Collapse` on `state.reminders.length > 0 && state.messages.length === 0`, and the stack rolls away
@@ -54,3 +54,4 @@ The pick edits ADR-0035 decision 29 for option 2, or ADR-0066 decision 6 for opt
   a decision, so what shows a card over a chat with messages is a pick that waits for the
   maintainer.
 - 2026-10-28: checked again and not fired: no pick is recorded in this file's History.
+- 2026-11-27: checked again and not fired: no pick is recorded in this file's History.

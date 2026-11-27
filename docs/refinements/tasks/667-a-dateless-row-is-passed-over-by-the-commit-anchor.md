@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
-**Verified:** 2026-11-06
+**Verified:** 2026-11-27
 **Trigger:** the ledger's latest pass has a "Drawn from" cell with no commit this clone resolves
 while an earlier row's does, whether its pass wrote the row without one or a rewrite moved the
 commit it recorded and left the earlier one in place, so the replay line counts from a pass that is
@@ -53,3 +53,6 @@ two dates, so "differ" is an equality rather than a judgement about date formats
   last, the pass of 2026-10-02, records `82dc0c901`, which resolves and is an ancestor of HEAD;
   `just replay` anchors on it and reports 239 candidate bodies since. No commit since 2026-10-07
   changed the recipe's replay lines.
+- 2026-11-27: checked again and not fired: the ledger in `docs/runbooks/mutation-replay.md` still
+  has four rows, the last, of 2026-10-02, records `82dc0c901`, which resolves and is an ancestor of
+  HEAD, and the runbook has no commit since 2026-11-06.

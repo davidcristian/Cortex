@@ -4,7 +4,7 @@
 **Area:** inference
 **Origin:** [ADR-0007](../../adr/ADR-0007-model-manager-inference.md)
 **Trigger:** a turn in flight across a real sleep of the host ends in `no reply within` on the overlay, or the brain logs the stall line for a reply the model host finished
-**Verified:** 2026-10-28
+**Verified:** 2026-11-27
 
 When the brain process is frozen past `CORTEX_INFERENCE_STALL_TIMEOUT_S` (120 s) in the middle
 of a reply, the read deadline runs out while it is frozen. At the thaw the brain logs
@@ -30,3 +30,6 @@ show the raw bound.
 - 2026-10-26: filed from the idle and expiry flows on the `cortexn8` stack.
 - 2026-10-28: checked again and not fired, and corrected: the stall error now names its bound, so
   the body quotes the line the brain logs today, which still blames llama-server.
+- 2026-11-27: checked again and not fired: no record since 2026-10-28 has a turn across a real sleep
+  of the host, and the one `no reply within` row in `overlay-turn-flows.md` is a question sent to a
+  stopped brain.

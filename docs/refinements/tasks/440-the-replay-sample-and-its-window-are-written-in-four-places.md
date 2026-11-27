@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** repo-checks
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
-**Verified:** 2026-11-06
+**Verified:** 2026-11-27
 **Trigger:** `grep -n '^replay ' justfile` stops printing `count="5" window="25"`, or
 `git log --since='<Verified date> 00:00' -p -- docs/runbooks/mutation-replay.md
 docs/adr/ADR-0002-toolchain-checks.md` shows a sentence stating five or twenty five as the sample
@@ -88,3 +88,6 @@ the ADR its argument and is probably the wrong trade.
   and neither named document has a commit since 2026-10-07.
 - 2026-11-06: Not fired. `grep -n '^replay ' justfile` prints line 204 with `count="5" window="25"`,
   and neither the runbook nor ADR-0002 has a commit since 2026-10-17.
+- 2026-11-27: checked again and not fired: `grep -n '^replay ' justfile` prints line 211 with
+  `count="5" window="25"`, and the two ADR-0002 commits since 2026-11-06 change no sentence about
+  the sample or the window.

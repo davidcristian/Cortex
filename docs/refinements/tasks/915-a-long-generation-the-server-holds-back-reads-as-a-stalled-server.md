@@ -4,7 +4,7 @@
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
 **Trigger:** a cortex turn ends in `sent nothing for model 'cortex'` while the model host's log shows its slot still decoding
-**Verified:** 2026-10-28
+**Verified:** 2026-11-27
 
 On 2026-10-28, on the `cortexn9` stack, a turn asking the cortex to read three 300-line logs with
 `read_multiple_files` and count their `ERROR` lines ended after 144.3 s with the error event
@@ -46,3 +46,6 @@ shipped cut note did, and none of thirty-six host replays of recorded fourth req
   tool calls and reasoning token by token, so the held text was something else.
 - 2026-10-28: the stall error now names the client's read bound in seconds, so it says how long
   the brain waited, whatever the cause turns out to be.
+- 2026-11-27: checked again and not fired: the two records of `sent nothing for model 'cortex'` are
+  still this task's origin row in `tool-result-room.md` and the idle and expiry flow that opened
+  R-909, and no draw since repeats it.
