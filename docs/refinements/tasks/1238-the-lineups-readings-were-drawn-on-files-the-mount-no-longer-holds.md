@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** inference
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-11-16
+**Verified:** 2026-11-27
 
 The models mount was rebuilt on 2026-11-15 and 2026-11-16, and every tier default now names a file
 no reading was drawn on. What a walk over the GGUF headers on the mount showed on 2026-11-16:
@@ -47,3 +47,11 @@ A row that reads the same closes its line here, and one that differs changes the
   engine's cells of [card samplers](../../readings/card-samplers.md). The 2B read 14 framed obeyed
   of 100 and the 9B 2, where the [injection text rows](../../readings/injection-text-rows.md) table
   has 8 and 7 on the earlier files and build; that table is not changed yet.
+- 2026-11-27: the mount holds the files this task names, at the byte sizes above. The
+  [injection text rows](../../readings/injection-text-rows.md) table now gives each Qwen3.5
+  entry's card counts of 2026-11-24 beside its earlier ones, which closes that line for their card
+  cells; the CPU cells and the other entries are still on the earlier files. The cortex's VRAM
+  figure is satisfied: `CORTEX_VRAM_CORTEX_GB` rests on the 8,868 MiB peak of the default file
+  with `mmproj-F32.gguf` and its drafter in [tier drafters](../../readings/tier-drafters.md). The
+  deep drafter's rate waits on a rate row, since the card's power limit read 175, not the
+  baseline's 155. The other card rows did not fit this slot.
