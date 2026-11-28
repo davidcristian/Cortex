@@ -5,7 +5,8 @@ and whether its reply is then its working instead of an answer: text such as `Th
 has two parts: ...` and `Wait, let me re-read the forget_memories tool definition`, streamed to
 the person as the reply. The thinking settings are
 [ADR-0049](../adr/ADR-0049-thinking-switch-and-trace-budget.md); the remedy these rows point to
-is [R-1392](../refinements/tasks/1392-send-the-cortex-thought-back-with-its-tool-calls.md).
+is its decision 21, `CORTEX_REPLY_RESEND_TRACE`, on by default since
+[its rows on the built brain](#the-setting-on-the-built-brain).
 
 ## The typed form
 
@@ -41,7 +42,40 @@ system turn when thinking is on, which it is when the request sends no `enable_t
 tool result it ends the prompt with `<|channel>thought`, so the thought is opened inside the
 prompt and the model chooses whether to write in it; a `--reasoning-budget` never sees that
 thought start. A thought sent back on an assistant message (`reasoning_content`) is rendered
-before that message's tool calls. The brain sends none.
+before that message's tool calls. On the rows of [the draws](#the-draws) the brain sent none,
+and the proxy sent it under V.
+
+## What each tier's template does with a sent thought
+
+Read on 2026-11-28 for every entry the tiers name: `tokenizer.chat_template` from each file's GGUF
+header, rendered with Jinja2 (not the engine) over a turn whose call message has a
+`reasoning_content`, and over the same call and reply followed by a new user message. The cortex
+pick's text equals the one its server served for the V rows, apart from one trailing newline.
+
+| Tier entry | File | Thought on a message after the last user message | On an earlier turn's message |
+| --- | --- | --- | --- |
+| Cortex pick | `gemma-4-12B-it-qat-UD-Q4_K_XL.gguf` | rendered | dropped |
+| Cortex alternate | `Qwen3.5-9B-Q4_K_M.gguf` | rendered | dropped |
+| Deep pick | `Qwen3.8-27B-UD-Q4_K_M.gguf` | rendered | rendered |
+| Deep alternate | `gemma-4-31B-it-qat-UD-Q4_K_XL.gguf` | rendered | dropped |
+| Subagent pick | `gemma-4-E4B-it-qat-UD-Q4_K_XL.gguf` | rendered | dropped |
+| Subagent | `gemma-4-E2B-it-qat-UD-Q4_K_XL.gguf` | rendered | dropped |
+| Subagent alternate | `Qwen3.5-2B-Q4_K_M.gguf` | rendered | dropped |
+| Subagent | `Qwen3.5-0.8B-Q8_0.gguf` | rendered | dropped |
+| Subagent | `Qwen3.5-4B-Q4_K_M.gguf` | rendered | dropped |
+
+- No template fails on the field, and each renders the same with `enable_thinking` false.
+- The gemma templates (one text for the 12B and 31B, one for E4B and E2B) render a thought after
+  the last user message, and an earlier one only on a call message under `preserve_thinking`,
+  which the brain never sends. The Qwen3.5 templates render it after the last user message only.
+- Qwen3.8 renders every assistant message's thought, earlier turns included, unless
+  `preserve_thinking` is sent false.
+
+What this decides: every template renders a thought inside the same turn, so the setting reaches
+the cortex turn and the deep phase it hands off to. Qwen3.8 would put an earlier turn's thought
+into every later prompt, but no stored message holds one: a trace is allowed only beside tool
+calls, and the session stores none. Subagent loops never keep one, since their servers run with
+thinking off and their bounds never set it.
 
 ## The recorded runs
 
@@ -87,9 +121,76 @@ a thought where no variant left 20 of 48, and W drops a requested listing, so V 
 proposed. Its cost on these shapes: the median thought tokens per reply is 0.8 to 1.3 times the
 no-variant row's.
 
+## The setting on the built brain
+
+Drawn 2026-11-28 by the rule written into the task before the build: it passes when the final
+rounds after a tool result with no thought are at most half the no-variant rows' 20 of 48, and no
+shape lists less often than its no-variant row.
+
+- The brain image built from the tree with the setting, nothing bound over it, run with
+  `CORTEX_REPLY_RESEND_TRACE=true` and `CORTEX_SCHEDULE_BACKEND=redis`, every other setting at its
+  default. The proxy sets the seed and applies no variant. Engine build `b12375-9d25e0014`.
+- The argv the model host wrote: `gemma-4-12B-it-qat-UD-Q4_K_XL.gguf`, context 16,384,
+  `--parallel 1`, `--jinja`, `--cache-ram 8192`, no cache type flag, the MTP drafter
+  `mtp-gemma-4-12B-it-Q8_0.gguf` at a draft length of 3, no `--reasoning-budget` and no reasoning
+  effort flag.
+- The memory rows were seeded again on new volumes. The sister row's reply reads `OK. I'll
+  remember that ...` where the rows above read `OK. I've noted that ...`; the locker row and the
+  tainted reminder are the same.
+- Every request after a call sent back exactly the thoughts of the turn's earlier rounds, on all
+  113 rounds of the 48 draws.
+
+| Shape | Working replies | Final rounds after a tool result with no thought | Draws that list (no variant) | Thought tokens per reply, median (range) |
+| --- | --- | --- | --- | --- |
+| F | 0 of 16 | 0 of 16 | 1 of 16 (0) | 112 (58 to 218) |
+| C | 0 of 16 | 0 of 16 | 16 of 16 (15) | 1,196 (780 to 2,250) |
+| N | 0 of 16 | 2 of 16 | 16 of 16 (16) | 655 (310 to 1,644) |
+
+The rule passes: 2 of 48 final rounds have no thought, where 10 are allowed, and F, C and N list
+in 1, 16 and 16 draws against 0, 15 and 16. The F draw that lists (seed 12) called
+`list_scheduled` after its failed cancel and named the one reminder. Both N draws without a final
+thought (seeds 6 and 15) wrote the reply's first sentence before their one call, and neither reply
+is the working form. The cost: the median thought tokens per reply is 0.8 to 1.3 times the
+no-variant row's, C lower and F and N higher, as under V.
+
+### A handoff after a tool call
+
+The rule, written before its draw: the deep tier answers, and the reply holds no thought text, so
+no `<think>`, `</think>` or `<|channel>` tag and no run of 60 characters copied from any thought
+the cortex or the deep tier streamed in the turn. Escalation went through the model host
+(`CORTEX_ESCALATION=1`, `CORTEX_MODELHOST_BACKEND=supervisor`, the deep pick,
+`CORTEX_SWAP_BRAIN_VRAM_MIB=16991`), with a second proxy between the brain and the deep tier and
+seed 0. The deep server's argv, read while it served: `Qwen3.8-27B-UD-Q4_K_M.gguf`, context
+16,384, `--parallel 1`, `--jinja`, `--cache-ram 0`, `q8_0` K and V caches, no drafter and no
+`--reasoning-budget`; the request sent `reasoning_effort` `medium`.
+
+- `List my reminders, then hand this to the deep model with your escalate tool: explain in about
+  60 words why the sky is blue.` called both tools in one round. The listing returned the tainted
+  reminder, so the escalate call was refused and the deep tier never started.
+- The next shape was written after that draw, with the rule unchanged: `Cancel my reminder nope-1,
+  then hand this to the deep model with your escalate tool: explain in about 60 words why the sky
+  is blue.` A control with the setting off was written before its draw.
+
+| Setting | Deep tier answered | Kept thought in the deep request | Tags | Runs from the cortex's thought | Runs from the deep tier's thought |
+| --- | --- | --- | --- | --- | --- |
+| on | yes | 439 characters, on the message with both calls | none | 0 | 1 |
+| off | yes | none | none | 0 | 1 |
+
+The rule fails on its last clause in both draws: the deep pick wrote its answer inside its thought
+(`Let me write an explanation ...`) and then wrote it again as the reply. No text of the kept
+thought reached either reply, and the deep tier's thought opened on the handoff (`The handoff was
+executed. I am now the deep model.`). With the setting off the cortex wrote `I have cancelled the
+reminder` after the failed cancel, in a round with no thought; with it on the cortex wrote that
+the reminder did not exist. The build these draws ran on kept the thought in the handoff record; the
+record keeps none ([ADR-0049](../adr/ADR-0049-thinking-switch-and-trace-budget.md) decision 21),
+since these draws show no gain from it and a failed record is kept an hour.
+
 ## Method
 
-The scripts are in `~/.cache/cortex-run/2026-11-28/s7/`: `base.sh`, `variants.sh`, `nshape.sh`
+The template check is `~/.cache/cortex-run/2026-11-28/b1/templates.py`, its output beside it in
+`templates.log`. The draw scripts are in `~/.cache/cortex-run/2026-11-28/s7/`: `base.sh`, `variants.sh`, `nshape.sh`
 and `nv.sh` draw the rows, `proxy/proxy.py` applies the variant named in `proxy/variant`,
 `tally.sh <label>` counts a row with `count.py` and `form.py` (the typed form) and writes
-`logs/count-<label>.txt`. Counts only; no rate was drawn.
+`logs/count-<label>.txt`. The rows on the built brain are in `~/.cache/cortex-run/2026-11-28/s9/`:
+`rows.sh` draws them, `handoff.sh`, `handoff2.sh` and `handoff3.sh` draw the handoff shapes and
+`hcheck.py <label>` checks one. Counts only; no rate was drawn.

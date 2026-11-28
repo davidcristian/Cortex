@@ -24,14 +24,16 @@ class ReplyBoundsConfig(BaseSettings):
     max_tokens: int = Field(default=0, ge=0)
     thinking: bool = True
     trace_tokens: int = Field(default=_TRACE_FROM_TIER, ge=_TRACE_FROM_TIER)
+    resend_trace: bool = True
 
     def bounds(self) -> GenerationBounds | None:
-        """The port's value for this deployment, or ``None`` when it set none of the three."""
+        """The port's value for this deployment, or ``None`` when none of the four is in effect."""
         traced = self.trace_tokens != _TRACE_FROM_TIER
-        if not self.max_tokens and self.thinking and not traced:
+        if not self.max_tokens and self.thinking and not traced and not self.resend_trace:
             return None
         return GenerationBounds(
             max_tokens=self.max_tokens or None,
             thinking=self.thinking,
             trace_tokens=self.trace_tokens if traced else None,
+            resend_trace=self.resend_trace,
         )

@@ -78,6 +78,8 @@ class GenerationBounds:
     effort: ReasoningEffort | None = None
     # True where the deployment wrote the level, False where a default names it.
     effort_written: bool = False
+    # True where each round's trace goes back to the engine on later rounds of the same turn.
+    resend_trace: bool = False
 
     def __post_init__(self) -> None:
         if self.max_tokens is not None and self.max_tokens < 1:

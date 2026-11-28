@@ -106,3 +106,27 @@ def test_a_reply_may_record_the_tool_runs_of_its_turn() -> None:
 def test_no_role_but_the_assistant_may_record_tool_runs(role: Role) -> None:
     with pytest.raises(ValueError, match=f"a {role.value} message may not record tool runs"):
         Message(role=role, text="x", at=_AT, turn_id="t", runs=(ToolRun("read", ok=True),))
+
+
+def test_a_message_holding_tool_calls_keeps_the_trace_of_its_round() -> None:
+    call = ToolCall(id="c1", name="list_scheduled", arguments={})
+    message = Message(
+        role=Role.ASSISTANT, text="", at=_AT, turn_id="t", tool_calls=(call,), trace="List first."
+    )
+    assert message.trace == "List first."
+    assert message != dataclasses.replace(message, trace="")
+
+
+@pytest.mark.parametrize("role", list(Role))
+def test_a_message_without_tool_calls_may_not_keep_a_trace(role: Role) -> None:
+    with pytest.raises(ValueError, match="only a message holding tool calls may keep a trace"):
+        Message(role=role, text="You have none.", at=_AT, turn_id="t", trace="It is empty.")
+
+
+def test_a_message_s_repr_never_prints_its_trace() -> None:
+    call = ToolCall(id="c1", name="list_scheduled", arguments={})
+    message = Message(
+        role=Role.ASSISTANT, text="", at=_AT, turn_id="t", tool_calls=(call,), trace="secret plan"
+    )
+    assert "secret plan" not in repr(message)
+    assert "list_scheduled" in repr(message)

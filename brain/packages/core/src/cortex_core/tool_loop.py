@@ -60,14 +60,16 @@ async def _round_pieces(
     context: ToolLoopContext,
     opening: OpeningHold,
     calls: list[ToolCall],
+    trace: list[str],
 ) -> AsyncGenerator[str | ReasoningDelta, None]:
-    """One round's streamed reply text and reasoning; its tool calls go into ``calls``."""
+    """One round's streamed reply text and reasoning; its calls and trace go into the lists."""
     try:
         async with hold_wait(context.progress, context.generating):
             async for event in deltas:
                 if isinstance(event, ToolCall):
                     calls.append(event)
                 elif isinstance(event, ReasoningChunk):
+                    trace.append(event.text)
                     yield ReasoningDelta(event.text)
                 elif shown := opening.feed(_reply_text(event, context) or ""):
                     yield shown
@@ -159,14 +161,16 @@ async def stream_tool_loop(
         offset_refused=list(context.offset_refused),
     )
     said: list[str] = []
+    resend = context.bounds is not None and context.bounds.resend_trace
     for _step in range(MAX_TOOL_STEPS):
         calls: list[ToolCall] = []
         step_text: list[str] = []
+        trace: list[str] = []
         deltas = backend.stream(
             model, working, tools=specs, schema=context.schema, bounds=context.bounds
         )
         # The model can open a round after a call with the sentence it wrote before the call.
-        pieces = _round_pieces(deltas, context, OpeningHold("".join(said)), calls)
+        pieces = _round_pieces(deltas, context, OpeningHold("".join(said)), calls, trace)
         try:
             async for piece in pieces:
                 if isinstance(piece, str):
@@ -183,8 +187,10 @@ async def stream_tool_loop(
         if not calls or dispatcher is None:
             break
         plan = plan_round(calls)
+        kept = "".join(trace) if resend else ""
+        now = context.clock.now()
         working.append(
-            call_message("".join(step_text), plan.calls, context.clock.now(), context.unit_id)
+            call_message("".join(step_text), plan.calls, now, context.unit_id, trace=kept)
         )
         round_events = run_round(plan, dispatcher, spec_by_name, record, context, working)
         try:

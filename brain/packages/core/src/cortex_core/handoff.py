@@ -83,6 +83,9 @@ class HandoffRecord:
         if any(message.role is Role.SYSTEM for message in self.loop_tail):
             msg = "a handoff loop tail never holds a system message: each phase builds its own"
             raise ValueError(msg)
+        if any(message.trace for message in self.loop_tail):
+            msg = "a handoff loop tail never holds a trace: a thought stays in the turn's messages"
+            raise ValueError(msg)
 
     def taint_ledger(self) -> TaintLedger:
         """Reconstruct the turn's ``TaintLedger`` for the brain phase."""
@@ -121,14 +124,14 @@ class HandoffRecord:
 
 
 def _withheld(message: Message, private: Collection[str]) -> Message:
-    """The message with each private call's argument values replaced by the redaction mark."""
+    """The message with no trace and each private call's argument values redacted."""
     calls = tuple(
         replace(call, arguments=dict.fromkeys(call.arguments, REDACTED))
         if call.name in private
         else call
         for call in message.tool_calls
     )
-    return replace(message, tool_calls=calls)
+    return replace(message, tool_calls=calls, trace="")
 
 
 @dataclass(frozen=True, slots=True)

@@ -9,6 +9,7 @@ from cortex_core.inference import GenerationBounds, JsonSchema
 __all__ = [
     "EFFORT_KEY",
     "TRACE_BUDGET_KEY",
+    "TRACE_KEY",
     "build_payload",
     "join_leading_system",
     "leading_system_count",
@@ -23,6 +24,9 @@ TRACE_BUDGET_KEY = "reasoning_budget_tokens"
 
 # The OpenAI request field llama.cpp hands a chat template as its ``reasoning_effort`` argument.
 EFFORT_KEY = "reasoning_effort"
+
+# The assistant message field llama.cpp hands a chat template as that message's thought.
+TRACE_KEY = "reasoning_content"
 
 # The bytes llama.cpp's Jinja ``trim`` removes (C ``isspace``), written out because Python's
 # ``str.strip()`` also removes Unicode spaces the engine keeps.
@@ -43,8 +47,8 @@ def message_content(message: Message) -> object:
     return parts
 
 
-def to_openai_message(message: Message) -> dict[str, object]:
-    """Map one core ``Message`` onto an OpenAI chat message, tool structure included."""
+def to_openai_message(message: Message, *, trace: bool = False) -> dict[str, object]:
+    """Map one core ``Message`` onto an OpenAI chat message, its trace only when ``trace``."""
     if message.role is Role.TOOL:
         return {
             "role": "tool",
@@ -52,7 +56,7 @@ def to_openai_message(message: Message) -> dict[str, object]:
             "content": message_content(message),
         }
     if message.tool_calls:
-        return {
+        rendered: dict[str, object] = {
             "role": message.role.value,
             "content": message.text,
             "tool_calls": [
@@ -64,6 +68,9 @@ def to_openai_message(message: Message) -> dict[str, object]:
                 for call in message.tool_calls
             ],
         }
+        if trace and message.trace:
+            rendered[TRACE_KEY] = message.trace
+        return rendered
     return {"role": message.role.value, "content": message_content(message)}
 
 
@@ -119,9 +126,10 @@ def build_payload(  # noqa: PLR0913 -- the last two are answers the backend aske
     Messages always; tools, a constrained ``response_format`` and ``bounds`` only when present, so
     a turn with none of them sends byte for byte the request this repo sent before they existed.
     """
+    trace = bounds is not None and bounds.resend_trace
     payload: dict[str, object] = {
         "model": model,
-        "messages": [to_openai_message(message) for message in messages],
+        "messages": [to_openai_message(message, trace=trace) for message in messages],
         "stream": True,
     }
     if tools:

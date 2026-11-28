@@ -35,11 +35,11 @@ this:
 2. When the messages open with two or more system messages, asks the leased server whether its
    template renders all of them, and joins them into one where it does not (the section below).
 3. POSTs `{model, messages, stream: true}` to `{lease.endpoint}/v1/chat/completions`, plus `tools`
-   when any are offered, plus a `response_format` of
-   `{type: json_schema, json_schema: {name: reply, schema, strict: true}}` when `schema` is set, so
-   the server constrains decoding to that shape (ADR-0028). Each `Message` maps to an OpenAI
-   message: `USER`, `SYSTEM` and `ASSISTANT` to `{role, content}`, an assistant with `tool_calls` to
-   the OpenAI `tool_calls` array, and a `TOOL` result to `{role: "tool", tool_call_id, content}`.
+   when any are offered and a `response_format` of `{type: json_schema, json_schema: {name: reply,
+   schema, strict: true}}` when `schema` is set, which constrains decoding to it (ADR-0028). A
+   `USER`, `SYSTEM` or `ASSISTANT` message maps to `{role, content}`, an assistant with `tool_calls`
+   adds the `tool_calls` array (and its `trace` as `reasoning_content` under `bounds.resend_trace`,
+   ADR-0049 decision 21), and a `TOOL` result maps to `{role: "tool", tool_call_id, content}`.
 4. Parses the SSE `data:` lines: each `choices[0].delta.content` becomes a `TextChunk`, streamed
    `delta.tool_calls` fragments are reassembled by index and yielded as `ToolCall`s once the stream
    ends, and `data: [DONE]` stops it. Chunks with no text (the role-only opening chunk, an empty

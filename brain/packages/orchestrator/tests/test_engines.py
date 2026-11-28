@@ -38,6 +38,7 @@ from cortex_core import (
     MemoryRecaller,
     Message,
     ModelLoadingError,
+    ReasoningChunk,
     ReasoningEffort,
     RecordingConfirmer,
     RecordingProgressSink,
@@ -533,6 +534,11 @@ async def test_the_deep_phase_s_recall_is_judged_by_the_deep_model() -> None:
         ),
         ("medium", None, GenerationBounds(effort=ReasoningEffort.MEDIUM, effort_written=True)),
         ("high", None, GenerationBounds(effort=ReasoningEffort.HIGH, effort_written=True)),
+        (
+            None,
+            GenerationBounds(resend_trace=True),
+            GenerationBounds(resend_trace=True, effort=ReasoningEffort.MEDIUM),
+        ),
     ],
 )
 async def test_the_deep_tier_s_effort_is_named_on_the_deep_reply_and_on_no_other_request(
@@ -593,6 +599,60 @@ async def test_with_the_effort_setting_empty_the_deep_reply_has_the_bounds_the_d
 
     (deep,) = [request for request in backend.requests if request.model == "brain"]
     assert deep.bounds is reply_bounds
+
+
+class _Seeing(_Model):
+    """A ``_Model`` that also keeps the messages of every request, with the model they went to."""
+
+    def __init__(self, script: Mapping[str, Sequence[Sequence[InferenceEvent]]]) -> None:
+        super().__init__(script)
+        self.sent: list[tuple[str, list[Message]]] = []
+
+    async def stream(
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
+    ) -> AsyncIterator[InferenceEvent]:
+        """Keep the messages, then replay the scripted round."""
+        self.sent.append((model, list(messages)))
+        async for event in super().stream(
+            model, messages, tools=tools, schema=schema, bounds=bounds
+        ):
+            yield event
+
+
+async def test_the_cortex_trace_reaches_neither_the_deep_model_nor_the_stored_history(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("CORTEX_REASONING_EFFORT_BRAIN", raising=False)
+    backend = _Seeing(
+        {
+            "cortex": [
+                [ReasoningChunk("Too hard for me."), _ESCALATE_CALL],
+                [TextChunk("handing over. ")],
+            ],
+            "brain": [[TextChunk("the deep answer")]],
+        }
+    )
+    swap = _swap_runtime()
+    try:
+        engines = replace(_escalating(backend, swap), bounds=GenerationBounds(resend_trace=True))
+        engine = engines.for_stream(RecordingConfirmer(answer=True), RecordingProgressSink())
+        await _run(engine, "hello", turn_id="t1")
+    finally:
+        await swap_closer(swap)()
+
+    (deep,) = [messages for model, messages in backend.sent if model == "brain"]
+    (_, cortex_again) = [messages for model, messages in backend.sent if model == "cortex"]
+    assert [message.trace for message in cortex_again if message.tool_calls] == ["Too hard for me."]
+    assert [message.trace for message in deep if message.tool_calls] == [""]
+    stored = await engines.sessions.history("s")
+    assert stored
+    assert all(message.trace == "" for message in stored)
 
 
 async def test_the_deep_phase_s_history_recap_is_written_by_the_deep_model() -> None:

@@ -80,9 +80,11 @@ ADR-0009 decision 8), `call_timeout_s =
   built-in prices and reasons merge **under** the user's, a nested-dict env key otherwise
   replacing the whole mapping.
 - `ReplyBoundsConfig`, prefix `CORTEX_REPLY_` (`config_reply.py`, ADR-0048):
-  `CORTEX_REPLY_MAX_TOKENS` (0, no cap), `CORTEX_REPLY_THINKING` (true) and
-  `CORTEX_REPLY_TRACE_TOKENS` (unset, the tier's own `--reasoning-budget` deciding), with
-  `bounds()` reducing the unset set to `None` so the request stays byte-identical. The root hands
+  `CORTEX_REPLY_MAX_TOKENS` (0, no cap), `CORTEX_REPLY_THINKING` (true),
+  `CORTEX_REPLY_TRACE_TOKENS` (unset, the tier's own `--reasoning-budget` deciding) and
+  `CORTEX_REPLY_RESEND_TRACE` (true; ADR-0049 decision 21), with
+  `bounds()` reducing a set that changes no request (the trace setting false, the other three
+  unset) to `None` so that request stays byte-identical. The root hands
   one value to both `TurnEngine` and `BrainPhase`, so one turn keeps one bound across a handoff; a
   deployment wanting the tiers bounded differently leaves it unset and sets the server flags
   `CORTEX_REASONING_BUDGET` and `CORTEX_REASONING_BUDGET_BRAIN`. **The count is not derived from

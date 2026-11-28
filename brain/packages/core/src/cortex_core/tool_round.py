@@ -38,9 +38,13 @@ def plan_round(calls: Sequence[ToolCall]) -> RoundPlan:
     return RoundPlan(tuple(calls[: MAX_CALLS_PER_ROUND + 1]), overflowed=True)
 
 
-def call_message(text: str, calls: Sequence[ToolCall], at: datetime, turn_id: str) -> Message:
+def call_message(
+    text: str, calls: Sequence[ToolCall], at: datetime, turn_id: str, *, trace: str = ""
+) -> Message:
     """The assistant's tool-calling step, with its native ``tool_calls`` for re-inference."""
-    return Message(role=Role.ASSISTANT, text=text, at=at, turn_id=turn_id, tool_calls=tuple(calls))
+    return Message(
+        role=Role.ASSISTANT, text=text, at=at, turn_id=turn_id, tool_calls=tuple(calls), trace=trace
+    )
 
 
 def result_message(

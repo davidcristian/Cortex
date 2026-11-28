@@ -32,6 +32,7 @@ Set these in the host environment or in a `.env` file beside the compose files.
 | `CORTEX_REASONING_BUDGET` | how many tokens the cortex tier may spend thinking before the engine closes the thought and makes it answer. `-1` (the default) emits no flag and leaves the trace unbounded; `0` ends every thought immediately; `N > 0` is a token budget | `-1` |
 | `CORTEX_REASONING_BUDGET_BRAIN` | the same setting for the deep tier, separate because the cortex answers while somebody waits and the deep model was chosen for reaching an answer inside its trace (ADR-0004) | `-1` |
 | `CORTEX_REPLY_TRACE_TOKENS` | how many tokens a user's own reply may spend thinking, sent on the request rather than fixed on the tier (ADR-0049). Unset (the default) leaves `CORTEX_REASONING_BUDGET` deciding; `0` ends the thought at once and a positive count bounds it. Needs an engine that reads the key, which `CORTEX_INFERENCE_TRACE_LEVER` decides | unset |
+| `CORTEX_REPLY_RESEND_TRACE` | sends each round's thought back to the model on the later rounds of the same turn, on the message holding that round's tool calls, so the model does not open a new thought from nothing after a tool result. It is kept only in that turn's working messages, never in a handoff record, stored with the reply, logged or remembered (ADR-0049 decision 21). On since its rule passed on the built brain ([the readings](../readings/cortex-thought-after-a-tool-result.md#the-setting-on-the-built-brain)); `false` sends every request without a thought | `true` |
 | `CORTEX_INFERENCE_TRACE_LEVER` | whether a request may include its own trace budget. `auto` asks the endpoint one model-free question at boot and uses the answer; `on` and `off` decide it directly. See "A budget per request" below | `auto` |
 | `CORTEX_NGL` | GPU layers to offload: `99` = all, `0` = CPU only, anything between is hybrid | `99` |
 | `CORTEX_INFERENCE_STALL_TIMEOUT_S` | on the brain: how long a resident or deep tier stream may send nothing before the turn fails. It bounds the gap between chunks, never the length of a generation, so a long answer is never cut off. Size it above the worst legitimate time to first token. The default clears the 17.5 s a contended cortex took here, with room for the deep tier (ADR-0005) | `120` |
@@ -58,14 +59,13 @@ mkdir -p ~/.docker-nohelper && echo '{}' > ~/.docker-nohelper/config.json
 export DOCKER_CONFIG=~/.docker-nohelper
 ```
 
-A native `dockerd` inside the distro (docker context `default` on `/var/run/docker.sock`, not
-Docker Desktop) also needs the GPU toolkit installed in the distro, or `--gpus all` and compose
+A native `dockerd` inside the distro (docker context `default` on `/var/run/docker.sock`, not Docker
+Desktop) also needs the GPU toolkit installed in the distro, or `--gpus all` and compose
 `deploy.reservations.devices` fail with `could not select device driver "nvidia" [[gpu]]`. Install
 it with `sudo apt-get install -y nvidia-container-toolkit`, then
 `sudo nvidia-ctk runtime configure --runtime=docker` and `sudo service docker restart`; a Docker
 update without a PC restart can also break this. To verify, `docker info` shows
-`Runtimes: … cdi: nvidia.com/gpu=all`, and
-`docker run --rm --gpus all --entrypoint nvidia-smi ghcr.io/ggml-org/llama.cpp:server-cuda -L`
+`Runtimes: … cdi: nvidia.com/gpu=all`, and `docker run --rm --gpus all --entrypoint nvidia-smi ghcr.io/ggml-org/llama.cpp:server-cuda -L`
 lists the GPU. Docker Desktop from PowerShell bridges the GPU for you; a WSL dockerd does not.
 
 ## Bring it up

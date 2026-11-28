@@ -165,10 +165,10 @@ markers, plus the pointer key `cortex:handoff:active` holding the in-flight reco
 most one swap at a time). The document holds the escalation `brief`, the turn's fence `nonce`, the
 taint ledger (`tainted`, `opaque`, `recalled_only`, `sources` as ordered `{"kind", "value"}` pairs,
 `untrusted_urls` stored sorted and read back as a set, `recalled_ids` as a list, `written_ids` as a list, `forget_asked`, `forget_calls`, `forget_unmatched`, `forget_refused`, `forget_refused_texts` as a list of the texts of the forget calls refused as unasked, as unrequested or for words the message lacks (empty in a record written before it), `forget_declined`, `forget_numbers_left`, `forget_kept` as a list, `forget_spared` as a list, `forget_inside` as a list, `forget_longer` as a list (empty in a record written before it), `forget_deleted`, `forget_gone` as a list of the deleted rows' texts (empty in a record written before it, which leaves the deep reply's kept note unmarked), `sidecar_refused`, `monthly_stored`, `stored_time`, `daily_stored` as a list, `made_repeating` as a list, `once_after_weekly`, `weekday_off` as a list of item id and date pairs, `early_first_fire` as a list of item id, first fire and day count triples, a day count read from the English day word in a record written before the count, `weekly_stored` as a list of item id and weekday names pairs, `cancelled` as a list), the budget position (`budget_remaining` and
-`budget_closed`), `rounds_used`, `loop_tail` (each message with its `tool_calls` as
-`{"id", "name", "arguments"}`; the transient dispatch stamp is never stored) and `failure`, the only
-field written after the snapshot. `failure` is required like the rest, since reading a missing field
-as "no reason given" would be indistinguishable from the state the field exists to describe.
+`budget_closed`), `rounds_used`, `loop_tail` (each message with its `tool_calls` as `{"id", "name",
+"arguments"}` and no trace, which the record never holds; the dispatch stamp is never stored) and
+`failure`, the only field written after the snapshot. `failure` is required like the
+rest, since reading a missing field as "no reason given" would hide the state it exists to describe.
 Decoding is strict, as for task state, since a defaulted taint field would fail open after the swap,
 except that an older record decodes with a missing `recalled_only` as `False` and a missing `forget_asked` as `True`, each the stricter value, a missing `recalled_ids` or `written_ids` as none, and a missing forget count as zero.
 

@@ -103,6 +103,50 @@ def test_a_snapshot_withholds_the_argument_values_of_a_private_call() -> None:
     assert working[-1].tool_calls == (forget,)
 
 
+def test_a_snapshot_keeps_no_trace_of_any_round() -> None:
+    read = ToolCall(id="c1", name="read_file", arguments={"path": "notes.md"})
+    forget = ToolCall(id="c2", name="forget", arguments={"text": "4242"})
+    working = [
+        Message(role=Role.USER, text="hi", at=_AT, turn_id="t1"),
+        Message(
+            role=Role.ASSISTANT,
+            text="",
+            at=_AT,
+            turn_id="t1",
+            tool_calls=(read,),
+            trace="Read it, then forget 4242.",
+        ),
+        Message(role=Role.TOOL, text="fenced", at=_AT, turn_id="t1", tool_call_id="c1"),
+        Message(
+            role=Role.ASSISTANT,
+            text="",
+            at=_AT,
+            turn_id="t1",
+            tool_calls=(read, forget),
+            trace="Forget 4242.",
+        ),
+    ]
+    slot = _slot(working, budget=DispatchBudget(), base_len=1)
+    assert slot.refs is not None
+    slot.refs = replace(slot.refs, private_names=frozenset({"forget"}))
+    record = slot.snapshot(turn_id="t1", session_id="s1", requested_at=_AT)
+    assert [message.trace for message in record.loop_tail] == ["", "", ""]
+    assert [message.trace for message in working[1:]] == [
+        "Read it, then forget 4242.",
+        "",
+        "Forget 4242.",
+    ]
+
+
+def test_a_record_whose_tail_holds_a_trace_is_refused() -> None:
+    record = _slot(_tail("t1"), budget=DispatchBudget(), base_len=0).snapshot(
+        turn_id="t1", session_id="s1", requested_at=_AT
+    )
+    traced = replace(record.loop_tail[0], trace="Read the notes first.")
+    with pytest.raises(ValueError, match="never holds a trace"):
+        replace(record, loop_tail=(traced, record.loop_tail[1]))
+
+
 def test_a_snapshot_keeps_a_refused_forget_call_and_the_ledger_restores_it() -> None:
     slot = _slot(
         [Message(role=Role.USER, text="hi", at=_AT, turn_id="t1")],

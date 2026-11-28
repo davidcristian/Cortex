@@ -1,6 +1,6 @@
 """Conversation domain: who said what, when, in which turn (pure data, no I/O)."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from uuid import uuid4
@@ -48,6 +48,9 @@ class Message:
     tool_call_id: str | None = None
     images: tuple[ImagePart, ...] = ()
     runs: tuple[ToolRun, ...] = ()
+    # The trace the model wrote in the round that made ``tool_calls``, sent back on later rounds
+    # of the same turn; kept out of ``repr`` so a logged message never prints it.
+    trace: str = field(default="", repr=False)
 
     def __post_init__(self) -> None:
         if self.at.tzinfo is None or self.at.tzinfo.utcoffset(self.at) is None:
@@ -61,4 +64,7 @@ class Message:
             raise ValueError(msg)
         if self.runs and self.role is not Role.ASSISTANT:
             msg = f"a {self.role.value} message may not record tool runs: only a reply does"
+            raise ValueError(msg)
+        if self.trace and not self.tool_calls:
+            msg = "only a message holding tool calls may keep a trace: a reply never stores one"
             raise ValueError(msg)

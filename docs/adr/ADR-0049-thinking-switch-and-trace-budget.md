@@ -113,10 +113,10 @@ how those measurements are taken is [ADR-0050](ADR-0050-live-probe-records.md).
     before decoding, and 200 by one that ignores it. Only a well-typed out-of-range integer triggers
     the check. Every other 2xx or 4xx is no, and the request then sends no budget. A transport
     error or a 5xx (a server still loading) is no answer: the request goes without a budget and the
-    probe is asked again before the next one, until an engine answers. `GET /props` does not answer the question, and its `build_info` is only a proxy for
-    it. `on` and `off` fix the answer and open no socket. The probe's whole answer is bounded by
-    `TRACE_BUDGET_PROBE_TIMEOUT_S` (5 s), well above the sub-second answer measured on the slowest
-    tier the repo ships.
+    probe is asked again before the next one, until an engine answers. `GET /props` does not
+    answer the question, and its `build_info` is only a proxy for it. `on` and `off` fix the answer
+    and open no socket. `TRACE_BUDGET_PROBE_TIMEOUT_S` (5 s) bounds the probe's whole answer, well
+    above the sub-second answer measured on the slowest tier the repo ships.
 12. **The first answer is kept for the process and covers the deep tier.** Whether the engine reads a
     key is a property of a binary, which changes only with the image, where vision is a property of
     an argv and is asked on every capture. A llama.cpp image pulled under a running brain needs a
@@ -182,27 +182,38 @@ how those measurements are taken is [ADR-0050](ADR-0050-live-probe-records.md).
     `WARNING`, and `reasoning effort not sent because the served template does not read it` and
     `reasoning effort sent` at `INFO`, with `endpoint`, `model` and `effort`, each only when an
     endpoint's outcome changes. The unread line is `INFO` because decision 20's default names a
-    level on every deep tier: a deep tier on a gemma file, whose template reads no level, runs as
-    it was deployed, and is named in the brain's log on its first handoff and not on the ones
-    after it. It is `WARNING` where `GenerationBounds.effort_written` is true, which
-    `StreamEngines` sets when the deployment set the variable
-    (`SwapConfig.brain_effort_written`): a level somebody wrote does nothing on that tier. Bounds
-    that do not say are logged at `INFO`. The stream contract holds the obligation: a request
-    naming an effort is answered by an engine whose template refuses one.
+    level on every deep tier: a deep tier on a gemma file, whose template reads no level, runs as it
+    was deployed, and is named in the brain's log on its first handoff and not on the ones after it.
+    It is `WARNING` where `GenerationBounds.effort_written` is true, which `StreamEngines` sets when
+    the deployment set the variable (`SwapConfig.brain_effort_written`): a level somebody wrote does
+    nothing on that tier. Bounds that do not say are logged at `INFO`. The stream contract holds the
+    obligation: a request naming an effort is answered by an engine whose template refuses one.
 20. **Only the deep tier's reply names a level, from `CORTEX_REASONING_EFFORT_BRAIN`, and the
     default is `medium`.** `SwapConfig.brain_effort` reads `low`, `medium` or `high`. Unset, it is
-    `medium`; an empty value names no level, so the template applies its own; any other word
-    fails the brain at boot. The gpu overlay passes the variable as a bare key, and
-    `settingscheck.py` fails an empty compose default for it, which would send no level in every
-    deployment that sets nothing. `StreamEngines` adds the level to the bounds of the
-    deep phase's tool loop and to no other request: a cortex turn, the side calls of decision 5 on
-    either tier and a delegated task name none. The model host's `--reasoning-effort` flag is not
-    used: it hands the template any word unchecked, and a word the Qwen3.8 template does not take
-    then fails every reply while the tier reports ready. `medium` is the default because the
-    three conditions of a rule written before its rows all held on the deep pick: a handoff
-    rendered the level, 0 of 100 framed injection draws obeyed at `medium` as at `xhigh`, and 24
-    of 24 stop-row draws stopped against 23 of 24, the drafted cell at a median of 2378 reasoning
-    tokens against 2883.5 ([readings](../readings/deep-effort.md#the-rule-applied)).
+    `medium`; an empty value names no level, so the template applies its own; any other word fails
+    the brain at boot. The gpu overlay passes the variable as a bare key, and `settingscheck.py`
+    fails an empty compose default for it, which would send no level in every deployment that sets
+    nothing. `StreamEngines` adds the level to the bounds of the deep phase's tool loop and to no
+    other request: a cortex turn, the side calls of decision 5 on either tier and a delegated task
+    name none. The model host's `--reasoning-effort` flag is not used: it hands the template any
+    word unchecked, and a word the Qwen3.8 template does not take then fails every reply while the
+    tier reports ready. `medium` is the default because the three conditions of a rule written
+    before its rows all held on the deep pick: a handoff rendered the level, 0 of 100 framed
+    injection draws obeyed at `medium` as at `xhigh`, and 24 of 24 stop-row draws stopped against 23
+    of 24, the drafted cell at a median of 2378 reasoning tokens against 2883.5
+    ([readings](../readings/deep-effort.md#the-rule-applied)).
+
+### The trace sent back inside a turn
+
+21. **`CORTEX_REPLY_RESEND_TRACE`, true by default, sends a round's trace back on later rounds of
+    the same turn.** It sets `GenerationBounds.resend_trace` on the reply's bounds, which the deep
+    phase inherits; the tool loop keeps the round's `ReasoningChunk` as `Message.trace` beside its
+    tool calls, and the adapter sends it as `reasoning_content`. Only a message with tool calls
+    holds one, so no stored reply does and no later prompt grows. A handoff record holds none, as a
+    failed one is kept an hour and a thought can name a redacted value; `repr` omits it, and no log,
+    audit line, memory or reply reader reads it. Every tier's template renders it in the turn. On
+    the cortex pick 2 of 48 final rounds after a tool result had no thought, 20 of 48 with it off
+    ([readings](../readings/cortex-thought-after-a-tool-result.md#the-setting-on-the-built-brain)).
 
 ## Consequences
 
@@ -210,8 +221,7 @@ how those measurements are taken is [ADR-0050](ADR-0050-live-probe-records.md).
   to run on a tier whose trace is bounded; the drain's warning reports the failure when it happens.
 - A tier flag an older build does not know fails that server at startup rather than being ignored.
 - A reply cap on a deployment whose probe answered no is bounded only by the tier's own flag.
-- A deep reply names an effort by default, and each such request costs one extra `GET /props`
-  inside its lease.
+- A deep reply names an effort by default, at the cost of one more `GET /props` inside its lease.
 - What a bounded trace costs the answer is not measured. The side calls' zeros rest on their trace
   being discarded unread, not on a measurement of what it was worth.
 
@@ -232,12 +242,9 @@ how those measurements are taken is [ADR-0050](ADR-0050-live-probe-records.md).
 
 - [ADR-0004](ADR-0004-model-lineup.md), [ADR-0005](ADR-0005-llamacpp-engine.md),
   [ADR-0010](ADR-0010-subagents.md), [ADR-0020](ADR-0020-reasoning-status.md),
-  [ADR-0028](ADR-0028-grammar-constrained-subagents.md),
-  [ADR-0043](ADR-0043-subagent-server-flags.md), [ADR-0048](ADR-0048-generation-bounds.md),
-  [ADR-0050](ADR-0050-live-probe-records.md).
-- Module contracts: [brain-inference](../modules/brain-inference.md),
-  [brain-core](../modules/brain-core.md), [brain-orchestrator](../modules/brain-orchestrator.md),
-  [brain-model-manager](../modules/brain-model-manager.md).
-- Runbooks: [llamacpp-gpu](../runbooks/llamacpp-gpu.md),
-  [subagents-cpu](../runbooks/subagents-cpu.md).
-- Readings: [thinking switch](../readings/thinking-switch.md).
+  [ADR-0028](ADR-0028-grammar-constrained-subagents.md), [ADR-0043](ADR-0043-subagent-server-flags.md),
+  [ADR-0048](ADR-0048-generation-bounds.md), [ADR-0050](ADR-0050-live-probe-records.md).
+- Module contracts: [brain-inference](../modules/brain-inference.md), [brain-core](../modules/brain-core.md),
+  [brain-orchestrator](../modules/brain-orchestrator.md), [brain-model-manager](../modules/brain-model-manager.md).
+- Runbooks: [llamacpp-gpu](../runbooks/llamacpp-gpu.md), [subagents-cpu](../runbooks/subagents-cpu.md);
+  readings: [thinking switch](../readings/thinking-switch.md).

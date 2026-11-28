@@ -104,14 +104,14 @@ every record written today says `False` truthfully, but both readers of the fiel
 `False`, so the schema must never manufacture one. `failure` is the one field that is not turn
 state: what a `FAILED` record says about itself, written by the settling transition. Building a
 record whose `loop_tail` holds a system message raises `ValueError`, because each phase builds its
-own, and the Redis store reads a stored one as a corrupt record.
+own, and the Redis store reads a stored one as a corrupt record; a `trace` in the tail raises too.
 
 `EscalationSlot(refs=None, brief=None)` is the mutable turn-local handle through which in-flight
 state reaches the record. It is built empty by whoever orchestrates the turn and serves exactly one
 turn; the engine fills `refs` at turn start with an `EscalationRefs` (the live `working` list, taint
 ledger, nonce, shared allowance, `base_len`, how many messages `working` held when the loop began,
 and the dispatcher's `private_names`, whose calls the tail stores with each argument value as
-`<redacted>`), and the `escalate_to_brain` tool writes only `brief`.
+`<redacted>`), and the `escalate_to_brain` tool writes only `brief`. The tail copies no `trace` (ADR-0049 decision 21).
 `snapshot(*, turn_id, session_id, requested_at)` freezes it into a `READY` record by copying, and
 raises `ValueError` on a slot no tool filled, one no engine filled, or a tail containing images.
 

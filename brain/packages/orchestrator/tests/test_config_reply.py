@@ -4,25 +4,29 @@ from cortex_core import GenerationBounds
 from cortex_orchestrator.config_reply import ReplyBoundsConfig
 
 
-def test_an_unset_deployment_asks_for_no_bounds_at_all() -> None:
-    assert ReplyBoundsConfig().bounds() is None
+def test_an_unset_deployment_asks_only_for_the_trace_sent_back() -> None:
+    assert ReplyBoundsConfig().bounds() == GenerationBounds(resend_trace=True)
+
+
+def test_a_deployment_that_turns_the_trace_off_asks_for_no_bounds_at_all() -> None:
+    assert ReplyBoundsConfig(resend_trace=False).bounds() is None
 
 
 def test_a_cap_alone_is_passed_with_thinking_left_where_the_template_put_it() -> None:
     assert ReplyBoundsConfig(max_tokens=2048).bounds() == GenerationBounds(
-        max_tokens=2048, thinking=True
+        max_tokens=2048, thinking=True, resend_trace=True
     )
 
 
 def test_thinking_off_alone_sets_no_cap() -> None:
     assert ReplyBoundsConfig(thinking=False).bounds() == GenerationBounds(
-        max_tokens=None, thinking=False
+        max_tokens=None, thinking=False, resend_trace=True
     )
 
 
 def test_both_settings_travel_together_as_one_value() -> None:
     assert ReplyBoundsConfig(max_tokens=512, thinking=False).bounds() == GenerationBounds(
-        max_tokens=512, thinking=False
+        max_tokens=512, thinking=False, resend_trace=True
     )
 
 
@@ -33,22 +37,37 @@ def test_a_negative_cap_is_refused_at_the_edge_rather_than_at_the_server() -> No
 
 def test_a_trace_budget_alone_is_passed_with_the_other_two_left_alone() -> None:
     assert ReplyBoundsConfig(trace_tokens=128).bounds() == GenerationBounds(
-        max_tokens=None, thinking=True, trace_tokens=128
+        max_tokens=None, thinking=True, trace_tokens=128, resend_trace=True
     )
 
 
 def test_a_trace_budget_of_zero_is_a_setting_and_not_an_absence() -> None:
     assert ReplyBoundsConfig(trace_tokens=0).bounds() == GenerationBounds(
-        max_tokens=None, thinking=True, trace_tokens=0
+        max_tokens=None, thinking=True, trace_tokens=0, resend_trace=True
     )
 
 
 def test_thinking_off_never_budgets_the_trace_on_a_users_own_reply() -> None:
     assert ReplyBoundsConfig(thinking=False).bounds() == GenerationBounds(
-        max_tokens=None, thinking=False, trace_tokens=None
+        max_tokens=None, thinking=False, trace_tokens=None, resend_trace=True
     )
 
 
 def test_a_trace_budget_below_the_unset_sentinel_is_refused_at_the_edge() -> None:
     with pytest.raises(ValueError, match="greater than or equal to -1"):
         ReplyBoundsConfig(trace_tokens=-2)
+
+
+def test_an_unset_deployment_sends_the_trace_back() -> None:
+    assert ReplyBoundsConfig().resend_trace is True
+
+
+def test_the_trace_setting_alone_is_passed_with_the_other_three_left_alone() -> None:
+    assert ReplyBoundsConfig(resend_trace=True).bounds() == GenerationBounds(
+        max_tokens=None, thinking=True, trace_tokens=None, resend_trace=True
+    )
+
+
+def test_the_trace_setting_is_read_from_its_variable(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_REPLY_RESEND_TRACE", "false")
+    assert ReplyBoundsConfig().bounds() is None
