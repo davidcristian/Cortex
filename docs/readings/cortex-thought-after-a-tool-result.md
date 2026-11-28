@@ -185,6 +185,26 @@ the reminder did not exist. The build these draws ran on kept the thought in the
 record keeps none ([ADR-0049](../adr/ADR-0049-thinking-switch-and-trace-budget.md) decision 21),
 since these draws show no gain from it and a failed record is kept an hour.
 
+## A forget turn on compose defaults
+
+Drawn 2026-11-28 by a rule written before the first launch. The brain image built from the tree,
+nothing bound over it, every setting at its compose default but `CORTEX_SCHEDULE_BACKEND=redis`;
+the brain read `resend_trace` as true from the class default. Same cortex argv and engine build as
+above. Seeds 0 to 7, one new chat of two turns each, every card approved, the memory rows emptied
+first and one untainted reminder stored: `Remember that my code is 4821.`, then `Forget my code
+4821 and list my reminders.` A draw fails when, after it, a memory row, a brain log line (the tool
+audit included), a Redis key other than a chat's own message list, or any handoff key holds 4821,
+or the second reply has a thought tag, a run of 60 characters from that turn's thought, or 4821
+with no card showing it.
+
+| Draws | Failing | First turn stored the row | Card shown and approved | Listing called | Second turn's thought names 4821 | Requests that sent a thought back |
+| --- | --- | --- | --- | --- | --- | --- |
+| 8 | 0 | 8 | 8 | 8 | 8 | 8 |
+
+Every draw called the forget tool and the listing in one round and deleted the one row, and no
+reply named the code. The thought that names it went back to the engine on the turn's later
+requests and nowhere else: no brain log line held it, and no handoff key existed.
+
 ## Method
 
 The template check is `~/.cache/cortex-run/2026-11-28/b1/templates.py`, its output beside it in
@@ -193,4 +213,6 @@ and `nv.sh` draw the rows, `proxy/proxy.py` applies the variant named in `proxy/
 `tally.sh <label>` counts a row with `count.py` and `form.py` (the typed form) and writes
 `logs/count-<label>.txt`. The rows on the built brain are in `~/.cache/cortex-run/2026-11-28/s9/`:
 `rows.sh` draws them, `handoff.sh`, `handoff2.sh` and `handoff3.sh` draw the handoff shapes and
-`hcheck.py <label>` checks one. Counts only; no rate was drawn.
+`hcheck.py <label>` checks one. The forget turn is in `~/.cache/cortex-run/2026-11-28/a2/`:
+`rule.md` is its rule, `all.sh` and `draw.sh` draw it and `count_k.py` scores it. Counts only; no
+rate was drawn.
