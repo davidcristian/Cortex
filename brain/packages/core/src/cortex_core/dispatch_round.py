@@ -6,6 +6,7 @@ from dataclasses import dataclass, field, replace
 from cortex_core.cadence import CadenceWatch
 from cortex_core.conversation import Message
 from cortex_core.dispatch import DispatchRefusal, ToolDispatcher
+from cortex_core.forget_opened_earlier import unkept_since
 from cortex_core.forget_permit import call_text
 from cortex_core.forget_unsaid import forget_unsaid
 from cortex_core.forget_value_unasked import value_unasked
@@ -271,9 +272,11 @@ async def run_round(
         context.taint.cancelled = cancelled_after(result, context.taint.cancelled)
         if call.name == FORGET_CHOSEN_TOOL_NAME:
             context.taint.note_forget(result)
+        before = _stamp(context)
         context.taint.observe(
             result, source=as_source(SourceKind.TOOL, None if spec is None else spec.name)
         )
+        unkept = unkept_since(before, _stamp(context), context.taint.forget_unmatched)
         # A refusal or failure the brain wrote is never cut, so the model still reads why.
         if result.is_error and result.trust is Trust.TRUSTED:
             cut = record.room.whole(result.content)
@@ -282,6 +285,7 @@ async def run_round(
             cut = record.room.cut(
                 result.content, share=len(plan.calls) - index, keep_end=tail_count(call) is not None
             )
+        cut = (cut[0], cut[1] + unkept)
         working.append(
             result_message(
                 result, context.clock.now(), context.unit_id, nonce=context.nonce, cut=cut

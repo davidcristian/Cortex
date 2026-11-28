@@ -27,6 +27,7 @@ _NOT_IN_A_REPLY = frozenset(
         "RESULT_CUT_NOTE",
         "TAIL_CUT_NOTE",
         "UNFOLDED_NOTE",
+        "UNKEPT_SINCE_NOTE",
     }
 )
 

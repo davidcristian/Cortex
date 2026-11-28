@@ -41,9 +41,16 @@ from cortex_core import (
 from cortex_core.brain_phase import BrainPhase
 from cortex_core.closing_notes import limit_notes
 from cortex_core.dispatch import DispatchRefusal
-from cortex_core.forget_opened_earlier import keeps_unmatched, opened_earlier
+from cortex_core.dispatch_round import LoopRecord, ToolLoopContext, run_round
+from cortex_core.forget_opened_earlier import (
+    UNKEPT_SINCE_NOTE,
+    keeps_unmatched,
+    opened_earlier,
+    unkept_since,
+)
 from cortex_core.stops import StopLedger
-from cortex_core.tools import UNSTAMPED, TurnStamp
+from cortex_core.tool_round import RoundPlan
+from cortex_core.tools import UNSTAMPED, Trust, TurnStamp
 from cortex_core.turn_output import record_exchange
 
 _ALARM = "User: Remember that my alarm code is 4242.\nAssistant: I've noted your alarm code 4242."
@@ -361,3 +368,98 @@ async def test_a_turn_holding_an_attached_picture_stamps_each_call_opaque(
     turn = engine.handle_turn("s", "What is in my notes?", turn_id="t", images=images)
     _ = [event async for event in turn]
     assert [stamp.opaque for stamp in tools.stamps] == [attached]
+
+
+_BEFORE = TurnStamp(query=_STATED)
+
+
+@pytest.mark.parametrize(
+    ("tainted", "recorded", "opaque"),
+    [
+        (False, False, False),
+        (True, False, False),
+        (True, True, False),
+        (True, False, True),
+        (True, True, True),
+    ],
+)
+def test_a_later_result_says_nothing_is_kept_exactly_when_it_ends_the_record(
+    *, tainted: bool, recorded: bool, opaque: bool
+) -> None:
+    before = replace(_BEFORE, record_tainted_memory=recorded)
+    after = replace(before, tainted=tainted, opaque=opaque)
+    caps = replace(_caps(), record_tainted_memory=recorded)
+    taint = replace(_unmatched(), tainted=tainted, opaque=opaque)
+    withheld = memory_withheld(caps, taint, (_RAN,), query=_STATED, reply=_NOTED)
+    assert (unkept_since(before, after, 1) == UNKEPT_SINCE_NOTE) is withheld
+
+
+@pytest.mark.parametrize(
+    ("before", "query", "unmatched"),
+    [
+        (_BEFORE, _STATED, 0),
+        (replace(_BEFORE, tainted=True), _STATED, 1),
+        (replace(_BEFORE, opaque=True, record_tainted_memory=True), _STATED, 1),
+        (_BEFORE, NEAR_MISSES[0], 1),
+    ],
+)
+def test_a_later_result_adds_no_note_where_every_forget_result_already_has_one(
+    *, before: TurnStamp, query: str, unmatched: int
+) -> None:
+    after = replace(before, tainted=True, opaque=True, query=query)
+    assert unkept_since(replace(before, query=query), after, unmatched) == ""
+
+
+class _Reader:
+    def __init__(self, *, picture: bool) -> None:
+        self._picture = picture
+
+    @property
+    def spec(self) -> ToolSpec:
+        return ToolSpec(name="read", description="", parameters={})
+
+    async def invoke(self, call: ToolCall) -> ToolResult:
+        picture = ImagePart(data=b"\x89PNG", mime_type="image/png", width=8, height=8)
+        images = (picture,) if self._picture else ()
+        return ToolResult(call_id=call.id, content="notes", trust=Trust.UNTRUSTED, images=images)
+
+
+@pytest.mark.parametrize(
+    ("recorded", "picture", "noted"),
+    [(False, False, True), (True, False, False), (True, True, True), (False, True, True)],
+)
+async def test_a_result_that_ends_the_record_after_an_unmatched_forget_says_nothing_is_kept(
+    *, recorded: bool, picture: bool, noted: bool
+) -> None:
+    forget = ForgetChosenTool(InMemoryMemoryStore(), GLOBAL_MEMORY_SCOPE)
+    dispatcher = ToolDispatcher(
+        CompositeToolRegistry([forget, _Reader(picture=picture)]),
+        RecordingAuditSink(),
+        SystemClock(),
+        confirmer=RecordingConfirmer(answer=True),
+        policy=DispatchPolicy(
+            record_cards={FORGET_CHOSEN_TOOL_NAME: forget}, notes={FORGET_CHOSEN_TOOL_NAME: forget}
+        ),
+    )
+    context = ToolLoopContext(
+        dispatcher=dispatcher,
+        clock=SystemClock(),
+        turn_id="t",
+        taint=TaintLedger(),
+        nonce="n",
+        session_id="s",
+        query=_STATED,
+        record_tainted_memory=recorded,
+    )
+    calls = (
+        ToolCall(id="f", name=FORGET_CHOSEN_TOOL_NAME, arguments={"text": "5528"}),
+        ToolCall(id="r", name="read", arguments={}),
+        ToolCall(id="q", name="read", arguments={"again": True}),
+    )
+    specs = {spec.name: spec for spec in await dispatcher.describe_tools()}
+    working: list[Message] = []
+    plan = RoundPlan(calls, overflowed=False)
+    _ = [step async for step in run_round(plan, dispatcher, specs, LoopRecord(), context, working)]
+    texts = [message.text for message in working]
+    assert FORGET_NOT_KEPT_NOTE not in texts[0]
+    assert [text.endswith(UNKEPT_SINCE_NOTE) for text in texts] == [False, noted, False]
