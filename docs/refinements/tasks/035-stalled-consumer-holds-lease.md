@@ -13,7 +13,7 @@ test, the bridge contract's `bridgeContract.ts` and the brain transport's
 `body/crates/contract/src/transport/turns.rs`, and the `seam` package's re-export of the stub. Any
 other file fires it. The shell command's `while let` loop awaits only `stream.next()`; any other
 await between two items fires it.
-**Verified:** 2026-11-26
+**Verified:** 2026-11-28
 
 The reply's lease is held for the adapter generator's whole lifetime, and the credit bound
 ([R-028](028-converse-queue-backpressure.md), `CORTEX_SEAM_CONVERSE_BUFFER`) suspends generation
@@ -105,3 +105,5 @@ decision about what the stream sends the client when it fires.
 - 2026-11-26: checked again and not fired: the converse grep still finds the same seven files, the
   shell's loop (`converse.rs:266`) still awaits only `stream.next()`, and `backend.py` still streams
   inside the lease.
+- 2026-11-28: checked again and not fired: the converse grep still finds the same seven files, and
+  the shell's loop (`converse.rs:266`) still awaits only `stream.next()`.

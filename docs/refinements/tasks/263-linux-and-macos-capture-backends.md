@@ -3,7 +3,7 @@
 **Status:** open, optional feature
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-10-06
+**Verified:** 2026-11-28
 
 `LinuxScreenCapture<X11Root>` in `os_linux` reads the primary RandR monitor of the X root window
 through `x11rb`, built and covered under [ADR-0011](../../adr/ADR-0011-body-v1.md) decision 13, and
@@ -85,3 +85,6 @@ resolved target rectangle.
   it can be type-checked: with the `aarch64-apple-darwin` target added, clippy passes on `os_macos`
   and on scratch calls into three capture crates. Only linking, testing and running need a Mac, and
   the `screencapturekit` crate is the one candidate that fails, in a build script needing `swift`.
+- 2026-11-28: checked against the tree and every claim holds: `MacosScreenCapture` is still an
+  `unimplemented!()` stub, `os_macos` still has no `cfg` attribute, and the shell still serves a
+  Linux capture only when `CORTEX_HOST_CAPTURE=1`.

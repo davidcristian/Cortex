@@ -3,7 +3,7 @@
 **Status:** open, waiting for a consumer
 **Area:** repo-checks
 **Origin:** [ADR-0042](../../adr/ADR-0042-cross-tree-constant-registry.md)
-**Verified:** 2026-11-26
+**Verified:** 2026-11-28
 **Trigger:** A decimal pair that needs ordering rather than equality, or one whose far side is a
 Rust literal with its own type suffix.
 
@@ -82,3 +82,6 @@ is a suffix the reducer strips rather than a new form.
   `Relation.ORDERED` entries are still the integer capture edge and receive limit pairs, and the
   body's float constants `LEVEL_STEPS` and `VOLUME_NORM` are still unsuffixed and agree with no
   Python value.
+- 2026-11-28: checked again and not fired: the two `Relation.ORDERED` entries are still the integer
+  capture edge and receive limit pairs, and `LEVEL_STEPS` and `VOLUME_NORM` are still unsuffixed
+  `f32` constants.

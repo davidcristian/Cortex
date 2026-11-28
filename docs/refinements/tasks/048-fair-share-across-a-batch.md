@@ -3,7 +3,7 @@
 **Status:** open, waiting for its trigger
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-11-26
+**Verified:** 2026-11-28
 **Trigger:** the tool audit trail shows a subagent task refused by the spent turn pool while a
 sibling task of the same `turn_id` made most of that turn's dispatches.
 
@@ -51,3 +51,6 @@ the refusal and reports stopping short, so it stays deferred until it happens in
 - 2026-11-26: checked again and not fired: no audit file from a run shows a subagent refused by the
   spent pool, since every copy of the refusal kept from recent runs is a copied source file, and
   `TurnStamp.budget` still hands one `DispatchBudget` of 32 to a delegated attempt.
+- 2026-11-28: checked again and not fired: no audit line in the run logs of 2026-11-27 or 2026-11-28
+  has a `task_id`, so no subagent refusal by the spent pool is recorded, and `MAX_TOOL_DISPATCHES`
+  is still 32 in one shared `DispatchBudget`.

@@ -3,7 +3,7 @@
 **Status:** open, optional feature
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-10-05
+**Verified:** 2026-11-28
 
 GDI renders hardware-overlay and DRM-protected surfaces black with no message, and no
 `CaptureError` distinguishes that from a genuinely dark screen. WGC also draws a yellow OS capture
@@ -59,3 +59,7 @@ acceptable cost per call is not checked.
   Tauri stack resolves, which changed call shapes in `screen.rs` and `focus.rs` and nothing they do,
   so a WGC backend adds its features to that version. Added the two parts of the Wayland window
   capture above, built since the last check.
+- 2026-11-28: checked against the tree and every claim holds: `audio.rs` and `notify.rs` still call
+  `CoInitializeEx` with no `CoUninitialize`, `off_worker` still takes an `FnOnce + Send + 'static`
+  closure, `os_windows` is still on `windows` 0.61, `CaptureError` has no variant for a black
+  surface, and H-012 is still never attempted.

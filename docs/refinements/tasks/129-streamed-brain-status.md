@@ -3,7 +3,7 @@
 **Status:** open, needs a port change first
 **Area:** body-overlay
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md)
-**Verified:** 2026-10-25
+**Verified:** 2026-11-28
 **Trigger:** A status change that begins while no turn from this overlay is streaming and must
 change the dot's colour before the next summon or turn: a second client that can start a handoff,
 a background job that escalates, or a decision record asking that a cortex or store outage reach
@@ -112,3 +112,9 @@ from that change and that change needed nothing from it.
   record asks for more, so no consumer of a push exists yet.
 - 2026-10-25: checked again and not fired: every status added since is sent inside a turn on
   `Converse`, and `BrainService` still has one streamed RPC.
+- 2026-11-28: checked again and not fired: `BrainService` still has one streamed RPC among eleven,
+  `EscalatingTurnEngine` is still built only in `for_stream`, and decision 8 of ADR-0054 asks for no
+  push. The port change is not small enough to be the next build. It is one new call sending
+  `HealthReply`, a streamed `BrainService` RPC or a `BodyService` call, and it needs a change signal
+  `ServingWatch` lacks, both stubs, the body's `BrainTransport` and retry wrapper, and a shell event
+  `useLink` reads.

@@ -6,11 +6,12 @@
 **Trigger:** a record under `docs/readings/`, `docs/host/` or `docs/runbooks/` of a `Converse`
 stream that dropped before its first event on a deployment with `CORTEX_ESCALATION` set, so that
 the person's resend ran a costly turn twice. The switch alone does not decide it: it is what builds
-a swap runtime at all (`brain/packages/orchestrator/src/cortex_orchestrator/swap_builders.py:61`
-returns `None` without it), and `docs/runbooks/model-swap.md:150` tells an operator to set it.
+a swap runtime at all (`build_swap_runtime` in
+`brain/packages/orchestrator/src/cortex_orchestrator/swap_builders.py` returns `None` without it),
+and the deep tier paragraph of `docs/runbooks/model-swap.md` tells an operator to set it.
 `grep -rlniE 'turn twice' docs/readings docs/host docs/runbooks` finding nothing says there is no
 such record.
-**Verified:** 2026-11-26
+**Verified:** 2026-11-28
 
 Retrying a `converse` turn after a disconnect is only safe if the brain can tell that the repeat
 is the same request. It cannot. A turn's first durable effect is
@@ -100,3 +101,7 @@ resends. `converse` stays unretried, `RpcMethod::Converse` not being repeatable.
   docs/runbooks` still finds nothing.
 - 2026-11-26: checked again and not fired: `grep -rlniE 'turn twice' docs/readings docs/host
   docs/runbooks` still finds nothing, and `ClientEvent` and `UserTurn` still name no request.
+- 2026-11-28: checked again and not fired: `grep -rlniE 'turn twice' docs/readings docs/host
+  docs/runbooks` still finds nothing, and `ClientEvent` and `UserTurn` still name no request. The
+  trigger's two line citations had moved, so it now names `build_swap_runtime` and the runbook's
+  deep tier paragraph instead.

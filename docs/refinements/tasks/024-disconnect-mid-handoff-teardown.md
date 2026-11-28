@@ -13,7 +13,7 @@ the turn's RPC, a disconnect rather than a `Cancel` (`stop_turn` in
 `body/app/src-tauri/src/stops.rs`), which
 `grep -rn 'Cancel' body/crates/core/src body/crates/rpc/src body/app/src-tauri/src --exclude-dir=_generated`
 finding nothing confirms. R-127 would add the `Cancel` half and not the other.
-**Verified:** 2026-11-26
+**Verified:** 2026-11-28
 
 Swapping the cortex back in is the recovery path, so `swap_scope`'s restore runs as its own
 shielded task and every cancellation waits for it before propagating. Without that, a client who
@@ -80,5 +80,8 @@ still running. The fix belongs with the in-flight-turn lifecycle
 - 2026-10-28: checked again and not fired: `ClientEvent`'s oneof is unchanged and the body still
   sends no `Cancel`; the proto's one change since adds `DueReminder.due_label`.
 - 2026-11-26: checked again and not fired: `ClientEvent`'s oneof still holds `user_turn`, `cancel`
+  and `confirm_response`, and the trigger's search for `Cancel` over the body's sources still finds
+  nothing.
+- 2026-11-28: checked again and not fired: `ClientEvent`'s oneof still holds `user_turn`, `cancel`
   and `confirm_response`, and the trigger's search for `Cancel` over the body's sources still finds
   nothing.

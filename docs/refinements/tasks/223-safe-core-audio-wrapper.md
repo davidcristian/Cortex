@@ -12,7 +12,7 @@ COM around each call. The candidates are listed by `https://crates.io/api/v1/cra
 and each is read off its source. What such a crate would delete is listed by
 `grep -n unsafe body/crates/os_windows/src/audio.rs`: four `unsafe` blocks, one `unsafe fn`, and the
 module's scoped allow, six sites as of 2026-10-03.
-**Verified:** 2026-11-26
+**Verified:** 2026-11-28
 
 `WindowsAudioControl` uses `unsafe` over the `windows` crate's COM API, authorized by ADR-0023. The
 hotkey backend needs none, because `global-hotkey` wraps the OS calls for it; a crate that did the
@@ -105,3 +105,7 @@ the result checked on a Windows desktop the way the backend itself was.
   is still 98 lines with the same six sites and still initializes COM on each call, and on crates.io
   `volumecontrol-windows` is still 0.1.2 and `cpvc` 0.6.0. `wasapi` is now 0.27.0 and still wraps no
   endpoint volume, and the body names that version.
+- 2026-11-28: checked again and not fired. Task 224's dedicated COM thread is not built, `audio.rs`
+  is still 98 lines with the same six sites and still initializes COM on each call,
+  `volumecontrol-windows` is still 0.1.2, `cpvc` 0.6.0 and `wasapi` 0.27.0, and no crate the search
+  lists updated since is an audio crate.

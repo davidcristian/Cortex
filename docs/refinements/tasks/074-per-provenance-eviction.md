@@ -4,7 +4,7 @@
 **Area:** untrusted-content
 **Origin:** [ADR-0019](../../adr/ADR-0019-tainted-memory-recording.md)
 **Trigger:** a source found hostile after the fact, whose derived memories must be forgotten by where they came from rather than by the scope they were stored in.
-**Verified:** 2026-11-26
+**Verified:** 2026-11-28
 
 Left behind by [R-072](072-tainted-memory-recording.md): removing memories by the source they came
 from.
@@ -89,3 +89,5 @@ provenance yet.
 - 2026-11-26: checked again and not fired, and the body corrected. A memory now records the chat
   that wrote it, in an indexed `session_id`, and the port has two more removals, `delete_written_by`
   and `delete_ids`. None selects by source: a writing chat is not the email or page read inside it.
+- 2026-11-28: checked again and not fired: the memory port's removals are still `delete_scope`,
+  `delete_tainted`, `delete_ids` and `delete_written_by`, and none selects by source.

@@ -4,7 +4,7 @@
 **Area:** body-overlay
 **Origin:** [ADR-0037](../../adr/ADR-0037-whisper-streaming.md)
 **Trigger:** The user wanting a second voice back, or any second streaming treatment being asked for.
-**Verified:** 2026-10-17
+**Verified:** 2026-11-28
 
 The whisper shipped as the only streaming effect (ADR-0037 decision 1), but it was chosen from a
 pitched family of four, each with a breath, words and settle lifecycle. Promoting it to a pickable
@@ -40,3 +40,7 @@ row is left to the maintainer.
 - 2026-10-17: checked again and not fired. Nobody has asked for a second treatment, and the whisper
   changes of 2026-10-15, which set a reply's direction and split only its growing word into letters,
   add no registry.
+- 2026-11-28: checked again and not fired, and the counts corrected: the direction changes of
+  2026-10-15 grew `useWhisperClock.ts` to 295 lines, 5 under the limit, with its
+  `requestAnimationFrame` loop at line 261, so a per-voice change first moves code out of it.
+  `usePreferences.ts` holds the triple at lines 18 to 20.

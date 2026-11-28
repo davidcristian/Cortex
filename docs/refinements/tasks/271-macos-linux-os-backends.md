@@ -3,7 +3,7 @@
 **Status:** open, optional feature
 **Area:** cross-cutting
 **Origin:** none, this area is the old catch-all list and has no single origin decision record
-**Verified:** 2026-10-06
+**Verified:** 2026-11-28
 
 Real macOS backends behind the five OS ports in `body_core`: `Hotkey`, `AudioControl`, `Notify`,
 `ScreenCapture` and `ClipboardPicture`. The Linux half is done. `os_linux` has a real backend
@@ -100,3 +100,6 @@ needing a Win32 desktop session or a 24 GB GPU: a macOS backend needs neither, o
   the `aarch64-apple-darwin` target added, clippy passes on `os_macos` and on a scratch crate per
   likely dependency except `screencapturekit`, whose build scripts need `swift`; linking needs the
   SDK. Wrote the results and what wiring the check into `just check` costs, without adding it.
+- 2026-11-28: checked against the tree and every claim holds: the five `os_macos` backends are still
+  `unimplemented!()` stubs, the shell still has no `os_macos` dependency, and `body_server.rs` and
+  `hotkey.rs` still print that the platform has no backend off Windows and Linux.
