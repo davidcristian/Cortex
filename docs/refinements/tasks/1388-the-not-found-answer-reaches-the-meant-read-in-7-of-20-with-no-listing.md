@@ -8,7 +8,7 @@
 On the `named_uid` row of `test_uid_reading_live.py`, a read of a uid the request named and no
 message has, with no search before it, the shipped `NOT_FOUND` led to a search and then the read of
 uid 1238 in 7 of 20 draws on the cortex tier
-([imap server answers](../../readings/imap-server-answers.md)). The other 13 fell into two
+([cortex uid reads](../../readings/cortex-uid-reads.md)). The other 13 fell into two
 groups. Seven called `list_folders` first, which the row does not follow further, so what they read
 after the folder list is unknown. Six searched and then replied with no call: five named uid 1238
 off the listing and asked whether to read it, one wrote a body no answer held

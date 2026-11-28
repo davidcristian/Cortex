@@ -8,7 +8,7 @@
 of `test_uid_reading_live.py` opens with a search, so the listing is in the turn when the
 not-found answer arrives, and on the cortex tier the shipped text, the text without its correction
 and the bare failure all drew the same retry with the listed uid
-([imap server answers](../../readings/imap-server-answers.md)). The correction is the only path
+([cortex uid reads](../../readings/cortex-uid-reads.md)). The correction is the only path
 on a turn whose read did not follow a search, such as a request that names a uid itself, and no
 row draws that turn.
 
@@ -53,4 +53,4 @@ Written 2026-11-28, before the first launch.
   and its row went to
   [1388](1388-the-not-found-answer-reaches-the-meant-read-in-7-of-20-with-no-listing.md), the
   written body to [1389](1389-a-reply-after-a-listing-writes-a-body-no-read-returned.md)
-  ([imap server answers](../../readings/imap-server-answers.md)).
+  ([cortex uid reads](../../readings/cortex-uid-reads.md)).

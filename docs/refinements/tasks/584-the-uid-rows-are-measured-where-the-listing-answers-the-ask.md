@@ -73,7 +73,7 @@ Written 2026-11-27, before the first launch.
   in `docker/docker-compose.gpu.yml`; and neither run since, on 2026-09-17 or 2026-09-19, uses this
   harness. `_READ_ASK` and `DRAWS = 20` are unchanged, and the sixty draws are the three
   after-not-found conditions of the 2026-09-06 session, each `retried=20/20`
-  ([docs/readings/imap-server-answers.md](../../readings/imap-server-answers.md)).
+  ([docs/readings/cortex-uid-reads.md](../../readings/cortex-uid-reads.md)).
 - 2026-09-30: the claims held and the trigger has not fired. `values.py` changed once since
   2026-09-19, on 2026-09-23, when the search refusal and the folder texts were reworded, and that
   diff leaves `UID_HELP` and `NOT_FOUND` as they were. `DEFAULT_CORTEX_FILE` and the
@@ -103,6 +103,6 @@ Written 2026-11-27, before the first launch.
   in every variant of all three rows, each variant one distinct call, so each row is one answer at
   the tier's own sampling defaults; five seeds of a free text request gave four distinct replies,
   so the seed reaches the sampler. `UID_HELP` holds, and with `unlisted` 0/20 and `searched` 0/20
-  `NOT_FOUND` stays as it is ([imap server answers](../../readings/imap-server-answers.md)). The
+  `NOT_FOUND` stays as it is ([cortex uid reads](../../readings/cortex-uid-reads.md)). The
   turn that holds no listing went to
   [1382](1382-the-not-found-correction-is-undrawn-on-a-turn-that-holds-no-listing.md).

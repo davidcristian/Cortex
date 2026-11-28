@@ -28,7 +28,7 @@ of the listing line.
   After a not-found answer every draw read again with a listed uid rather than a nearby one, and did
   so as often under a bare failure with no correction as under the sentence, so the answer ends the
   run of nearby numbers and the sentence is not what ends it. The counts are in
-  [docs/readings/imap-server-answers.md](../../readings/imap-server-answers.md). What the session's
+  [docs/readings/cortex-uid-reads.md](../../readings/cortex-uid-reads.md). What the session's
   own limits left is [584](584-the-uid-rows-are-measured-where-the-listing-answers-the-ask.md), and
   a stub found in the harness this one was modelled on is
   [583](583-the-correction-harnesss-folder-listing-returns-an-empty-answer.md).

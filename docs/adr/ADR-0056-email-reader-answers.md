@@ -169,6 +169,7 @@ answered, word for word, is in
 - [ADR-0009](ADR-0009-tools-mcp.md) (the sidecar), [ADR-0013](ADR-0013-untrusted-content.md) (the
   brain's own texts), [ADR-0022](ADR-0022-email-write-confirmer.md) (the send path),
   [ADR-0057](ADR-0057-imap-probe-server.md) (the probe).
-- Readings: [imap-server-answers](../readings/imap-server-answers.md).
+- Readings: [imap-server-answers](../readings/imap-server-answers.md),
+  [cortex-uid-reads](../readings/cortex-uid-reads.md).
 - Module: [brain-email](../modules/brain-email.md); runbook:
   [email-imap](../runbooks/email-imap.md).

@@ -247,4 +247,4 @@ what this model does after any folder-taking failure, so its 20 of 20 is the sam
 condition, and all three conditions of `after_a_not_found` read 20 of 20 the same way.
 Without something to compare against, every count in both files would look like an effect. Counts:
 [untrusted framing](../readings/untrusted-framing.md),
-[imap server answers](../readings/imap-server-answers.md).
+[cortex uid reads](../readings/cortex-uid-reads.md).

@@ -10,7 +10,7 @@ searched, got the listing, and then replied with no call: "Here is the content:"
 subject and date of the listing's line for uid 1238, then a body ("This is a final notice
 regarding your overdue electricity bill...") that no tool answer held. No `read_email` call had
 returned that uid. It is one draw of twenty on one row
-([imap server answers](../../readings/imap-server-answers.md)).
+([cortex uid reads](../../readings/cortex-uid-reads.md)).
 
 Closing it means a row that counts this form first: the turn ends on a listing after a request to
 read one message, at least 20 seeds, and a typed reader that marks a reply presenting a message
