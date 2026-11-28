@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-11-27
+**Verified:** 2026-11-28
 
 One live turn of `Amintește-mi la ora 18 să scot gunoiul pentru colectarea de luni.` on the stack
 cortex (gemma-4-12B, text only) replied `Am programat unKy memore pentru astăzi, la ora 18:00`,
@@ -39,13 +39,20 @@ those rows drawn before a tier's sampler moves.
    rows and count it on items drawn after it is written, since a replay of the items it was
    written from shows nothing.
 2. **The reply**, which is this task's defect. A check of the item reaches a reply only when the
-   reply quotes the item, 8 of the 20 recorded replies with a word that is not Romanian, and only
-   when the check runs before the reply is written. The other 14 hold the cortex's own word for a
-   reminder, which neither the item nor the message holds, so no check against the message's
-   words reaches them. A search for a letter outside the alphabet of the message's language finds
-   6 of the 168 recorded replies, all among those 14, and no right reply; the other 8 are written
-   in Romanian letters, as is the first draw's `unKy memore`. Write a rule for that letter check,
-   tested over true sentences generated in five languages, before building a note on it.
+   reply quotes the item, 8 of the 20 recorded replies with a word that is not Romanian. The
+   other 14 hold the cortex's own word for a reminder, and 8 of those are written in Romanian
+   letters, as is the first draw's `unKy memore`, so only a reader of Romanian words reaches them.
+   A letter check by the rule written first in
+   [the readings](../../readings/cortex-sampling-broken-words.md#a-letter-check-of-the-reply-the-rule-written-2026-11-28)
+   marks 5 of the 6 recorded replies holding a letter outside the Romanian alphabet, 0 of the
+   162 others and 0 of 17,280 true replies generated in five languages. The sixth called
+   `edit_scheduled` after `schedule_task`, a turn the rule leaves unchecked because an edit can
+   change the text and time a note restating the creation would name; the letters alone mark
+   it. So the note is not built. The next rule keeps each item's text and due time by its id
+   through the creation and edit results, with the edit result holding the edited text in a
+   field the model does not read, as the cancel result does, and checks every turn whose calls
+   are all scheduling calls. Write it first and count it on replies drawn after it, since the six
+   recorded replies have now been read.
 3. Leave the sampler as the file sets it unless a later row on another form calls for one.
 
 ## History
@@ -61,3 +68,8 @@ those rows drawn before a tier's sampler moves.
   flags all 18 broken items and the right `Să scoți`, so it is not built. A check of the item
   reaches 8 of the 20 broken replies, the ones quoting it, so step 2 now names the reply's own
   remedy.
+- 2026-11-28: replayed a letter check of the reply, by a rule written first, over the 168
+  recorded replies and 17,280 generated true replies: it marks 5 of the 6 replies with a letter
+  outside the Romanian alphabet and no other reply, so the note is not built, and step 2 names
+  a note that stays true over an edit. Filed
+  [R-1391](1391-a-spanish-message-quoting-two-english-list-words-gets-english-notes.md).

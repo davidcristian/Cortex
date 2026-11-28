@@ -142,3 +142,58 @@ the other 8 are written in Romanian letters.
 
 Method: `items.py` reads the items, `check.py` replays the rule, and `replies.py` and `letters.py`
 count the replies, with their logs, in `~/.cache/cortex-run/2026-11-27/c5/`.
+
+## A letter check of the reply, the rule written 2026-11-28
+
+The rule, written before the replay and the generated sentences. The check reads the model's text
+of a turn whose every tool call is `schedule_task` and at least one stored an item, so the only
+tool results are creation results, which name an id, a kind and a due time and never a word of
+the item.
+
+- **The language** is the one the note pick (`message_language`) reads for the message. When no
+  language leads, the pick falls back to English and the check does not run, since the message's
+  alphabet is not known.
+- **The alphabets.** Every language holds the 26 letters `a` to `z`. French adds `à â æ ç é è ê
+  ë î ï ô œ ù û ü ÿ`, German `ä ö ü ß`, Spanish `á é í ñ ó ú ü ª º` and Romanian `ă â î ș ş ț ţ`.
+  English holds all of those, since English writes words such as `café` and `naïve`. Case is
+  folded before a letter is read.
+- **A word** is a run of characters between white space, less the punctuation at its two ends.
+  A word is **marked** when it holds a letter outside the alphabet and none of these holds: the
+  message or a stored item's text holds the word (case folded); its first letter is a capital,
+  which reads as a name; it holds a digit, which reads as a number; it stands between backticks,
+  which reads as code. Emoji and other symbols are not letters.
+- A reply is marked when one of its words is.
+
+Acceptance, all three needed before a note is built on the check: all 6 recorded replies holding
+a letter outside the Romanian alphabet marked; 0 of the 162 other recorded replies marked; and 0
+of at least 2,000 true reminder replies marked, generated in English, French, German, Spanish and
+Romanian from each message's own words, with names and quoted text from other scripts (Cyrillic,
+Greek, Turkish, Polish, Czech, Vietnamese, Devanagari, Chinese, Arabic) mixed into the message
+and quoted by the reply.
+
+### The replay and the generated replies
+
+| set | replies | marked | wanted |
+| --- | --- | --- | --- |
+| recorded, a letter outside the Romanian alphabet | 6 | 5 | 6 |
+| recorded, the others | 162 | 0 | 0 |
+| generated true replies, 3,456 per language | 17,280 | 0 | 0 |
+
+**The rule fails**: it marks 5 of the 6. The sixth, `Am setat o hatırlatıcı` in the second base
+set's first M1 draw, called `edit_scheduled` after `schedule_task`, so its turn is not checked;
+the letters alone mark it. The other unchecked turn asked a question and stored nothing. So no
+note is built on this rule. The turn condition is there for the note: an edit can change the
+text and the due time a creation result named, so a note restating the creation would be false
+on such a turn.
+
+The generated replies cover 4 tasks, 3 messages and 8 replies per language at 3 hours, each task
+holding one of 12 names from other scripts (`Дмитрий`, `Γιώργος`, `Çağrı`, `Łukasz`, `Dvořák`,
+`Nguyễn`, `राहुल`, `王伟`, `محمد`, `Søren`, `Zoë`, `Ольга`) and, in two of the 4, a quote from
+another script. Replies quote the item, restate the task in the message's words, and add the
+language's own words, emoji, a code span and an ordinal. The note pick reads 48 of the 3,456
+Spanish messages as English: the quoted Danish `tak for i går` holds two words the English list
+counts. A planted broken word in 2 of the 8 Romanian replies is marked in all 864 of them; the
+same word opening a sentence (`Przypomínání programat`) is not, since a capital reads as a name.
+
+Method: `replay.py`, `gen.py` and `gen_broken.py` with the rule in `letters_rule.py` and their
+logs, in `~/.cache/cortex-run/2026-11-28/c2/`.
