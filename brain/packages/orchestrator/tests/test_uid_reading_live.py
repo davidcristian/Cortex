@@ -2,6 +2,7 @@ import contextlib
 import copy
 import json
 import os
+import re
 import subprocess
 import time
 from collections.abc import Generator, Mapping, Sequence
@@ -599,3 +600,89 @@ async def test_what_the_cortex_does_when_a_named_uid_is_not_found() -> None:
                 emitted[label] = sum(1 for reply in firsts if reply.calls)
     mute = [label for label, calls in emitted.items() if calls == 0]
     assert not mute, f"named: {mute} emitted no call, so the counts measure silence"
+
+
+FOLLOWED_SEEDS = range(20, 40)
+_FOLDERS_TOOL = "list_folders"
+_FOLLOWED = (_SEARCH_TOOL, _FOLDERS_TOOL)
+_MAX_CALLS = 4
+ASKED = "asked"
+MARKED = "marked"
+TURN_OUTCOMES = (RIGHT, ASKED, OTHER_LINE, UNLISTED, MARKED, OTHER)
+_LISTED_UID = re.compile(r"^\[(\d+)\]", re.MULTILINE)
+_SENTENCE_END = re.compile(r"(?<=[.!?])[\"'\u201d)\]*]*\s+|\n+")
+_WRAPPING = " *_`\"'"
+
+
+def turn_uids(steps: Sequence[Step]) -> set[str]:
+    """Every uid a call of the turn named or a listing line of the turn wrote."""
+    listed = {uid for step in steps for uid in _LISTED_UID.findall(step.answer)}
+    named = {str(step.call.arguments["uid"]) for step in steps if "uid" in step.call.arguments}
+    return listed | named
+
+
+def marks_body(text: str, uids: set[str]) -> bool:
+    """Whether a sentence of ``text`` neither asks, ends in a colon, nor names one of ``uids``."""
+    for sentence in _SENTENCE_END.split(text):
+        stripped = sentence.strip(_WRAPPING)
+        if not stripped or stripped.endswith(("?", ":")):
+            continue
+        if not any(re.search(rf"\b{uid}\b", stripped) for uid in uids):
+            return True
+    return False
+
+
+def asks_meant(text: str) -> bool:
+    """Whether ``text`` names the meant line by uid or subject and ends in a question."""
+    named = MEANT_UID in text or _SUBJECTS[-1].lower() in text.lower()
+    return named and text.rstrip(_WRAPPING).endswith("?")
+
+
+def score_turn(last: Reply, steps: Sequence[Step]) -> str:
+    """How a followed turn ended: its read, a reply that asks, a marked reply, or other."""
+    if last.calls:
+        made = last.calls[0]
+        return _uid_outcome(made) if made.name == _READ_TOOL else OTHER
+    if marks_body(last.content, turn_uids(steps)):
+        return MARKED
+    return ASKED if asks_meant(last.content) else OTHER
+
+
+async def _followed(
+    client: httpx.AsyncClient, specs: Sequence[ToolSpec], steps: list[Step], seed: int
+) -> Reply:
+    """Draw the turn on ``seed``, answering each search and folder list, up to its end."""
+    reply = await _draw(client, turn_messages(_NAMED_ASK, steps), specs, seed)
+    for index in range(_MAX_CALLS - 1):
+        if not reply.calls or reply.calls[0].name not in _FOLLOWED:
+            break
+        made = reply.calls[0]
+        call = ToolCall(id=f"f{index}", name=made.name, arguments=dict(made.arguments))
+        steps.append(await _answered(call))
+        reply = await _draw(client, turn_messages(_NAMED_ASK, steps), specs, seed)
+    return reply
+
+
+@pytest.mark.integration
+async def test_where_a_named_turn_ends() -> None:
+    specs = await email_tool_specs()
+    missing = ToolCall(
+        id=_READ_ID, name=_READ_TOOL, arguments={"folder": WITH_MAIL, "uid": MISSING_UID}
+    )
+    opening = Step(missing, await sidecar_answer(missing), Trust.TRUSTED)
+    print(f"\n=== named_turn: the shipped text, seeds {FOLLOWED_SEEDS.start} to 39 ===")  # noqa: T201
+    lasts: list[Reply] = []
+    outcomes: list[str] = []
+    with _server():
+        async with httpx.AsyncClient(timeout=_DRAW_TIMEOUT_S) as client:
+            for seed in FOLLOWED_SEEDS:
+                steps = [opening]
+                last = await _followed(client, specs, steps, seed)
+                outcome = score_turn(last, steps)
+                trail = " > ".join(step.call.name for step in steps[1:]) or "-"
+                print(f"  seed={seed:<3d} {outcome:10s} {trail} > {_trail(last)[:200]}")  # noqa: T201
+                if not last.calls:
+                    print(f"    reply: {json.dumps(last.content)}")  # noqa: T201
+                lasts.append(last)
+                outcomes.append(outcome)
+    _report("named_turn corrected (shipped)", lasts, outcomes, TURN_OUTCOMES)

@@ -233,14 +233,14 @@ refusal trusted (what ships), fenced (the control) and as the bare `MCP tool ...
 baseline). Re-run it on a cortex model change or when `SEARCH_REFUSED` or `FOLDER_UNKNOWN` changes.
 
 The second measures what the model does with a uid: a uid comes off a `search_emails` line, and
-`UID_HELP` and `NOT_FOUND` are the two sentences that say so, before a call and after. Four rows in
-`cortex-uid-probe`: `comes_from` for the uid a read uses after a listing, `carried` for a uid taken
-into a folder holding no mail, `after_a_not_found` for the next call once a read has come back
-empty, and `named_uid` for the same with no search before the read, the call after a search's
-answer drawn too. The first two run the shipped `ToolSpec` and the spec without its `uid`
-description, the last two the corrected answer, the one before it and a bare failure: 200 to 260
-draws and four loads, or none with `CORTEX_UID_PROBE_ON_STACK` set, which draws on a running model
-host's cortex tier. Re-run it on a cortex model change or a rewording of either text.
+`UID_HELP` and `NOT_FOUND` say so, before a call and after. Five rows in `cortex-uid-probe`:
+`comes_from` for the uid a read uses after a listing, `carried` for a uid taken into a folder
+holding no mail, `after_a_not_found` for the next call once a read came back empty, `named_uid` for
+the same with no search before the read, with the call after a search, and `named_turn` for that
+turn under the shipped answer, each search and folder list answered up to a read or reply. The first
+two run the spec with and without its `uid` description, the next two three answers (corrected, the
+one before it, a bare failure): 220 to 340 draws in five loads, or none on a running model host's
+cortex tier with `CORTEX_UID_PROBE_ON_STACK` set. Re-run it on a cortex model or text change.
 
 The baselines are not optional in either. The folder correction asks for `list_folders`, which is
 what this model does after any folder-taking failure, so its 20 of 20 is the same in every

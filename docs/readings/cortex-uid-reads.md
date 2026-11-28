@@ -86,3 +86,28 @@ calls in the shipped text's twenty, and the correction moves a count: without it
 the folder list. Five of the six replies with no call named uid 1238 off the listing and asked
 whether to read it; one wrote a body for 1238, which no answer held. By the task's rule `NOT_FOUND`
 holds in neither form and stays as it is. Run log: `~/.cache/cortex-run/2026-11-28/s6/logs/`.
+
+**2026-11-28**, the same turn followed to its end, the `named_turn` row: the shipped `NOT_FOUND`
+alone on seeds 20 to 39, on the same argv read again from the running process. Each
+`search_emails` or `list_folders` call is answered by the real sidecar and the next call drawn on
+the same seed, up to a read, a reply with no call, another tool or the fourth call. A reply that
+names uid 1238 or its subject and ends in a question counts as right, since the request named a
+uid no message has and asking first makes no guess. A typed reader marks a reply with a sentence
+that neither ends in `?` or `:` nor names a uid of the turn, and each marked reply is read for
+message text no answer held. The rule was written before the first launch. The row was drawn
+twice, the second time after the reader's split was widened to end a sentence after a closing
+quote or bracket too.
+
+| pass | read `INBOX` 1238 | named 1238 and asked | marked | wrote a body |
+| --- | --- | --- | --- | --- |
+| first, a sentence ending only at `.`, `!` or `?` before a space | 16/20 | 4/20 | 0/20 | 0/20 |
+| second, the committed reader | 18/20 | 2/20 | 0/20 | 0/20 |
+
+In both passes the same ten of twenty called `list_folders` first, and each of those then
+searched and read 1238. Seeds 22 and 35 replied with no call in the first pass and read 1238 in the
+second, so a seed does not repeat a draw on this tier. The first pass's seed 38 gave the listing's own date ("Sun, 06 Sep
+2026") in a sentence after a closing quote, which the narrower split joined to the sentence naming
+1238; the committed reader marks that reply, and it holds no body. So the written body stands at 1
+of 60 turns drawn, and `NOT_FOUND` reaches 20 of 20 on read and asked together: by the rule it
+stays as it is, and no note is built for the body. Run log:
+`~/.cache/cortex-run/2026-11-28/s8/logs/`.

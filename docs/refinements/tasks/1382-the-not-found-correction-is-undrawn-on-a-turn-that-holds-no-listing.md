@@ -49,8 +49,9 @@ Written 2026-11-28, before the first launch.
   in 19 of 20, and with it 13 of 20 searched, 7 of those 13 then read uid 1238 and 6 replied with
   no call. By the rule's words a reply invents a message in 6/20, since five quoted the listing's
   own line for uid 1238, and one of the six wrote a body no answer held. Neither text reaches 16 of
-  20, so `NOT_FOUND` stays as it is; the correction moves a count (7 against 1). The rewritten text
-  and its row went to
-  [1388](1388-the-not-found-answer-reaches-the-meant-read-in-7-of-20-with-no-listing.md), the
-  written body to [1389](1389-a-reply-after-a-listing-writes-a-body-no-read-returned.md)
+  20, so `NOT_FOUND` stays as it is; the correction moves a count (7 against 1). The same turn
+  followed through each search and folder list to its end, the `named_turn` row on seeds 20 to 39,
+  read uid 1238 or named it and asked in 20 of 20 and wrote no body, so the text needs no rewrite.
+  The written body, 1 of 60 turns drawn, waits in
+  [1390](1390-a-reply-that-writes-a-message-body-no-read-returned-has-no-note.md)
   ([cortex uid reads](../../readings/cortex-uid-reads.md)).
