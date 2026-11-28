@@ -213,3 +213,97 @@ def test_a_lone_word_two_languages_write_goes_to_the_one_whose_letters_the_messa
     message: str, language: str
 ) -> None:
     assert message_language(message) == language
+
+
+@pytest.mark.parametrize(
+    ("message", "language"),
+    [
+        ("Quiero un recordatorio a las 9 para decirle «tak for i går» a Søren.", "es"),
+        ('Quiero un recordatorio a las 9 para decirle "tak for i går" a Søren.', "es"),
+        ("Quiero un recordatorio a las 9 para decirle “tak for i går” a Søren.", "es"),
+        ("Quiero un recordatorio a las 9 para decirle 'tak for i går' a Søren.", "es"),
+        ("Recuérdame decir 'I don't know' a Ana.", "es"),
+        ("Je veux dire « thank you for the help » à Ana.", "fr"),
+    ],
+)
+def test_a_quote_in_another_language_leaves_the_message_its_own(
+    message: str, language: str
+) -> None:
+    assert message_language(message) == language
+
+
+@pytest.mark.parametrize(
+    ("message", "language"),
+    [
+        ("«tak for i går»", ENGLISH),
+        ('"Rappelle-moi demain"', "fr"),
+        ("'Erinnere mich morgen'", "de"),
+        ("Dile «gracias por todo» a Ana.", "es"),
+    ],
+)
+def test_a_message_whose_words_outside_quotes_score_nothing_reads_its_quotes(
+    message: str, language: str
+) -> None:
+    assert message_language(message) == language
+
+
+@pytest.mark.parametrize(
+    ("message", "language"),
+    [
+        ('Remind me to tell Bob "the meeting is at 9".', ENGLISH),
+        ("Rappelle-moi de dire « merci pour tout » à Claire.", "fr"),
+        ("Recuérdame escribir “feliz cumpleaños” en la tarjeta.", "es"),
+        ("Don't forget the kids' party, por favor.", ENGLISH),
+        ("Remind me 'cause it's the kid's party, gracias y hola.", ENGLISH),
+        ("Rappelle-moi d'appeler l'école.", "fr"),
+    ],
+)
+def test_a_quote_in_the_message_language_or_an_apostrophe_changes_nothing(
+    message: str, language: str
+) -> None:
+    assert message_language(message) == language
+
+
+def test_the_forget_readers_read_quoted_words() -> None:
+    message = "Quiero un recordatorio a las 9 para decirle «tak for i går» a Søren."
+    assert forget_language(message) == ENGLISH
+
+
+@pytest.mark.parametrize(
+    ("message", "language"),
+    [
+        ("Erinnere mich, „thank you for the help“ zu sagen.", "de"),
+        ("Amintește-mi să-i spun „thank you for the help” lui Ana.", "ro"),
+        ("Recuérdame decir \u2018thank you for the help\u2019 a Ana.", "es"),
+        ("Recuérdame decir \u2018I don\u2019t know\u2019 a Ana.", "es"),
+        ("Erinnere mich an »Thank you for the music« von ABBA.", "de"),
+        ("„Thank you“ und „see you“", "de"),
+        ("Rappelle-moi d\u2019envoyer \u2018thank you for the help\u2019 à l\u2019équipe.", "fr"),
+    ],
+)
+def test_a_quote_in_a_german_romanian_or_typographic_mark_leaves_the_message_its_own(
+    message: str, language: str
+) -> None:
+    assert message_language(message) == language
+
+
+@pytest.mark.parametrize(
+    ("message", "language"),
+    [
+        ("„thank you for the help“", ENGLISH),
+        ("„Erinnere mich morgen“", "de"),
+        ("»Rappelle-moi demain«", "fr"),
+        ("\u2018Recuérdame mañana\u2019", "es"),
+        ("Erinnere mich, „danke für die Hilfe“ zu sagen.", "de"),
+        ("Amintește-mi să spun „mulțumesc pentru tot” Anei.", "ro"),
+        ("Remind me to tell Bob \u2018the meeting is at 9\u2019.", ENGLISH),
+        ("Remind me to say “danke für alles” to Jürgen.", ENGLISH),
+        ("Rappelle-moi d\u2019appeler l\u2019école.", "fr"),
+        ("Don\u2019t forget the kids\u2019 party, por favor.", ENGLISH),
+        ("Remind me \u2018cause it\u2019s the kid\u2019s party, gracias y hola.", ENGLISH),
+    ],
+)
+def test_a_quote_alone_or_in_the_message_language_or_an_apostrophe_keeps_the_pick(
+    message: str, language: str
+) -> None:
+    assert message_language(message) == language

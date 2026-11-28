@@ -49,6 +49,13 @@ _WORD = re.compile(r"[^\W\d_]+")
 _ENDS_SENTENCE = ".!?¿¡\n"
 # A word of three letters or fewer in capitals reads as an abbreviation: EST, MON, LOS.
 _LONGEST_ABBREVIATION = 3
+# German closes „ with the “ English opens with. A single quote closes a quote only at a word's
+# edge, and a straight one opens one only there, so "don't" stays a word with either apostrophe.
+_QUOTED = re.compile(
+    r"«[^«»\n]+»|»[^«»\n]+«|„[^„“”\n]+[“”]|\"[^\"\n]+\"|“[^“”\n]+”"
+    r"|(?<!\w)'(?:[^'\n]|(?<=\w)'(?=\w))+'(?!\w)"
+    r"|\u2018(?:[^\u2018\u2019\n]|(?<=\w)\u2019(?=\w))+\u2019(?!\w)"
+)
 
 
 def _opens_sentence(message: str, start: int) -> bool:
@@ -127,15 +134,22 @@ def _also_writing(message: str, leader: str) -> list[str]:
     return [language for language, also in _ALSO_WRITTEN.items() if found[0] in also]
 
 
-def message_language(message: str) -> str:
-    """The language a closing note on ``message`` is written in: the one language the most words
-    and marks belong to, then the one of those whose letters it holds most, else English. A lone
-    word another language also writes goes to whichever of the two has more of its letters."""
+def _pick(message: str) -> str:
+    """The one language the most words and marks of ``message`` belong to, then the one whose
+    letters it holds most, else English. A lone word another language also writes goes to
+    whichever of the two has more of its letters."""
     leaders = _most_letters(message, _leaders(message))
     if len(leaders) != 1:
         return ENGLISH
     rivals = _most_letters(message, [leaders[0], *_also_writing(message, leaders[0])])
     return rivals[0] if len(rivals) == 1 else leaders[0]
+
+
+def message_language(message: str) -> str:
+    """The language a closing note on ``message`` is written in, picked from its words outside
+    quotes, or from the whole message when those score nothing."""
+    unquoted = _QUOTED.sub(" ", message)
+    return _pick(unquoted if _leaders(unquoted) else message)
 
 
 def in_language(english: str, others: Mapping[str, str], language: str) -> str:

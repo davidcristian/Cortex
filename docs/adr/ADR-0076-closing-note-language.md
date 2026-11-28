@@ -47,13 +47,18 @@ Three ways to write the note in the right language were compared.
    `Termin Montag 9 Uhr` stays German. The `am` of a clock figure such as `9am` counts as English.
    A message with no lowercase letter also counts its words of four letters or more when two of
    them are in one language's list, so `RAPPELLE-MOI DEMAIN` is French, while a word of three
-   letters or fewer stays an abbreviation and `CALL BOB MON 9 EST` stays English.
+   letters or fewer stays an abbreviation and `CALL BOB MON 9 EST` stays English. A word inside
+   a quote (`«»`, `»«`, `""`, `“”`, the German `„“`, the Romanian `„”`, and `‘’` or `''`
+   closed at a word's edge, so `don't` stays a word) counts for no language, so
+   `Quiero un recordatorio a las 9 para decirle «tak for i går» a Søren.` is Spanish; a message
+   whose words outside quotes score nothing is read whole, so `"Rappelle-moi demain"` stays
+   French ([readings](../readings/note-language-quotes.md)).
 2. **English is the fallback.** A message with no match, or a tie the letters do not break, gets
    the English note. English is what every note was before, so a missing pick shows today's text.
    A message in a sixth language can get a third one: `Meu código mudou para 4862.` ties Spanish
    with Romanian and its `ó` picks Spanish. The forget readers read a message's language with
-   `forget_language`, the same pick without letters, because they are frozen
-   ([ADR-0075](ADR-0075-forget-chosen-memories.md) decision 7).
+   `forget_language`, the same pick without letters and with quoted words counted, because they
+   are frozen ([ADR-0075](ADR-0075-forget-chosen-memories.md) decision 7).
 3. **Each translated note keeps its English constant** and adds a mapping from language to text
    beside it (`STORED_TIME_NOTES` beside `STORED_TIME_NOTE`); `in_language(english, others,
    language)` returns the English text for a language the mapping does not have. The readers that
@@ -80,3 +85,5 @@ Three ways to write the note in the right language were compared.
 - A message whose one counted word is `ce` and that holds no letter outside ASCII keeps the
   Romanian note, the French `Note ce code: 5530.` as well as the Romanian `Ce faci?`, and a
   Romanian one beside a name holding a French letter (`Ce face José?`) gets the French note.
+- A quote in another mark (the German `„“`, the Romanian `„”`, `‘’` or `»«`) is read as words,
+  so `Erinnere mich, „thank you for the help“ zu sagen.` gets the English note.

@@ -71,5 +71,4 @@ those rows drawn before a tier's sampler moves.
 - 2026-11-28: replayed a letter check of the reply, by a rule written first, over the 168
   recorded replies and 17,280 generated true replies: it marks 5 of the 6 replies with a letter
   outside the Romanian alphabet and no other reply, so the note is not built, and step 2 names
-  a note that stays true over an edit. Filed
-  [R-1391](1391-a-spanish-message-quoting-two-english-list-words-gets-english-notes.md).
+  a note that stays true over an edit.

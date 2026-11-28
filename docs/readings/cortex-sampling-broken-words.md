@@ -190,10 +190,11 @@ The generated replies cover 4 tasks, 3 messages and 8 replies per language at 3 
 holding one of 12 names from other scripts (`Дмитрий`, `Γιώργος`, `Çağrı`, `Łukasz`, `Dvořák`,
 `Nguyễn`, `राहुल`, `王伟`, `محمد`, `Søren`, `Zoë`, `Ольга`) and, in two of the 4, a quote from
 another script. Replies quote the item, restate the task in the message's words, and add the
-language's own words, emoji, a code span and an ordinal. The note pick reads 48 of the 3,456
-Spanish messages as English: the quoted Danish `tak for i går` holds two words the English list
-counts. A planted broken word in 2 of the 8 Romanian replies is marked in all 864 of them; the
-same word opening a sentence (`Przypomínání programat`) is not, since a capital reads as a name.
+language's own words, emoji, a code span and an ordinal. The note pick reads every message in
+its own language, because it leaves quoted words out: the quoted Danish `tak for i går` holds two
+words the English list counts ([readings](note-language-quotes.md)). A planted broken word in 2
+of the 8 Romanian replies is marked in all 864 of them; the same word opening a sentence
+(`Przypomínání programat`) is not, since a capital reads as a name.
 
 Method: `replay.py`, `gen.py` and `gen_broken.py` with the rule in `letters_rule.py` and their
 logs, in `~/.cache/cortex-run/2026-11-28/c2/`.
