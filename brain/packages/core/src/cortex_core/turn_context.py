@@ -66,6 +66,7 @@ class TurnCapabilities:
     sight: VisionProbe | None = None
     memory_write_timeout_s: float = MEMORY_WRITE_TIMEOUT_S
     zone: DisplayZone = UTC_DISPLAY
+    reminders_off: bool = False
 
 
 def _render_memory_context(

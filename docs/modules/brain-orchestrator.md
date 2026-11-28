@@ -210,7 +210,7 @@ the version string `Health` reports.
   the turn's list omits still shows a card) and each `private_arguments` one in `private_names`. A subagent's dispatcher has no confirmer and no confirmable tool (`ConfirmFreeToolRegistry`).
 - `StreamEngines.for_stream` (`engines.py`) is the engine factory, an object built once rather than
   closures over the root's locals. It reads no env, opens no resource and picks no adapter: per
-  stream it builds that stream's `TurnCapabilities` and returns, inside a `SerialTurnRunner` over
+  stream it builds that stream's `TurnCapabilities`, whose `reminders_off` is set when `run_from_env` built no schedule store, and returns, inside a `SerialTurnRunner` over
   the factory's one `SessionTurnLocks`, the plain `TurnEngine`, or an
   `EscalatingTurnEngine` over a `SwapConductor` bound to this stream's dispatcher when a
   `DeepTier(swap, builtins, scheduler)` is present, whose manager is then the capabilities'

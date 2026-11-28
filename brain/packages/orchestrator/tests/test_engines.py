@@ -57,6 +57,7 @@ from cortex_core import (
     TurnEvent,
     TurnRunner,
 )
+from cortex_core.schedule_off import REMINDERS_OFF_NOTE
 from cortex_orchestrator import (
     BrainRuntimeConfig,
     DispatchSetup,
@@ -276,6 +277,26 @@ async def test_the_deep_model_is_offered_the_tier_set_the_root_built_for_it() ->
     assert deep, "the deep phase never ran, so nothing was offered to it"
     assert CAPTURE_SCREEN_TOOL_NAME not in deep
     assert GET_VOLUME_TOOL_NAME in deep, "the deep tier keeps every other built-in"
+
+
+async def test_a_deployment_with_no_schedule_store_closes_a_reminder_turn_once() -> None:
+    backend = _Model(
+        {
+            "cortex": [[_ESCALATE_CALL], [TextChunk("handing over. ")]],
+            "brain": [[TextChunk("the deep answer")]],
+        }
+    )
+    swap = _swap_runtime()
+    try:
+        engines = replace(_escalating(backend, swap), reminders_off=True)
+        engine = engines.for_stream(RecordingConfirmer(answer=True), RecordingProgressSink())
+        events = await _run(engine, "Remind me tomorrow at 9 to call the dentist.", turn_id="t1")
+    finally:
+        await swap_closer(swap)()
+
+    shown = "".join(event.text for event in events if isinstance(event, TextDelta))
+    assert "the deep answer" in shown
+    assert shown.count(REMINDERS_OFF_NOTE.strip()) == 1
 
 
 class _Fixed:

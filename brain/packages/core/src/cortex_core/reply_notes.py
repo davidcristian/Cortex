@@ -59,6 +59,7 @@ from cortex_core.schedule_claim import (
 from cortex_core.schedule_daily import DAILY_STORED_NOTE, DAILY_STORED_NOTES
 from cortex_core.schedule_first_fire import FIRST_FIRE_NOTE, FIRST_FIRE_NOTES
 from cortex_core.schedule_made_repeating import MADE_REPEATING_NOTE, MADE_REPEATING_NOTES
+from cortex_core.schedule_off import REMINDERS_OFF_NOTE, REMINDERS_OFF_NOTES
 from cortex_core.schedule_quoted import QUOTED_STORED_NOTE, QUOTED_STORED_NOTES
 from cortex_core.schedule_weekday import WEEKDAY_OFF_NOTE, WEEKDAY_OFF_NOTES
 from cortex_core.schedule_weekly import ONCE_STORED_NOTE, ONCE_STORED_NOTES
@@ -125,6 +126,7 @@ REPLY_NOTES: tuple[str, ...] = (
     *_forms(MONTHLY_STORED_NOTE, MONTHLY_STORED_NOTES),
     *_forms(STORED_TIME_NOTE, STORED_TIME_NOTES),
     *_forms(UNSCHEDULED_CLAIM_NOTE, UNSCHEDULED_CLAIM_NOTES),
+    *_forms(REMINDERS_OFF_NOTE, REMINDERS_OFF_NOTES),
     *_forms(DAILY_STORED_NOTE, DAILY_STORED_NOTES),
     *_forms(FIRST_FIRE_NOTE, FIRST_FIRE_NOTES),
     *_forms(MADE_REPEATING_NOTE, MADE_REPEATING_NOTES),

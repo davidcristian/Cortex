@@ -162,6 +162,11 @@ def unasked_tools(query: str) -> frozenset[str]:
     return frozenset(name for name, asked in _ASKED.items() if asked.search(query) is None)
 
 
+def asks_reminder(query: str) -> bool:
+    """Whether ``query`` names a reminder, an alarm or a time to be told of something."""
+    return _REMINDER.search(query) is not None
+
+
 def unasked_sidecar_tools(query: str, specs: Sequence[ToolSpec]) -> frozenset[str]:
     """The sidecar tools, and the tools that call them, refused by name on a request to remember."""
     sidecar = [spec for spec in specs if spec.sidecar or spec.calls_sidecar]

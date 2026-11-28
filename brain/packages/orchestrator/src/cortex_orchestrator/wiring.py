@@ -158,6 +158,7 @@ async def run_from_env(
             deep=None if swap is None else DeepTier(swap, deep_builtins, scheduler),
             load_wait_s=inference.load_wait_s,
             zone=schedule_config.display_zone(),
+            reminders_off=schedules is None,
         )
         await serve(
             rpc_config,

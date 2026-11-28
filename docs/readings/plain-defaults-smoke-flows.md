@@ -77,7 +77,8 @@ Two French replies said no reminder can be set and suggested the phone's own app
 the thought planned a `set_reminder` tool that was not offered, called `forget_memories` with
 `appeler le dentiste` and then `demain à 9h00`, and asked for tomorrow's date so that it could set
 the reminder. Memory was empty, so nothing matched, the French unmatched note was right, and the
-turn was not stored. Both forms are filed as [R-1395](../refinements/tasks/1395-with-reminders-off-a-romanian-reminder-request-is-answered-as-set.md).
+turn was not stored. Both forms now get the reminders off note, drawn in
+[its readings](reminders-off-note.md).
 
 ## 6. A picture on a text only cortex
 

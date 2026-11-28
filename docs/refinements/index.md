@@ -82,8 +82,8 @@ never a reading of what the tree does now.
 - **[R-1317](tasks/1317-the-alternate-deep-model-has-no-rate-row-with-one-layer-in-ram.md)** The alternate deep model has no rate row with one layer in RAM (inference-model-manager). Its claim was checked against the code on 2026-11-27.
 - **[R-1385](tasks/1385-the-drain-test-failed-once-in-the-full-brain-suite.md)** The drain test failed once in the full brain suite (rpc-transport). Its claim was checked against the code on 2026-11-28.
 - **[R-1386](tasks/1386-a-french-message-with-no-accent-whose-one-word-is-ce-gets-romanian-notes.md)** A French message with no accent whose one word is ce gets Romanian notes (memory). Its claim was checked against the code on 2026-11-28.
-- **[R-1395](tasks/1395-with-reminders-off-a-romanian-reminder-request-is-answered-as-set.md)** With reminders off, a Romanian reminder request is answered as set (scheduling). Its claim was checked against the code on 2026-11-28.
 - **[R-1396](tasks/1396-with-reminders-off-the-cortex-is-given-no-date.md)** With reminders off, the cortex is given no date (inference). Its claim was checked against the code on 2026-11-28.
+- **[R-1397](tasks/1397-a-call-refused-as-already-run-is-repeated-until-the-round-limit.md)** A call refused as already run is repeated until the round limit (tools-mcp). Its claim was checked against the code on 2026-11-28.
 
 ### Actionable, once a port changes (1)
 
@@ -1001,7 +1001,7 @@ never a reading of what the tree does now.
 
 ### scheduling
 
-7 open of 45.
+6 open of 44.
 
 - [R-225](tasks/225-rust-transport-reminder-methods.md) Rust BrainTransport reminder methods. done 2026-07-14.
 - [R-226](tasks/226-overlay-reminders-on-open.md) The overlay's reminders-on-open surface. done 2026-07-14.
@@ -1047,7 +1047,6 @@ never a reading of what the tree does now.
 - [R-1124](tasks/1124-the-first-fire-note-is-english-in-every-language.md) The first fire note is English in every language. done 2026-11-11.
 - [R-1131](tasks/1131-a-change-answered-by-a-cancel-alone-does-not-name-the-deleted-reminder.md) A change answered by a cancel alone does not name the deleted reminder. done 2026-11-11.
 - [R-1134](tasks/1134-a-reply-saying-it-updated-a-reminder-named-only-by-a-pronoun-gets-no-note.md) A reply saying it updated a reminder named only by a pronoun gets no note. done 2026-11-11.
-- [R-1395](tasks/1395-with-reminders-off-a-romanian-reminder-request-is-answered-as-set.md) With reminders off, a Romanian reminder request is answered as set. open, actionable.
 
 ### session-history
 
@@ -1155,7 +1154,7 @@ never a reading of what the tree does now.
 
 ### tools-mcp
 
-6 open of 36.
+7 open of 37.
 
 - [R-036](tasks/036-dispatch-half-rate-policy.md) The dispatch half of the rate policy. done 2026-07-14.
 - [R-037](tasks/037-per-tool-cost-half.md) The per-tool cost half of the budget. done 2026-07-14.
@@ -1193,6 +1192,7 @@ never a reading of what the tree does now.
 - [R-979](tasks/979-the-other-rewordings-of-a-repeated-sentence-are-not-recorded.md) The other rewordings of a repeated sentence are not recorded. done 2026-11-07.
 - [R-1258](tasks/1258-the-translated-rounds-note-names-a-started-handoff-as-a-success.md) The translated rounds note names a started handoff as a success. done 2026-11-24.
 - [R-1318](tasks/1318-the-rounds-note-asks-to-ask-again-on-a-turn-a-handoff-then-answers.md) The rounds note asks to ask again on a turn a handoff then answers. done 2026-11-25.
+- [R-1397](tasks/1397-a-call-refused-as-already-run-is-repeated-until-the-round-limit.md) A call refused as already run is repeated until the round limit. open, actionable.
 
 ### untrusted-content
 

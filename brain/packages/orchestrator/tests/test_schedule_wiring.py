@@ -88,12 +88,22 @@ async def test_the_brains_schedule_task_clears_a_chat_deleted_before_its_add(
     assert origins == {"in the deleted chat": "", "in the live chat": "live"}
 
 
-async def test_the_brains_turns_get_the_schedule_zone(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize(("backend", "off"), [("none", True), ("redis", False)])
+async def test_the_brains_turns_get_the_schedule_zone_and_whether_reminders_are_off(
+    monkeypatch: pytest.MonkeyPatch, backend: str, *, off: bool
+) -> None:
     port = _free_loopback_port()
     monkeypatch.setenv("CORTEX_SEAM_HOST", "127.0.0.1")
     monkeypatch.setenv("CORTEX_SEAM_PORT", str(port))
     monkeypatch.setenv("CORTEX_SCHEDULE_TZ", "Pacific/Auckland")
+    monkeypatch.setenv("CORTEX_SCHEDULE_BACKEND", backend)
     server = FakeServer()
+
+    def fake_from_url(url: str) -> Redis:
+        del url
+        return FakeAsyncRedis(server=server)
+
+    monkeypatch.setattr(Redis, "from_url", fake_from_url)
     made: list[StreamEngines] = []
 
     def recording(**parts: object) -> StreamEngines:
@@ -110,4 +120,6 @@ async def test_the_brains_turns_get_the_schedule_zone(monkeypatch: pytest.Monkey
         await asyncio.wait_for(task, timeout=10)
     finally:
         task.cancel()
-    assert [engines.zone.name for engines in made] == ["Pacific/Auckland"]
+    assert [(engines.zone.name, engines.reminders_off) for engines in made] == [
+        ("Pacific/Auckland", off)
+    ]

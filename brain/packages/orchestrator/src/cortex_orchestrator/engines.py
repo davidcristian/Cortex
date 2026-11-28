@@ -80,6 +80,7 @@ class StreamEngines:
     deep: DeepTier | None
     load_wait_s: float = 0.0
     zone: DisplayZone = UTC_DISPLAY
+    reminders_off: bool = False
     sleeper: Sleeper = field(default_factory=AsyncioSleeper)
     turns: SessionTurnLocks = field(default_factory=SessionTurnLocks)
 
@@ -171,6 +172,7 @@ class StreamEngines:
             residency=None if self.deep is None else self.deep.swap.manager,
             sight=self.sight,
             zone=self.zone,
+            reminders_off=self.reminders_off,
         )
 
     def _recaller(self, backend: InferenceBackend, model: str) -> MemoryRecaller | None:
