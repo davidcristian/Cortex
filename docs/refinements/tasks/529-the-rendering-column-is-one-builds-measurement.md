@@ -1,9 +1,13 @@
 # The rendering column is one build's measurement, and an engine bump reopens every row of it
 
-**Status:** open, actionable
+**Status:** open, waiting for its trigger
 **Area:** inference
+**Trigger:** an engine bump under this stack, meaning the GPU runbook's `docker image inspect`
+label command reporting a llama.cpp build other than b12375 for `cortex-model-host` (the three GPU
+tiers) or other than b10680 for the cached `server` tag (both CPU subagent overrides). Nothing fixes
+a digest, so a pull or a rebuild is the bump.
 **Origin:** [ADR-0050](../../adr/ADR-0050-live-probe-records.md)
-**Verified:** 2026-11-27
+**Verified:** 2026-11-28
 
 Every row of the lineup section's rendering column stands on a sample the reader published, and
 every one was drawn on one build. The rule the column states, that a template rendering the thought
@@ -34,97 +38,31 @@ twelve rows held on `b11312`
 
 ## The column on b11429
 
-The model host image was rebuilt on 2026-10-06 and reads `b11429 d81235049`, image
-`sha256:246f5bf127e4`; the `b11312` image is no longer cached. Row `529sw` of the card run of
-2026-10-07 draws the twelve picks at `-ngl 99` with the 2026-10-04 driver and argv, then row
-`529cpu` draws the E4B at `-ngl 0` on CPU cores 12 to 23. The E4B row is read from `529cpu`, as on
-`b11312`; its `-ngl 99` sample is recorded and decides nothing. What each result decides, written
-before the draw:
-
-- **Every probe exits 0 and the reader agrees on every pick.** The column holds on `b11429`. The
-  readings record the build and the twelve rows, and this task waits for the next build.
-- **The reader exits 1 on a pick.** The readings record that row beside its `b11312` row, and no
-  ADR prose changes until the same pick is drawn again at five draws a cell on `b11429` and on the
-  cached `b10680` `:server-cuda` image at the same argv. That row stays owed and the task stays
-  actionable.
-- **A null** is a pick with no sample, from a failed load, or a control that did not deliberate on
-  all five draws: that row stays owed on `b11429`, and the task stays actionable.
-
-**Drawn 2026-10-07**, both rows exit 0 and the reader exiting 0 on all thirteen samples
-([thinking-switch readings](../../readings/thinking-switch.md#the-lineups-switched-tails)). Eleven
-picks agree with their `b11312` rows, so under the first rule the column holds on `b11429` for
-them. The E4B is a null under the third at both placements: its plain control deliberated on 4 of
-5 at `-ngl 99` and on 3 of 5 at `-ngl 0`, so its row stays owed on `b11429`. Nothing shipped
-changes, and the task stays actionable.
-
-**The next row, written before its draw.** The E4B's plain control has failed in four of five runs
-on `b11312` and `b11429`, at both placements, and fired on all five in both `b10680` runs. Five
-draws cannot tell a lower rate from chance. The row draws the E4B at `-ngl 99` at 20 draws a cell,
-a copy of the 2026-10-07 driver with `CORTEX_THINKING_REPEATS=20`, on `cortex-model-host` and on
-the cached `b10680` `:server-cuda` image at the same argv: about 10 minutes on the card.
-
-- **The control deliberates on all 20 on `b11429`.** The probe reads the E4B row on `b11429`
-  under the rules above, and all twelve rows are read on it.
-- **It deliberates on all 20 on `b10680` and on 16 or fewer on `b11429`.** The build lowered the
-  plain control's rate on this prompt. The readings record it, the E4B's plain cell is unmeasured
-  by this prompt on `b11429`, its row is read from its constrained cells, which the reader judges,
-  and a task is filed for a question the E4B's control deliberates on every time.
-- **Any other result** is a null, and the row stays owed.
-
-**Drawn 2026-10-07**, both rows exit 0 and the reader exiting 0 on both samples. The plain control
-deliberated on 16 of 20 on `b11429` and on 17 of 20 on `b10680`, so neither the first rule nor the
-second applies: under the third this is a null, and the E4B row stays owed on `b11429`. Its
-constrained cells read control 20 of 20 on both images, switch 19 of 20 on `b11429` and 18 of 20 on
-`b10680`, and its plain switch 0 of 20 on both. The two `b10680` runs that fired on five of five
-were draws at a rate below one, so the build did not lower it: this question does not make the E4B
-deliberate on every draw on either build. The probe now sends the E4B's file a question of its own,
-chosen by a screen and a replication written down before their draws
-([ADR-0050](../../adr/ADR-0050-live-probe-records.md) decision 1, thinking-switch readings), and
-every other file the bill question, so the eleven rows read above stand. Nothing shipped changes.
-
-**The next row, written before its draw.** The row draws the E4B with its own question at `-ngl 99`
-and 20 draws a cell on `cortex-model-host`, on the build that image then reads, with
-`measurements/sitting-2026-10-07b/drivers/529x20.sh`: `just switch-lineup` fixes five draws a cell
-and serves the E4B at `-ngl 0`.
-
-- **Both controls deliberate on all 20 and the reader agrees.** The E4B row is read on that build.
-  On `b11429` all twelve rows are then read, and this task waits for the next build.
-- **The reader exits 1.** The readings record that row beside its `b11312` row, it stays owed, and
-  it is drawn again on the cached `b10680` `:server-cuda` image at the same argv.
-- **Any other result** is a null, and the row stays owed.
-
-**Drawn 2026-10-07**, exit 0, the probe sending the E4B's file its knights and knaves question.
-Both controls deliberated on 20 of 20, the plain switch on 0 of 20 and the constrained switch on 20
-of 20, and the reader agreed: an open tail that does nothing under a schema, the E4B's row as on
-every earlier build. Under the first rule the E4B row is read on `b11429`, all twelve rows are read
-on it, and this task waits for the next build with the recipe as its open half. The same plain
-control read 20 of 20 at `-ngl 0` on CPU cores 12 to 23, where the recipe serves the E4B, so the
-recipe needs no change. Samples under `measurements/sitting-2026-10-07c/529e4b20q/`, from the
-`529x20.sh` copied there.
+Drawn 2026-10-07 on `b11429 d81235049`, image `sha256:246f5bf127e4`, under the same three rules.
+The E4B row was read from its `-ngl 0` sample, as on `b11312`, and its `-ngl 99` sample was
+recorded and decided nothing. Eleven picks repeated their `b11312` rows. The E4B was a null at both
+placements, its plain control deliberating on 4 and 3 of 5. The 20 draw row then had three rules,
+written before its draw: all 20 on `b11429` reads the row; all 20 on `b10680` and 16 or fewer on
+`b11429` means the build lowered the plain control's rate, so its plain cell is unmeasured by this
+prompt, the row is read from its constrained cells and a task is filed for a question the control
+deliberates on every time; any other result is a null. It read 16 of 20 on `b11429` and 17 of 20 on
+the cached `b10680` image, a null, so the bill question does not make the E4B deliberate on every
+draw on either build. The probe now sends the E4B's file a knights and knaves question, chosen by a
+screen and a replication written down before their draws
+([ADR-0050](../../adr/ADR-0050-live-probe-records.md) decision 1). Its row's rules, also written
+before the draw: both controls at 20 of 20 with the reader agreeing reads the row; a reader exit of
+1 records the row beside its `b11312` row and draws it again on the cached `b10680` image; any other
+result is a null. Drawn with it at 20 draws a cell, both controls deliberated on 20 of 20 and the
+reader agreed, so all twelve rows are read on `b11429`
+([thinking-switch readings](../../readings/thinking-switch.md#the-lineups-switched-tails)).
 
 ## The column on b11552
 
-The model host image was rebuilt on 2026-10-12 and reads `b11552 23b0202a1`, image
-`sha256:c3f02610f5af`. The recipe's loop, `switchlineup.py --cpuset 12-23`, draws the twelve
-picks on it from a `git archive` copy of HEAD, the E4B at `-ngl 0` on CPU cores 12 to 23 with its
-own question and the rest at `-ngl 99`, five draws a cell. What each result decides, written
-before the draw:
-
-- **Every probe exits 0 and the reader agrees on every pick.** The column holds on `b11552`. The
-  readings record the build and the twelve rows, and this task waits for the next build.
-- **The reader exits 1 on a pick.** The readings record that row beside its `b11429` row, and no
-  ADR prose changes until the same pick is drawn again at five draws a cell on `b11552` and on the
-  cached `b10680` `:server-cuda` image at the same argv. That row stays owed and the task stays
-  actionable.
-- **A null** is a pick with no sample, from a failed load, or a control that did not deliberate on
-  all five draws: that row stays owed on `b11552`, and the task stays actionable.
-
-**Drawn 2026-10-16**, the row exiting 0, every probe exiting 0 and the reader agreeing on all twelve
-samples ([thinking-switch readings](../../readings/thinking-switch.md#the-lineups-switched-tails)).
-Every control deliberated on 5 of 5 and every pick repeats its `b11429` row, tail and result alike,
-the E4B's included, so under the first rule the column holds on `b11552` and this task waits for
-the next build. The probe ran on the main tree's brain venv with the copy's sources first on
-`PYTHONPATH`, as on every earlier run. Samples under `measurements/sitting-2026-10-16/529/`.
+Drawn 2026-10-16 on `b11552 23b0202a1`, image `sha256:c3f02610f5af`, by the recipe's loop from a
+`git archive` copy, with the main tree's brain venv and the copy's sources first on `PYTHONPATH`,
+the E4B at `-ngl 0` on CPU cores 12 to 23 with its own question. Every probe exited 0, the reader
+agreed on all twelve samples and every pick repeated its `b11429` row, so the column held on
+`b11552`. Samples under `measurements/sitting-2026-10-16/529/`.
 
 ## The column on b11913
 
@@ -150,6 +88,48 @@ twelve samples ([thinking-switch readings](../../readings/thinking-switch.md#the
 Every control deliberated on 5 of 5, and every pick rendered both prompts byte for byte as on
 `b11552` and repeated its four counts, so under the first rule the column holds on `b11913` and this
 task waits for the next build. Samples under `measurements/sitting-2026-10-28/529/`.
+
+## The column on b12375
+
+The model host image reads `b12375 9d25e0014`, image `sha256:42102cf3b896`. The cached
+`:server-cuda` tag now reads `b12169 3ed7284f2`, and `b10680` is cached only as the CPU `:server`
+image. Every file the recipe names changed on the mount on 2026-11-16, the gemma ones with new chat
+templates ([R-1238](1238-the-lineups-readings-were-drawn-on-files-the-mount-no-longer-holds.md)),
+so a row that moves on `b12375` cannot say whether the build or the file moved it. Two rows are not
+drawn. The Qwen3.6-27B file is gone and `scripts/switchlineup.py` no longer names it, so that row
+stays on `b11913`. The gemma-4-31B file held whole needed 18,621 MiB of the card at 6K of context
+with a 16-bit cache in the baseline's fit check of 2026-11-17, over the 18,177 MiB a model may hold
+beside the user's apps ([model baseline](../../readings/model-baseline.md)), so the recipe's `-ngl
+99 --ctx-size 8192` is not loaded for it and that row stays owed
+([R-1383](1383-the-lineup-recipe-serves-gemma-4-31b-whole-and-the-card-cannot-hold-it.md)).
+
+`just switch-lineup --cpuset 12-23` with one `--only` per pick draws the other ten from the main
+tree with no model host running: the E4B at `-ngl 0` on CPU cores 12 to 23 with its knights and
+knaves question, the rest at `-ngl 99`, five draws a cell. A card watch removes the server when the
+card holds more than 18,177 MiB above the other apps' reading at the start. What each result
+decides, written before the draw:
+
+- **Every probe exits 0, the reader agrees on every pick, and every tail and switched count repeats
+  its `b11913` row.** The ten rows hold on `b12375` on the files the mount holds. The readings record
+  the build, the files and the ten rows, R-1238's switched tails line closes for those ten entries,
+  and this task waits for the next build with the gemma-4-31B row owed.
+- **The reader exits 1 on a pick, or it agrees on a pick whose tail or a switched count differs from
+  its `b11913` row.** The readings record that row beside its `b11913` row, and no ADR prose changes
+  until the same pick is drawn again at five draws a cell on `b12375` and on the cached `b12169`
+  `:server-cuda` image at the same argv. That row stays owed, R-1238's line stays open for that
+  entry, and the task stays actionable.
+- **A null** is a pick with no sample, from a failed load or the card watch, or a control that did
+  not deliberate on all five draws, which the reader refuses: that row stays owed on `b12375`, and
+  the task stays actionable.
+
+**Drawn 2026-11-28**, the recipe exiting 0, every probe exiting 0 and the reader agreeing on all ten
+samples ([thinking-switch readings](../../readings/thinking-switch.md#the-lineups-switched-tails)).
+Every control deliberated on 5 of 5, and every pick rendered both prompts byte for byte as on
+`b11913` and repeated its four counts, so under the first rule the ten rows hold on `b12375` on the
+files the mount holds, R-1238's switched tails line closes for those ten entries, and this task
+waits for the next build with the gemma-4-31B row owed through R-1383. The card watch removed
+nothing, the largest peak being 16,175 MiB above the other apps' reading. Samples under
+`~/.cache/cortex-run/2026-11-28/s1/529/`.
 
 ## History
 
@@ -248,3 +228,8 @@ task waits for the next build. Samples under `measurements/sitting-2026-10-28/52
   owed on `b12375` through `just switch-lineup`, whose draw also gives
   [R-1238](1238-the-lineups-readings-were-drawn-on-files-the-mount-no-longer-holds.md) its switched
   tails on the files the mount holds. The trigger line is gone and the task is actionable.
+- 2026-11-28: drawn on `b12375` with `just switch-lineup`. The ten picks drawn repeat their `b11913`
+  rows byte for byte, so the task waits for the next build. The Qwen3.6-27B file is gone from the
+  mount, and the gemma-4-31B pick was not loaded, since its file does not fit the card whole at the
+  recipe's argv: filed as
+  [R-1383](1383-the-lineup-recipe-serves-gemma-4-31b-whole-and-the-card-cannot-hold-it.md).

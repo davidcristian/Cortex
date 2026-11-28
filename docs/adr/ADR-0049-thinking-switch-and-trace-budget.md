@@ -162,7 +162,7 @@ how those measurements are taken is [ADR-0050](ADR-0050-live-probe-records.md).
     reads a level: it puts a sentence asking for careful thought first in the system turn at its
     top level, which is also what it renders when nothing is sent, one asking for brief thought at
     `low`, and none at `medium`
-    ([thinking switch](../readings/thinking-switch.md#the-effort-and-preserve-settings)).
+    ([template effort settings](../readings/template-effort-settings.md)).
 18. **The adapter sends it as `reasoning_effort`, under a name the leased server lists.** Inside
     the lease, before the completion, `effort_wire_name` (`effort_probe.py`) reads
     `chat_template_caps` from `GET /props` of `lease.endpoint`, with a 2.0 s bound of its own over

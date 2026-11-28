@@ -16,7 +16,7 @@ a median of 2327 and 2883.5 reasoning tokens a draw, and at `medium` on 12 of 12
 1182.5 ([the stop rows at 16384](../../readings/deep-candidates.md#the-stop-rows-at-16384)).
 
 Only the Qwen3.8 template reads the effort: the gemma, Qwen3.5 and Qwen3.6 templates render every
-value the same as none ([thinking-switch readings](../../readings/thinking-switch.md#the-effort-and-preserve-settings)).
+value the same as none ([template effort settings](../../readings/template-effort-settings.md)).
 On them depth is set only by the thinking switch and the trace budget.
 
 ## Proposal

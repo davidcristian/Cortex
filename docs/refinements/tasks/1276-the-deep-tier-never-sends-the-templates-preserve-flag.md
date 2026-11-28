@@ -7,7 +7,7 @@
 **Verified:** 2026-11-27
 
 The Qwen3.8 template reads `preserve_thinking`, on by default
-([thinking-switch readings](../../readings/thinking-switch.md#the-effort-and-preserve-settings)).
+([template effort settings](../../readings/template-effort-settings.md)).
 On build b12375 the deep pick's `/props` reports `supports_preserve_reasoning`, and the server's
 log at each start says preserving reasoning is on by default and names `--no-reasoning-preserve`.
 No file under `brain/packages` or `docker` names the flag, so the deep tier runs with it on.

@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** inference
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-11-27
+**Verified:** 2026-11-28
 
 The models mount was rebuilt on 2026-11-15 and 2026-11-16, and every tier default now names a file
 no reading was drawn on. What a walk over the GGUF headers on the mount showed on 2026-11-16:
@@ -13,7 +13,7 @@ no reading was drawn on. What a walk over the GGUF headers on the mount showed o
   whose weight tensors are `Q4_0` (`general.file_type` 2) and whose other tensors are `F32`.
 - **Both gemma chat templates changed.** By the first eight hex digits of the template's SHA-256,
   the dense entries moved from `ae53464b` to `845f1ee4` and the E entries from `0a2c8073` to
-  `241c50d8` ([thinking switch](../../readings/thinking-switch.md#the-effort-and-preserve-settings)).
+  `241c50d8` ([template effort settings](../../readings/template-effort-settings.md)).
 - **Qwen3.5** (0.8B, 2B, 4B, 9B) and **Qwen3.6-35B-A3B** are builds under `-MTP-GGUF` directories
   with `nextn_predict_layers` 1 in the header. The 2B is 1,329,851,808 bytes against the 1.19 GB
   measured. The 0.8B and the 2B have template `ea210e5b`, which no reading records. The 9B is
@@ -55,3 +55,11 @@ A row that reads the same closes its line here, and one that differs changes the
   with `mmproj-F32.gguf` and its drafter in [tier drafters](../../readings/tier-drafters.md). The
   deep drafter's rate waits on a rate row, since the card's power limit read 175, not the
   baseline's 155. The other card rows did not fit this slot.
+- 2026-11-28: the switched tails line is closed for ten entries by R-529's draw on build b12375:
+  gemma-4 12B, E4B, E2B and 26B-A4B, Qwen3.5 0.8B, 2B, 4B and 9B, Qwen3.6-35B-A3B and Qwen3.8-27B
+  each rendered both prompts byte for byte as the earlier files did on b11913 and repeated its four
+  counts, the new gemma templates included
+  ([thinking switch](../../readings/thinking-switch.md#the-lineups-switched-tails)). It stays open
+  for gemma-4-31B, whose file does not fit the card whole at the recipe's argv
+  ([R-1383](1383-the-lineup-recipe-serves-gemma-4-31b-whole-and-the-card-cannot-hold-it.md)). The
+  leading-system-message rows are still owed.
