@@ -63,3 +63,15 @@ A row that reads the same closes its line here, and one that differs changes the
   for gemma-4-31B, whose file does not fit the card whole at the recipe's argv
   ([R-1383](1383-the-lineup-recipe-serves-gemma-4-31b-whole-and-the-card-cannot-hold-it.md)). The
   leading-system-message rows are still owed.
+- 2026-11-28: the leading-system-message rows and the two live image tests are drawn on the files
+  the tier defaults name, on build b12375, which closes both lines. Every template took the shape
+  written before the draw: gemma renders each system message in a turn of its own, Qwen3.8 merges
+  them, and every Qwen3.5 and Qwen3.6 file merges two and drops a third, so no file raises now;
+  ADR-0071's context, ADR-0004 decision 6 and the CPU subagent runbook now say so
+  ([system message templates](../../readings/system-message-templates.md)). The attached-picture
+  turns read every word at 993 and 2883 prompt tokens, as before. The engine's own budget for a 4K
+  screen rose from 266 to 482 tokens, and the abort test fails because the engine now caps the
+  budget instead ([R-1384](1384-the-micro-batch-test-expects-an-abort-the-engine-now-turns-into-a-cap.md)).
+  Still owed: the injection rows and reply envelopes on the earlier files, the CPU subagent
+  server's memory, the deep tier's cost, the drafter's cost and rate, and gemma-4-31B's switched
+  tails.

@@ -295,9 +295,9 @@ def test_a_raised_budget_without_the_micro_batch_aborts_the_server(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     whole = _argv_tail(1024, monkeypatch)
-    assert whole[-2:] == ["--ubatch-size", "1024"]
-    args = whole[:-2]
-    assert args[-2:] == ["--image-max-tokens", "1024"]
+    at = whole.index("--ubatch-size")
+    assert whole[at - 2 : at + 2] == ["--image-max-tokens", "1024", "--ubatch-size", "1024"]
+    args = whole[:at] + whole[at + 2 :]
     with _server(args):
         with contextlib.suppress(httpx.HTTPError):
             _cost(_screen())

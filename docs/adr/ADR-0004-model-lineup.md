@@ -65,7 +65,7 @@ lineup](../readings/model-lineup.md), [deep candidates](../readings/deep-candida
    Injection resistance did not decide it. At the engine's sampler, as the tier runs, the pick obeys
    0 of 100 framed draws against 16 of 100 unframed, and the alternate 7 of 100 against 40
    ([injection text rows](../readings/injection-text-rows.md)), measured as its `UD-Q4_K_XL`. The
-   alternate's template refuses a second leading system message, so the adapter sends it a turn's
+   alternate's template drops a third leading system message, so the adapter sends it a turn's
    preamble, memory and recap joined into one.
 
 7. **Subagent: gemma-4-E4B QAT q4_0.** It was picked when, at temperature 0, it obeyed 0 of 10

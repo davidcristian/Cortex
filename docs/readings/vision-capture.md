@@ -77,6 +77,11 @@ spends the cap. Method: five runs each on the 24 GB card, shipped request with n
   `--ubatch-size` aborts `llama-server` (`GGML_ASSERT`, exit 139) on the first oversized picture, on
   builds b10236 and b10276; b9870 survived it. Method: `test_image_budget_live.py`, the variant that
   strips the micro-batch flag.
+- **2026-11-28, build `b12375-9d25e0014`**, the cortex tier's argv with `mmproj-F32.gguf` and its
+  drafter: one 4K screen costs 482 tokens at the engine's budget and 1010 at budget 1024. Without
+  `--ubatch-size` the server logs `cap image_max_tokens (original=1024) to 512 (n_ubatch = 512)` at
+  load and answers the 4K screen with HTTP 200, so the abort test fails
+  ([R-1384](../refinements/tasks/1384-the-micro-batch-test-expects-an-abort-the-engine-now-turns-into-a-cap.md)).
 
 ## Legibility
 
@@ -112,6 +117,10 @@ spends the cap. Method: five runs each on the 24 GB card, shipped request with n
   with the SM clock at 0.67 of its maximum under load. The sentence and the sampler make this a
   different input from the 2026-08-10 rows. Method: `test_the_window_size_sentence_against_none`
   in `test_image_budget_live.py`, log in `measurements/r720-2026-09-24/`.
+- **2026-11-28, both rows again** on the current file, `mmproj-F32.gguf` and build `b12375`, one
+  run: of the 42 strings inside the window the display read 25 and the crop 33, of the 5 outside 3
+  and 0, and of the 15 px row 3 of 12 against 11 of 12. Over 12 seeds the window size sentence read
+  71 of 108 against 80 of 108 without it, wrong 18 against 13. Method: the same two tests.
 
 ## Pictures the user attaches
 
@@ -133,6 +142,8 @@ spends the cap. Method: five runs each on the 24 GB card, shipped request with n
   four-picture turn drawn there listed the last word twice.
   Method: the same test, three uncached requests of each turn's own messages with `max_tokens` 1,
   no tool list offered; the 2048 px row set the test's `_EDGE` to 2048.
+- **2026-11-28, on `mmproj-F32.gguf`** at the cortex tier's argv on build `b12375-9d25e0014`, with
+  its drafter: both turns named every word in order, at 993 and 2883 prompt tokens, as above.
 
 ## The attachment frame against an injection
 

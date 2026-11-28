@@ -157,9 +157,9 @@ The build id is the version label plus the first nine characters of the revision
 
 ## The two settings that decide how much of a screen the cortex reads
 
-Left to itself the model picks its own per-image budget, 266 prompt tokens for any capture from
-1280 px up, which on a 4K desktop reads 6 to 8 of 47 ground-truth strings. Two settings raise it,
-they only work together, and both are the default:
+Left to itself the model picks its own per-image budget, 482 prompt tokens for a 4K screen on the
+current projector (266 on the earlier one, which read 6 to 8 of 47 ground-truth strings off a 4K
+desktop). Two settings raise it, they only work together, and both are the default:
 
 ```
 CORTEX_IMAGE_MAX_TOKENS=1024    # on the model-host sidecar (the table above)

@@ -12,22 +12,22 @@ a long conversation has a recap even when nothing was recalled. A delegated task
 has tools and an untainted context: the preamble, then the context (`task_messages` in
 `subagent_attempt.py`). `build_payload` mapped each to its own `role: "system"` message.
 
-What a chat template does with the second and third differs by family, measured on
-`b10680-d7bd3bfca` ([system message templates](../readings/system-message-templates.md)):
+What a chat template does with the second and third differs by family, measured on the lineup's
+files on `b12375-9d25e0014` ([system message templates](../readings/system-message-templates.md)):
 
 - **gemma-4**, every pick, renders each in a system turn of its own.
 - **Qwen3.8** merges every leading one into one system turn.
-- **Qwen3.6** and the Qwen3.5-9B files in the MTP folder merge the first two and drop the third
+- **Qwen3.6** and every Qwen3.5 file the lineup names merge the first two and drop the third
   without an error. On Qwen3.6-27B, a recalling deep turn lost its recap.
-- **Qwen3.5**, one template across 0.8B, 2B, 4B and 9B, raises `System message must be at the
-  beginning.`, which the server answers as HTTP 500. On the cortex alternate, Qwen3.5-9B, every
-  turn with a memory or a recap failed. A tool task with a plain context failed wherever a Qwen3.5
-  file served the default subagent entry, which the override table offers. The roster alternate
-  was never reached this way: `SubagentRoster.resolve` sends a task with tools, or a tainted one,
-  to the default entry.
+- **A template can raise.** On `b10680-d7bd3bfca` the Qwen3.5 files outside the MTP folder raised
+  `System message must be at the beginning.`, which the server answers as HTTP 500. On the cortex
+  alternate, Qwen3.5-9B, every turn with a memory or a recap failed. A tool task with a plain
+  context failed wherever such a file served the default subagent entry, which the override table
+  offers. The roster alternate was never reached this way: `SubagentRoster.resolve` sends a task
+  with tools, or a tainted one, to the default entry.
 
-`GET /props` cannot tell these apart: `chat_template_caps.supports_system_role` is true for all
-six templates. And `ScriptedInferenceBackend` accepted a request the real stack refused, so no core
+`GET /props` cannot tell these apart: `chat_template_caps.supports_system_role` is true for every
+template measured. And `ScriptedInferenceBackend` accepted a request the real stack refused, so no core
 test could fail on it.
 
 ## Decision
@@ -109,7 +109,7 @@ test could fail on it.
   to drop, up to `RECAP_MAX` (2000 characters) plus the preface, inside the margin
   [ADR-0014](ADR-0014-history-windowing.md) decision 8 leaves the deep tier's context.
 - A template that rendered every marker outside the system role would read as rendering them. None
-  of the six does.
+  of the templates measured does.
 - On a joining endpoint the memory and the recap fall inside what the preamble calls "this system
   message", the one text besides the user's own messages it lets direct the model. The fenced
   memory and the recap keep their fences and prefaces byte for byte, but the trusted memory lines,

@@ -2,70 +2,72 @@
 
 What each model family's chat template does with a request that opens with two or three system
 messages, and what the adapter's join of those messages costs and changes
-([ADR-0071](../adr/ADR-0071-leading-system-messages.md)). Engine `b10680-d7bd3bfca` throughout,
-the `server` image on the CPU at `-ngl 0` and `server-cuda` on the card, each at its tier's argv.
-The logs are in `measurements/system-join-2026-09-26/`, except where a section names others.
+([ADR-0071](../adr/ADR-0071-leading-system-messages.md)). Each section names its engine build. The
+2026-09 logs are in `measurements/system-join-2026-09-26/`, except where a section names others,
+and the 2026-11-28 ones in `~/.cache/cortex-run/2026-11-28/s2/`.
 
-## Written before any server started (2026-09-26)
+## Written before any server started (2026-11-28)
 
-- **Probe answers.** gemma-4 12B, E4B and E2B render every marker for 2 and 3 system messages;
-  Qwen3.5 0.8B, 2B and 9B render neither count; Qwen3.6-27B renders 2 and not 3; Qwen3.8-27B
-  renders 2 and 3.
-- **Deciding latency.** On the 12B on the card, the median probe with a generation in flight is
-  under 10 ms, and no probe on any answering server exceeds the 2.0 s timeout. A miss stops the
-  change, because the probe runs on every request that opens with several system messages and a
-  cache in its place would send a stale answer after a model file changes.
-- **Qwen3.5-2B on the CPU.** The brain's real three-system turn and its tool task with a plain
-  context each get HTTP 500 from the parent commit's code and HTTP 200 from this change's.
-- **The card.** On Qwen3.5-9B a three-system turn through `LlamaCppBackend` answers 200; on the
-  gemma 12B the posted body equals the unjoined one; on Qwen3.6-27B the joined request renders the
-  recap.
+The eleven lineup files of [thinking switch](thinking-switch.md), by the first eight hex digits of
+the SHA-256 of the chat template in each GGUF header: `845f1ee4` gemma-4 12B, 26B-A4B and 31B;
+`241c50d8` gemma-4 E2B and E4B; `ea210e5b` Qwen3.5 0.8B and 2B; `8452ca85` Qwen3.5 4B and 9B;
+`55d49314` Qwen3.6-35B-A3B; `12827f24` Qwen3.8-27B. Read from the template text:
 
-Every one of them held. The live probe ran on the five servers in the second table below. The
-answers for gemma-4-E2B, Qwen3.5-0.8B and Qwen3.8-27B come from the vocabulary-only render under
-the templates, and Qwen3.8-27B's also from the live render of three system messages in the
-[deep candidates](deep-candidates.md#qwen38-27b) readings.
+- **Probe answers.** Both gemma templates render 2 and 3, `ea210e5b`, `8452ca85` and `55d49314`
+  render 2 and not 3, and `12827f24` renders 2 and 3. No template raises. A raise, a gemma
+  template that merges or a Qwen one that renders a third turn changes ADR-0071's context.
+- **The join.** Joined, every marker renders in order on all six templates, and on a Qwen one the
+  joined render equals the separate one byte for byte wherever the template keeps every marker. A
+  join that loses a marker stops the change.
+- **The brain's own requests, on the CPU.** On Qwen3.5-2B the three-system turn is joined and the
+  two-system task is sent as it is; on gemma-4-E4B both are sent unjoined; all four are answered.
 
-## The templates (2026-09-26)
+Every one of them held.
 
-Six templates by SHA-256 across the google and unsloth files on the models mount. "Merges" means
-each system text is trimmed of the engine's whitespace (C `isspace`) and the texts are joined with
-one `\n`.
+## The templates (2026-11-28)
 
-| template | files | two system messages | three |
+Engine `b12375-9d25e0014`, the `cortex-model-host` image's `llama-server` on the CPU at `-ngl 0
+--ctx-size 8192 --parallel 1 --jinja --cache-ram 0 --no-warmup --no-repack`, one file at a time.
+Each server got `POST /apply-template` with two and then three system messages holding the probe's
+markers and a user `.`, the same messages through `join_leading_system`, and the probe itself
+(`delivers_system_messages`). "Merges" means each system text is trimmed of the engine's whitespace
+(C `isspace`) and the texts are joined with one `\n`.
+
+| template | files | two system messages | three | probe, two and three |
+| --- | --- | --- | --- | --- |
+| `845f1ee4` | gemma-4 12B, 26B-A4B, 31B | a turn each | a turn each | renders, renders |
+| `241c50d8` | gemma-4 E2B, E4B | a turn each | a turn each | renders, renders |
+| `ea210e5b` | Qwen3.5 0.8B, 2B | merges | merges the first two, drops the third | renders, joins |
+| `8452ca85` | Qwen3.5 4B, 9B | merges | merges the first two, drops the third | renders, joins |
+| `55d49314` | Qwen3.6-35B-A3B | merges | merges the first two, drops the third | renders, joins |
+| `12827f24` | Qwen3.8-27B | merges | merges | renders, renders |
+
+The joined request rendered every marker in order on all eleven files at both counts. On the Qwen
+templates it equals the separate render byte for byte at two messages, and on `12827f24` at three.
+gemma puts the first system text in the header turn and each later one in a system turn of its
+own. `ea210e5b` and `8452ca85` differ only in the lines that open the thinking block.
+`chat_template_caps.supports_system_role` in `GET /props` is true on all eleven.
+
+On build `b10680-d7bd3bfca` (2026-09-26, the engine's template code at a vocabulary-only load),
+`8452ca85`, `55d49314` and `12827f24` read as above, and so did `ae53464b` and `0a2c8073`, the
+google gemma-4 files the mount no longer holds. `7f0e5290`, the template of the Qwen3.5 files
+outside the MTP folder, raised `System message must be at the beginning.` (HTTP 500) at two and at
+three; no file on the mount has it now. Of the five llmfan46 templates, which no tier names,
+`a4aee8af` raised the same way and the other four rendered every marker in order.
+
+## The brain's own requests (2026-11-28)
+
+`test_system_join_live.py` on the CPU servers above for the two subagent files, with
+`CORTEX_SYSTEM_JOIN_EXPECT` set to the table's probe answers: a cortex turn with the security
+preamble, a recalled memory, a stored recap and one tool, and a delegated task with the tool and a
+plain context, both built through the real core (`tests/system_led.py`), at a 512-token cap.
+
+| server | probe | turn, three system messages | task, two |
 | --- | --- | --- | --- |
-| `ae53464b` | gemma-4 12B, 26B-A4B, 31B | a turn each | a turn each |
-| `0a2c8073` | gemma-4 E2B, E4B | a turn each | a turn each |
-| `7f0e5290` | Qwen3.5 0.8B, 2B, 4B, and 9B outside the MTP folder | raises `System message must be at the beginning.` | raises |
-| `8452ca85` | Qwen3.5-9B UD-Q4_K_XL and Q8_0 from the MTP folder | merges | merges the first two, drops the third |
-| `55d49314` | Qwen3.6-27B, its MTP file, the three 35B-A3B files | merges | merges the first two, drops the third |
-| `12827f24` | Qwen3.8-27B, Qwen3.8-Flash-Next | merges | merges |
+| Qwen3.5-2B, `ea210e5b` | as the table | joined, one system entry posted, answered | sent as it is, HTTP 200, cut at the cap |
+| gemma-4-E4B, `241c50d8` | as the table | three system entries, equal to the unjoined messages, answered | sent as it is, answered |
 
-gemma puts the first system text in the header turn with the tool declarations right after it, and
-each later one in a system turn of its own after them. The same held with tools and without, and
-with thinking on and off. `chat_template_caps.supports_system_role` in `GET /props` is true for all
-six, Qwen3.5 included, so it cannot tell them apart.
-
-The llmfan46 files hold five more templates, and no tier, alternate or roster entry names one. Put
-through the probe's two and three markers with the engine's template code, `a4aee8af` (the
-Qwen3.5-9B Nikusui files) raises like `7f0e5290`, and `2611268e` (Qwen3.5-9B), `e7018ebe`
-(Qwen3.6-27B and 35B-A3B), `16e455bc` (gemma-4 12B) and `24d32be0` (gemma-4 26B-A4B and 31B)
-render every marker in order, so the probe reads each of them.
-
-Method: the files were rendered through the engine's own template code at a vocabulary-only load,
-which matched live `POST /apply-template` on 64 of 64 requests (gemma-4-E2B and Qwen3.5-0.8B).
-Five were then asked live through the probe (`test_the_probe_answers_as_the_template_renders` in
-`test_system_join_live.py`, with `CORTEX_SYSTEM_JOIN_EXPECT` set to the answers above):
-
-| server | argv | two | three |
-| --- | --- | --- | --- |
-| gemma-4-E4B, CPU | the subagent entry's, `--parallel 1` | renders | renders |
-| gemma-4-12B, card | the cortex tier's | renders | renders |
-| Qwen3.5-2B, CPU | the subagent entry's | HTTP 500 | HTTP 500 |
-| Qwen3.5-9B UD-Q4_K_XL, card | the cortex tier's | HTTP 500 | HTTP 500 |
-| Qwen3.6-27B, card | the deep tier's | renders | drops the third |
-
-## The brain's own requests (2026-09-26)
+## The brain's own requests on the earlier files (2026-09-26)
 
 A cortex turn with the security preamble, a recalled memory holding one trusted and one fenced
 note, a stored recap and one tool, and a delegated task with the tool and a plain context, both
