@@ -185,10 +185,31 @@ def test_a_tie_with_no_letter_of_a_tied_language_stays_english(message: str) -> 
     ("message", "language"),
     [
         ("Retiens que ce code est périmé.", ENGLISH),
+        ("Retiens bien ce code périmé.", "ro"),
+        ("Retiens que ce code a changé.", "ro"),
         ("Am uitat să te întreb", ENGLISH),
         ("Uită ce am spus.", "ro"),
         ("Oublie mon code.", "fr"),
+        ("Olvida eso, olvida todo, oublie.", "es"),
     ],
 )
 def test_the_forget_readers_read_no_letters(message: str, language: str) -> None:
     assert forget_language(message) == language
+
+
+@pytest.mark.parametrize(
+    ("message", "language"),
+    [
+        ("Retiens bien ce code périmé.", "fr"),
+        ("Retiens que ce code a changé.", "fr"),
+        ("Uită ce am spus.", "ro"),
+        ("Ce faci?", "ro"),
+        ("Ce face Andrée la Brașov?", "ro"),
+        ("Ce este un café?", "ro"),
+        ("Rappelle Muñoz", "fr"),
+    ],
+)
+def test_a_lone_word_two_languages_write_goes_to_the_one_whose_letters_the_message_holds(
+    message: str, language: str
+) -> None:
+    assert message_language(message) == language

@@ -35,7 +35,11 @@ Three ways to write the note in the right language were compared.
    languages share does not count ("la", "de", "que"). Letters only break a tie: of the languages
    tied for the most words, the one whose own letters (`_LETTERS`: é, ä, ñ, ș and the like) the
    message holds most is picked, so `Retiens que ce code est périmé.` (French `est`, Romanian
-   `ce`) is French. Letters decide nothing else, because a name such as Jürgen or María has them
+   `ce`) is French. Letters also decide one case without a tie: when the one language that
+   scores scores a single word that another language also writes (`_ALSO_WRITTEN`, French for the
+   Romanian `ce`), the one of the two whose letters the message holds most is picked, and a letter
+   tie keeps the language that scored, so `Retiens bien ce code périmé.` is French and `Ce faci?`
+   stays Romanian. Letters decide nothing else, because a name such as Jürgen or María has them
    in a message of any language, and a letter of a language outside the tie counts for none
    ([readings](../readings/note-language-letter-tie.md)). A word in capitals (`EU`, `EST`) and
    a capitalized word beside another inside a sentence (`Las Vegas`) are names and do not count,
@@ -73,3 +77,6 @@ Three ways to write the note in the right language were compared.
 - A message that changes language mid-chat gets the note in the language of its own message,
   which may differ from the reply's when the model keeps the earlier language.
 - A note's text is not read back by any reader, so a translated note changes no later turn.
+- A message whose one counted word is `ce` and that holds no letter outside ASCII keeps the
+  Romanian note, the French `Note ce code: 5530.` as well as the Romanian `Ce faci?`, and a
+  Romanian one beside a name holding a French letter (`Ce face José?`) gets the French note.

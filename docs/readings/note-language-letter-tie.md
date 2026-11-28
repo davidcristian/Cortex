@@ -2,7 +2,8 @@
 
 These readings replay `message_language` (`note_language.py`) before and after it breaks a tie
 by letters: of the languages tied for the most words, the one whose own letters the message holds
-most is picked, and a tie the letters do not break stays English. The decision is
+most is picked, and a tie the letters do not break stays English. The last section replays a second
+change, in which the letters also decide a lone word that two languages write. The decision is
 [ADR-0076](../adr/ADR-0076-closing-note-language.md). The forget readers read with
 `forget_language`, the pick without letters, so no forget reader changes.
 
@@ -76,3 +77,46 @@ the q2 call replayed through the tree ends with the French note
 (`test_forget_refused_held.py`).
 On q3 the cortex made no forget call and asked for the new code. Logs and notes:
 `~/.cache/cortex-run/2026-11-27/a2/`.
+
+## A lone `ce`, 2026-11-28
+
+`Retiens bien ce code périmé.`, `Retiens que ce code a changé.` and `Note ce code: 5530.` count
+one word, the Romanian `ce`: `retiens` and `changé` are in no list, `bien` is Spanish too, and
+`que`, `note` and `code` are words of two of the five languages. Each read as Romanian alone, with
+no tie for the letters to break.
+
+The first rule tried let the letters decide whenever one language scores a single word, between
+it and every language whose letters the message holds. It read both accented messages as
+English, because `é` is a French and a Spanish letter, and it moved two unit test messages on a
+name's letters beside one English word: `Call José María García López tomorrow` to Spanish and
+`Book the Champs-Élysées crème brûlée place` to French. The rule built is narrower: the letters
+decide only between the language that scored and a language that also writes its one word
+(`_ALSO_WRITTEN`, French for `ce`), and a letter tie keeps the language that scored.
+`Note ce code: 5530.` holds no letter outside ASCII and reads the way `Ce faci?` does, so it keeps
+the Romanian note ([R-1386](../refinements/tasks/1386-a-french-message-with-no-accent-whose-one-word-is-ce-gets-romanian-notes.md)).
+
+Six sets of distinct strings, each read by both picks before and after the change
+(`replay1380.py`, `replay1380.log` and `note_language.old.py` in
+`~/.cache/cortex-run/2026-11-28/c1/`):
+
+| Set | Strings | Note pick changed | Forget pick changed |
+| --- | --- | --- | --- |
+| backticked strings of [closing-note-language.md](closing-note-language.md) | 146 | 0 | 0 |
+| backticked strings of this file | 63 | 3 | 0 |
+| backticked strings of the `forget-*.md` readings | 2,780 | 0 | 0 |
+| backticked strings of `docs/readings/` | 8,042 | 3 | 0 |
+| turn messages in the run records under `~/.cache/cortex-run/` | 1,467 | 0 | 0 |
+| backticked strings of `docs/` | 18,872 | 3 | 0 |
+
+Every changed string, read by eye:
+
+| Before | After | String | Read by eye |
+| --- | --- | --- | --- |
+| Romanian | French | `Retiens bien ce code périmé.` | French |
+| Romanian | French | `Retiens que ce code a changé.` | French |
+| Romanian | French | `Ce face José?` | Romanian |
+
+The two French messages are the task's own. `Ce face José?` is quoted only here and in the
+decision record, as the cost of the rule: a Romanian message whose one counted word is `ce`
+beside a name holding a French letter. No recorded run message changed, and no string in any set
+changed its `forget_language` pick.

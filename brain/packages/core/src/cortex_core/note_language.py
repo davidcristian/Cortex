@@ -34,6 +34,8 @@ _WORDS: Mapping[str, frozenset[str]] = {
         "rog mulțumesc ora care ce"
     ),
 }
+# A word one list counts and another language writes too: a lone "ce" is French or Romanian.
+_ALSO_WRITTEN: Mapping[str, frozenset[str]] = {"fr": _words("ce")}
 # German writes its nouns and the polite "Sie" capitalized anywhere, so a capital is no name there.
 _ALWAYS_CAPITALIZED = _words("sie uhr morgen")
 _MARKS: Mapping[str, str] = {"es": "¿¡"}
@@ -90,14 +92,16 @@ def _letters(message: str, language: str) -> int:
     return sum(message.lower().count(letter) for letter in _LETTERS.get(language, ""))
 
 
+def _score(message: str, words: list[str], language: str) -> int:
+    return sum(word in _WORDS[language] for word in words) + sum(
+        message.count(mark) for mark in _MARKS.get(language, "")
+    )
+
+
 def _leaders(message: str) -> list[str]:
     """The languages the most words and marks of ``message`` belong to; none when nothing does."""
     words = _counted(message)
-    scores = {
-        language: sum(word in vocabulary for word in words)
-        + sum(message.count(mark) for mark in _MARKS.get(language, ""))
-        for language, vocabulary in _WORDS.items()
-    }
+    scores = {language: _score(message, words, language) for language in _WORDS}
     best = max(scores.values())
     return [language for language, score in scores.items() if score == best] if best > 0 else []
 
@@ -108,14 +112,30 @@ def forget_language(message: str) -> str:
     return leaders[0] if len(leaders) == 1 else ENGLISH
 
 
+def _most_letters(message: str, languages: list[str]) -> list[str]:
+    letters = {language: _letters(message, language) for language in languages}
+    most = max(letters.values(), default=0)
+    return [language for language in languages if letters[language] == most]
+
+
+def _also_writing(message: str, leader: str) -> list[str]:
+    """The other languages that write the one word ``leader`` scores in ``message``, if any."""
+    words = _counted(message)
+    found = [word for word in words if word in _WORDS[leader]]
+    if _score(message, words, leader) != 1 or not found:
+        return []
+    return [language for language, also in _ALSO_WRITTEN.items() if found[0] in also]
+
+
 def message_language(message: str) -> str:
     """The language a closing note on ``message`` is written in: the one language the most words
-    and marks belong to, then the one of those whose letters it holds most, else English."""
-    leaders = _leaders(message)
-    letters = {language: _letters(message, language) for language in leaders}
-    most = max(letters.values(), default=0)
-    leaders = [language for language in leaders if letters[language] == most]
-    return leaders[0] if len(leaders) == 1 else ENGLISH
+    and marks belong to, then the one of those whose letters it holds most, else English. A lone
+    word another language also writes goes to whichever of the two has more of its letters."""
+    leaders = _most_letters(message, _leaders(message))
+    if len(leaders) != 1:
+        return ENGLISH
+    rivals = _most_letters(message, [leaders[0], *_also_writing(message, leaders[0])])
+    return rivals[0] if len(rivals) == 1 else leaders[0]
 
 
 def in_language(english: str, others: Mapping[str, str], language: str) -> str:
