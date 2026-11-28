@@ -167,7 +167,9 @@ runs `/app/llama-server` from `--image` (default `cortex-model-host`) as `cortex
 `/health`, runs the brain's `test_thinking_switch_live.py` at five draws a cell into `--out`
 (default `measurements/switch-lineup`), and removes the container. The E4B is the one pick at
 `-ngl 0`, with no GPU and on `--cpuset` when given, the placement its row was first read at; every
-other pick runs at `-ngl 99`. The samples then go to `switchtail.py`, whose
+other pick runs at `-ngl 99`. A pick's own flags in `PICKS` follow the shared ones: the gemma-4-31B
+pick adds a `q8_0` K and V cache, since its file held whole on a 16-bit cache does not fit the card
+beside the user's apps. The samples then go to `switchtail.py`, whose
 exit code it returns, or 1 when a pick wrote no sample, which it names. An unknown `--only` name
 or an unset `CORTEX_MODELS_DIR` exits 2 before anything runs. It drives `docker run` and not the
 model host sidecar, whose API takes a logical id with no file or argv and whose subagent tier

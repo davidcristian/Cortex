@@ -60,8 +60,7 @@ A row that reads the same closes its line here, and one that differs changes the
   each rendered both prompts byte for byte as the earlier files did on b11913 and repeated its four
   counts, the new gemma templates included
   ([thinking switch](../../readings/thinking-switch.md#the-lineups-switched-tails)). It stays open
-  for gemma-4-31B, whose file does not fit the card whole at the recipe's argv
-  ([R-1383](1383-the-lineup-recipe-serves-gemma-4-31b-whole-and-the-card-cannot-hold-it.md)). The
+  for gemma-4-31B, whose file does not fit the card whole on the recipe's 16-bit cache. The
   leading-system-message rows are still owed.
 - 2026-11-28: the leading-system-message rows and the two live image tests are drawn on the files
   the tier defaults name, on build b12375, which closes both lines. Every template took the shape
@@ -99,3 +98,9 @@ A row that reads the same closes its line here, and one that differs changes the
   drafter at `q8_0`, in place of the earlier file's 19125 to 20783 and the `F16` drafter's
   1000 MiB. Still owed: gemma-4-31B's switched tails and injection rows, and the deep drafter's
   rate, which waits on a rate row.
+- 2026-11-28: the switched tails line is closed. `scripts/switchlineup.py` serves gemma-4-31B on a
+  `q8_0` cache, where a fit row at 7,680 prompt tokens peaked at 17,961 MiB above the other apps'
+  reading, inside the 18,177 MiB budget, and its row on b12375 rendered both prompts byte for byte
+  as the earlier file did on b11913 and repeated its four counts
+  ([thinking switch](../../readings/thinking-switch.md#the-lineups-switched-tails)). Still owed:
+  gemma-4-31B's injection rows and the deep drafter's rate.

@@ -24,15 +24,18 @@ OUT = Path("measurements/switch-lineup")
 
 
 class Pick(NamedTuple):
-    """One row of the rendering column: the probe's model name, its file and its GPU layers."""
+    """One row of the rendering column: the probe's model name, file, GPU layers and own flags."""
 
     name: str
     path: str
     ngl: int
+    extra: tuple[str, ...] = ()
 
+
+Q8_CACHE = ("--cache-type-k", "q8_0", "--cache-type-v", "q8_0")
 
 # The rows of the rendering column in docs/readings/thinking-switch.md. The E4B is served on the
-# CPU, where its row was first read.
+# CPU, where its row was first read. The 31B file fits beside the user's apps only on a q8_0 cache.
 PICKS: tuple[Pick, ...] = (
     Pick(
         "gemma-4-12B-qat-q4_0",
@@ -48,6 +51,7 @@ PICKS: tuple[Pick, ...] = (
         "gemma-4-31B-qat-q4_0",
         "unsloth/gemma-4-31B-it-qat-GGUF/gemma-4-31B-it-qat-UD-Q4_K_XL.gguf",
         99,
+        Q8_CACHE,
     ),
     Pick("Qwen3.5-2B-Q4_K_M", "unsloth/Qwen3.5-2B-MTP-GGUF/Qwen3.5-2B-Q4_K_M.gguf", 99),
     Pick("Qwen3.8-27B-UD-Q4_K_M", "unsloth/Qwen3.8-27B-GGUF/Qwen3.8-27B-UD-Q4_K_M.gguf", 99),
@@ -106,7 +110,7 @@ def serve_command(pick: Pick, plan: Plan) -> list[str]:
         *("-p", f"127.0.0.1:{plan.port}:8080", "-v", f"{plan.models}:/models:ro"),
         *("--entrypoint", "/app/llama-server", plan.image, "--model", f"/models/{pick.path}"),
         *("--host", "0.0.0.0", "--port", "8080", "-ngl", str(pick.ngl)),  # noqa: S104 -- in the container
-        *("--ctx-size", "8192", "--parallel", "1", "--jinja", "--cache-ram", "0"),
+        *("--ctx-size", "8192", "--parallel", "1", "--jinja", "--cache-ram", "0", *pick.extra),
     ]
 
 

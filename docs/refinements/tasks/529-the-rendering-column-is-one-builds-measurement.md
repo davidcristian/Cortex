@@ -18,7 +18,8 @@ argv, which has no reasoning flag by default.
 
 `just switch-lineup` (`scripts/switchlineup.py`, since 2026-10-07) draws the column on one engine
 image: one llama-server per pick with neither reasoning flag, the E4B at `-ngl 0` and the rest at
-`-ngl 99`, the probe at five draws a cell, and every sample through `switchtail.py`. It drives
+`-ngl 99`, gemma-4-31B on a `q8_0` cache, the probe at five draws a cell, and every sample through
+`switchtail.py`. It drives
 `docker run` of the fixed image per pick and not the model-host sidecar: that sidecar's control API
 takes a logical id and nothing else, its roster is whatever `CORTEX_MODEL_FILE_*` variables it
 booted with, and its subagent tier's argv has the reasoning-off pair, where every row of this
@@ -95,13 +96,12 @@ The model host image reads `b12375 9d25e0014`, image `sha256:42102cf3b896`. The 
 `:server-cuda` tag now reads `b12169 3ed7284f2`, and `b10680` is cached only as the CPU `:server`
 image. Every file the recipe names changed on the mount on 2026-11-16, the gemma ones with new chat
 templates ([R-1238](1238-the-lineups-readings-were-drawn-on-files-the-mount-no-longer-holds.md)),
-so a row that moves on `b12375` cannot say whether the build or the file moved it. Two rows are not
-drawn. The Qwen3.6-27B file is gone and `scripts/switchlineup.py` no longer names it, so that row
-stays on `b11913`. The gemma-4-31B file held whole needed 18,621 MiB of the card at 6K of context
-with a 16-bit cache in the baseline's fit check of 2026-11-17, over the 18,177 MiB a model may hold
-beside the user's apps ([model baseline](../../readings/model-baseline.md)), so the recipe's `-ngl
-99 --ctx-size 8192` is not loaded for it and that row stays owed
-([R-1383](1383-the-lineup-recipe-serves-gemma-4-31b-whole-and-the-card-cannot-hold-it.md)).
+so a row that moves on `b12375` cannot say whether the build or the file moved it. The Qwen3.6-27B
+file is gone and `scripts/switchlineup.py` no longer names it, so that row stays on `b11913`. The
+gemma-4-31B file held whole needed 18,621 MiB of the card at 6K of context with a 16-bit cache in
+the baseline's fit check of 2026-11-17, over the 18,177 MiB a model may hold beside the user's apps
+([model baseline](../../readings/model-baseline.md)), so that pick has its own flags in `PICKS`, a
+`q8_0` K and V cache, and its row is drawn after a fit row shows its peak inside that budget.
 
 `just switch-lineup --cpuset 12-23` with one `--only` per pick draws the other ten from the main
 tree with no model host running: the E4B at `-ngl 0` on CPU cores 12 to 23 with its knights and
@@ -126,10 +126,17 @@ decides, written before the draw:
 samples ([thinking-switch readings](../../readings/thinking-switch.md#the-lineups-switched-tails)).
 Every control deliberated on 5 of 5, and every pick rendered both prompts byte for byte as on
 `b11913` and repeated its four counts, so under the first rule the ten rows hold on `b12375` on the
-files the mount holds, R-1238's switched tails line closes for those ten entries, and this task
-waits for the next build with the gemma-4-31B row owed through R-1383. The card watch removed
-nothing, the largest peak being 16,175 MiB above the other apps' reading. Samples under
-`~/.cache/cortex-run/2026-11-28/s1/529/`.
+files the mount holds, and R-1238's switched tails line closes for those ten entries. The card
+watch removed nothing, the largest peak being 16,175 MiB above the other apps' reading. Samples
+under `~/.cache/cortex-run/2026-11-28/s1/529/`.
+
+**The gemma-4-31B row, drawn 2026-11-28** under the same rules on its `q8_0` cache. Its fit row,
+one request of 7,680 prompt tokens writing 256 at the recipe's argv, peaked at 17,961 MiB above the
+other apps' reading, inside 18,177 MiB. Its probe exited 0 and the reader agreed; both prompts
+rendered byte for byte as on `b11913` and its four counts repeated, every control 5 of 5, so under
+the first rule that row holds on `b12375` too, R-1238's switched tails line closes for it, and this
+task waits for the next build. Its peak during the probe was 17,959 MiB. Fit log, run log and sample
+under `~/.cache/cortex-run/2026-11-28/c0/`.
 
 ## History
 
@@ -228,8 +235,7 @@ nothing, the largest peak being 16,175 MiB above the other apps' reading. Sample
   owed on `b12375` through `just switch-lineup`, whose draw also gives
   [R-1238](1238-the-lineups-readings-were-drawn-on-files-the-mount-no-longer-holds.md) its switched
   tails on the files the mount holds. The trigger line is gone and the task is actionable.
-- 2026-11-28: drawn on `b12375` with `just switch-lineup`. The ten picks drawn repeat their `b11913`
-  rows byte for byte, so the task waits for the next build. The Qwen3.6-27B file is gone from the
-  mount, and the gemma-4-31B pick was not loaded, since its file does not fit the card whole at the
-  recipe's argv: filed as
-  [R-1383](1383-the-lineup-recipe-serves-gemma-4-31b-whole-and-the-card-cannot-hold-it.md).
+- 2026-11-28: drawn on `b12375` with `just switch-lineup`. The eleven picks it names repeat their
+  `b11913` rows byte for byte, so the task waits for the next build. The Qwen3.6-27B file is gone
+  from the mount. The gemma-4-31B pick is served on a `q8_0` cache, its own flags in `PICKS`, since
+  its file held whole on a 16-bit cache does not fit the card beside the user's apps.

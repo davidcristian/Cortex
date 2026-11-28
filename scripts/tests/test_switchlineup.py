@@ -3,7 +3,18 @@ from pathlib import Path
 
 import pytest
 
-from switchlineup import EVERY_S, IMAGE, NAME, PICKS, Machine, Pick, Plan, main, serve_command
+from switchlineup import (
+    EVERY_S,
+    IMAGE,
+    NAME,
+    PICKS,
+    Q8_CACHE,
+    Machine,
+    Pick,
+    Plan,
+    main,
+    serve_command,
+)
 
 ASK = "What does each of them pay?"
 PLAIN = f"<|turn>system\n<|think|>\n<turn|>\n<|turn>user\n{ASK}<turn|>\n<|turn>model\n"
@@ -11,6 +22,7 @@ SHUT = f"<|turn>user\n{ASK}<turn|>\n<|turn>model\n<|channel>thought\n<channel|>"
 OPEN = f"<|turn>user\n{ASK}<turn|>\n<|turn>model\n"
 E4B = "gemma-4-E4B-qat-q4_0"
 CORTEX = "gemma-4-12B-qat-q4_0"
+LARGE = "gemma-4-31B-qat-q4_0"
 
 
 def write_sample(path: Path, outcome: str) -> None:
@@ -112,6 +124,15 @@ def test_a_card_pick_is_served_whole_on_the_card_with_neither_reasoning_flag(
     assert command[command.index("--model") + 1] == f"/models/{by_name(CORTEX).path}"
     assert f"{tmp_path / 'models'}:/models:ro" in command
     assert not [arg for arg in command if arg.startswith("--reasoning")]
+
+
+def test_only_the_31b_pick_adds_a_q8_0_cache_after_the_shared_flags(tmp_path: Path) -> None:
+    shared = serve_command(by_name(CORTEX), plan(tmp_path))
+    large = serve_command(by_name(LARGE), plan(tmp_path))
+    model = large.index("--model") + 1
+    assert large[:-4] == [*shared[:model], f"/models/{by_name(LARGE).path}", *shared[model + 1 :]]
+    assert large[-4:] == list(Q8_CACHE) == ["--cache-type-k", "q8_0", "--cache-type-v", "q8_0"]
+    assert [pick.name for pick in PICKS if pick.extra] == [LARGE]
 
 
 def test_a_cpu_pick_gets_the_cores_asked_for_and_no_card(tmp_path: Path) -> None:

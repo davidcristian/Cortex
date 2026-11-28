@@ -150,13 +150,15 @@ model host running. Each server ran `--ctx-size 8192 --parallel 1 --jinja --cach
 its knights and knaves question and the rest at `-ngl 99`, five draws a cell. Every probe exited 0
 and `switchtail.py` agreed on all ten samples. Every pick rendered both prompts byte for byte as on
 `b11913` and repeated its four counts, every control 5 of 5, so ten rows hold on `b12375`, the new
-gemma templates included. Two rows were not drawn: the Qwen3.6-27B file is gone from the mount, and
-the gemma-4-31B file held whole needs more of the card at this argv than a model may hold beside the
-user's apps
-([R-1383](../refinements/tasks/1383-the-lineup-recipe-serves-gemma-4-31b-whole-and-the-card-cannot-hold-it.md)).
-The largest peak above the other apps' reading was 16,175 MiB, Qwen3.6-35B-A3B's. Method: `run.sh`,
+gemma templates included. The Qwen3.6-27B file is gone from the mount. The gemma-4-31B file held
+whole on a 16-bit cache needs more of the card than a model may hold beside the user's apps, so its
+pick runs on a `q8_0` K and V cache: a fit row of 7,680 prompt tokens writing 256 peaked at 17,961
+MiB above the other apps' reading, inside 18,177 MiB, and its row, drawn after it, rendered both
+prompts byte for byte as on `b11913` and repeated its four counts, so eleven rows hold on `b12375`.
+The largest peak of the other ten was 16,175 MiB, Qwen3.6-35B-A3B's. Method: `run.sh`,
 `launcher.log`, `529sw.log`, `card.csv` and the samples under `529/` in
-`~/.cache/cortex-run/2026-11-28/s1/`.
+`~/.cache/cortex-run/2026-11-28/s1/`; for gemma-4-31B, `fit31.log`, `31b.log` and the sample under
+`31b/` in `~/.cache/cortex-run/2026-11-28/c0/`.
 
 **2026-09-04, re-read 2026-09-15.** A walk over every GGUF header on the model mount: 68 files, 34
 with a chat template, every one writing one of the two marker pairs `switchtail.py` lists. Six
