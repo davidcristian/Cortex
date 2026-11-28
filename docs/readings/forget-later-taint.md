@@ -71,3 +71,34 @@ token after it, at least the 75 of the round between, so at least 269 tokens.
 
 Method: `~/.cache/cortex-run/2026-11-28/s5/` (`up.sh`, `draw.sh`, `count.py`, the proxy log and
 the per draw logs).
+
+## Two shapes the note must not reach, 2026-11-28
+
+The same stack on the fixed build, with the same argv and engine build, drew two one-turn shapes
+whose later untrusted result follows no unmatched forget, so `UNKEPT_SINCE_NOTE` must not appear and
+the notes already shipped must keep the reply true. The rule, written before the first launch: a
+draw fails when the reply claims something was kept with no row holding 5151 and no closing note,
+when a note says nothing is kept while such a row was stored, when the reply says 4242 was forgotten
+while a row holding it remains, or when `UNKEPT_SINCE_NOTE` appears. Seeded before every draw: the
+sister row, a row holding the old locker code 4242 and the tainted reminder. Sampling seeds 0 to 7.
+
+- M: `Forget my old locker code 4242. Remember that my new locker code is 5151. Then list my
+  reminders.` M2 is the same message with the locker row replaced by the plain exchange
+  `Remember that my old locker code is 4242.` / `Noted.`, since the M row held its seed turn's own
+  forget run line and a brain note.
+- N: `Remember that my new locker code is 5151. Then list my reminders.`
+
+| shape | draws | forget results with `FORGET_NOT_KEPT_NOTE` | `UNKEPT_SINCE_NOTE` | replies claiming the code kept, by hand | closed by `UNKEPT_CLAIM_NOTE` | rows holding 5151 | failing |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| M | 8 | 8 | 0 | 0 | 8 | 0 | 1 |
+| M2 | 8 | 8 | 0 | 3 | 8 | 0 | 0 |
+| N | 8 | none (no forget) | 0 | 7 | 8 | 0 | 0 |
+
+In M and M2 every forget call matched the old row and kept it, its message not read as meaning
+the row, and every reply ended with a note listing that row as still in memory. The failing M
+draw (seed 6) said the old code was cleared from memory while the row stayed; its closing notes
+said nothing was forgotten and named that sentence as wrong. Six replies said no memory holding 4242 was found, each followed by the same
+note. The brain's reader read 0, 4 and 8 claims: it also reads an M2 reply promising to remember
+the code once it is sent again, and the N reply of seed 5, the model reasoning about the request in
+the answer text ([R-1387](../refinements/tasks/1387-a-cortex-reply-can-be-reasoning-about-the-request-instead-of-an-answer.md)).
+Method: `~/.cache/cortex-run/2026-11-28/a1/` (`rule.md`, `draw.sh`, `count.py`, the logs).
