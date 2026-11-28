@@ -150,8 +150,8 @@ Every failure crosses the `InferenceBackend` port as `InferenceError` with the c
   `_transport_failure` naming a **stall** apart from a dead server: an `httpx.ReadTimeout` means the
   server took the request and then sent nothing for the client's read bound, which the error names
   in seconds and which points an operator at a different problem than nothing answering;
-- a malformed streaming chunk (bad JSON, unexpected shape, non-string content) raises
-  `InferenceError` directly, since a skipped chunk would drop reply text or a tool call;
+- a malformed streaming chunk (bad JSON, unexpected shape, non-string content) raises `InferenceError`
+  directly, since skipping it would drop reply text or a call; it names a length or type, never text;
 - a tool call whose accumulated arguments are not valid JSON raises the **narrower**
   `MalformedToolCallError` (ADR-0048), naming the tool and the fragment's length but never its text,
   which can hold a secret; the fragment is the model's own tokens, not the server's. Measured against a real server, a cap that ends a completion inside

@@ -118,7 +118,7 @@ def _require_text(value: object, field: str) -> str | None:
     if value is None:
         return None
     if not isinstance(value, str):
-        msg = f"non-string {field} in streaming chunk: {value!r}"
+        msg = f"non-string {field} in streaming chunk: {type(value).__name__}"
         raise InferenceError(msg)
     return value
 
@@ -190,7 +190,8 @@ def consume_chunk(payload: str, pending: dict[int, PendingCall]) -> ChunkRead:
         content = delta.get("content")
         reasoning = delta.get("reasoning_content")
     except (json.JSONDecodeError, KeyError, IndexError, TypeError, AttributeError) as err:
-        msg = f"malformed streaming chunk from llama-server: {payload!r}"
+        # The length and not the text, since a chunk can hold a thought or a call's arguments.
+        msg = f"malformed streaming chunk from llama-server: {len(payload)} characters"
         raise InferenceError(msg) from err
     return ChunkRead(
         content=_require_text(content, "content"),

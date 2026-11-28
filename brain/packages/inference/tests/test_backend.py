@@ -119,12 +119,16 @@ async def test_chunk_with_no_choices_is_skipped() -> None:
     assert await _collect(_backend(handler)) == ["x"]
 
 
-async def test_malformed_chunk_raises_inference_error() -> None:
-    def handler(_request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, content=_sse("{not json"))
+async def test_a_malformed_chunk_raises_naming_its_length_and_not_its_text() -> None:
+    chunk = '{"choices":[{"delta":{"reasoning_content":"The PIN is 4242'
 
-    with pytest.raises(InferenceError, match="malformed streaming chunk"):
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=_sse(chunk))
+
+    with pytest.raises(InferenceError, match="malformed streaming chunk") as excinfo:
         await _collect(_backend(handler))
+    assert f"{len(chunk)} characters" in str(excinfo.value)
+    assert "4242" not in str(excinfo.value)
 
 
 async def test_non_string_content_raises_inference_error() -> None:
@@ -157,14 +161,16 @@ async def test_streams_reasoning_before_reply_content() -> None:
     ]
 
 
-async def test_non_string_reasoning_content_raises_inference_error() -> None:
+async def test_a_non_string_reasoning_content_raises_naming_its_type_and_not_its_text() -> None:
     def handler(_request: httpx.Request) -> httpx.Response:
         return httpx.Response(
-            200, content=_sse('{"choices":[{"delta":{"reasoning_content":123}}]}')
+            200, content=_sse('{"choices":[{"delta":{"reasoning_content":["The PIN is 4242"]}}]}')
         )
 
-    with pytest.raises(InferenceError, match="non-string reasoning_content"):
+    with pytest.raises(InferenceError, match="non-string reasoning_content") as excinfo:
         await _collect(_backend(handler))
+    assert str(excinfo.value).endswith(": list")
+    assert "4242" not in str(excinfo.value)
 
 
 async def test_http_error_status_quotes_the_server_body() -> None:
