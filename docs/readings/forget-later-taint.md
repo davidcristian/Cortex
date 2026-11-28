@@ -49,7 +49,9 @@ was not kept and asked for it again in its own message, two said it could not be
 said only that it could not be set as a reminder. The 17 unshaped draws, where no forget ran in the second turn or the listing came first,
 show the general case of
 [a request to remember on a turn that is not kept](remember-on-a-turn-not-kept.md): 15 replies
-the brain's reader reads as a claim, each closed by `UNKEPT_CLAIM_NOTE`.
+the brain's reader reads as a claim, each closed by `UNKEPT_CLAIM_NOTE`. Two of the 24
+second-turn replies, one per build and neither shaped, were the model reasoning about the request
+in the answer text ([R-1387](../refinements/tasks/1387-a-cortex-reply-can-be-reasoning-about-the-request-instead-of-an-answer.md)).
 
 The rule passes: K fell from 3 of 3 shaped draws to 0 of 4, no claim went uncorrected, and no draw
 that showed the note stored a row.
