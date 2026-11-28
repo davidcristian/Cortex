@@ -182,10 +182,10 @@ Four things to know before changing either.
   2048 px one, 30 against 36 to 38, because the encoder's internal resize is a poorer filter than
   the body's box average. Downscale to the budget.
 - **Never set llama.cpp's `--image-max-tokens` by hand.** A budget over the engine's 512
-  micro-batch default aborts `llama-server` inside `llama_decode` on the first oversized picture
-  (`GGML_ASSERT`, SIGSEGV, container exit 139, no error reply, vision gone for the session).
-  `CORTEX_IMAGE_MAX_TOKENS` emits the matching `--ubatch-size` for that reason. The abort also
-  depends on the build: a cached `server-cuda` at b9870 survived what b10236 and b10276 abort on.
+  micro-batch default needs a matching `--ubatch-size`, which `CORTEX_IMAGE_MAX_TOKENS` emits.
+  Without it b12375 logs `cap image_max_tokens (original=1024) to 512` at load and a 4K screen
+  costs 482 tokens instead of 1010, while b10236 and b10276 abort `llama-server` on the first
+  oversized picture (`GGML_ASSERT`, exit 139) and b9870 survives it.
 - **Small type needs a window, not a bigger budget.** 15 px type on an unscaled monitor stays at
   4 of 16 at every budget tried, while pointing the capture at a window takes it to 9 or 10 of 12.
   The window must be inside `CORTEX_BODY_CAPTURE_MAX_EDGE`, and the crop cannot see anything

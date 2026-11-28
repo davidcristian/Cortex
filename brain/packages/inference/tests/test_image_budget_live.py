@@ -62,8 +62,8 @@ _MMPROJ = "unsloth/gemma-4-12B-it-qat-GGUF/mmproj-F32.gguf"
 
 _SOURCE = (3840, 2160)
 
-# llama.cpp's own micro-batch default. A budget above it needs ``--ubatch-size`` or the decode
-# aborts.
+# llama.cpp's own micro-batch default. Without ``--ubatch-size`` the engine cuts a larger budget
+# to it at load.
 _ENGINE_UBATCH = 512
 
 
@@ -291,7 +291,7 @@ def _transcribe(
 
 
 @pytest.mark.integration
-def test_a_raised_budget_without_the_micro_batch_aborts_the_server(
+def test_a_raised_budget_without_the_micro_batch_is_cut_to_it(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     whole = _argv_tail(1024, monkeypatch)
@@ -299,9 +299,10 @@ def test_a_raised_budget_without_the_micro_batch_aborts_the_server(
     assert whole[at - 2 : at + 2] == ["--image-max-tokens", "1024", "--ubatch-size", "1024"]
     args = whole[:at] + whole[at + 2 :]
     with _server(args):
-        with contextlib.suppress(httpx.HTTPError):
-            _cost(_screen())
-        assert not _alive(), (
-            "llama-server survived an oversized picture with the engine's default micro-batch, "
-            "so the flag pairing in ModelHostConfig may no longer be needed"
-        )
+        cut = _cost(_screen())
+        assert _alive(), "the budget without its micro-batch aborted the server on a 4K picture"
+    print(f"\n  CORTEX_IMAGE_MAX_TOKENS=1024 without --ubatch-size: {cut} tokens, one 4K screen")  # noqa: T201
+    assert cut <= _ENGINE_UBATCH, (
+        f"one 4K screen cost {cut} tokens at the engine's default micro-batch, over "
+        f"{_ENGINE_UBATCH}, so the flag pairing in ModelHostConfig may no longer be needed"
+    )

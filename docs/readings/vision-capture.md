@@ -80,8 +80,8 @@ spends the cap. Method: five runs each on the 24 GB card, shipped request with n
 - **2026-11-28, build `b12375-9d25e0014`**, the cortex tier's argv with `mmproj-F32.gguf` and its
   drafter: one 4K screen costs 482 tokens at the engine's budget and 1010 at budget 1024. Without
   `--ubatch-size` the server logs `cap image_max_tokens (original=1024) to 512 (n_ubatch = 512)` at
-  load and answers the 4K screen with HTTP 200, so the abort test fails
-  ([R-1384](../refinements/tasks/1384-the-micro-batch-test-expects-an-abort-the-engine-now-turns-into-a-cap.md)).
+  load and answers the 4K screen with HTTP 200 at 482 tokens, against 1010 with it. Method:
+  `test_image_budget_live.py`, the variant that strips the micro-batch flag.
 
 ## Legibility
 

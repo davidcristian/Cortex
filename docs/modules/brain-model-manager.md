@@ -110,9 +110,9 @@ compares the two, so retune both or neither. `RosterError` is a boot-time miscon
   the budget back to the model and emits neither flag. The default is raised because a 4K desktop is
   otherwise largely illegible, and it is paired with the brain's own
   `CORTEX_BODY_CAPTURE_MAX_EDGE=2048`: half the pair buys about half the reading. One setting for
-  two flags is deliberate and measured: a picture is decoded as one non-causal chunk, llama.cpp
-  asserts that the micro-batch covers it, and a raised budget without the micro-batch ends
-  `llama-server` with SIGSEGV on the first oversized picture rather than answering an error. It is
+  two flags is deliberate and measured: a picture is decoded as one non-causal chunk the micro-batch
+  must cover, so without the micro-batch build b12375 cuts a raised budget to 512 tokens at load and
+  earlier builds ended `llama-server` with SIGSEGV on the first oversized picture. It is
   conditioned on the projector, so a text-only tier does not pay the micro-batch's VRAM. Costs and
   how to lower them are in [docs/runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md).
 - `CORTEX_REASONING_BUDGET`, and `CORTEX_REASONING_BUDGET_BRAIN` for the deep tier, adds llama.cpp's

@@ -188,7 +188,7 @@ On Wayland focus is the window the user chose, read alone ([ADR-0073](ADR-0073-w
 ### 17. What the model can read, and what the budget costs
 
 `CORTEX_IMAGE_MAX_TOKENS` emits `--image-max-tokens N` with `--ubatch-size max(N, 512)` when a
-projector is loaded, since the budget alone aborts `llama-server` on a large picture. The maintainer
+projector is loaded, since without it the engine cuts the budget to 512. The maintainer
 chose budget 1024 with `CORTEX_BODY_CAPTURE_MAX_EDGE` 2048: 36 to 38 of 47 strings off a 4K desktop
 against 6 to 8 at the engine budget, for about 400 MiB and 1.6 times the time to first token. The
 body's default stays 1600, since a caller naming no edge has a budget the body cannot know. The

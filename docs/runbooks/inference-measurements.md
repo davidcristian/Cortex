@@ -209,7 +209,7 @@ The two settings and what they cost are in
 [llamacpp-gpu.md](llamacpp-gpu.md#the-two-settings-that-decide-how-much-of-a-screen-the-cortex-reads);
 the measurements are in [vision capture](../readings/vision-capture.md). The re-runnable part is
 `packages/inference/tests/test_image_budget_live.py`, which checks the saturation, checks that
-the budget raises it, proves the abort by removing the micro-batch from the shipped argv, and
+the budget raises it, checks that the budget falls to 512 without the shipped micro-batch, and
 includes the window-crop case with its corpus and the window size sentence pair (`-k sentence`,
 seeds per side in `CORTEX_SENTENCE_SEEDS`). Run it when llama.cpp is upgraded or the cortex model
 changes. It needs the `cortex-model-host` image built, because the base tag moves:

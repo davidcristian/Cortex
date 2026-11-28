@@ -70,8 +70,9 @@ A row that reads the same closes its line here, and one that differs changes the
   ADR-0071's context, ADR-0004 decision 6 and the CPU subagent runbook now say so
   ([system message templates](../../readings/system-message-templates.md)). The attached-picture
   turns read every word at 993 and 2883 prompt tokens, as before. The engine's own budget for a 4K
-  screen rose from 266 to 482 tokens, and the abort test fails because the engine now caps the
-  budget instead ([R-1384](1384-the-micro-batch-test-expects-an-abort-the-engine-now-turns-into-a-cap.md)).
+  screen rose from 266 to 482 tokens. Without `--ubatch-size` the engine now cuts budget 1024 to
+  the 512 micro-batch rather than aborting, so the micro-batch test asserts that cut
+  ([vision capture](../../readings/vision-capture.md#image-tokens-and-the-budget)).
   Still owed: the injection rows and reply envelopes on the earlier files, the CPU subagent
   server's memory, the deep tier's cost, the drafter's cost and rate, and gemma-4-31B's switched
   tails.
