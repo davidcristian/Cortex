@@ -175,7 +175,7 @@ def test_the_shipped_budget_places_two_subagents_on_the_gpu_and_overflows_the_ne
 
 @pytest.mark.usefixtures("clean_env")
 def test_the_shipped_subagent_ask_covers_the_tier_it_was_measured_from() -> None:
-    measured_peak_mib = 3410
+    measured_peak_mib = 3185
     margin_mib = SubagentsConfig().vram_gb * 1024 - measured_peak_mib
     assert margin_mib >= 130
 

@@ -144,7 +144,7 @@ The one hard rule, 100% coverage without a GPU, and ports before adapters all ho
     7,250 MiB at their peak. The cap stays a setting: a deployment with a heavier desktop lowers
     it, and the brain's boot warning then reports the server no spawn is placed on.
 
-    The CPU entry asks `cpus` 2.0 and `memory_gb` 3.0 (about 2.5 GiB RSS, rounded so two are
+    The CPU entry asks `cpus` 2.0 and `memory_gb` 3.0 (the CPU server's 3,029 MiB of anonymous memory with both slots busy, rounded so two are
     admitted) against budgets of 4.0 and 8.0. Each number is a module constant in
     `config_subagents.py` (`DEFAULT_VRAM_GB`, `DEFAULT_CPUS`, `DEFAULT_MEMORY_GB`,
     `DEFAULT_CPU_BUDGET`, `DEFAULT_MEM_BUDGET_GB`) cited by the `Field` and by

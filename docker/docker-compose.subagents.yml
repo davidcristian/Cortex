@@ -13,8 +13,8 @@ services:
       CORTEX_SUBAGENTS_ENDPOINT: "http://llama-subagent:8082"
       CORTEX_SUBAGENTS_GPU_ENDPOINT: "${CORTEX_SUBAGENTS_GPU_ENDPOINT:-http://llama-subagent:8082}"
       # One subagent's resource ask, and the soft admission budgets. Measured on the shipped pick:
-      # about 2.5 GiB RSS on CPU -> 3.0 memory ask (2 admitted under the 8 GB budget), and the
-      # GPU-placed tier costs 3338 to 3410 MiB, so 3.5 GiB sits a little above its peak.
+      # 3,029 MiB of anonymous memory on CPU with both slots busy -> 3.0 memory ask (2 admitted
+      # under the 8 GB budget), and one GPU-placed server peaks at 3,185 MiB, so 3.5 GiB sits over it.
       CORTEX_SUBAGENTS_CPUS: "${CORTEX_SUBAGENTS_CPUS:-2.0}"
       CORTEX_SUBAGENTS_MEMORY_GB: "${CORTEX_SUBAGENTS_MEMORY_GB:-3.0}"
       CORTEX_SUBAGENTS_VRAM_GB: "${CORTEX_SUBAGENTS_VRAM_GB:-3.5}"

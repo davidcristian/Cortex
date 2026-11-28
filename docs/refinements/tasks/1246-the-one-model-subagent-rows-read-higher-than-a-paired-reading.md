@@ -1,9 +1,8 @@
 # The one-model subagent rows read higher than a paired reading
 
-**Status:** open, actionable
+**Status:** done 2026-11-28
 **Area:** inference-model-manager
 **Origin:** [ADR-0018](../../adr/ADR-0018-heterogeneous-subagents.md)
-**Verified:** 2026-11-27
 
 Two readings of 2026-11-18 give one GPU subagent server of gemma-4-E4B at 8K and one slot, with no
 drafter, two different sizes on the same build and the same compose settings:
@@ -43,3 +42,14 @@ moment, and replace the rows and the two quotes with what that draw reads.
 - 2026-11-27: the two quotes of 3338 to 3410 MiB are still in `config_subagents.py` and the
   module doc. The three shapes are memory rows, not rates, and need the model host on the card;
   they did not fit this slot beside the driver fixes.
+- 2026-11-28: done. The three shapes were drawn again with their drafters on build b12375, each
+  floor read after the cortex the host starts at boot had stopped: one server of one slot 3,179
+  MiB loaded and 3,185 at the peak, two servers 6,358 and 6,370, one server of two slots 3,367
+  and 3,377. The floor read 2,648 MiB before the host started, after the cortex stopped and after
+  each shape, and one server reads as the tier drafters row to 1 MiB, so the lower figure is the
+  right one. The rows replace the first reading's
+  ([subagent budget](../../readings/subagent-budget.md#two-slots-against-two-servers)), and
+  `config_subagents.py`, the module doc, the subagents compose file and `test_config.py` now give
+  3,185 MiB. The 3.5 GiB request stays, by the rule written before the draw: 3,185 MiB and the
+  test's 130 MiB margin are under its 3,584 MiB, and a 3.25 GiB request places the same two
+  spawns under the default cap.

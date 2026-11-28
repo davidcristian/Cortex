@@ -179,7 +179,8 @@ lineup](../readings/model-lineup.md), [deep candidates](../readings/deep-candida
     ([readings](../readings/nvfp4-deep-tier.md)). Measured as its `F16` build, at matched power
     limits the alternate's drafter decodes 1.34 times the plain rate on a tool-call turn and on
     answer text and 1.86 to 1.89 times on a reasoning trace, for about 1000 MiB and about a
-    tenth more load time. The setting has an empty default: a compose default would append it
+    tenth more load time; the `Q8_0` file costs 707 MiB at `q8_0`, its rate not yet drawn
+    ([readings](../readings/kv-cache-deep-whole.md#the-rows)). The setting has an empty default: a compose default would append it
     to whatever deep model a deployment names, and `${VAR:-default}` cannot be turned off by an
     empty value. The model-swap runbook and the gpu override name it as part of the pick's
     configuration, with the settings that move with it: `CORTEX_SWAP_BRAIN_VRAM_MIB` raised by

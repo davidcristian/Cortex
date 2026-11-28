@@ -86,3 +86,15 @@ A row that reads the same closes its line here, and one that differs changes the
   ([reply envelope](../../readings/reply-envelope.md#the-current-files)). Still owed on the
   injection line: gemma-4-31B, whose file does not fit beside the user's apps at the deep tier's
   argv.
+- 2026-11-28: the memory lines are closed. The CPU subagent server, started as its compose
+  service starts it under 8g, read 6,940 MiB in its cgroup loaded and 7,136 MiB with both slots
+  filled, 0.87 of the cap, with 3,029 MiB of anonymous memory and no oom event, so the 3.0 GiB
+  memory request stays and the quotes of about 2.5 GiB now give 3,029 MiB
+  ([subagent budget](../../readings/subagent-budget.md#the-cpu-server-as-compose-starts-it)).
+  The deep tier's cost needed no draw: the pick's file is the one measured, with rows on b12375
+  at 16384 and `q8_0` from 2026-11-21 and 2026-11-23, and gemma-4-31B's file and drafter have
+  rows from 2026-11-20 ([deep tier](../../readings/kv-cache-deep-whole.md#the-rows)). The
+  model-swap runbook and ADR-0004 now give those, 18,355 to 18,384 MiB plain and 707 MiB for the
+  drafter at `q8_0`, in place of the earlier file's 19125 to 20783 and the `F16` drafter's
+  1000 MiB. Still owed: gemma-4-31B's switched tails and injection rows, and the deep drafter's
+  rate, which waits on a rate row.

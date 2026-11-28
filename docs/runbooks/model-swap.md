@@ -65,9 +65,9 @@ and in the reply's note, the deep model is never started, and the recorded resid
 model host that can see no card at all refuses the same way. Set the figure above the deep tier's
 own cost: under WSL the driver puts part of its last buffers in system memory with most of a
 gigabyte still free, and the check cannot see memory taken during the load. On this card the
-alternate, gemma-4-31B, costs 19125 MiB at an 8192 context and spilled beside an idle peer at up
-to 19967 MiB free, so 20125 refuses every spill seen by at least 158 MiB; at 16384 it costs 664 to
-667 MiB more, and 20783 keeps 149 of those 158 MiB. The pick at 16384 and `q8_0` costs 15950 MiB without its drafter and 16991 with its draft layer ([readings](../readings/model-swap.md#a-handoff-on-the-deep-pick)); plain, with the desktop's share of the card steady, it was not shown whole beside an idle peer at up to 16764 MiB free and loaded whole at 16924 ([readings](../readings/co-residency.md#what-free-memory-the-deep-pick-needs-beside-a-peer)), so declare 16924, or 17965 with its draft layer, which adds the layer's 1041 MiB to a figure drawn without it.
+alternate, gemma-4-31B, costs 18355 to 18384 MiB at 16384 and `q8_0` with every layer on the card,
+and 19062 to 19086 with its drafter ([readings](../readings/kv-cache-deep-whole.md#the-rows)); the
+free figure at which it spills beside a peer was drawn only on an earlier file of it. The pick at 16384 and `q8_0` costs 15950 MiB without its drafter and 16991 with its draft layer ([readings](../readings/model-swap.md#a-handoff-on-the-deep-pick)); plain, with the desktop's share of the card steady, it was not shown whole beside an idle peer at up to 16764 MiB free and loaded whole at 16924 ([readings](../readings/co-residency.md#what-free-memory-the-deep-pick-needs-beside-a-peer)), so declare 16924, or 17965 with its draft layer, which adds the layer's 1041 MiB to a figure drawn without it.
 **So on a 24 GB card leave co-residency off**: beside the E4B tier's two default servers the card
 read 16136 MiB free, under the 16924 the pick needs, so the check refuses every such handoff, each
 costing a reload; beside one server it read 19315 and the pick loaded whole. The same figure guards
@@ -158,7 +158,7 @@ candidates](../readings/deep-candidates.md) has each one's cost) and set `CORTEX
 draft layer inside its own file: give `CORTEX_MODEL_FILE_BRAIN_DRAFT` the same path as
 `CORTEX_MODEL_FILE_BRAIN`, and the tier drafts with that layer at `CORTEX_DRAFT_LENGTH_BRAIN` (3),
 1.75 times its no-draft rate at 24K. The alternate's drafter is the file
-`unsloth/gemma-4-31B-it-qat-GGUF/mtp-gemma-4-31B-it-Q8_0.gguf`, about 1000 MiB more on the card.
+`unsloth/gemma-4-31B-it-qat-GGUF/mtp-gemma-4-31B-it-Q8_0.gguf`, 707 MiB more on the card at `q8_0`.
 The setting is empty by default. A deployment naming it:
 
 - adds the drafter's cost to `CORTEX_SWAP_BRAIN_VRAM_MIB`, so the fit check compares the free

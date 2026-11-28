@@ -132,8 +132,8 @@ ADR-0009 decision 8), `call_timeout_s =
   subagent's ask and the pool's ceilings all default to a module constant rather than a literal
   inside `Field(...)`, so `scripts/crosscheck.py` can compare the declaration with every place
   `docker/docker-compose.subagents.yml` and the roster override write it; `vram_gb` is the measured
-  3.5 GiB, above the 3338 to 3410 MiB the GPU-placed tier costs, so two spawns fit the headroom and
-  the next overflows, and `memory_gb` the measured 3.0, about 2.5 GiB of RSS rounded up so two are
+  3.5 GiB, above the 3,185 MiB peak of one GPU-placed server with its drafter, so two spawns fit the headroom and
+  the next overflows, and `memory_gb` the measured 3.0, the CPU server's 3,029 MiB of anonymous memory with both slots busy rounded up so two are
   admitted (ADR-0012 decision 14). The flat fields define the roster's default entry and each
   `CORTEX_SUBAGENTS_ROSTER__<name>` adds one alternate as a JSON `SubagentRosterEntry`, whose
   missing asks fall back to the shipped ones. `roles: bool = True` hands the runner

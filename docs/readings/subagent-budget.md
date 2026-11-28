@@ -45,8 +45,8 @@ shape (gemma-4-E4B QAT q4_0, `-ngl 99 --ctx-size 8192 --parallel 2`, thinking of
 
 Serving work costs nothing extra: both slots were filled to their 4096-token halves and the reading
 stayed inside the idle band's spread, and the tier has no vision path. The peak, 3410 MiB, is 174
-MiB under the 3.5 GiB ask. The CPU entry's resident memory is about 2.5 GiB, the figure the
-`memory_gb` ask of 3.0 is rounded up from (recorded beside it in `docker-compose.subagents.yml`).
+MiB under the 3.5 GiB ask. The CPU entry's resident memory was about 2.5 GiB on the file of that
+date; the `memory_gb` ask of 3.0 now rests on [the CPU server as compose starts it](#the-cpu-server-as-compose-starts-it).
 Method: as above, driving concurrent requests through the tier's own endpoint.
 
 ## The two routes, and the budget choosing between them
@@ -87,16 +87,32 @@ context, 17,678 MiB with two servers and a 160K cortex context. The larger footp
 was paid from the cortex's context. Method: the baseline driver, raw rows in
 `measurements/model-baseline-2026-11-16/bench/slots.jsonl` and `bench/together.jsonl`.
 
-**2026-11-18**, the same model started with no drafter, on build
-b12375. The model host started each shape from the compose settings, and one batch of two spawns
-went through the brain's own subagent wiring with room in the VRAM budget for both. The idle
-baseline was 2,359 to 2,374 MiB, read before each load and after each teardown.
+**2026-11-28**, the same model with its drafter, which every shape starts with by default, on
+build b12375. The model host started each shape from the compose settings with only
+`CORTEX_MODEL_FILE_SUBAGENT_GPU` and the shape's settings named. Once its boot tiers read
+`ready`, the subagent servers and then the cortex were stopped over the control API, the floor
+was read with no engine process left, and the shape's servers were started again. One request
+per slot was then sent to every server at once.
 
-| shape | settings | context per slot | loaded | peak while the batch ran |
+| shape | settings | context per slot | loaded | peak with every slot busy |
 | --- | --- | --- | --- | --- |
-| one server of one slot | `CORTEX_SUBAGENTS_GPU_SERVERS=1` | 8K | 3,328 MiB | 3,338 MiB |
-| two servers of one slot | `CORTEX_SUBAGENTS_GPU_SERVERS=2` | 8K | 6,387 MiB | 6,407 MiB |
-| one server of two slots | one server, `CORTEX_SUBAGENTS_GPU_PARALLEL=2`, a 16K pool | 8K | 3,508 MiB | 3,520 MiB |
+| one server of one slot | `CORTEX_SUBAGENTS_GPU_SERVERS=1` | 8K | 3,179 MiB | 3,185 MiB |
+| two servers of one slot | `CORTEX_SUBAGENTS_GPU_SERVERS=2` | 8K | 6,358 MiB | 6,370 MiB |
+| one server of two slots | one server, `CORTEX_SUBAGENTS_GPU_PARALLEL=2`, a 16K pool | 8K | 3,367 MiB | 3,377 MiB |
+
+The floor read 2,648 MiB before the model host started, after the cortex stopped and after each
+shape's servers stopped. Beside the cortex at boot the servers read the same as alone: the card
+less the cortex alone was 3,179, 6,358 and 3,367 MiB, and the cortex with its drafter, text
+only, was 8,067 MiB above the floor in each launch. One server reads as the shape in
+[tier drafters](tier-drafters.md#the-default-stack-on-the-card) to 1 MiB. Method: `shape.sh` and
+`ask.py` in `~/.cache/cortex-run/2026-11-28/s4/`, compose project `cortexn33`, logs in `logs/`.
+
+**2026-11-18**, the same model started with no drafter, on build b12375. The model host started
+each shape from the compose settings, and one batch of two spawns went through the brain's own
+subagent wiring with room in the VRAM budget for both. Its memory rows of one server and of two
+read 261 and 253 MiB above the same shape in the table above less the drafter's 112 MiB a server,
+about the same for one server as for two, so the table above replaces them
+([R-1246](../refinements/tasks/1246-the-one-model-subagent-rows-read-higher-than-a-paired-reading.md)).
 
 With one server of one slot the host answered 404 for `subagent-gpu-2`, and the two spawns ran one after
 the other: no sample of the server's `GET /slots` showed more than one slot busy. With two servers
@@ -163,6 +179,26 @@ file once between them, beside 2,799 and 2,802 MiB of anonymous memory. Together
 9,665 MiB against 6,960 MiB for the one server. Under 4 GiB each the two kept 1,272 and
 1,275 MiB of the file and the rate fell by 0.01. Method: `cpudraw7.sh` and `cpudrive7.py` in the
 same directory, logs `logs/cpu2-slots.txt`, `cpu2-servers.txt` and `cpu2-servers4g.txt`.
+
+## The CPU server as compose starts it
+
+**2026-11-28**, the compose service `llama-subagent` itself on its defaults, from
+`docker-compose.subagents.yml`: the subagent file on `ghcr.io/ggml-org/llama.cpp:server` build
+b10680, `-ngl 0 --jinja --cache-ram 0 --ctx-size 8192 --parallel 2 --threads 4.0` under a
+`mem_limit` and `memswap_limit` of 8g, with no brain. Memory is the cgroup's own count, which
+charges the mapped model file beside the anonymous memory.
+
+| read | memory.current | peak | anonymous | model file |
+| --- | --- | --- | --- | --- |
+| loaded, nothing served | 6,940 MiB | 6,943 MiB | 2,834 MiB | 4,083 MiB |
+| two requests at once, 3,260 prompt tokens each | 7,136 MiB | 7,138 MiB | 3,029 MiB | 4,083 MiB |
+
+The rule was written before the row: the `memory_gb` ask of 3.0 GiB (3,072 MiB) stays if the
+anonymous memory with both slots filled is at most 3,072 MiB and no oom event is counted. It
+read 3,029 MiB, and `memory.events` counted no `max`, `oom` or `oom_kill`, so the ask stays.
+With both slots filled the cgroup held 0.87 of the cap, inside the 0.85 to 0.95 written before
+the row for the "about nine tenths" of [ADR-0004](../adr/ADR-0004-model-lineup.md) decision 13. Method:
+`cpu.sh` and `cpufill.py` in `~/.cache/cortex-run/2026-11-28/s4/`, log `logs/cpu.txt` there.
 
 ## Two tiers generating at once
 

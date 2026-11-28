@@ -27,9 +27,9 @@ DEFAULT_MEM_BUDGET_GB = 8.0
 
 DEFAULT_CPU_BUDGET = 4.0
 
-# One subagent's own ask. The VRAM figure sits about 174 MiB above the 3338 to 3410 MiB the
-# GPU-placed tier costs at its shipped shape, and the memory figure rounds the CPU entry's
-# 2.5 GiB RSS up so two are admitted under the budget. The CPU ask is a placeholder.
+# One subagent's own ask. The VRAM figure is 399 MiB over the 3,185 MiB peak of one GPU-placed
+# server with its drafter, the memory figure 43 MiB over the CPU server's 3,029 MiB of anonymous
+# memory with both slots busy, and two are admitted under the budget. The CPU ask is a placeholder.
 DEFAULT_VRAM_GB = 3.5
 DEFAULT_CPUS = 2.0
 DEFAULT_MEMORY_GB = 3.0

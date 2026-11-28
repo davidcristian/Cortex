@@ -93,10 +93,9 @@ card read 16,874 MiB of its 24,463 in use. The cortex with its projector and its
 over the 8,806 MiB of an 8.6 GiB reservation, so the reservation is 8.9 GiB: 9,114 MiB, 246 MiB over
 that peak. With it the placer still places two 3.5 GiB requests under the cap, a charge of 15.9 GiB. One subagent server with its drafter is 398 MiB under
 the 3,584 MiB of its 3.5 GiB request, and the drafter is 112 MiB of it. The one-server rows were
-read from a floor taken after the cortex, which the host starts at boot, had stopped; the rows of
-the same shape in [subagent budget](subagent-budget.md#two-slots-against-two-servers) read about
-255 MiB higher
-([R-1246](../refinements/tasks/1246-the-one-model-subagent-rows-read-higher-than-a-paired-reading.md)).
+read from a floor taken after the cortex, which the host starts at boot, had stopped, and the same
+shapes drawn that way on 2026-11-28 read the same to 6 MiB
+([subagent budget](subagent-budget.md#two-slots-against-two-servers)).
 
 The cortex with `CORTEX_MODEL_FILE_CORTEX_MMPROJ` set to `mmproj-F32.gguf` of its folder drafts
 with the projector loaded. A turn with a 96 by 96 picture of one colour named the colour in its
