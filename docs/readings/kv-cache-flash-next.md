@@ -94,9 +94,26 @@ ends on.
 | 32K | none | 8-bit | 42 | 15,796 | 628 | 994 | 17,420 |
 | 32K | 1 | 16-bit | 45 | 11,046 | 1,185 | 994 | 16,789 |
 | 32K | 1 | 8-bit | 45 | 11,498 | 741 | 1,402 | 17,202 |
+| 32K | 2 | 16-bit | 45 | 11,046 | 1,297 | 994 | 16,901 |
+| 32K | 2 | 8-bit | 45 | 11,046 | 853 | 994 | 16,455 |
+| 32K | 3 | 16-bit | 45 | 11,046 | 1,410 | 994 | 17,014 |
+| 32K | 3 | 8-bit | 45 | 11,046 | 966 | 994 | 16,568 |
+| 32K | 4 | 16-bit | 45 | 11,046 | 1,522 | 994 | 17,126 |
+| 32K | 4 | 8-bit | 45 | 11,046 | 1,079 | 994 | 16,680 |
 
 In the drafted rows the three columns are the model's own, and the total includes the drafter,
-about 3,560 MiB at both types.
+about 3,560 MiB at both types. The rows at lengths 2 to 4 are from **2026-11-28**, with the
+file read from the models mount, never copied: the six starts of 2026-11-21 were made again
+that night and ended on the same totals to the MiB (`flashfit.py` with `DAY` set to the date,
+text in `bench/flash-logs-2026-11-28/`).
+
+- **The fit explains the 8-bit launches at lengths 2 to 4.** The rule written first: explained
+  if each 8-bit total at lengths 2 to 4 is at least 400 MiB under the 8-bit total at length 1.
+  They are 747, 634 and 522 MiB under it, where the rate rows loaded 742, 640 and 529 MiB less.
+  At length 1 the fit's last accepted step moves part of one more layer onto the card, 452 MiB
+  of weights and 408 MiB of compute, and ends 17 MiB inside its target. Each length above 1 adds
+  112 MiB to the context the fit counts, which puts that step over the target (17,314 MiB at
+  length 2), so the fit ends on the step below it, as at every drafted length at 16 bits.
 
 - **The smaller cache moves weights onto the card.** At 256K the context is 3,594 MiB smaller
   and 3,250 MiB more of the weights are on the card, with two fewer layers overflowing. At 32K
@@ -175,11 +192,9 @@ no tier's pick, so no default follows from these rows (ADR-0077 decision 8).
 ## What was not drawn
 
 - 16-bit rows at draft lengths 3 and 4, so those two 8-bit rows have no ratio.
-- The fit's placement at draft lengths 2 to 4. The 8-bit launches there loaded 529 to 742 MiB
-  less than the 8-bit launch at length 1 with the same flags, which the rows do not explain.
 - A filled pass at 256K, a second launch of any row, the drafter's cache lines and a 16-bit
   start at `-lv 4`.
 
-The first two are in
+The first is in
 [R-1270](../refinements/tasks/1270-some-cache-type-cells-have-no-row-beside-a-16-bit-row-of-their-own-night.md)
-with their commands.
+with its commands.

@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** inference-model-manager
 **Origin:** [ADR-0077](../../adr/ADR-0077-model-card-settings.md)
-**Verified:** 2026-11-27
+**Verified:** 2026-11-28
 
 Every model the baseline of 2026-11-16 drew has rows at `q8_0` beside 16-bit rows of the same
 night, and the cache type rule is applied to each in the readings
@@ -55,10 +55,7 @@ drawn at 16 bits into `bench/q8-ref.jsonl`, without drafting and at one draft le
    replaces the upper readings 4.25 and 4.32.
 6. **Qwen3.8-Flash-Next at draft lengths 3 and 4 at 16 bits**, which have 8-bit rows only:
    `python3 ../q8-probes/flash21.py row f16 3`, then `row q8_0 3`, then both with `4`. Staging
-   this file empties the RAM store. **And the fit step at draft lengths 2 to 4**, where the 8-bit
-   launches loaded 529 to 742 MiB less than the launch at length 1 with the same flags: add the
-   lengths to `CELLS` in `../q8-probes/flashfit.py` and run it. It loads no weights and reads the
-   placement the engine's fit ends on at each type.
+   this file empties the RAM store.
 
 Afterwards `python3 q8-report.py` rebuilds `q8.md`.
 
@@ -77,3 +74,10 @@ closes with the last one.
   states each clause that differs at 8 bits. Item 2 names the driver's new `--fill-cap` option.
   Items 1 to 5 and the rows of item 6 wait on rate rows, since the card's power limit read 175,
   not the baseline's 155. The fit step of item 6 reads no rate and did not fit this slot.
+- 2026-11-28: the fit step of item 6 is drawn, which leaves that item its rate rows. Started from
+  the models mount at both types, the six starts of 2026-11-21 ended on the same totals to the
+  MiB, and the 8-bit starts at draft lengths 2 to 4 ended 747, 634 and 522 MiB under the one at
+  length 1, which explains the 529 to 742 MiB the rate rows loaded less by the rule written
+  first: at length 1 the fit's last step puts part of one more layer on the card, and the
+  context of a longer draft puts that step over the target
+  ([readings](../../readings/kv-cache-flash-next.md#where-the-fit-puts-the-file)).
