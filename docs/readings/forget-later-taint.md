@@ -51,7 +51,7 @@ show the general case of
 [a request to remember on a turn that is not kept](remember-on-a-turn-not-kept.md): 15 replies
 the brain's reader reads as a claim, each closed by `UNKEPT_CLAIM_NOTE`. Two of the 24
 second-turn replies, one per build and neither shaped, were the model reasoning about the request
-in the answer text ([R-1387](../refinements/tasks/1387-a-cortex-reply-can-be-reasoning-about-the-request-instead-of-an-answer.md)).
+in the answer text ([readings](cortex-thought-after-a-tool-result.md)).
 
 The rule passes: K fell from 3 of 3 shaped draws to 0 of 4, no claim went uncorrected, and no draw
 that showed the note stored a row.
@@ -100,5 +100,5 @@ draw (seed 6) said the old code was cleared from memory while the row stayed; it
 said nothing was forgotten and named that sentence as wrong. Six replies said no memory holding 4242 was found, each followed by the same
 note. The brain's reader read 0, 4 and 8 claims: it also reads an M2 reply promising to remember
 the code once it is sent again, and the N reply of seed 5, the model reasoning about the request in
-the answer text ([R-1387](../refinements/tasks/1387-a-cortex-reply-can-be-reasoning-about-the-request-instead-of-an-answer.md)).
+the answer text ([readings](cortex-thought-after-a-tool-result.md)).
 Method: `~/.cache/cortex-run/2026-11-28/a1/` (`rule.md`, `draw.sh`, `count.py`, the logs).

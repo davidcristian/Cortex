@@ -82,8 +82,8 @@ never a reading of what the tree does now.
 - **[R-1317](tasks/1317-the-alternate-deep-model-has-no-rate-row-with-one-layer-in-ram.md)** The alternate deep model has no rate row with one layer in RAM (inference-model-manager). Its claim was checked against the code on 2026-11-27.
 - **[R-1385](tasks/1385-the-drain-test-failed-once-in-the-full-brain-suite.md)** The drain test failed once in the full brain suite (rpc-transport). Its claim was checked against the code on 2026-11-28.
 - **[R-1386](tasks/1386-a-french-message-with-no-accent-whose-one-word-is-ce-gets-romanian-notes.md)** A French message with no accent whose one word is ce gets Romanian notes (memory). Its claim was checked against the code on 2026-11-28.
-- **[R-1387](tasks/1387-a-cortex-reply-can-be-reasoning-about-the-request-instead-of-an-answer.md)** A cortex reply can be reasoning about the request instead of an answer (inference). Its claim was checked against the code on 2026-11-28.
 - **[R-1391](tasks/1391-a-spanish-message-quoting-two-english-list-words-gets-english-notes.md)** A Spanish message quoting two English list words gets English notes (memory). Its claim was checked against the code on 2026-11-28.
+- **[R-1392](tasks/1392-send-the-cortex-thought-back-with-its-tool-calls.md)** Send the cortex's thought back with its tool calls (inference). Its claim was checked against the code on 2026-11-28.
 
 ### Actionable, once a port changes (1)
 
@@ -513,7 +513,7 @@ never a reading of what the tree does now.
 - [R-1273](tasks/1273-a-deep-reply-can-hold-a-literal-think-tag-and-its-text-twice.md) A deep reply can hold a literal think tag and its text twice. done 2026-11-23.
 - [R-1305](tasks/1305-a-deep-reply-at-the-high-effort-can-hold-a-think-tag-and-its-text-twice.md) A deep reply at the high effort can hold a think tag and its text twice. open, waiting for its trigger.
 - [R-1329](tasks/1329-the-roster-alternate-hands-back-the-report-less-often-at-its-cards-sampler.md) The roster alternate hands back the report less often at its card's sampler. declined 2026-11-25.
-- [R-1387](tasks/1387-a-cortex-reply-can-be-reasoning-about-the-request-instead-of-an-answer.md) A cortex reply can be reasoning about the request instead of an answer. open, actionable.
+- [R-1392](tasks/1392-send-the-cortex-thought-back-with-its-tool-calls.md) Send the cortex's thought back with its tool calls. open, actionable.
 
 ### inference-model-manager
 

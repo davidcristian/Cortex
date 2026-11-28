@@ -64,5 +64,5 @@ and `capture_screen` needs a body. Memory policy `skip`, the default.
   shape and none of the 4 replies said the code was kept; no draw stored a row
   ([readings](../../readings/forget-later-taint.md)).
 - 2026-11-28: two replies of these draws were the model reasoning about the request in the answer
-  text, filed as
-  [R-1387](1387-a-cortex-reply-can-be-reasoning-about-the-request-instead-of-an-answer.md).
+  text ([readings](../../readings/cortex-thought-after-a-tool-result.md)); the remedy is filed as
+  [R-1392](1392-send-the-cortex-thought-back-with-its-tool-calls.md).
