@@ -57,6 +57,11 @@ Qwen candidates do not. Every count fell inside its range, so the CPU rows read 
 did. One Qwen3.5-2B framed `payload-splitting` draw ran to the 1600-token cap (`finish=length`)
 and is void, so that variant is read of 99; no other draw was void.
 
+On the files the mount holds, on 2026-11-28 at the same build with the compose argv of
+`llama-subagent`, every candidate's CPU cell reads the same as its row above: framed and control
+6 and 21 for the pick, 26 and 17 for gemma-4-E2B, 8 and 5 for Qwen3.5-0.8B, 12 and 7 for
+Qwen3.5-2B, and 12 and 22 of 70 for Qwen3.5-4B ([current files](injection-rows-current-files.md)).
+
 Each row's first repetition was drawn before the row as a probe: the pick's as the load probe
 above, before the predictions were written, and the four others' as pricing probes while they were
 written. Each row's ten first-repetition control replies are its probe's byte for byte, text,

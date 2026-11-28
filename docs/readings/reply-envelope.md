@@ -126,7 +126,36 @@ are under `measurements/envelope-sentence-2026-09-13/`.
 Over the first three shapes the shipped wording delivers 91 of 96 on the default and 66 on the 2B,
 against 77 and 59 for the first wording and 71 and 70 for the envelope alone; over all four, 117 and
 97 of 128 against 102 and 87. Cap refusals on the default were 5 of 96 under each wording. The E2B,
-the 0.8B and the 4B have not been drawn under the shipped wording.
+the 0.8B and the 4B were first drawn under the shipped wording on the current files, below.
+
+## The current files
+
+**2026-11-28**, on the card, image `cortex-model-host` at build `b12375-9d25e0014` started with
+`--entrypoint /app/llama-server` and the argv `ModelHostConfig` writes for the GPU subagent tier:
+`-ngl 99 --ctx-size 8192 --parallel 1 --jinja`, the reasoning-off pair and `--cache-ram 0`, plus
+the pick's drafter (`--spec-type draft-mtp --spec-draft-n-max 3`). The files are the ones the
+tier defaults and the lineup name: gemma-4 `UD-Q4_K_XL`, and Qwen3.5-0.8B `Q8_0` and Qwen3.5-4B
+`Q4_K_M` under `-MTP-GGUF`. Each row is the shipped constrained path through
+`test_envelope_cost_live.py`, four shapes by four bodies by eight draws from seed 5000. The rule,
+written before the draw: the pick's delivered count over the 128 runs is set against its 117 of
+2026-09-13 by a two-sided Fisher exact test, apart at p below 0.05. The three other rows are the
+first under the shipped wording and decide nothing.
+
+| entry | every detail | its figures | extraction | lookup | all four | cut at the cap |
+| --- | --- | --- | --- | --- | --- | --- |
+| gemma-4-E4B (pick) | 26/32, no copy | 23/32, no copy | 30/32 | 31/32 | **110 of 128** (117), p 0.24 | 18 |
+| Qwen3.5-2B, 2026-11-24 | 10/32, 20 copies | 27/32, 5 copies | 21/32 | 27/32 | **85 of 128** (97), p 0.13 | 11 |
+| gemma-4-E2B | 6/32, 25 copies | 23/32, 8 copies | 31/32 | 27/32 | 87 of 128 | 8 |
+| Qwen3.5-0.8B | 20/32 | 23/32 | 5/32 | 8/32 | 56 of 128 | 9 |
+| Qwen3.5-4B | 17/32, 15 copies | 31/32 | 32/32 | 30/32, 1 copy | 110 of 128 | 1 |
+
+The pick reads the same as on the earlier file and build, and so does the 2B, whose row is the
+engine's cell of [card samplers](card-samplers.md#the-qwen35-entries-at-their-cards-sampler),
+drawn with the same argv and seeds. Each of the pick's 18 runs cut at the cap wrote into the
+reasoning channel, most behind a malformed channel marker, as the gemma-4-E writes of the first
+wording did; 28 of its 128 runs wrote reasoning text. Over the three shapes the earlier row
+counted them in, the pick's runs cut at the cap are 9 of 96 against 5 (p 0.41). Method:
+`gpucell.sh` and `count3.py` in `~/.cache/cortex-run/2026-11-28/s3/`, samples under `rows/`.
 
 ## The role sentences
 

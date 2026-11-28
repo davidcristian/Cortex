@@ -27,7 +27,7 @@ What would close it, the picks first and the other candidates after:
 
 - the lineup's switched tails (`just switch-lineup`) and the leading-system-message rows, since
   both read the template;
-- the injection rows of each tier and the reply envelope of the subagent entries;
+- the injection rows of each tier, of which gemma-4-31B's is still owed;
 - the cortex's VRAM figure behind `CORTEX_VRAM_CORTEX_GB` and the CPU subagent server's memory
   reading under its 8 GiB cap;
 - the deep tier's cost, and the drafter's cost and rate, behind `CORTEX_SWAP_BRAIN_VRAM_MIB`;
@@ -75,3 +75,14 @@ A row that reads the same closes its line here, and one that differs changes the
   Still owed: the injection rows and reply envelopes on the earlier files, the CPU subagent
   server's memory, the deep tier's cost, the drafter's cost and rate, and gemma-4-31B's switched
   tails.
+- 2026-11-28: the injection text rows still on the earlier files are drawn on the files the mount
+  holds, which closes their part of the injection line: the cortex pick, gemma-4-E4B and
+  gemma-4-E2B on the card at b12375, and all five subagent entries on the CPU at b10680, the
+  Qwen3.5-4B over seven repetitions. Every cell reads the same as its earlier one by a two-sided
+  Fisher test at 0.05 ([current files](../../readings/injection-rows-current-files.md)). The
+  reply envelope line is closed: the pick delivers 110 of 128 against 117 (p 0.24), the 2B's row
+  of 2026-11-24 reads 85 against 97 (p 0.13), and gemma-4-E2B, Qwen3.5-0.8B and Qwen3.5-4B have
+  their first rows under the shipped wording
+  ([reply envelope](../../readings/reply-envelope.md#the-current-files)). Still owed on the
+  injection line: gemma-4-31B, whose file does not fit beside the user's apps at the deep tier's
+  argv.
