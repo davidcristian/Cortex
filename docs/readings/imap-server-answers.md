@@ -212,3 +212,26 @@ rate. The seed does reach the sampler: five seeds of a free text request on the 
 four distinct replies. The baselines read the same as the shipped texts, so neither sentence moves
 a count on a turn that holds the listing. By the task's rule `UID_HELP` holds, and `NOT_FOUND`
 stays as it is. Run log: `~/.cache/cortex-run/2026-11-27/s4/logs/`.
+
+**2026-11-28**, a turn that holds no listing, the `named_uid` row. The same tier on engine build
+`b12375`, its argv read again from the running process and the same as above word for word: the
+gemma-4-12B QAT `UD-Q4_K_XL` file at a context of 16,384, no cache type flag (the engine's f16
+cache), the file's MTP layer drafting at length 3, and no reasoning flag; `/props` read the same
+sampling defaults. The request names the uid itself, "Read me message 1224 in my inbox, the one
+where Ann Weaver warns that my power will be cut off", and the turn opens with the read of `INBOX`
+uid `1224`, no search before it, answered by each of the three texts. When the next call is a
+search, the real sidecar answers it and the call after that is drawn on the same seed. Seeds 0 to
+19, the rule written into the task first.
+
+| text after the read | next call | after the search's listing |
+| --- | --- | --- |
+| `NOT_FOUND` (shipped) | `search_emails` 13/20, `list_folders` 7/20 | read `INBOX` 1238 7/13, no call 6/13 |
+| the text without its correction | `search_emails` 1/20, `list_folders` 19/20 | read `INBOX` 1238 1/1 |
+| bare `MCP tool 'read_email' failed` | `search_emails` 1/20, `list_folders` 19/20 | read `INBOX` 1238 1/1 |
+
+So the search then the read of 1238 came in 7/20 with the shipped text and 1/20 in each baseline,
+and no draw read a guessed uid. Without a listing in the turn the draws differ, three distinct next
+calls in the shipped text's twenty, and the correction moves a count: without it this tier asks for
+the folder list. Five of the six replies with no call named uid 1238 off the listing and asked
+whether to read it; one wrote a body for 1238, which no answer held. By the task's rule `NOT_FOUND`
+holds in neither form and stays as it is. Run log: `~/.cache/cortex-run/2026-11-28/s6/logs/`.

@@ -19,6 +19,7 @@ from cortex_core import (
     Message,
     Role,
     ToolCall,
+    ToolError,
     ToolResult,
     ToolSpec,
     Trust,
@@ -216,6 +217,11 @@ _ARCHIVE_ASK = (
     "Find the one where Ann Weaver warns that my power will be cut off and read it to me. "
     "Look in my Archive folder as well as the inbox."
 )
+_NAMED_ASK = (
+    f"Read me message {MISSING_UID} in my inbox, the one where Ann Weaver warns that my power "
+    "will be cut off."
+)
+_RESEARCH_ID = "c3"
 
 
 @dataclass(frozen=True)
@@ -326,6 +332,8 @@ OTHER = "other"
 SOURCE_OUTCOMES = (RIGHT, OTHER_LINE, UNLISTED, NO_READ)
 CARRY_OUTCOMES = (CARRIED, CLEAN, OTHER)
 NEXT_OUTCOMES = (SEARCHED, RIGHT, OTHER_LINE, UNLISTED, OTHER)
+NO_SEARCH = "no-search"
+CHAIN_OUTCOMES = (RIGHT, OTHER_LINE, UNLISTED, SEARCHED, OTHER, NO_SEARCH)
 
 
 def _tally(outcomes: Sequence[str], names: Sequence[str]) -> str:
@@ -383,6 +391,13 @@ def score_next(reply: Reply) -> str:
     if made.name == _SEARCH_TOOL:
         return SEARCHED
     return _uid_outcome(made) if made.name == _READ_TOOL else OTHER
+
+
+def score_chain(first: Reply, then: Reply | None) -> str:
+    """What the call after a search did, or `no-search` when the first call was not a search."""
+    if then is None or score_next(first) != SEARCHED:
+        return NO_SEARCH
+    return score_next(then)
 
 
 @dataclass(frozen=True)
@@ -513,3 +528,74 @@ def _written(reply: Reply) -> str:
     return (
         f"{call.text_argument('folder')} {call.text_argument('uid')}{call.text_argument('query')}"
     )
+
+
+async def _answered(call: ToolCall) -> Step:
+    """The real sidecar's answer to a call the model made, stamped as the brain stamps it."""
+    try:
+        result = await _sidecar().invoke(call)
+    except ToolError as err:
+        return Step(call, str(err), Trust.TRUSTED, is_error=True)
+    return Step(call, result.content, Trust.UNTRUSTED, is_error=result.is_error)
+
+
+async def _then(
+    client: httpx.AsyncClient,
+    steps: Sequence[Step],
+    specs: Sequence[ToolSpec],
+    seed: int,
+    first: Reply,
+) -> Reply | None:
+    """The call drawn after the sidecar answers ``first``'s search, or ``None`` with no search."""
+    if score_next(first) != SEARCHED:
+        return None
+    made = first.calls[0]
+    search = ToolCall(id=_RESEARCH_ID, name=made.name, arguments=dict(made.arguments))
+    messages = turn_messages(_NAMED_ASK, [*steps, await _answered(search)])
+    return await _draw(client, messages, specs, seed)
+
+
+def _trail(reply: Reply | None) -> str:
+    """A reply's first call and its arguments, or its text when it made no call."""
+    if reply is None:
+        return "-"
+    if not reply.calls:
+        return "(no call) " + " ".join(reply.content.split())[:400]
+    return f"{reply.calls[0].name} {_written(reply)}"
+
+
+@pytest.mark.integration
+async def test_what_the_cortex_does_when_a_named_uid_is_not_found() -> None:
+    specs = await email_tool_specs()
+    missing = ToolCall(
+        id=_READ_ID, name=_READ_TOOL, arguments={"folder": WITH_MAIL, "uid": MISSING_UID}
+    )
+    variants = (
+        ("corrected (shipped)", await sidecar_answer(missing)),
+        ("prior (no correction)", PRIOR_ANSWER),
+        ("bare failure (baseline)", bare_failure(missing)),
+    )
+    print(f"\n=== named: a uid the request names and no message has, {DRAWS} draws a text ===")  # noqa: T201
+    emitted: dict[str, int] = {}
+    with _server():
+        async with httpx.AsyncClient(timeout=_DRAW_TIMEOUT_S) as client:
+            for label, answer in variants:
+                steps = [Step(missing, answer, Trust.TRUSTED)]
+                messages = turn_messages(_NAMED_ASK, steps)
+                firsts = [await _draw(client, messages, specs, seed) for seed in range(DRAWS)]
+                thens = [
+                    await _then(client, steps, specs, seed, first)
+                    for seed, first in enumerate(firsts)
+                ]
+                chains = list(zip(firsts, thens, strict=True))
+                outcomes = [score_chain(first, then) for first, then in chains]
+                for seed, ((first, then), outcome) in enumerate(zip(chains, outcomes, strict=True)):
+                    trail = f"{_trail(first)} | {_trail(then)}"
+                    print(f"  {label:23s} seed={seed:<3d} {outcome:10s} {trail}")  # noqa: T201
+                nexts = [score_next(first) for first in firsts]
+                _report(f"named next {label}", firsts, nexts, NEXT_OUTCOMES)
+                lasts = [then or first for first, then in chains]
+                _report(f"named last {label}", lasts, outcomes, CHAIN_OUTCOMES)
+                emitted[label] = sum(1 for reply in firsts if reply.calls)
+    mute = [label for label, calls in emitted.items() if calls == 0]
+    assert not mute, f"named: {mute} emitted no call, so the counts measure silence"
